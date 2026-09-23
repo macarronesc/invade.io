@@ -59,6 +59,15 @@ const SAVE_PATH = "user://invade_save.json"
 func _ready() -> void:
 	load_game()
 
+func get_total_stars() -> int:
+	var total = 0
+	for lvl in completed_levels:
+		total += completed_levels[lvl]
+	return total
+
+func get_max_possible_stars() -> int:
+	return 30 * 3 # 6 continentes * 5 niveles * 3 estrellas
+
 func get_starting_troops_bonus() -> int:
 	return upgrades.get("starting_troops", 0) * 5
 

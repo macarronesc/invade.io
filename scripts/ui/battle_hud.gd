@@ -1,7 +1,9 @@
 extends CanvasLayer
 class_name BattleHUD
 
-## BattleHUD: Interfaz en pantalla durante la batalla (barra de dominancia, estados y modales)
+const UIThemeHelper = preload("res://scripts/ui/ui_theme_helper.gd")
+
+## BattleHUD: Interfaz táctica State.io durante la batalla (barra de dominancia, estados y modales animados)
 
 @export var battle_controller: BattleController
 
@@ -15,6 +17,7 @@ class_name BattleHUD
 @onready var label_count_enemy: Label = %LabelCountEnemy
 @onready var label_count_neutral: Label = %LabelCountNeutral
 @onready var faction_counts_container: HBoxContainer = %FactionCountsContainer
+@onready var dim_overlay: ColorRect = %DimOverlay
 
 var crown_bob_time: float = 0.0
 var target_crown_x: float = 0.0
@@ -37,10 +40,12 @@ var leader_faction: int = GameManager.Faction.PLAYER
 @onready var defeat_panel: Control = %DefeatPanel
 @onready var btn_retry: Button = %BtnRetry
 @onready var btn_defeat_upgrade: Button = %BtnDefeatUpgrade
+@onready var btn_defeat_map: Button = %BtnDefeatMap
 
 @onready var pause_panel: Control = %PausePanel
 @onready var btn_pause: Button = %BtnPause
 @onready var btn_resume: Button = %BtnResume
+@onready var btn_pause_sound: Button = %BtnPauseSound
 @onready var btn_pause_retry: Button = %BtnPauseRetry
 @onready var btn_pause_map: Button = %BtnPauseMap
 
@@ -61,6 +66,8 @@ func _cleanup_time_scale() -> void:
 		battle_controller.reset_time_scale()
 
 func _ensure_node_references() -> void:
+	if not dim_overlay:
+		dim_overlay = get_node_or_null("%DimOverlay") if has_node("%DimOverlay") else get_node_or_null("DimOverlay")
 	if not victory_panel:
 		victory_panel = get_node_or_null("%VictoryPanel") if has_node("%VictoryPanel") else get_node_or_null("VictoryPanel")
 	if not victory_title:
@@ -102,11 +109,18 @@ func _ensure_node_references() -> void:
 		label_count_enemy = get_node_or_null("%LabelCountEnemy") if has_node("%LabelCountEnemy") else get_node_or_null("TopBar/FactionCountsContainer/LabelCountEnemy")
 	if not faction_counts_container:
 		faction_counts_container = get_node_or_null("%FactionCountsContainer") if has_node("%FactionCountsContainer") else get_node_or_null("TopBar/FactionCountsContainer")
+	if not btn_defeat_map:
+		btn_defeat_map = get_node_or_null("%BtnDefeatMap") if has_node("%BtnDefeatMap") else get_node_or_null("DefeatPanel/VBox/BtnDefeatMap")
+	if not btn_pause_sound:
+		btn_pause_sound = get_node_or_null("%BtnPauseSound") if has_node("%BtnPauseSound") else get_node_or_null("PausePanel/VBox/BtnPauseSound")
 
 func _ready() -> void:
 	_cleanup_time_scale()
 	_ensure_node_references()
+	_apply_visual_styling()
+	
 	# Ocultar modales al iniciar
+	if dim_overlay: dim_overlay.visible = false
 	if victory_panel: victory_panel.visible = false
 	if defeat_panel: defeat_panel.visible = false
 	if pause_panel: pause_panel.visible = false
@@ -122,14 +136,59 @@ func _ready() -> void:
 	btn_resume.pressed.connect(_on_resume_pressed)
 	btn_pause_retry.pressed.connect(_on_retry_pressed)
 	btn_pause_map.pressed.connect(_on_map_pressed)
+	if btn_pause_sound:
+		btn_pause_sound.pressed.connect(_on_pause_sound_pressed)
+		_update_pause_sound_label(AudioManager.is_muted)
 	
 	btn_next_level.pressed.connect(_on_next_level_pressed)
 	btn_victory_map.pressed.connect(_on_map_pressed)
 	btn_retry.pressed.connect(_on_retry_pressed)
 	btn_defeat_upgrade.pressed.connect(_on_upgrade_pressed)
+	if btn_defeat_map:
+		btn_defeat_map.pressed.connect(_on_map_pressed)
 	
 	if battle_controller and battle_controller.level_data:
 		label_level_name.text = battle_controller.level_data.get("name", "Batalla")
+
+func _apply_visual_styling() -> void:
+	if btn_pause:
+		UIThemeHelper.apply_stateio_button_style(btn_pause, Color(0.18, 0.24, 0.32), Color.TRANSPARENT, 14, 4)
+	if victory_panel:
+		UIThemeHelper.apply_card_style(victory_panel, Color(0.12, 0.16, 0.22, 0.96), Color(0.25, 0.70, 0.40, 0.8), 24, 3)
+	if defeat_panel:
+		UIThemeHelper.apply_card_style(defeat_panel, Color(0.18, 0.12, 0.14, 0.96), Color(0.85, 0.25, 0.20, 0.8), 24, 3)
+	if pause_panel:
+		UIThemeHelper.apply_card_style(pause_panel, Color(0.12, 0.15, 0.20, 0.96), Color(0.25, 0.45, 0.65, 0.8), 24, 3)
+		
+	# Botones de modales
+	if btn_next_level:
+		UIThemeHelper.apply_stateio_button_style(btn_next_level, UIThemeHelper.COLOR_SUCCESS, Color.TRANSPARENT, 18, 6)
+	if btn_victory_map:
+		UIThemeHelper.apply_stateio_button_style(btn_victory_map, UIThemeHelper.COLOR_PRIMARY, Color.TRANSPARENT, 16, 5)
+	if btn_retry:
+		UIThemeHelper.apply_stateio_button_style(btn_retry, UIThemeHelper.COLOR_PRIMARY, Color.TRANSPARENT, 18, 6)
+	if btn_defeat_upgrade:
+		UIThemeHelper.apply_stateio_button_style(btn_defeat_upgrade, Color(0.16, 0.50, 0.42), Color.TRANSPARENT, 16, 5)
+	if btn_defeat_map:
+		UIThemeHelper.apply_stateio_button_style(btn_defeat_map, Color(0.20, 0.26, 0.35), Color.TRANSPARENT, 16, 4)
+	if btn_resume:
+		UIThemeHelper.apply_stateio_button_style(btn_resume, UIThemeHelper.COLOR_PRIMARY, Color.TRANSPARENT, 18, 6)
+	if btn_pause_sound:
+		UIThemeHelper.apply_stateio_button_style(btn_pause_sound, Color(0.22, 0.30, 0.40), Color.TRANSPARENT, 16, 4)
+	if btn_pause_retry:
+		UIThemeHelper.apply_stateio_button_style(btn_pause_retry, Color(0.22, 0.30, 0.40), Color.TRANSPARENT, 16, 4)
+	if btn_pause_map:
+		UIThemeHelper.apply_stateio_button_style(btn_pause_map, Color(0.20, 0.26, 0.35), Color.TRANSPARENT, 16, 4)
+
+func _update_pause_sound_label(muted: bool) -> void:
+	if btn_pause_sound:
+		btn_pause_sound.text = "🔇 SONIDO: SILENCIADO" if muted else "🔊 SONIDO: ACTIVADO"
+
+func _on_pause_sound_pressed() -> void:
+	var new_muted = AudioManager.toggle_mute()
+	_update_pause_sound_label(new_muted)
+	if not new_muted:
+		AudioManager.play_click()
 
 func _on_battle_started(level_id: String) -> void:
 	var data = LevelDatabase.get_level_data(level_id)
@@ -285,7 +344,6 @@ func _on_battle_won(stats: Dictionary) -> void:
 	var slow_motion_on = false
 	if battle_controller and is_instance_valid(battle_controller):
 		slow_motion_on = battle_controller.is_slow_motion_active
-	# Si está activa la cámara lenta cinemática del asalto decisivo, permitir que concluya suavemente
 	if is_inside_tree() and (slow_motion_on or Engine.time_scale < 0.95):
 		var timer = get_tree().create_timer(0.65, true, false, true)
 		timer.timeout.connect(func():
@@ -296,11 +354,13 @@ func _on_battle_won(stats: Dictionary) -> void:
 		deploy_victory_modal(stats)
 
 func deploy_victory_modal(stats: Dictionary) -> void:
-	# Garantizar que al desplegarse el modal de victoria, Engine.time_scale se restablezca limpiamente a 1.0
 	_cleanup_time_scale()
 	_ensure_node_references()
+	if dim_overlay:
+		dim_overlay.visible = true
 	if victory_panel:
-		victory_panel.visible = true
+		UIThemeHelper.animate_modal_pop_in(victory_panel)
+		
 	var stars_count = stats.get("stars", 1)
 	var is_continent_conquest = stats.get("is_continent_conquest", false)
 	
@@ -409,21 +469,34 @@ func animate_stars(stars_count: int) -> void:
 func _on_battle_lost() -> void:
 	_cleanup_time_scale()
 	_ensure_node_references()
-	if defeat_panel: defeat_panel.visible = true
+	if dim_overlay:
+		dim_overlay.visible = true
+	if defeat_panel:
+		UIThemeHelper.animate_modal_pop_in(defeat_panel)
 
 func _on_pause_pressed() -> void:
 	AudioManager.play_click()
 	_cleanup_time_scale()
 	_ensure_node_references()
-	if pause_panel: pause_panel.visible = true
+	_update_pause_sound_label(AudioManager.is_muted)
+	if dim_overlay:
+		dim_overlay.visible = true
+	if pause_panel:
+		UIThemeHelper.animate_modal_pop_in(pause_panel)
 	get_tree().paused = true
 
 func _on_resume_pressed() -> void:
 	AudioManager.play_click()
 	_cleanup_time_scale()
 	_ensure_node_references()
-	if pause_panel: pause_panel.visible = false
-	get_tree().paused = false
+	if pause_panel:
+		UIThemeHelper.animate_modal_pop_out(pause_panel, func():
+			if dim_overlay: dim_overlay.visible = false
+			get_tree().paused = false
+		)
+	else:
+		if dim_overlay: dim_overlay.visible = false
+		get_tree().paused = false
 
 func _on_retry_pressed() -> void:
 	AudioManager.play_click()

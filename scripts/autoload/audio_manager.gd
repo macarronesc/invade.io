@@ -6,6 +6,14 @@ var is_muted: bool = false
 var audio_player: AudioStreamPlayer
 var generator: AudioStreamGenerator
 
+func toggle_mute() -> bool:
+	set_muted(not is_muted)
+	return is_muted
+
+func set_muted(muted: bool) -> void:
+	is_muted = muted
+	EventBus.sound_toggled.emit(is_muted)
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	audio_player = AudioStreamPlayer.new()

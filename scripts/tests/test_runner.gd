@@ -79,6 +79,11 @@ func run_all_tests() -> void:
 	test_slice_gesture_and_troop_retreat()
 	test_under_siege_alert_trigger_and_deactivation()
 	test_hud_counters_and_leadership_crown()
+	test_main_menu_ui_and_ambient_system()
+	test_world_map_campaign_route_and_briefing()
+	test_upgrade_menu_cards_and_pips()
+	test_battle_hud_modals_and_sound_toggle()
+	test_cartographic_background_and_theme_helper()
 
 func test_base_production_mechanics() -> void:
 	print("-> Test: Producción de Tropas y Límites de Capacidad")
@@ -1928,6 +1933,324 @@ func test_hud_counters_and_leadership_crown() -> void:
 	b_neutral.free()
 	battle.free()
 
+func test_main_menu_ui_and_ambient_system() -> void:
+	print("\n-> Test: Menú Principal State.io, Sistema Ambiental y Estadísticas de Campaña")
+	var MainMenuScene = load("res://scenes/ui/main_menu.tscn")
+	var menu: MainMenuUI = MainMenuScene.instantiate()
+	add_child(menu)
+	
+	# 1. Verificar nodos e interactivos clave
+	assert_true(menu.btn_play != null, "Botón central de juego existe")
+	assert_true(menu.btn_world_map != null, "Botón de mapa mundial existe")
+	assert_true(menu.btn_upgrades != null, "Botón de tienda de mejoras existe")
+	assert_true(menu.btn_reset != null, "Botón de reiniciar progreso existe")
+	assert_true(menu.coins_label != null, "Etiqueta de monedas de oro existe")
+	assert_true(menu.stars_label != null, "Etiqueta de estrellas de campaña existe")
+	assert_true(menu.btn_sound != null, "Botón de conmutación de sonido existe")
+	assert_true(menu.stars_pill != null, "Píldora visual de estrellas existe")
+	assert_true(menu.coins_pill != null, "Píldora visual de monedas existe")
+	
+	# 2. Fondo CartographicBackground y sistema ambiental
+	var bg = menu.get_node_or_null("CartographicBackground") as CartographicBackground
+	assert_true(bg != null, "CartographicBackground está presente en MainMenu")
+	assert_true(bg.show_ambient_nodes, "show_ambient_nodes está activo en el fondo del menú principal")
+	assert_equals(bg.ambient_nodes.size(), 8, "Existen exactamente 8 nodos geopolíticos ambientales configurados")
+	
+	var p0 = bg.ambient_nodes[0].pos
+	bg._process(0.2)
+	assert_true(bg.ambient_nodes[0].pos != p0, "Nodos ambientales se desplazan continuamente mediante velocidad y delta")
+	
+	# Rebote en límites
+	bg.ambient_nodes[0].pos.x = 40.0
+	bg.ambient_nodes[0].vel.x = -20.0
+	bg._process(0.05)
+	assert_true(bg.ambient_nodes[0].pos.x >= 60.0 and bg.ambient_nodes[0].vel.x > 0.0, "Nodos ambientales rebotan suavemente en los bordes")
+	
+	# 3. Monedas y Estrellas en vivo
+	assert_true(menu.coins_label.text.contains(str(GameManager.coins)), "Etiqueta de monedas muestra saldo actual")
+	EventBus.coins_updated.emit(420)
+	assert_true(menu.coins_label.text.contains("420"), "Etiqueta de monedas responde a EventBus.coins_updated")
+	
+	var total_stars = GameManager.get_total_stars()
+	var max_stars = GameManager.get_max_possible_stars()
+	assert_true(menu.stars_label.text.contains("%d/%d" % [total_stars, max_stars]), "Etiqueta de estrellas refleja estrellas totales de campaña")
+	
+	# 4. Alternancia de sonido
+	var initial_muted = AudioManager.is_muted
+	menu._on_sound_toggle_pressed()
+	assert_equals(AudioManager.is_muted, not initial_muted, "Pulsar botón de sonido alterna el estado de AudioManager")
+	assert_equals(menu.btn_sound.text, "🔇" if not initial_muted else "🔊", "Texto de icono del botón refleja el estado silenciado")
+	menu._on_sound_toggle_pressed()
+	assert_equals(AudioManager.is_muted, initial_muted, "Pulsar nuevamente restaura el estado de sonido")
+	
+	# 5. Reinicio de progreso
+	menu._on_reset_pressed()
+	assert_equals(GameManager.coins, 150, "Reiniciar progreso restaura monedas iniciales a 150")
+	assert_equals(GameManager.get_total_stars(), 0, "Reiniciar progreso resetea estrellas completadas a 0")
+	assert_true(menu.coins_label.text.contains("150"), "Etiqueta de monedas se actualiza tras reseteo")
+	assert_true(menu.stars_label.text.contains("0/90"), "Etiqueta de estrellas se actualiza a 0/90 tras reseteo")
+	
+	remove_child(menu)
+	menu.free()
 
+func test_world_map_campaign_route_and_briefing() -> void:
+	print("\n-> Test: Mapa Mundial State.io, Ruta de Campaña Interconectada y Panel de Briefing")
+	var WorldMapScene = load("res://scenes/ui/world_map.tscn")
+	var world_map: WorldMapUI = WorldMapScene.instantiate()
+	add_child(world_map)
+	
+	# 1. Verificar existencia de nodos principales
+	assert_true(world_map.continent_title != null, "Título de continente existe")
+	assert_true(world_map.btn_prev_continent != null, "Botón continente anterior existe")
+	assert_true(world_map.btn_next_continent != null, "Botón continente siguiente existe")
+	assert_true(world_map.levels_container != null, "Contenedor de niveles existe")
+	assert_true(world_map.route_container != null, "Contenedor de ruta existe")
+	assert_true(world_map.briefing_panel != null, "Panel de briefing de misión existe")
+	assert_true(world_map.briefing_title != null, "Título de briefing existe")
+	assert_true(world_map.briefing_desc != null, "Descripción de briefing existe")
+	assert_true(world_map.briefing_stars != null, "Estrellas en briefing existen")
+	assert_true(world_map.stat_bases != null, "Estadística de bases existe")
+	assert_true(world_map.stat_enemy != null, "Estadística de rivales existe")
+	assert_true(world_map.stat_target_time != null, "Estadística de tiempo objetivo existe")
+	assert_true(world_map.btn_start_level != null, "Botón iniciar asalto existe")
+	
+	# 2. Navegación de continentes
+	assert_equals(world_map.continents.size(), 6, "Existen 6 continentes configurados")
+	var orig_idx = world_map.current_continent_index
+	world_map._on_next_continent()
+	assert_equals(world_map.current_continent_index, (orig_idx + 1) % 6, "Avanzar continente incrementa índice correctamente")
+	world_map._on_prev_continent()
+	assert_equals(world_map.current_continent_index, orig_idx, "Retroceder continente restaura índice original")
+	
+	# 3. Nodos de la ruta de campaña (5 niveles por continente)
+	world_map.current_continent_index = 0 # Europa
+	world_map._refresh_display()
+	var active_nodes = world_map.levels_container.get_children().filter(func(c): return not c.is_queued_for_deletion())
+	assert_equals(active_nodes.size(), 5, "Existen exactamente 5 nodos de campaña para Europa")
+	
+	var node1 = world_map.levels_container.get_node_or_null("NodeHolder_1")
+	assert_true(node1 != null, "NodeHolder_1 presente en la ruta")
+	var btn1 = node1.get_node_or_null("BtnLevel_1") as Button
+	assert_true(btn1 != null, "BtnLevel_1 presente")
+	assert_true(not btn1.disabled, "Nivel 1 de Europa está desbloqueado")
+	
+	var node5 = world_map.levels_container.get_node_or_null("NodeHolder_5")
+	assert_true(node5 != null, "NodeHolder_5 presente en la ruta")
+	var btn5 = node5.get_node_or_null("BtnLevel_5") as Button
+	assert_true(btn5 != null, "BtnLevel_5 presente")
+	assert_true(btn5.disabled, "Nivel 5 de Europa está bloqueado inicialmente")
+	assert_equals(btn5.text, "🔒", "Nivel bloqueado muestra candado")
+	
+	# 4. Actualización del panel de briefing
+	world_map._select_level("europe_1")
+	assert_equals(world_map.selected_level_id, "europe_1", "Nivel europe_1 seleccionado")
+	assert_true(world_map.briefing_title.text.length() > 0, "Título de briefing cargado")
+	assert_true(world_map.stat_bases.text.contains("Bases"), "Estadística de bases refleja guarnición táctica")
+	assert_true(not world_map.btn_start_level.disabled, "Botón iniciar asalto habilitado para nivel desbloqueado")
+	assert_equals(world_map.btn_start_level.text, "⚔️ INICIAR ASALTO", "Texto de asalto para nivel disponible")
+	
+	world_map._select_level("europe_5")
+	assert_equals(world_map.selected_level_id, "europe_5", "Nivel europe_5 seleccionado")
+	assert_true(world_map.btn_start_level.disabled, "Botón iniciar asalto deshabilitado para nivel bloqueado")
+	assert_equals(world_map.btn_start_level.text, "🔒 NIVEL BLOQUEADO", "Texto de botón indica nivel bloqueado")
+	
+	# 5. Simulación de animación de marcha táctica
+	var initial_phase = world_map.marching_phase
+	world_map._process(0.1)
+	assert_true(world_map.marching_phase != initial_phase, "Fase de puntos de marcha avanza continuamente")
+	
+	remove_child(world_map)
+	world_map.free()
 
+func test_upgrade_menu_cards_and_pips() -> void:
+	print("\n-> Test: Tienda Táctica de Mejoras, Tarjetas 2.5D y Barras de 10 Pips")
+	GameManager.reset_save()
+	var UpgradeMenuScene = load("res://scenes/ui/upgrade_menu.tscn")
+	var upgrade_menu: UpgradeMenuUI = UpgradeMenuScene.instantiate()
+	add_child(upgrade_menu)
+	
+	# 1. Verificar nodos principales
+	assert_true(upgrade_menu.cards_container != null, "CardsContainer existe en UpgradeMenu")
+	assert_true(upgrade_menu.coins_label != null, "CoinsLabel existe en UpgradeMenu")
+	assert_true(upgrade_menu.stars_label != null, "StarsLabel existe en UpgradeMenu")
+	assert_true(upgrade_menu.btn_back != null, "BtnBack existe en UpgradeMenu")
+	
+	# 2. Verificar las 4 tarjetas de mejoras tácticas
+	var active_cards = upgrade_menu.cards_container.get_children().filter(func(c): return not c.is_queued_for_deletion())
+	assert_equals(active_cards.size(), 4, "Existen exactamente 4 tarjetas de mejoras tácticas")
+	
+	# 3. Verificar barra segmentada de 10 pips en la primera tarjeta
+	var card0 = active_cards[0] as PanelContainer
+	assert_true(card0 != null, "Tarjeta 0 es un PanelContainer")
+	var pips_box: HBoxContainer = null
+	for child in card0.find_children("", "HBoxContainer", true, false):
+		if child.get_child_count() == 10:
+			pips_box = child
+			break
+	assert_true(pips_box != null, "Contenedor de pips encontrado en la tarjeta")
+	assert_equals(pips_box.get_child_count(), 10, "La barra segmentada contiene exactamente 10 pips de nivel")
+	
+	# 4. Proceso de compra y actualización de pips y economía
+	GameManager.coins = 500
+	upgrade_menu._update_coins(500)
+	var cost = GameManager.get_upgrade_cost("starting_troops")
+	upgrade_menu._buy_upgrade("starting_troops")
+	assert_equals(GameManager.upgrades["starting_troops"], 1, "Mejora 'starting_troops' incrementada a nivel 1")
+	assert_equals(GameManager.coins, 500 - cost, "Oro descontado tras la compra")
+	assert_true(upgrade_menu.coins_label.text.contains(str(500 - cost)), "CoinsLabel refleja el saldo de oro restante")
+	
+	# 5. Tarjeta en nivel máximo (MÁXIMO y deshabilitado)
+	GameManager.upgrades["starting_troops"] = 10
+	upgrade_menu._build_cards()
+	var updated_cards = upgrade_menu.cards_container.get_children().filter(func(c): return not c.is_queued_for_deletion())
+	var card_max = updated_cards[0]
+	var buy_btn: Button = null
+	for b in card_max.find_children("", "Button", true, false):
+		buy_btn = b
+		break
+	assert_true(buy_btn != null, "Botón de compra encontrado en tarjeta maximizada")
+	assert_true(buy_btn.disabled, "Botón de compra deshabilitado en nivel máximo")
+	assert_equals(buy_btn.text, "MÁXIMO", "Texto de botón muestra 'MÁXIMO'")
+	
+	GameManager.reset_save()
+	remove_child(upgrade_menu)
+	upgrade_menu.free()
 
+func test_battle_hud_modals_and_sound_toggle() -> void:
+	print("\n-> Test: Modales de Batalla (Pausa, Victoria, Derrota) y Alternancia de Sonido")
+	var BattleHUDScene = load("res://scenes/ui/battle_hud.tscn")
+	var hud: BattleHUD = BattleHUDScene.instantiate()
+	add_child(hud)
+	
+	# 1. Verificar nodos de modales y visibilidad inicial
+	assert_true(hud.dim_overlay != null, "DimOverlay existe")
+	assert_true(hud.victory_panel != null, "VictoryPanel existe")
+	assert_true(hud.defeat_panel != null, "DefeatPanel existe")
+	assert_true(hud.pause_panel != null, "PausePanel existe")
+	assert_true(hud.btn_pause != null, "BtnPause existe")
+	assert_true(hud.btn_resume != null, "BtnResume existe")
+	assert_true(hud.btn_pause_sound != null, "BtnPauseSound existe")
+	assert_true(not hud.dim_overlay.visible, "DimOverlay oculto inicialmente")
+	assert_true(not hud.victory_panel.visible, "VictoryPanel oculto inicialmente")
+	assert_true(not hud.defeat_panel.visible, "DefeatPanel oculto inicialmente")
+	assert_true(not hud.pause_panel.visible, "PausePanel oculto inicialmente")
+	
+	# 2. Modal de Pausa y Alternancia de Sonido
+	hud._on_pause_pressed()
+	assert_true(hud.pause_panel.visible, "PausePanel visible tras pausar")
+	assert_true(hud.dim_overlay.visible, "DimOverlay visible durante la pausa")
+	assert_true(get_tree().paused, "Árbol de escena queda pausado")
+	
+	var prev_muted = AudioManager.is_muted
+	hud._on_pause_sound_pressed()
+	assert_equals(AudioManager.is_muted, not prev_muted, "BtnPauseSound alterna el mute en AudioManager")
+	assert_true(hud.btn_pause_sound.text.contains("SILENCIADO" if not prev_muted else "ACTIVADO"), "Etiqueta de botón de pausa refleja estado de sonido")
+	hud._on_pause_sound_pressed()
+	assert_equals(AudioManager.is_muted, prev_muted, "BtnPauseSound restaura el estado original")
+	
+	hud._on_resume_pressed()
+	get_tree().paused = false
+	hud.pause_panel.visible = false
+	hud.dim_overlay.visible = false
+	
+	# 3. Modal de Victoria estándar y confeti
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 150, "is_continent_conquest": false})
+	assert_true(hud.victory_panel.visible, "VictoryPanel visible tras victoria")
+	assert_true(hud.dim_overlay.visible, "DimOverlay visible tras victoria")
+	assert_equals(hud.victory_title.text, "¡VICTORIA!", "Título de victoria estándar")
+	assert_true(hud.victory_reward_label.text.contains("150"), "Recompensa de oro mostrada correctamente (+150)")
+	assert_equals(hud.confetti_pieces.size(), 75, "Sistema de confeti genera 75 partículas festivas")
+	hud._update_confetti(0.1)
+	assert_true(hud.confetti_pieces.size() > 0, "Partículas de confeti se procesan sin error")
+	
+	# 4. Modal de Conquista Continental
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 300, "is_continent_conquest": true})
+	assert_equals(hud.victory_title.text, "¡CONTINENTE CONQUISTADO!", "Título de victoria continental aplicado")
+	
+	# 5. Modal de Derrota
+	hud.victory_panel.visible = false
+	hud._on_battle_lost()
+	assert_true(hud.defeat_panel.visible, "DefeatPanel visible tras derrota")
+	assert_true(hud.dim_overlay.visible, "DimOverlay visible tras derrota")
+	
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+	remove_child(hud)
+	hud.free()
+
+func test_cartographic_background_and_theme_helper() -> void:
+	print("\n-> Test: CartographicBackground State.io y UIThemeHelper Estilo 2.5D")
+	
+	# 1. Probar CartographicBackground
+	var bg = CartographicBackground.new()
+	assert_equals(bg.grid_spacing, 75.0, "grid_spacing por defecto es 75.0")
+	assert_equals(bg.mouse_filter, Control.MOUSE_FILTER_IGNORE, "Fondo ignora eventos de ratón (MOUSE_FILTER_IGNORE)")
+	
+	bg.show_ambient_nodes = false
+	bg._process(0.5)
+	assert_equals(bg.ambient_nodes.size(), 0, "Sin ambient nodes cuando show_ambient_nodes está desactivado")
+	
+	bg.show_ambient_nodes = true
+	bg._setup_ambient_nodes()
+	assert_equals(bg.ambient_nodes.size(), 8, "_setup_ambient_nodes inicializa 8 nodos tácticos")
+	var n0 = bg.ambient_nodes[0]
+	assert_true(n0.radius >= 22.0 and n0.radius <= 32.0, "Radio de nodo ambiental dentro del rango esperado")
+	assert_true(n0.troops >= 8 and n0.troops <= 35, "Guarnición de nodo ambiental generada dentro del rango")
+	
+	# Generación y poda de tropas ambientales: agrupar todos los nodos para asegurar distancia < 420
+	for i in range(bg.ambient_nodes.size()):
+		bg.ambient_nodes[i].pos = Vector2(200.0 + float(i) * 20.0, 200.0 + float(i) * 20.0)
+	var spawned = false
+	for _attempt in range(10):
+		bg.spawn_timer = 2.0
+		bg._process(0.05)
+		if bg.ambient_troops.size() > 0:
+			spawned = true
+			break
+	assert_true(spawned, "Tropa ambiental generada entre nodos cercanos")
+	if bg.ambient_troops.size() > 0:
+		var tr = bg.ambient_troops[0]
+		assert_true(tr.progress >= 0.0, "Tropa ambiental inicializada con progreso")
+		tr.progress = 1.0
+		bg._process(0.01)
+		assert_true(not bg.ambient_troops.has(tr), "Tropas ambientales que completan marcha son podadas limpiamente")
+	bg.free()
+	
+	# 2. Probar UIThemeHelper - Botones táctiles 2.5D
+	var btn = Button.new()
+	UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_PRIMARY, Color.TRANSPARENT, 18, 5)
+	assert_true(btn.has_theme_stylebox_override("normal"), "Estilo 'normal' aplicado al botón")
+	assert_true(btn.has_theme_stylebox_override("hover"), "Estilo 'hover' aplicado al botón")
+	assert_true(btn.has_theme_stylebox_override("pressed"), "Estilo 'pressed' aplicado al botón")
+	assert_true(btn.has_theme_stylebox_override("disabled"), "Estilo 'disabled' aplicado al botón")
+	assert_true(btn.has_theme_stylebox_override("focus"), "Estilo 'focus' aplicado al botón")
+	var sb_norm = btn.get_theme_stylebox("normal") as StyleBoxFlat
+	assert_equals(sb_norm.border_width_bottom, 5, "Profundidad 2.5D de borde inferior igual a 5")
+	assert_equals(sb_norm.corner_radius_top_left, 18, "Radio de esquina del botón igual a 18")
+	assert_equals(btn.get_theme_color("font_color"), Color.WHITE, "Color de fuente blanco aplicado")
+	btn.free()
+	
+	# 3. Probar UIThemeHelper - Tarjetas y Píldoras
+	var panel = PanelContainer.new()
+	UIThemeHelper.apply_card_style(panel, UIThemeHelper.COLOR_CARD, UIThemeHelper.COLOR_CARD_BORDER, 20, 2)
+	assert_true(panel.has_theme_stylebox_override("panel"), "Estilo 'panel' aplicado a PanelContainer")
+	var sb_card = panel.get_theme_stylebox("panel") as StyleBoxFlat
+	assert_equals(sb_card.corner_radius_top_left, 20, "Radio de esquina de tarjeta igual a 20")
+	assert_equals(sb_card.bg_color, UIThemeHelper.COLOR_CARD, "Color de fondo de tarjeta aplicado correctamente")
+	panel.free()
+	
+	var pill = PanelContainer.new()
+	UIThemeHelper.apply_pill_style(pill, UIThemeHelper.COLOR_HEADER_PILL, Color.WHITE, 22)
+	assert_true(pill.has_theme_stylebox_override("panel"), "Estilo de píldora aplicado")
+	var sb_pill = pill.get_theme_stylebox("panel") as StyleBoxFlat
+	assert_equals(sb_pill.corner_radius_top_left, 22, "Radio de píldora igual a 22")
+	pill.free()
+	
+	# 4. Probar animaciones de modal
+	var ctrl = Control.new()
+	add_child(ctrl)
+	UIThemeHelper.animate_modal_pop_in(ctrl)
+	assert_true(ctrl.visible, "animate_modal_pop_in hace visible el control")
+	UIThemeHelper.animate_modal_pop_out(ctrl)
+	remove_child(ctrl)
+	ctrl.free()
