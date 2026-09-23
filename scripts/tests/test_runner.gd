@@ -75,6 +75,10 @@ func run_all_tests() -> void:
 	test_slow_motion_and_time_scale_safety()
 	test_confetti_and_star_revelation()
 	test_audio_fanfares_and_continental_conquest()
+	test_bezier_curves_and_marching_dots()
+	test_slice_gesture_and_troop_retreat()
+	test_under_siege_alert_trigger_and_deactivation()
+	test_hud_counters_and_leadership_crown()
 
 func test_base_production_mechanics() -> void:
 	print("-> Test: Producción de Tropas y Límites de Capacidad")
@@ -1529,6 +1533,400 @@ func test_audio_fanfares_and_continental_conquest() -> void:
 	battle.reset_time_scale()
 	battle.free()
 	Engine.time_scale = 1.0
+
+func test_bezier_curves_and_marching_dots() -> void:
+	print("\n-> Test: Curva de Bezier Cuadrática Elástica, Slingshot Drag y Marching Dots")
+	var BattleControllerScript = load("res://scripts/battle/battle_controller.gd")
+	var battle = BattleControllerScript.new()
+	
+	# 1. Geometría de curva de Bezier cuadrática B(t) = (1-t)^2*P0 + 2(1-t)t*P1 + t^2*P2
+	var p0 = Vector2(100.0, 100.0)
+	var p1 = Vector2(300.0, 50.0)
+	var p2 = Vector2(500.0, 100.0)
+	
+	var pt_start = battle.evaluate_quadratic_bezier(p0, p1, p2, 0.0)
+	assert_true(pt_start.is_equal_approx(p0), "evaluate_quadratic_bezier retorna P0 en t = 0.0")
+	
+	var pt_end = battle.evaluate_quadratic_bezier(p0, p1, p2, 1.0)
+	assert_true(pt_end.is_equal_approx(p2), "evaluate_quadratic_bezier retorna P2 en t = 1.0")
+	
+	var pt_mid = battle.evaluate_quadratic_bezier(p0, p1, p2, 0.5)
+	var expected_mid = 0.25 * p0 + 0.5 * p1 + 0.25 * p2
+	assert_true(pt_mid.is_equal_approx(expected_mid), "evaluate_quadratic_bezier calcula punto medio cuadrático exacto en t = 0.5")
+	
+	# 2. Control Point con deformación dinámica por velocidad de arrastre
+	var cp_rest = battle.get_bezier_control_point(p0, p2, Vector2.ZERO)
+	var expected_center = (p0 + p2) * 0.5
+	assert_true(cp_rest.distance_to(expected_center) < 10.0, "Control point sin velocidad se mantiene centrado en el punto medio elástico")
+	
+	# Velocidad lateral perpendicular deflecta la curva
+	var normal = Vector2(0.0, 1.0)
+	var lateral_vel = normal * 400.0
+	var cp_deflected = battle.get_bezier_control_point(p0, p2, lateral_vel)
+	assert_true(cp_deflected.y > cp_rest.y, "Velocidad de arrastre lateral deforma dinámicamente el punto de control Bezier en la dirección normal")
+	
+	# Robustez ante distancia cero entre puntos
+	var cp_zero = battle.get_bezier_control_point(p0, p0, Vector2(100, 100))
+	assert_true(cp_zero.is_equal_approx(p0), "get_bezier_control_point maneja distancia cero entre origen y destino sin errores de división por cero")
+	
+	# 3. Muestreo de puntos de la curva
+	var sampled = battle.sample_bezier_points(p0, p1, p2, 24)
+	assert_equals(sampled.size(), 25, "sample_bezier_points genera exactamente segments + 1 muestras")
+	assert_true(sampled[0].is_equal_approx(p0), "Primer punto muestreado coincide con P0")
+	assert_true(sampled[sampled.size() - 1].is_equal_approx(p2), "Último punto muestreado coincide con P2")
+	
+	# 4. Marching dots y avance de fase continuo
+	var initial_phase = battle.marching_dots_phase
+	battle._process(0.2)
+	assert_true(battle.marching_dots_phase > initial_phase, "marching_dots_phase avanza continuamente en _process")
+	assert_true(battle.marching_dots_phase >= 0.0 and battle.marching_dots_phase < 1.0, "marching_dots_phase se mantiene acotado en rango modular [0.0, 1.0)")
+	
+	# 5. Ejecución segura de _draw_drag_overlay sin fallos
+	var BaseNodeScript = load("res://scripts/battle/base_node.gd")
+	var base_src = BaseNodeScript.new()
+	base_src.global_position = Vector2(100, 100)
+	base_src.radius = 50.0
+	battle.selected_sources.append(base_src)
+	battle.is_dragging = true
+	battle.drag_current_pos = Vector2(350, 120)
+	var draw_callable = Callable(battle, "_draw_drag_overlay")
+	battle.draw.connect(draw_callable)
+	battle.notification(CanvasItem.NOTIFICATION_DRAW)
+	battle.draw.disconnect(draw_callable)
+	assert_true(true, "_draw_drag_overlay renderiza curva cónica Bezier, marching dots y flecha poligonal sin errores")
+	
+	base_src.free()
+	battle.free()
+
+func test_slice_gesture_and_troop_retreat() -> void:
+	print("\n-> Test: Gesto de Corte Táctico (Slice-to-Cut), Detección de Intersección y Retirada a Base Origen")
+	var BattleControllerScript = load("res://scripts/battle/battle_controller.gd")
+	var BaseNodeScript = load("res://scripts/battle/base_node.gd")
+	
+	var battle = BattleControllerScript.new()
+	add_child(battle)
+	
+	var base_a = BaseNodeScript.new()
+	base_a.global_position = Vector2(100.0, 200.0)
+	base_a.radius = 50.0
+	base_a.faction = GameManager.Faction.PLAYER
+	base_a.troops = 20
+	battle.add_child(base_a)
+	battle.bases.append(base_a)
+	
+	var base_b = BaseNodeScript.new()
+	base_b.global_position = Vector2(500.0, 200.0)
+	base_b.radius = 50.0
+	base_b.faction = GameManager.Faction.ENEMY_1
+	base_b.troops = 15
+	battle.add_child(base_b)
+	battle.bases.append(base_b)
+	
+	# 1. Despachar tropas aliadas de Base A hacia Base B
+	battle.dispatch_troops(base_a, base_b, 1.0)
+	assert_equals(battle.active_troops.size(), 1, "Tropa aliada despachada correctamente")
+	var troop = battle.active_troops[0]
+	assert_equals(troop.count, 19, "Pelotón despachado contiene 19 tropas reteniendo 1 centinela")
+	assert_equals(base_a.troops, 1, "Base de origen retiene 1 centinela de guardia")
+	
+	# Avanzar delta para que las perlas emerjan y se desplieguen en marcha
+	troop._process(0.4)
+	var active_beads = troop.get_active_bead_positions()
+	assert_true(active_beads.size() >= 4, "Tropas han emergido formando una hilera activa sobre el mapa")
+	
+	# 2. Detección de corte: un trazo lejano no interseca
+	var seg_far_a = Vector2(250.0, 50.0)
+	var seg_far_b = Vector2(250.0, 100.0)
+	assert_true(not troop.intersects_segment(seg_far_a, seg_far_b), "Segmento de corte fuera de la ruta no interseca con la tropa")
+	
+	# Un trazo que cruza perpendicularmente la hilera de tropas interseca
+	var seg_cut_a = Vector2(200.0, 100.0)
+	var seg_cut_b = Vector2(200.0, 300.0)
+	assert_true(troop.intersects_segment(seg_cut_a, seg_cut_b), "Segmento transversal interseca la hilera de tropas aliadas")
+	
+	# 3. Retirada táctica (abort_mission / retreat)
+	assert_true(not troop.is_retreating, "Tropa no está en retirada antes del corte")
+	troop.abort_mission()
+	assert_true(troop.is_retreating, "abort_mission() activa estado is_retreating = true")
+	assert_equals(troop.target_base, base_a, "Objetivo de la tropa en retirada conmuta a la base de origen (Base A)")
+	assert_true(troop.move_dir.x < 0.0, "Vector de desplazamiento move_dir se invierte apuntando hacia la base origen")
+	
+	# 4. Simular avance de retirada y reintegración en la guarnición aliada
+	var initial_garrison = base_a.troops
+	var returning_units = troop.count
+	
+	for _frame in range(30):
+		if not is_instance_valid(troop) or troop.count <= 0:
+			break
+		troop._process(0.1)
+		
+	assert_true(base_a.troops >= (initial_garrison + returning_units - 1), "Tropas en retirada se reintegran con éxito en la guarnición aliada de Base A")
+	
+	# 5. Integración del gesto de corte completo desde BattleController
+	base_a.troops = 20
+	battle.dispatch_troops(base_a, base_b, 1.0)
+	var troop2 = battle.active_troops[battle.active_troops.size() - 1]
+	troop2._process(0.35)
+	
+	# Iniciar corte fuera de una base aliada
+	battle._handle_press(Vector2(50.0, 50.0))
+	assert_true(battle.is_slicing, "Pulsación fuera de una base aliada inicia gesto de corte (is_slicing = true)")
+	assert_true(not battle.is_dragging, "is_dragging permanece false durante el gesto de corte")
+	
+	# Realizar swipe cortando la trayectoria
+	AudioManager.last_played_sfx = ""
+	battle._handle_slice_motion(Vector2(200.0, 50.0))
+	battle._handle_slice_motion(Vector2(200.0, 350.0))
+	assert_true(troop2.is_retreating, "Gesto swipe interseca convoy aliado y activa retirada inmediata")
+	assert_equals(AudioManager.last_played_sfx, "retreat", "AudioManager emite feedback de audio de retirada")
+	assert_true(battle.slice_trail_segments.size() > 0, "Gesto de corte genera estela visual de cuchilla")
+	assert_true(battle.slice_cut_flash_effects.size() > 0, "Corte exitoso genera efecto visual de destello")
+	
+	battle._handle_release(Vector2(200.0, 350.0))
+	assert_true(not battle.is_slicing, "Liberación de entrada finaliza el corte (is_slicing = false)")
+	
+	# 6. Detección de corte sobre la trayectoria adelantada a las perlas
+	base_a.troops = 20
+	battle.dispatch_troops(base_a, base_b, 1.0)
+	var troop3 = battle.active_troops[battle.active_troops.size() - 1]
+	troop3._process(0.08)
+	var seg_traj_cut_a = Vector2(380.0, 100.0)
+	var seg_traj_cut_b = Vector2(380.0, 300.0)
+	assert_true(troop3.intersects_segment(seg_traj_cut_a, seg_traj_cut_b), "Corte sobre la trayectoria proyectada interseca con éxito")
+	troop3.abort_mission()
+	assert_true(troop3.is_retreating, "Tropa con corte sobre trayectoria proyectada inicia retirada")
+	assert_true(not troop3.intersects_segment(seg_traj_cut_a, seg_traj_cut_b), "Tropa en retirada no vuelve a intersecar corte")
+	
+	# 7. Reintegro inmediato en lote cuando las perlas no han emergido aún
+	base_a.troops = 25
+	battle.dispatch_troops(base_a, base_b, 1.0)
+	var troop4 = battle.active_troops[battle.active_troops.size() - 1]
+	assert_equals(base_a.troops, 1, "Guarnición retiene 1 centinela al despachar 24")
+	troop4.abort_mission()
+	assert_equals(base_a.troops, 25, "Tropas no emergidas se reintegran en lote de forma limpia a la base de origen")
+	
+	remove_child(battle)
+	base_a.free()
+	base_b.free()
+	battle.free()
+
+func test_under_siege_alert_trigger_and_deactivation() -> void:
+	print("\n-> Test: Alerta Visual de Asedio Inminente (Under Siege Alert), Detección Perimetral y Desactivación")
+	var BaseNodeScript = load("res://scripts/battle/base_node.gd")
+	var TroopScript = load("res://scripts/battle/troop.gd")
+	
+	var base_player = BaseNodeScript.new()
+	add_child(base_player)
+	base_player.global_position = Vector2(300.0, 300.0)
+	base_player.radius = 50.0
+	base_player.faction = GameManager.Faction.PLAYER
+	base_player.troops = 10
+	base_player.base_type = BaseNode.BaseType.STANDARD
+	
+	var base_enemy = BaseNodeScript.new()
+	base_enemy.global_position = Vector2(800.0, 300.0)
+	base_enemy.faction = GameManager.Faction.ENEMY_1
+	base_enemy.troops = 30
+	
+	# 1. Estado inicial: sin amenaza
+	base_player.update_siege_status([])
+	assert_true(not base_player.is_under_siege, "Base aliada sin convoyes entrantes no está bajo asedio (is_under_siege = false)")
+	assert_equals(base_player.get_effective_defense(), 10, "Capacidad defensiva efectiva de base Standard con 10 tropas es exactamente 10")
+	
+	# 2. Convoy hostil lejano (distancia > 220px)
+	var t_far = TroopScript.new()
+	t_far.setup(base_enemy, base_player, 18, GameManager.Faction.ENEMY_1)
+	t_far.global_position = Vector2(600.0, 300.0)
+	base_player.update_siege_status([t_far])
+	assert_true(not base_player.is_under_siege, "Convoy hostil a distancia > 220px no dispara alerta de asedio")
+	
+	# 3. Convoy hostil cercano (distancia <= 220px) pero inferior a la defensa
+	var t_close_weak = TroopScript.new()
+	t_close_weak.setup(base_enemy, base_player, 8, GameManager.Faction.ENEMY_1)
+	t_close_weak.global_position = Vector2(450.0, 300.0)
+	base_player.update_siege_status([t_close_weak])
+	assert_true(not base_player.is_under_siege, "Convoy hostil cercano (8 tropas) inferior a la guarnición (10 tropas) no activa asedio")
+	
+	# 4. Convoy hostil cercano superior a la defensa efectiva (18 tropas > 10 defensa)
+	var t_close_strong = TroopScript.new()
+	t_close_strong.setup(base_enemy, base_player, 18, GameManager.Faction.ENEMY_1)
+	t_close_strong.global_position = Vector2(450.0, 300.0)
+	base_player.update_siege_status([t_close_strong])
+	assert_true(base_player.is_under_siege, "Convoy hostil cercano que supera la defensa activa alerta is_under_siege = true")
+	
+	# Animación de pulso de advertencia en _process
+	base_player._process(0.1)
+	assert_true(base_player.siege_pulse_time > 0.0, "siege_pulse_time acumula tiempo para halo y marcador ⚠ animado")
+	
+	# 5. Efecto de especialización FORTALEZA (defensa 2x)
+	base_player.base_type = BaseNode.BaseType.FORTRESS
+	assert_equals(base_player.get_effective_defense(), 20, "Fortaleza con 10 tropas posee defensa efectiva de 20 (2x)")
+	base_player.update_siege_status([t_close_strong])
+	assert_true(not base_player.is_under_siege, "Fortaleza con defensa 20 neutraliza la alerta frente a 18 atacantes")
+	
+	var t_fortress_threat = TroopScript.new()
+	t_fortress_threat.setup(base_enemy, base_player, 25, GameManager.Faction.ENEMY_1)
+	t_fortress_threat.global_position = Vector2(450.0, 300.0)
+	base_player.update_siege_status([t_fortress_threat])
+	assert_true(base_player.is_under_siege, "25 atacantes superan los 20 defensores de la fortaleza y reactivan is_under_siege")
+	
+	# 6. Efecto de especialización FÁBRICA (defensa 0.5x)
+	base_player.base_type = BaseNode.BaseType.FACTORY
+	assert_equals(base_player.get_effective_defense(), 5, "Fábrica con 10 tropas posee defensa efectiva reducida de 5 (0.5x)")
+	base_player.update_siege_status([t_close_weak])
+	assert_true(base_player.is_under_siege, "8 atacantes superan la débil defensa de fábrica (5) activando is_under_siege")
+	
+	# 7. Desactivación automática al recibir refuerzos aliados
+	base_player.troops = 10
+	base_player.base_type = BaseNode.BaseType.STANDARD
+	base_player.update_siege_status([t_close_strong])
+	assert_true(base_player.is_under_siege, "Base Standard bajo asedio por 18 atacantes")
+	
+	# Llegan 15 tropas aliadas de refuerzo
+	base_player.receive_troops(GameManager.Faction.PLAYER, 15)
+	assert_equals(base_player.troops, 25, "Guarnición reforzada sube a 25 tropas")
+	assert_equals(base_player.get_effective_defense(), 25, "Defensa efectiva aumenta a 25")
+	base_player.update_siege_status([t_close_strong])
+	assert_true(not base_player.is_under_siege, "Llegada de refuerzos desactiva automáticamente is_under_siege")
+	
+	# 8. Desactivación automática al retirarse o eliminarse la amenaza
+	t_close_strong.abort_mission()
+	base_player.troops = 10
+	base_player.update_siege_status([t_close_strong])
+	assert_true(not base_player.is_under_siege, "Retirada del convoy hostil desactiva la alerta de asedio")
+	
+	# 9. Base neutral no activa alerta
+	var base_neutral = BaseNodeScript.new()
+	base_neutral.faction = GameManager.Faction.NEUTRAL
+	base_neutral.troops = 5
+	base_neutral.update_siege_status([t_close_weak])
+	assert_true(not base_neutral.is_under_siege, "Base neutral no activa alerta de asedio")
+	
+	# 10. Desactivación automática al terminar la batalla (victoria / derrota)
+	base_player.troops = 5
+	var t_final_threat = TroopScript.new()
+	t_final_threat.setup(base_enemy, base_player, 18, GameManager.Faction.ENEMY_1)
+	t_final_threat.global_position = Vector2(450.0, 300.0)
+	base_player.update_siege_status([t_final_threat])
+	assert_true(base_player.is_under_siege, "Base aliada entra bajo asedio con 5 tropas frente a 18")
+	EventBus.battle_won.emit({})
+	assert_true(not base_player.is_under_siege, "Victoria de batalla desactiva y limpia inmediatamente la alerta de asedio")
+	assert_true(not base_player.is_active, "Base queda marcada inactiva tras fin de batalla")
+	
+	t_final_threat.free()
+	remove_child(base_player)
+	t_far.free()
+	t_close_weak.free()
+	t_close_strong.free()
+	t_fortress_threat.free()
+	base_neutral.free()
+	base_player.free()
+	base_enemy.free()
+
+func test_hud_counters_and_leadership_crown() -> void:
+	print("\n-> Test: Contadores Numéricos en Tiempo Real y Corona de Liderazgo en el HUD")
+	var BattleHUDScene = load("res://scenes/ui/battle_hud.tscn")
+	var BattleControllerScript = load("res://scripts/battle/battle_controller.gd")
+	var BaseNodeScript = load("res://scripts/battle/base_node.gd")
+	
+	var hud: BattleHUD = BattleHUDScene.instantiate()
+	add_child(hud)
+	
+	# 1. Verificar nodos de interfaz en BattleHUD
+	assert_true(hud.leader_crown != null, "Nodo LeaderCrown existe en BattleHUD")
+	assert_true(hud.label_count_player != null, "Nodo LabelCountPlayer existe en TopBar")
+	assert_true(hud.label_count_neutral != null, "Nodo LabelCountNeutral existe en TopBar")
+	assert_true(hud.label_count_enemy != null, "Nodo LabelCountEnemy existe en TopBar")
+	assert_true(hud.faction_counts_container != null, "Nodo FactionCountsContainer existe en TopBar")
+	
+	# 2. Vincular a BattleController y verificar conteos iniciales
+	var battle = BattleControllerScript.new()
+	add_child(battle)
+	for b in battle.bases:
+		b.queue_free()
+	battle.bases.clear()
+	battle.active_troops.clear()
+	hud.battle_controller = battle
+	
+	var b_player = BaseNodeScript.new()
+	b_player.faction = GameManager.Faction.PLAYER
+	b_player.troops = 35
+	battle.bases.append(b_player)
+	
+	var b_enemy = BaseNodeScript.new()
+	b_enemy.faction = GameManager.Faction.ENEMY_1
+	b_enemy.troops = 20
+	battle.bases.append(b_enemy)
+	
+	var b_neutral = BaseNodeScript.new()
+	b_neutral.faction = GameManager.Faction.NEUTRAL
+	b_neutral.troops = 15
+	battle.bases.append(b_neutral)
+	
+	# Ejecutar actualización de dominancia y contadores numéricos
+	hud._update_dominance_bar()
+	
+	assert_true(hud.label_count_player.text.contains("35"), "LabelCountPlayer muestra el conteo vivo del jugador (Azul: 35)")
+	assert_true(hud.label_count_enemy.text.contains("20"), "LabelCountEnemy muestra el conteo vivo del enemigo (Rojo: 20)")
+	assert_true(hud.label_count_neutral.text.contains("15"), "LabelCountNeutral muestra el conteo vivo neutral (Gris: 15)")
+	
+	# 3. Liderazgo del jugador: Corona dorada sobre el segmento azul
+	assert_equals(hud.get_leader_faction(), GameManager.Faction.PLAYER, "Jugador con 35 tropas es la facción líder (PLAYER)")
+	assert_true(hud.leader_crown.visible, "Corona de liderazgo visible en HUD")
+	
+	# La coordenada X de la corona debe estar en la mitad izquierda (segmento del jugador)
+	hud._process(0.1)
+	var top_bar = hud.get_node_or_null("TopBar") as Control
+	var top_w = top_bar.size.x if (top_bar and top_bar.size.x > 0.0) else 1080.0
+	var bar_midpoint = top_w * 0.5
+	assert_true(hud.leader_crown.position.x < bar_midpoint, "Corona de liderazgo posicionada sobre el segmento del jugador")
+	
+	# 4. Transición dinámica de liderazgo hacia el enemigo
+	# El enemigo recluta o asalta masivamente (suma 50 tropas -> total 70 tropas enemigas frente a 35 del jugador)
+	b_enemy.troops = 70
+	hud._update_dominance_bar()
+	
+	assert_equals(hud.get_leader_faction(), GameManager.Faction.ENEMY_1, "Liderazgo conmuta dinámicamente al enemigo al superar en tropas al jugador")
+	assert_true(hud.label_count_enemy.text.contains("70"), "LabelCountEnemy refleja inmediatamente el incremento a 70 tropas")
+	
+	# Ejecutar varios frames de lerp para que la corona se desplace hacia el segmento enemigo
+	var pos_initial = hud.leader_crown.position.x
+	hud._process(0.05)
+	var pos_step1 = hud.leader_crown.position.x
+	assert_true(pos_step1 > pos_initial, "Corona de liderazgo avanza progresivamente mediante lerp hacia la derecha")
+	
+	for _i in range(9):
+		hud._process(0.05)
+	assert_true(hud.leader_crown.position.x > bar_midpoint, "Corona de liderazgo se desplaza suavemente hacia el segmento derecho del enemigo líder")
+	
+	# 5. Soporte para múltiples facciones enemigas y determinación del líder individual
+	var b_enemy2 = BaseNodeScript.new()
+	b_enemy2.faction = GameManager.Faction.ENEMY_2
+	b_enemy2.troops = 12
+	battle.bases.append(b_enemy2)
+	hud._update_dominance_bar()
+	assert_true(hud.label_count_enemy.text.contains("12") or hud.label_count_enemy.text.contains("Otros"), "LabelCountEnemy reporta adecuadamente múltiples facciones enemigas activas")
+	
+	# Jugador lidera individualmente con 35 tropas frente a Enemigo 1 (20) y Enemigo 2 (12)
+	b_player.troops = 35
+	b_enemy.troops = 20
+	b_enemy2.troops = 12
+	hud._update_dominance_bar()
+	assert_equals(hud.get_leader_faction(), GameManager.Faction.PLAYER, "Jugador (35) lidera individualmente frente a Enemigo 1 (20) y Enemigo 2 (12)")
+	
+	# Enemigo 2 supera a todos individualmente (50 tropas)
+	b_enemy2.troops = 50
+	hud._update_dominance_bar()
+	assert_equals(hud.get_leader_faction(), GameManager.Faction.ENEMY_2, "Enemigo 2 toma el liderazgo con 50 tropas")
+	
+	remove_child(hud)
+	remove_child(battle)
+	hud.free()
+	b_player.free()
+	b_enemy.free()
+	b_enemy2.free()
+	b_neutral.free()
+	battle.free()
 
 
 

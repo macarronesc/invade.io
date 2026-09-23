@@ -18,6 +18,14 @@ var hovered_target: BaseNode = null
 var candidate_chained_base: BaseNode = null
 var is_dragging: bool = false
 var drag_current_pos: Vector2 = Vector2.ZERO
+var prev_drag_pos: Vector2 = Vector2.ZERO
+var drag_velocity: Vector2 = Vector2.ZERO
+var marching_dots_phase: float = 0.0
+
+var is_slicing: bool = false
+var slice_points: Array[Vector2] = []
+var slice_trail_segments: Array[Dictionary] = []
+var slice_cut_flash_effects: Array[Dictionary] = []
 
 var is_game_over: bool = false
 var battle_time: float = 0.0
@@ -128,6 +136,7 @@ func _process(delta: float) -> void:
 		battle_time += delta
 		_check_decisive_assault()
 		_process_troop_collisions()
+		_update_siege_alerts()
 		_check_game_over_conditions()
 		
 	# Transición suave de cámara lenta
@@ -138,9 +147,36 @@ func _process(delta: float) -> void:
 		var unscaled_dt = delta / maxf(Engine.time_scale, 0.01)
 		Engine.time_scale = move_toward(Engine.time_scale, 1.0, unscaled_dt * SLOW_MOTION_SPEED)
 
+	# Actualizar animación de marcha de puntos y amortiguación de velocidad de arrastre
+	marching_dots_phase = fmod(marching_dots_phase + delta * 1.6, 1.0)
+	drag_velocity = drag_velocity.lerp(Vector2.ZERO, delta * 6.0)
+	
+	# Desvanecimiento y limpieza de segmentos de estela de corte
+	var i = slice_trail_segments.size() - 1
+	while i >= 0:
+		var seg = slice_trail_segments[i]
+		seg["alpha"] -= delta * 3.8
+		if seg["alpha"] <= 0.0:
+			slice_trail_segments.remove_at(i)
+		i -= 1
+		
+	# Desvanecimiento y limpieza de destellos de corte
+	var j = slice_cut_flash_effects.size() - 1
+	while j >= 0:
+		var flash = slice_cut_flash_effects[j]
+		flash["timer"] -= delta
+		if flash["timer"] <= 0.0:
+			slice_cut_flash_effects.remove_at(j)
+		j -= 1
+
 	queue_redraw()
 	if arrow_overlay:
 		arrow_overlay.queue_redraw()
+
+func _update_siege_alerts() -> void:
+	for b in bases:
+		if is_instance_valid(b):
+			b.update_siege_status(active_troops)
 
 func _check_decisive_assault() -> void:
 	if is_game_over:
@@ -337,28 +373,88 @@ func _unhandled_input(event: InputEvent) -> void:
 				_handle_press(get_global_mouse_position())
 			else:
 				_handle_release(get_global_mouse_position())
-	elif event is InputEventMouseMotion and is_dragging:
-		_handle_drag(get_global_mouse_position())
+	elif event is InputEventMouseMotion:
+		if is_dragging:
+			_handle_drag(get_global_mouse_position())
+		elif is_slicing:
+			_handle_slice_motion(get_global_mouse_position())
 	elif event is InputEventScreenTouch:
+		var touch_pos = get_canvas_transform().affine_inverse() * event.position
 		if event.pressed:
-			_handle_press(get_global_mouse_position())
+			_handle_press(touch_pos)
 		else:
-			_handle_release(get_global_mouse_position())
-	elif event is InputEventScreenDrag and is_dragging:
-		_handle_drag(get_global_mouse_position())
+			_handle_release(touch_pos)
+	elif event is InputEventScreenDrag:
+		var drag_pos = get_canvas_transform().affine_inverse() * event.position
+		if is_dragging:
+			_handle_drag(drag_pos)
+		elif is_slicing:
+			_handle_slice_motion(drag_pos)
 
 func _handle_press(pos: Vector2) -> void:
 	var base = _get_base_at(pos)
 	if base and base.faction == GameManager.Faction.PLAYER:
 		is_dragging = true
+		is_slicing = false
 		selected_sources.clear()
 		_add_selected_source(base)
 		drag_current_pos = pos
+		prev_drag_pos = pos
+		drag_velocity = Vector2.ZERO
 		hovered_target = null
 		candidate_chained_base = null
 		AudioManager.play_click()
+	else:
+		_start_slice(pos)
+
+func _start_slice(pos: Vector2) -> void:
+	is_slicing = true
+	is_dragging = false
+	slice_points.clear()
+	slice_points.append(pos)
+
+func _handle_slice_motion(pos: Vector2) -> void:
+	if not is_slicing:
+		return
+	if slice_points.is_empty():
+		slice_points.append(pos)
+		return
+	var prev_pt = slice_points.back()
+	if prev_pt.distance_to(pos) >= 5.0:
+		slice_points.append(pos)
+		slice_trail_segments.append({
+			"p1": prev_pt,
+			"p2": pos,
+			"alpha": 1.0,
+			"width": 6.5
+		})
+		_check_slice_intersections(prev_pt, pos)
+
+func _check_slice_intersections(p1: Vector2, p2: Vector2) -> void:
+	if is_game_over:
+		return
+	var any_cut = false
+	for t in active_troops:
+		if not is_instance_valid(t) or t.is_queued_for_deletion() or t.count <= 0:
+			continue
+		# Solo tropas aliadas que no se encuentren ya en retirada
+		if t.faction == GameManager.Faction.PLAYER and not t.is_retreating:
+			if t.intersects_segment(p1, p2):
+				t.abort_mission()
+				any_cut = true
+				var mid = (p1 + p2) * 0.5
+				slice_cut_flash_effects.append({
+					"pos": mid,
+					"timer": 0.35,
+					"max_time": 0.35
+				})
+	if any_cut:
+		AudioManager.play_troop_retreat()
 
 func _handle_drag(pos: Vector2) -> void:
+	var move_delta = pos - prev_drag_pos
+	drag_velocity = drag_velocity.lerp(move_delta * 30.0, 0.4)
+	prev_drag_pos = pos
 	drag_current_pos = pos
 	var base = _get_base_at(pos)
 	
@@ -387,6 +483,21 @@ func _handle_drag(pos: Vector2) -> void:
 		hovered_target = null
 
 func _handle_release(pos: Vector2) -> void:
+	if is_slicing:
+		if not slice_points.is_empty():
+			var prev_pt = slice_points.back()
+			if prev_pt.distance_to(pos) >= 4.0:
+				slice_trail_segments.append({
+					"p1": prev_pt,
+					"p2": pos,
+					"alpha": 1.0,
+					"width": 6.5
+				})
+				_check_slice_intersections(prev_pt, pos)
+		is_slicing = false
+		slice_points.clear()
+		return
+
 	if not is_dragging:
 		return
 	is_dragging = false
@@ -541,7 +652,7 @@ func _trigger_defeat() -> void:
 	AudioManager.play_defeat()
 	EventBus.battle_lost.emit()
 
-func get_dominance_ratios() -> Dictionary:
+func get_faction_troop_counts() -> Dictionary:
 	var counts = {
 		GameManager.Faction.PLAYER: 0,
 		GameManager.Faction.ENEMY_1: 0,
@@ -549,36 +660,92 @@ func get_dominance_ratios() -> Dictionary:
 		GameManager.Faction.ENEMY_3: 0,
 		GameManager.Faction.NEUTRAL: 0
 	}
-	var total: int = 0
 	for b in bases:
 		if is_instance_valid(b):
 			counts[b.faction] = counts.get(b.faction, 0) + b.troops
-			total += b.troops
 			
 	for t in active_troops:
 		if is_instance_valid(t) and not t.is_queued_for_deletion() and t.count > 0:
 			counts[t.faction] = counts.get(t.faction, 0) + t.count
-			total += t.count
+	return counts
+
+func get_dominance_ratios() -> Dictionary:
+	var counts = get_faction_troop_counts()
+	var total: int = 0
+	for f in counts:
+		total += counts[f]
 			
 	var ratios = {}
 	for f in counts:
 		ratios[f] = (float(counts[f]) / float(total)) if total > 0 else 0.0
 	return ratios
 
+func get_bezier_control_point(p0: Vector2, p2: Vector2, vel: Vector2 = Vector2.ZERO) -> Vector2:
+	var mid = (p0 + p2) * 0.5
+	var diff = p2 - p0
+	var dist = diff.length()
+	if dist < 2.0:
+		return mid
+	var dir = diff / dist
+	var normal = Vector2(-dir.y, dir.x)
+	# Deformación lateral elástica basada en la velocidad de arrastre
+	var lat_vel = vel.dot(normal)
+	var vel_offset = normal * clampf(lat_vel * 0.12, -50.0, 50.0)
+	# Leve arqueo elástico orgánico (slingshot bow)
+	var bow_amount = sin(marching_dots_phase * TAU) * 2.5
+	return mid + vel_offset + normal * bow_amount
+
+func evaluate_quadratic_bezier(p0: Vector2, p1: Vector2, p2: Vector2, t: float) -> Vector2:
+	var u = 1.0 - t
+	return u * u * p0 + 2.0 * u * t * p1 + t * t * p2
+
+func sample_bezier_points(p0: Vector2, p1: Vector2, p2: Vector2, segments: int = 24) -> PackedVector2Array:
+	var pts = PackedVector2Array()
+	pts.resize(segments + 1)
+	for i in range(segments + 1):
+		var t = float(i) / float(segments)
+		pts[i] = evaluate_quadratic_bezier(p0, p1, p2, t)
+	return pts
+
+func _draw_slice_overlay(canvas: CanvasItem) -> void:
+	for seg in slice_trail_segments:
+		var alpha = clampf(seg.get("alpha", 1.0), 0.0, 1.0)
+		var p1 = canvas.to_local(seg["p1"])
+		var p2 = canvas.to_local(seg["p2"])
+		var w = seg.get("width", 6.5)
+		# Halo exterior cian
+		canvas.draw_line(p1, p2, Color(0.2, 0.85, 1.0, alpha * 0.4), w * 1.8, true)
+		# Filo interior blanco puro de cuchilla
+		canvas.draw_line(p1, p2, Color(1.0, 1.0, 1.0, alpha * 0.95), w, true)
+		
+	for flash in slice_cut_flash_effects:
+		var f_pos = canvas.to_local(flash["pos"])
+		var ratio = flash["timer"] / maxf(flash["max_time"], 0.001)
+		var f_r = 22.0 * (1.0 - ratio) + 6.0
+		var f_alpha = ratio
+		canvas.draw_circle(f_pos, f_r, Color(1.0, 1.0, 1.0, f_alpha * 0.6))
+		canvas.draw_circle(f_pos, f_r * 0.5, Color(0.2, 0.85, 1.0, f_alpha * 0.9))
+		canvas.draw_line(f_pos - Vector2(f_r * 1.3, 0), f_pos + Vector2(f_r * 1.3, 0), Color.WHITE, 2.0, true)
+		canvas.draw_line(f_pos - Vector2(0, f_r * 1.3), f_pos + Vector2(0, f_r * 1.3), Color.WHITE, 2.0, true)
+
 func _draw() -> void:
 	# Dibujar elementos cartográficos de fondo estilizados
 	var continent_id = level_data.get("continent", "europe")
 	_draw_cartographic_grid(continent_id)
 
-	# Si no hay nodo overlay separado (ej. tests unitarios), dibujar flechas directamente
+	# Si no hay nodo overlay separado (ej. tests unitarios), dibujar flechas y cortes directamente
 	if not arrow_overlay:
 		_draw_drag_overlay()
 
 func _draw_drag_overlay() -> void:
+	var canvas: CanvasItem = arrow_overlay if (arrow_overlay and is_instance_valid(arrow_overlay)) else self
+	
+	# Renderizar estelas de cuchilla y destellos de corte táctico
+	_draw_slice_overlay(canvas)
+	
 	if not is_dragging or selected_sources.is_empty():
 		return
 		
-	var canvas: CanvasItem = arrow_overlay if (arrow_overlay and is_instance_valid(arrow_overlay)) else self
 	var player_color = GameManager.FACTION_COLORS[GameManager.Faction.PLAYER]
 	var end_global = hovered_target.global_position if (hovered_target and is_instance_valid(hovered_target)) else drag_current_pos
 	var end_pt = canvas.to_local(end_global)
@@ -587,25 +754,89 @@ func _draw_drag_overlay() -> void:
 		if not is_instance_valid(src):
 			continue
 		var start_pt = canvas.to_local(src.global_position)
+		var dist = start_pt.distance_to(end_pt)
+		if dist < 10.0:
+			continue
+			
+		var p1 = get_bezier_control_point(start_pt, end_pt, drag_velocity)
+		var segments = clampi(int(dist / 14.0), 16, 36)
+		var curve_pts = sample_bezier_points(start_pt, p1, end_pt, segments)
 		
-		# Línea principal translúcida con brillo y borde
-		canvas.draw_line(start_pt, end_pt, Color(1, 1, 1, 0.45), 8.0, true)
-		canvas.draw_line(start_pt, end_pt, Color(player_color.r, player_color.g, player_color.b, 0.9), 4.5, true)
+		# 1. Construir geometría de grosor cónico adaptativo
+		var upper_pts = PackedVector2Array()
+		var lower_pts = PackedVector2Array()
+		var upper_glow = PackedVector2Array()
+		var lower_glow = PackedVector2Array()
 		
-		# Cabeza de flecha orientada
-		if start_pt.distance_to(end_pt) > 25.0:
-			var dir = (end_pt - start_pt).normalized()
-			var normal = Vector2(-dir.y, dir.x)
+		for i in range(curve_pts.size()):
+			var t = float(i) / float(curve_pts.size() - 1)
+			var pt = curve_pts[i]
+			var tangent: Vector2
+			if i < curve_pts.size() - 1:
+				tangent = (curve_pts[i + 1] - pt).normalized()
+			else:
+				tangent = (pt - curve_pts[i - 1]).normalized()
+			var normal = Vector2(-tangent.y, tangent.x)
+			
+			var w_core = lerpf(13.0, 3.5, t)
+			var w_glow = lerpf(20.0, 6.5, t)
+			
+			upper_pts.append(pt + normal * (w_core * 0.5))
+			lower_pts.append(pt - normal * (w_core * 0.5))
+			upper_glow.append(pt + normal * (w_glow * 0.5))
+			lower_glow.append(pt - normal * (w_glow * 0.5))
+			
+		# Halo exterior translúcido
+		var glow_poly = PackedVector2Array()
+		glow_poly.append_array(upper_glow)
+		for k in range(lower_glow.size() - 1, -1, -1):
+			glow_poly.append(lower_glow[k])
+		canvas.draw_colored_polygon(glow_poly, Color(1.0, 1.0, 1.0, 0.28))
+		
+		# Cuerpo cónico con color de facción
+		var core_poly = PackedVector2Array()
+		core_poly.append_array(upper_pts)
+		for k in range(lower_pts.size() - 1, -1, -1):
+			core_poly.append(lower_pts[k])
+		canvas.draw_colored_polygon(core_poly, Color(player_color.r, player_color.g, player_color.b, 0.92))
+		
+		# 2. Puntos animados fluidos (Marching Dots)
+		var num_dots = clampi(int(dist / 38.0), 6, 14)
+		for d in range(num_dots):
+			var t_dot = fmod(marching_dots_phase + float(d) / float(num_dots), 1.0)
+			if t_dot < 0.05 or t_dot > 0.93:
+				continue
+			var dot_pos = evaluate_quadratic_bezier(start_pt, p1, end_pt, t_dot)
+			var dot_r = lerpf(4.5, 2.4, t_dot)
+			canvas.draw_circle(dot_pos, dot_r + 1.5, Color(1.0, 1.0, 1.0, 0.35))
+			canvas.draw_circle(dot_pos, dot_r, Color.WHITE)
+			
+		# 3. Cabeza de flecha poligonal orientada estilizada
+		if dist > 20.0:
+			var tip = end_pt
+			var end_sample = evaluate_quadratic_bezier(start_pt, p1, end_pt, 0.92)
+			var arrow_dir = (tip - end_sample).normalized()
+			if arrow_dir.length_squared() < 0.01:
+				arrow_dir = (end_pt - start_pt).normalized()
+			var arrow_normal = Vector2(-arrow_dir.y, arrow_dir.x)
 			var arrow_size = 22.0
-			var p1 = end_pt
-			var p2 = end_pt - dir * arrow_size + normal * (arrow_size * 0.5)
-			var p3 = end_pt - dir * arrow_size - normal * (arrow_size * 0.5)
-			canvas.draw_colored_polygon(PackedVector2Array([p1, p2, p3]), Color.WHITE)
+			
+			var p_tip = tip
+			var p_wing1 = tip - arrow_dir * arrow_size + arrow_normal * (arrow_size * 0.52)
+			var p_notch = tip - arrow_dir * (arrow_size * 0.72)
+			var p_wing2 = tip - arrow_dir * arrow_size - arrow_normal * (arrow_size * 0.52)
+			
+			var arrow_poly = PackedVector2Array([p_tip, p_wing1, p_notch, p_wing2])
+			canvas.draw_polyline(PackedVector2Array([p_tip, p_wing1, p_notch, p_wing2, p_tip]), Color.WHITE, 2.0, true)
+			canvas.draw_colored_polygon(arrow_poly, Color(player_color.r, player_color.g, player_color.b, 0.98))
+			canvas.draw_colored_polygon(PackedVector2Array([p_tip, p_wing1, p_notch]), Color(1.0, 1.0, 1.0, 0.3))
 			
 	# Anillo de fijación sobre el objetivo actual
 	if hovered_target and is_instance_valid(hovered_target):
 		var h_pos = canvas.to_local(hovered_target.global_position)
-		canvas.draw_arc(h_pos, hovered_target.radius + 16.0, 0, TAU, 48, Color(1, 1, 1, 0.95), 3.5, true)
+		var ring_pulse = 1.0 + sin(marching_dots_phase * TAU * 2.0) * 0.04
+		canvas.draw_arc(h_pos, (hovered_target.radius + 16.0) * ring_pulse, 0, TAU, 48, Color(1, 1, 1, 0.95), 3.5, true)
+		canvas.draw_circle(h_pos, (hovered_target.radius + 16.0) * ring_pulse, Color(1, 1, 1, 0.08))
 
 func _draw_cartographic_grid(continent: String) -> void:
 	# Dibujar retícula cartográfica de fondo y título del continente

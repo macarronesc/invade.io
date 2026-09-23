@@ -44,15 +44,20 @@ var shockwave_radius: float = 0.0
 var shockwave_alpha: float = 0.0
 var shockwave_color: Color = Color.WHITE
 
+var is_under_siege: bool = false
+const SIEGE_RADIUS: float = 220.0
+var siege_pulse_time: float = 0.0
+var siege_incoming_hostile_count: int = 0
+
 var is_active: bool = true
 
-@onready var collision_shape: CollisionShape2D = $CollisionShape2D
-@onready var label_troops: Label = $TroopLabel
-@onready var label_name: Label = $NameLabel
+@onready var collision_shape: CollisionShape2D = get_node_or_null("CollisionShape2D")
+@onready var label_troops: Label = get_node_or_null("TroopLabel")
+@onready var label_name: Label = get_node_or_null("NameLabel")
 
 func _ready() -> void:
-	EventBus.battle_won.connect(func(_stats): is_active = false)
-	EventBus.battle_lost.connect(func(): is_active = false)
+	EventBus.battle_won.connect(func(_stats): is_active = false; is_under_siege = false; siege_incoming_hostile_count = 0; queue_redraw())
+	EventBus.battle_lost.connect(func(): is_active = false; is_under_siege = false; siege_incoming_hostile_count = 0; queue_redraw())
 	_update_tier_parameters()
 	_update_label()
 	queue_redraw()
@@ -74,6 +79,45 @@ func get_defense_multiplier() -> float:
 			return 0.5
 		_:
 			return 1.0
+
+func get_effective_defense() -> int:
+	match base_type:
+		BaseType.FORTRESS:
+			return maxi(0, troops * 2 - fortress_absorbed_damage)
+		BaseType.FACTORY:
+			return int(ceil(float(troops) / 2.0))
+		_:
+			return troops
+
+func update_siege_status(troops_list: Array) -> void:
+	if not is_active or faction == GameManager.Faction.NEUTRAL:
+		is_under_siege = false
+		siege_incoming_hostile_count = 0
+		return
+		
+	var effective_def = get_effective_defense()
+	var hostile_incoming = 0
+	var has_close_hostile = false
+	
+	for t in troops_list:
+		if not is_instance_valid(t) or t.is_queued_for_deletion() or t.count <= 0:
+			continue
+		if t.target_base == self and t.faction != faction and t.faction != GameManager.Faction.NEUTRAL:
+			var d = global_position.distance_to(t.global_position)
+			if d <= SIEGE_RADIUS:
+				hostile_incoming += t.count
+				has_close_hostile = true
+				
+	siege_incoming_hostile_count = hostile_incoming
+	
+	if has_close_hostile and hostile_incoming > effective_def:
+		is_under_siege = true
+	else:
+		is_under_siege = false
+
+func evaluate_siege(troops_list: Array) -> bool:
+	update_siege_status(troops_list)
+	return is_under_siege
 
 func set_base_type(p_type) -> void:
 	_set_type_from_variant(p_type)
@@ -197,6 +241,9 @@ func _process(delta: float) -> void:
 		label_troops.scale = elastic_scale * pulse_scale
 		label_troops.pivot_offset = Vector2(50.0, 25.0)
 		
+	if is_under_siege:
+		siege_pulse_time += delta * 6.5
+		
 	queue_redraw()
 
 func _trigger_generation_pulse() -> void:
@@ -205,6 +252,8 @@ func _trigger_generation_pulse() -> void:
 
 func _trigger_conquest_shockwave(new_faction: int) -> void:
 	# Rebote elástico dramático de conquista + onda expansiva State.io
+	is_under_siege = false
+	siege_incoming_hostile_count = 0
 	elastic_scale = Vector2(1.32, 1.32)
 	elastic_velocity = Vector2(3.5, 3.5)
 	shake_intensity = 6.0
@@ -447,6 +496,41 @@ func _draw() -> void:
 		draw_circle(pip_pos + Vector2(0, 2), 4.5, Color(0, 0, 0, 0.35))
 		draw_circle(pip_pos, 4.5, Color.WHITE)
 		draw_circle(pip_pos, 3.0, Color(0.92, 0.92, 0.96))
+		
+	# 10. Alerta Visual de Asedio Inminente (Under Siege Alert)
+	if is_under_siege and is_active:
+		var p = (sin(siege_pulse_time) + 1.0) * 0.5
+		var halo_r = current_radius + 12.0 + p * 8.0
+		var halo_col = Color(1.0, 0.15, 0.15, 0.45 + p * 0.45)
+		draw_arc(Vector2.ZERO, halo_r, 0, TAU, 48, halo_col, 4.0, true)
+		draw_circle(Vector2.ZERO, halo_r, Color(1.0, 0.1, 0.1, 0.07 + p * 0.08))
+		
+		# Marcador de exclamación ⚠ animado sobre el territorio
+		var badge_y = -current_radius - 32.0 + sin(siege_pulse_time * 1.5) * 4.0
+		var badge_center = Vector2(0, badge_y)
+		
+		# Glow exterior del marcador
+		draw_circle(badge_center, 18.0 + p * 3.0, Color(1.0, 0.2, 0.2, 0.35 * p))
+		
+		# Triángulo de advertencia estilizado
+		var tri_size = 17.0
+		var p_top = badge_center + Vector2(0, -tri_size * 0.95)
+		var p_right = badge_center + Vector2(tri_size * 0.95, tri_size * 0.65)
+		var p_left = badge_center + Vector2(-tri_size * 0.95, tri_size * 0.65)
+		var tri_pts = PackedVector2Array([p_top, p_right, p_left])
+		
+		# Sombra del marcador
+		var shadow_pts = PackedVector2Array([p_top + Vector2(0, 3), p_right + Vector2(0, 3), p_left + Vector2(0, 3)])
+		draw_colored_polygon(shadow_pts, Color(0, 0, 0, 0.35))
+		
+		# Relleno del triángulo amarillo de advertencia
+		draw_colored_polygon(tri_pts, Color(1.0, 0.82, 0.1))
+		# Borde rojo de contraste
+		draw_polyline(PackedVector2Array([p_top, p_right, p_left, p_top]), Color(0.9, 0.15, 0.1), 2.2, true)
+		
+		# Signo de exclamación ! en negro en el centro
+		draw_line(badge_center + Vector2(0, -tri_size * 0.28), badge_center + Vector2(0, tri_size * 0.16), Color(0.12, 0.12, 0.12), 2.8, true)
+		draw_circle(badge_center + Vector2(0, tri_size * 0.38), 1.7, Color(0.12, 0.12, 0.12))
 		
 	# Restablecer transformación
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

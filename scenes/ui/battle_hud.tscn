@@ -47,6 +47,62 @@ custom_minimum_size = Vector2(268, 25)
 layout_mode = 2
 color = Color(0.96, 0.26, 0.21, 1)
 
+[node name="LeaderCrown" type="Label" parent="TopBar"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 240.0
+offset_top = 6.0
+offset_right = 276.0
+offset_bottom = 38.0
+theme_override_font_sizes/font_size = 24
+text = "👑"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="FactionCountsContainer" type="HBoxContainer" parent="TopBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -400.0
+offset_top = 70.0
+offset_right = 400.0
+offset_bottom = 96.0
+grow_horizontal = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="LabelCountPlayer" type="Label" parent="TopBar/FactionCountsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.7, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 18
+text = "Azul: 0"
+vertical_alignment = 1
+
+[node name="LabelCountNeutral" type="Label" parent="TopBar/FactionCountsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.8, 0.85, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 18
+text = "Gris: 0"
+vertical_alignment = 1
+
+[node name="LabelCountEnemy" type="Label" parent="TopBar/FactionCountsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.35, 0.3, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 18
+text = "Rojo: 0"
+vertical_alignment = 1
+
 [node name="LevelNameLabel" type="Label" parent="TopBar"]
 unique_name_in_owner = true
 layout_mode = 1
@@ -54,9 +110,9 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -300.0
-offset_top = 85.0
+offset_top = 100.0
 offset_right = 300.0
-offset_bottom = 135.0
+offset_bottom = 145.0
 grow_horizontal = 2
 theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
 theme_override_constants/outline_size = 6

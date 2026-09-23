@@ -10,6 +10,16 @@ class_name BattleHUD
 @onready var bar_player: ColorRect = %BarPlayer
 @onready var bar_enemy: ColorRect = %BarEnemy
 @onready var bar_neutral: ColorRect = %BarNeutral
+@onready var leader_crown: Label = %LeaderCrown
+@onready var label_count_player: Label = %LabelCountPlayer
+@onready var label_count_enemy: Label = %LabelCountEnemy
+@onready var label_count_neutral: Label = %LabelCountNeutral
+@onready var faction_counts_container: HBoxContainer = %FactionCountsContainer
+
+var crown_bob_time: float = 0.0
+var target_crown_x: float = 0.0
+var current_crown_x: float = 0.0
+var leader_faction: int = GameManager.Faction.PLAYER
 
 # Modales
 @onready var victory_panel: Control = %VictoryPanel
@@ -75,6 +85,23 @@ func _ensure_node_references() -> void:
 		confetti_overlay = get_node_or_null("%ConfettiOverlay") if has_node("%ConfettiOverlay") else get_node_or_null("VictoryPanel/ConfettiOverlay")
 		if confetti_overlay and not confetti_overlay.draw.is_connected(_draw_confetti):
 			confetti_overlay.draw.connect(_draw_confetti)
+	if not leader_crown:
+		leader_crown = get_node_or_null("%LeaderCrown") if has_node("%LeaderCrown") else get_node_or_null("TopBar/LeaderCrown")
+		if not leader_crown:
+			leader_crown = Label.new()
+			leader_crown.name = "LeaderCrown"
+			leader_crown.text = "👑"
+			var top = get_node_or_null("TopBar")
+			if top: top.add_child(leader_crown)
+			else: add_child(leader_crown)
+	if not label_count_player:
+		label_count_player = get_node_or_null("%LabelCountPlayer") if has_node("%LabelCountPlayer") else get_node_or_null("TopBar/FactionCountsContainer/LabelCountPlayer")
+	if not label_count_neutral:
+		label_count_neutral = get_node_or_null("%LabelCountNeutral") if has_node("%LabelCountNeutral") else get_node_or_null("TopBar/FactionCountsContainer/LabelCountNeutral")
+	if not label_count_enemy:
+		label_count_enemy = get_node_or_null("%LabelCountEnemy") if has_node("%LabelCountEnemy") else get_node_or_null("TopBar/FactionCountsContainer/LabelCountEnemy")
+	if not faction_counts_container:
+		faction_counts_container = get_node_or_null("%FactionCountsContainer") if has_node("%FactionCountsContainer") else get_node_or_null("TopBar/FactionCountsContainer")
 
 func _ready() -> void:
 	_cleanup_time_scale()
@@ -110,6 +137,7 @@ func _on_battle_started(level_id: String) -> void:
 		label_level_name.text = data.get("name", "Batalla")
 
 func _process(delta: float) -> void:
+	crown_bob_time += delta
 	if battle_controller:
 		_update_dominance_bar()
 	_update_confetti(delta)
@@ -155,16 +183,99 @@ func _draw_confetti() -> void:
 		confetti_overlay.draw_colored_polygon(PackedVector2Array([p1, p2, p3, p4]), col)
 
 func _update_dominance_bar() -> void:
-	var ratios = battle_controller.get_dominance_ratios()
-	var player_ratio = ratios.get(GameManager.Faction.PLAYER, 0.0)
-	var neutral_ratio = ratios.get(GameManager.Faction.NEUTRAL, 0.0)
-	var enemy_ratio = 1.0 - player_ratio - neutral_ratio
-	if enemy_ratio < 0.0: enemy_ratio = 0.0
+	_ensure_node_references()
+	if not battle_controller:
+		return
+		
+	var counts = battle_controller.get_faction_troop_counts() if battle_controller.has_method("get_faction_troop_counts") else {}
+	var player_count = counts.get(GameManager.Faction.PLAYER, 0)
+	var neutral_count = counts.get(GameManager.Faction.NEUTRAL, 0)
+	var enemy_1_count = counts.get(GameManager.Faction.ENEMY_1, 0)
+	var enemy_2_count = counts.get(GameManager.Faction.ENEMY_2, 0)
+	var enemy_3_count = counts.get(GameManager.Faction.ENEMY_3, 0)
+	var total_enemy_count = enemy_1_count + enemy_2_count + enemy_3_count
+	
+	var total = player_count + neutral_count + total_enemy_count
+	var player_ratio = (float(player_count) / float(total)) if total > 0 else 0.0
+	var neutral_ratio = (float(neutral_count) / float(total)) if total > 0 else 0.0
+	var enemy_ratio = (float(total_enemy_count) / float(total)) if total > 0 else 0.0
 	
 	var total_width = 800.0
-	bar_player.custom_minimum_size.x = total_width * player_ratio
-	bar_neutral.custom_minimum_size.x = total_width * neutral_ratio
-	bar_enemy.custom_minimum_size.x = total_width * enemy_ratio
+	if bar_player: bar_player.custom_minimum_size.x = total_width * player_ratio
+	if bar_neutral: bar_neutral.custom_minimum_size.x = total_width * neutral_ratio
+	if bar_enemy: bar_enemy.custom_minimum_size.x = total_width * enemy_ratio
+	
+	# Actualizar etiquetas numéricas con el conteo vivo de tropas por facción
+	if label_count_player:
+		label_count_player.text = "Azul: %d" % player_count
+	if label_count_neutral:
+		label_count_neutral.text = "Gris: %d" % neutral_count
+	if label_count_enemy:
+		if enemy_2_count > 0 or enemy_3_count > 0:
+			label_count_enemy.text = "Rojo: %d  Otros: %d" % [enemy_1_count, enemy_2_count + enemy_3_count]
+		else:
+			label_count_enemy.text = "Rojo: %d" % enemy_1_count
+			
+	# Actualizar corona dorada de liderazgo
+	_update_leader_crown(player_count, enemy_1_count, enemy_2_count, enemy_3_count, neutral_count)
+
+func _update_leader_crown(player_count: int, enemy_1_count: int, enemy_2_count: int = 0, enemy_3_count: int = 0, _neutral_count: int = 0) -> void:
+	if not leader_crown:
+		return
+		
+	var target_segment: Control = null
+	var max_enemy = maxi(enemy_1_count, maxi(enemy_2_count, enemy_3_count))
+	
+	if player_count >= max_enemy and player_count > 0:
+		leader_faction = GameManager.Faction.PLAYER
+		target_segment = bar_player
+	elif max_enemy > player_count:
+		if max_enemy == enemy_1_count:
+			leader_faction = GameManager.Faction.ENEMY_1
+		elif max_enemy == enemy_2_count:
+			leader_faction = GameManager.Faction.ENEMY_2
+		else:
+			leader_faction = GameManager.Faction.ENEMY_3
+		target_segment = bar_enemy
+	else:
+		leader_faction = GameManager.Faction.PLAYER
+		target_segment = bar_player
+		
+	var total_active = player_count + enemy_1_count + enemy_2_count + enemy_3_count
+	if not is_instance_valid(target_segment) or total_active == 0:
+		leader_crown.visible = false
+		return
+		
+	leader_crown.visible = true
+	
+	var w_p = bar_player.custom_minimum_size.x if is_instance_valid(bar_player) else 266.0
+	var w_n = bar_neutral.custom_minimum_size.x if is_instance_valid(bar_neutral) else 266.0
+	var w_e = bar_enemy.custom_minimum_size.x if is_instance_valid(bar_enemy) else 268.0
+	
+	var container = bar_player.get_parent() as Control if is_instance_valid(bar_player) else null
+	var top_bar = container.get_parent() as Control if is_instance_valid(container) else null
+	var top_w = top_bar.size.x if (top_bar and top_bar.size.x > 0.0) else 1080.0
+	var base_x = container.position.x if (container and container.position.x > 0.0) else ((top_w * 0.5) - 400.0)
+	var crown_w = maxf(leader_crown.size.x, 32.0)
+	
+	if target_segment == bar_player:
+		target_crown_x = base_x + (w_p * 0.5) - (crown_w * 0.5)
+	elif target_segment == bar_neutral:
+		target_crown_x = base_x + w_p + (w_n * 0.5) - (crown_w * 0.5)
+	else:
+		target_crown_x = base_x + w_p + w_n + (w_e * 0.5) - (crown_w * 0.5)
+		
+	if current_crown_x == 0.0:
+		current_crown_x = target_crown_x
+	else:
+		current_crown_x = lerpf(current_crown_x, target_crown_x, 0.25)
+		
+	leader_crown.position.x = current_crown_x
+	var base_y = 12.0
+	leader_crown.position.y = base_y + sin(crown_bob_time * 4.0) * 2.5
+
+func get_leader_faction() -> int:
+	return leader_faction
 
 func _update_coins(amount: int) -> void:
 	if label_coins:

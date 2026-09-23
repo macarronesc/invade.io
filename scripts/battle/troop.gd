@@ -10,6 +10,8 @@ var total_units: int = 1
 var faction: int = GameManager.Faction.PLAYER
 var speed: float = 380.0
 var is_active: bool = true
+var is_retreating: bool = false
+var retreat_dest_base: BaseNode = null
 
 const BEAD_SPACING: float = 22.0
 const BEAD_RADIUS: float = 7.0
@@ -147,6 +149,114 @@ func get_active_bead_positions() -> Array[Vector2]:
 		if not b["absorbed"] and b["dist"] >= 0.0:
 			positions.append(start_pos + move_dir * b["dist"])
 	return positions
+
+func abort_mission() -> void:
+	if is_retreating or not is_instance_valid(origin_base):
+		return
+	is_retreating = true
+	var dest = origin_base
+	var old_target = target_base
+	target_base = dest
+	retreat_dest_base = dest
+	origin_base = old_target
+	
+	if beads.is_empty():
+		start_pos = global_position
+		target_pos = dest.global_position
+		var path_vec = target_pos - global_position
+		path_length = path_vec.length()
+		move_dir = path_vec.normalized() if path_length > 0.001 else Vector2.LEFT
+		arrival_dist = max(10.0, path_length - (dest.radius * 0.45))
+	else:
+		var old_start = start_pos
+		var old_dir = move_dir
+		var new_dest_pos = dest.global_position
+		var new_start_pos = old_target.global_position if is_instance_valid(old_target) else (old_start + old_dir * path_length)
+		var new_path_vec = new_dest_pos - new_start_pos
+		var new_path_len = new_path_vec.length()
+		var new_dir = new_path_vec.normalized() if new_path_len > 0.001 else -old_dir
+		
+		start_pos = new_start_pos
+		target_pos = new_dest_pos
+		move_dir = new_dir
+		path_length = new_path_len
+		arrival_dist = max(10.0, path_length - (dest.radius * 0.45))
+		
+		var unemerged_count = 0
+		for b in beads:
+			if b["absorbed"]:
+				continue
+			if b["dist"] <= 0.0:
+				# No había emergido de la base origen todavía, se reintegra directamente
+				b["absorbed"] = true
+				unemerged_count += 1
+			else:
+				var bead_world = old_start + old_dir * b["dist"]
+				var new_dist = (bead_world - start_pos).dot(move_dir)
+				b["dist"] = new_dist
+				
+		if unemerged_count > 0:
+			dest.receive_troops(faction, unemerged_count)
+			count -= unemerged_count
+			
+		update_count()
+		if count <= 0:
+			EventBus.troop_arrived.emit(self, dest)
+			if is_inside_tree():
+				queue_free()
+
+func retreat() -> void:
+	abort_mission()
+
+static func point_distance_to_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab = b - a
+	var l2 = ab.length_squared()
+	if l2 < 0.0001:
+		return p.distance_to(a)
+	var t = clampf((p - a).dot(ab) / l2, 0.0, 1.0)
+	var proj = a + ab * t
+	return p.distance_to(proj)
+
+static func segments_intersect(p1: Vector2, p2: Vector2, p3: Vector2, p4: Vector2) -> bool:
+	var d = (p2.x - p1.x) * (p4.y - p3.y) - (p2.y - p1.y) * (p4.x - p3.x)
+	if absf(d) < 0.00001:
+		return false
+	var u = ((p3.x - p1.x) * (p4.y - p3.y) - (p3.y - p1.y) * (p4.x - p3.x)) / d
+	var v = ((p3.x - p1.x) * (p2.y - p1.y) - (p3.y - p1.y) * (p2.x - p1.x)) / d
+	return u >= 0.0 and u <= 1.0 and v >= 0.0 and v <= 1.0
+
+func intersects_segment(seg_a: Vector2, seg_b: Vector2) -> bool:
+	if count <= 0 or not is_active or is_retreating:
+		return false
+		
+	# 1. Comprobar intersección con la trayectoria del convoy
+	var t_dest = target_pos if target_pos != Vector2.ZERO else (target_base.global_position if is_instance_valid(target_base) else (start_pos + move_dir * path_length))
+	if segments_intersect(seg_a, seg_b, start_pos, t_dest):
+		return true
+		
+	if beads.is_empty():
+		return point_distance_to_segment(global_position, seg_a, seg_b) <= 24.0
+	
+	var min_dist = 999999.0
+	var max_dist = -999999.0
+	var has_active_beads = false
+	
+	for b in beads:
+		if not b["absorbed"] and b["dist"] >= 0.0:
+			has_active_beads = true
+			if b["dist"] < min_dist: min_dist = b["dist"]
+			if b["dist"] > max_dist: max_dist = b["dist"]
+			var b_pos = start_pos + move_dir * b["dist"]
+			if point_distance_to_segment(b_pos, seg_a, seg_b) <= (BEAD_RADIUS + 14.0):
+				return true
+				
+	if has_active_beads and min_dist <= max_dist:
+		var p_rear = start_pos + move_dir * min_dist
+		var p_front = start_pos + move_dir * max_dist
+		if segments_intersect(seg_a, seg_b, p_rear, p_front):
+			return true
+			
+	return false
 
 func _draw() -> void:
 	var color = GameManager.FACTION_COLORS.get(faction, Color.GRAY)

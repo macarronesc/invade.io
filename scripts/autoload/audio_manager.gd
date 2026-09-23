@@ -29,6 +29,7 @@ var _last_absorb_msec: int = 0
 var _absorb_step: int = 0
 var last_played_fanfare: String = ""
 var last_star_sound_index: int = -1
+var last_played_sfx: String = ""
 
 const PENTATONIC_REINFORCE = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66, 1318.51] # C5 a E6
 const PENTATONIC_HIT = [440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50]
@@ -94,6 +95,22 @@ func play_star_reveal(star_index: int) -> void:
 
 func play_star_pop(star_index: int) -> void:
 	play_star_reveal(star_index)
+
+func play_retreat() -> void:
+	last_played_sfx = "retreat"
+	if is_muted: return
+	# Silbido táctico rápido descendente de retirada
+	_play_tone(784.0, 0.08, 0.22, 392.0)
+
+func play_troop_retreat() -> void:
+	play_retreat()
+
+func play_slice() -> void:
+	last_played_sfx = "retreat"
+	if is_muted: return
+	# Sonido ágil de corte / estela de cuchilla seguido de silbido táctico
+	_play_tone(1046.5, 0.04, 0.20, 523.25)
+	_play_tone(784.0, 0.08, 0.22, 392.0)
 
 func play_defeat() -> void:
 	if is_muted: return
