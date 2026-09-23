@@ -72,10 +72,10 @@ static func get_all_levels() -> Dictionary:
 			"target_time": 65,
 			"bases": [
 				{"id": "b1", "name": "Atenas", "pos": Vector2(540, 1500), "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
-				{"id": "b2", "name": "Belgrado", "pos": Vector2(540, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 25, "tier": 2},
+				{"id": "b2", "name": "Belgrado", "pos": Vector2(540, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 25, "tier": 2, "type": "fortress"},
 				{"id": "b3", "name": "Viena", "pos": Vector2(300, 650), "faction": GameManager.Faction.ENEMY_1, "troops": 30, "tier": 2},
 				{"id": "b4", "name": "Bucarest", "pos": Vector2(780, 650), "faction": GameManager.Faction.ENEMY_2, "troops": 30, "tier": 2},
-				{"id": "b5", "name": "Estambul", "pos": Vector2(850, 1350), "faction": GameManager.Faction.NEUTRAL, "troops": 15, "tier": 1}
+				{"id": "b5", "name": "Estambul", "pos": Vector2(850, 1350), "faction": GameManager.Faction.NEUTRAL, "troops": 15, "tier": 1, "type": "factory"}
 			]
 		},
 		"europe_5": {
@@ -84,10 +84,14 @@ static func get_all_levels() -> Dictionary:
 			"continent": "europe",
 			"description": "La gran batalla por el control absoluto de Europa.",
 			"target_time": 75,
+			"ai_archetypes": {
+				GameManager.Faction.ENEMY_1: "aggressive",
+				GameManager.Faction.ENEMY_2: "expansive"
+			},
 			"bases": [
 				{"id": "b1", "name": "Base Occidental", "pos": Vector2(250, 1500), "faction": GameManager.Faction.PLAYER, "troops": 40, "tier": 3},
-				{"id": "b2", "name": "Fortaleza Central", "pos": Vector2(540, 1000), "faction": GameManager.Faction.NEUTRAL, "troops": 30, "tier": 3},
-				{"id": "b3", "name": "Puesto Norte", "pos": Vector2(540, 500), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 1},
+				{"id": "b2", "name": "Fortaleza Central", "pos": Vector2(540, 1000), "faction": GameManager.Faction.NEUTRAL, "troops": 30, "tier": 3, "type": "fortress"},
+				{"id": "b3", "name": "Puesto Norte", "pos": Vector2(540, 500), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 1, "type": "factory"},
 				{"id": "b4", "name": "Imperio Rojo", "pos": Vector2(850, 450), "faction": GameManager.Faction.ENEMY_1, "troops": 40, "tier": 3},
 				{"id": "b5", "name": "Imperio Ámbar", "pos": Vector2(850, 1500), "faction": GameManager.Faction.ENEMY_2, "troops": 40, "tier": 3},
 				{"id": "b6", "name": "Puesto Sur", "pos": Vector2(250, 750), "faction": GameManager.Faction.NEUTRAL, "troops": 15, "tier": 1}
@@ -116,7 +120,7 @@ static func get_all_levels() -> Dictionary:
 			"bases": [
 				{"id": "b1", "name": "Dallas", "pos": Vector2(300, 1400), "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
 				{"id": "b2", "name": "Kansas", "pos": Vector2(540, 950), "faction": GameManager.Faction.NEUTRAL, "troops": 18, "tier": 2},
-				{"id": "b3", "name": "Chicago", "pos": Vector2(750, 650), "faction": GameManager.Faction.ENEMY_1, "troops": 35, "tier": 2},
+				{"id": "b3", "name": "Chicago", "pos": Vector2(750, 650), "faction": GameManager.Faction.ENEMY_1, "troops": 35, "tier": 2, "type": "factory"},
 				{"id": "b4", "name": "Denver", "pos": Vector2(280, 700), "faction": GameManager.Faction.NEUTRAL, "troops": 15, "tier": 1}
 			]
 		},
@@ -153,10 +157,15 @@ static func get_all_levels() -> Dictionary:
 			"continent": "north_america",
 			"description": "Conquista final de Norteamérica frente a tres ejércitos simultáneos.",
 			"target_time": 80,
+			"ai_archetypes": {
+				GameManager.Faction.ENEMY_1: "aggressive",
+				GameManager.Faction.ENEMY_2: "expansive",
+				GameManager.Faction.ENEMY_3: "opportunist"
+			},
 			"bases": [
 				{"id": "b1", "name": "Base Aliada", "pos": Vector2(250, 1550), "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
-				{"id": "b2", "name": "Polo Central", "pos": Vector2(540, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 25, "tier": 3},
-				{"id": "b3", "name": "Polo Este", "pos": Vector2(850, 1100), "faction": GameManager.Faction.ENEMY_1, "troops": 35, "tier": 2},
+				{"id": "b2", "name": "Polo Central", "pos": Vector2(540, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 25, "tier": 3, "type": "fortress"},
+				{"id": "b3", "name": "Polo Este", "pos": Vector2(850, 1100), "faction": GameManager.Faction.ENEMY_1, "troops": 35, "tier": 2, "type": "factory"},
 				{"id": "b4", "name": "Polo Norte", "pos": Vector2(540, 500), "faction": GameManager.Faction.ENEMY_2, "troops": 40, "tier": 2},
 				{"id": "b5", "name": "Polo Noroeste", "pos": Vector2(250, 550), "faction": GameManager.Faction.ENEMY_3, "troops": 35, "tier": 2}
 			]
@@ -183,7 +192,7 @@ static func get_all_levels() -> Dictionary:
 			"target_time": 50,
 			"bases": [
 				{"id": "b1", "name": "Santiago", "pos": Vector2(300, 1500), "faction": GameManager.Faction.PLAYER, "troops": 25, "tier": 1},
-				{"id": "b2", "name": "La Paz", "pos": Vector2(380, 1100), "faction": GameManager.Faction.NEUTRAL, "troops": 18, "tier": 2},
+				{"id": "b2", "name": "La Paz", "pos": Vector2(380, 1100), "faction": GameManager.Faction.NEUTRAL, "troops": 18, "tier": 2, "type": "fortress"},
 				{"id": "b3", "name": "Lima", "pos": Vector2(320, 750), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 2},
 				{"id": "b4", "name": "Bogotá", "pos": Vector2(550, 480), "faction": GameManager.Faction.ENEMY_1, "troops": 35, "tier": 2},
 				{"id": "b5", "name": "Quito", "pos": Vector2(750, 850), "faction": GameManager.Faction.NEUTRAL, "troops": 15, "tier": 1}
@@ -225,9 +234,9 @@ static func get_all_levels() -> Dictionary:
 			"target_time": 80,
 			"bases": [
 				{"id": "b1", "name": "Buenos Aires", "pos": Vector2(250, 1550), "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
-				{"id": "b2", "name": "Altiplano Central", "pos": Vector2(540, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 30, "tier": 3},
+				{"id": "b2", "name": "Altiplano Central", "pos": Vector2(540, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 30, "tier": 3, "type": "fortress"},
 				{"id": "b3", "name": "Guayana", "pos": Vector2(540, 550), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 1},
-				{"id": "b4", "name": "Imperio de Río", "pos": Vector2(850, 1400), "faction": GameManager.Faction.ENEMY_1, "troops": 40, "tier": 3},
+				{"id": "b4", "name": "Imperio de Río", "pos": Vector2(850, 1400), "faction": GameManager.Faction.ENEMY_1, "troops": 40, "tier": 3, "type": "factory"},
 				{"id": "b5", "name": "Fortaleza Bogotá", "pos": Vector2(250, 550), "faction": GameManager.Faction.ENEMY_2, "troops": 40, "tier": 3},
 				{"id": "b6", "name": "Imperio Pacífico", "pos": Vector2(850, 600), "faction": GameManager.Faction.ENEMY_3, "troops": 35, "tier": 2}
 			]
@@ -256,7 +265,7 @@ static func get_all_levels() -> Dictionary:
 				{"id": "b1", "name": "Marrakech", "pos": Vector2(300, 1480), "faction": GameManager.Faction.PLAYER, "troops": 25, "tier": 1},
 				{"id": "b2", "name": "Fez", "pos": Vector2(540, 1200), "faction": GameManager.Faction.NEUTRAL, "troops": 15, "tier": 1},
 				{"id": "b3", "name": "Argel", "pos": Vector2(350, 850), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 2},
-				{"id": "b4", "name": "Trípoli", "pos": Vector2(750, 700), "faction": GameManager.Faction.ENEMY_1, "troops": 35, "tier": 2},
+				{"id": "b4", "name": "Trípoli", "pos": Vector2(750, 700), "faction": GameManager.Faction.ENEMY_1, "troops": 35, "tier": 2, "type": "fortress"},
 				{"id": "b5", "name": "Túnez", "pos": Vector2(750, 1200), "faction": GameManager.Faction.NEUTRAL, "troops": 16, "tier": 1}
 			]
 		},
@@ -282,7 +291,7 @@ static func get_all_levels() -> Dictionary:
 			"target_time": 65,
 			"bases": [
 				{"id": "b1", "name": "Mombasa", "pos": Vector2(350, 1500), "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
-				{"id": "b2", "name": "Nairobi", "pos": Vector2(540, 1100), "faction": GameManager.Faction.NEUTRAL, "troops": 22, "tier": 2},
+				{"id": "b2", "name": "Nairobi", "pos": Vector2(540, 1100), "faction": GameManager.Faction.NEUTRAL, "troops": 22, "tier": 2, "type": "factory"},
 				{"id": "b3", "name": "Kampala", "pos": Vector2(300, 750), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 1},
 				{"id": "b4", "name": "Adís Abeba", "pos": Vector2(750, 700), "faction": GameManager.Faction.ENEMY_1, "troops": 35, "tier": 2},
 				{"id": "b5", "name": "Mogadiscio", "pos": Vector2(800, 1300), "faction": GameManager.Faction.ENEMY_2, "troops": 35, "tier": 2}
@@ -296,8 +305,8 @@ static func get_all_levels() -> Dictionary:
 			"target_time": 85,
 			"bases": [
 				{"id": "b1", "name": "Ciudad del Cabo", "pos": Vector2(250, 1550), "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
-				{"id": "b2", "name": "Cuenca del Congo", "pos": Vector2(540, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 30, "tier": 3},
-				{"id": "b3", "name": "Oasis del Sáhara", "pos": Vector2(540, 550), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 1},
+				{"id": "b2", "name": "Cuenca del Congo", "pos": Vector2(540, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 30, "tier": 3, "type": "factory"},
+				{"id": "b3", "name": "Oasis del Sáhara", "pos": Vector2(540, 550), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 1, "type": "fortress"},
 				{"id": "b4", "name": "Imperio de El Cairo", "pos": Vector2(850, 480), "faction": GameManager.Faction.ENEMY_1, "troops": 40, "tier": 3},
 				{"id": "b5", "name": "Imperio de Lagos", "pos": Vector2(250, 550), "faction": GameManager.Faction.ENEMY_2, "troops": 40, "tier": 3},
 				{"id": "b6", "name": "Reino Zulú", "pos": Vector2(850, 1500), "faction": GameManager.Faction.ENEMY_3, "troops": 40, "tier": 3}
@@ -326,7 +335,7 @@ static func get_all_levels() -> Dictionary:
 			"bases": [
 				{"id": "b1", "name": "Bangalore", "pos": Vector2(350, 1500), "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
 				{"id": "b2", "name": "Bombay", "pos": Vector2(300, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 2},
-				{"id": "b3", "name": "Calcuta", "pos": Vector2(750, 1100), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 2},
+				{"id": "b3", "name": "Calcuta", "pos": Vector2(750, 1100), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 2, "type": "factory"},
 				{"id": "b4", "name": "Nueva Delhi", "pos": Vector2(540, 650), "faction": GameManager.Faction.ENEMY_1, "troops": 35, "tier": 2},
 				{"id": "b5", "name": "Karachi", "pos": Vector2(300, 600), "faction": GameManager.Faction.NEUTRAL, "troops": 18, "tier": 1}
 			]
@@ -365,12 +374,17 @@ static func get_all_levels() -> Dictionary:
 			"continent": "asia",
 			"description": "El mayor enfrentamiento táctico del planeta: megabases imperiales.",
 			"target_time": 90,
+			"ai_archetypes": {
+				GameManager.Faction.ENEMY_1: "aggressive",
+				GameManager.Faction.ENEMY_2: "expansive",
+				GameManager.Faction.ENEMY_3: "opportunist"
+			},
 			"bases": [
 				{"id": "b1", "name": "Base Oriental", "pos": Vector2(250, 1550), "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
-				{"id": "b2", "name": "Bastión Central", "pos": Vector2(540, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 35, "tier": 3},
+				{"id": "b2", "name": "Bastión Central", "pos": Vector2(540, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 35, "tier": 3, "type": "fortress"},
 				{"id": "b3", "name": "Puesto Siberiano", "pos": Vector2(540, 500), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 1},
 				{"id": "b4", "name": "Imperio de Pekín", "pos": Vector2(850, 480), "faction": GameManager.Faction.ENEMY_1, "troops": 45, "tier": 3},
-				{"id": "b5", "name": "Dinastía del Sur", "pos": Vector2(850, 1500), "faction": GameManager.Faction.ENEMY_2, "troops": 40, "tier": 3},
+				{"id": "b5", "name": "Dinastía del Sur", "pos": Vector2(850, 1500), "faction": GameManager.Faction.ENEMY_2, "troops": 40, "tier": 3, "type": "factory"},
 				{"id": "b6", "name": "Shogunato de Tokio", "pos": Vector2(250, 550), "faction": GameManager.Faction.ENEMY_3, "troops": 40, "tier": 3}
 			]
 		},
@@ -396,7 +410,7 @@ static func get_all_levels() -> Dictionary:
 			"target_time": 50,
 			"bases": [
 				{"id": "b1", "name": "Adelaida", "pos": Vector2(300, 1450), "faction": GameManager.Faction.PLAYER, "troops": 25, "tier": 1},
-				{"id": "b2", "name": "Alice Springs", "pos": Vector2(540, 1000), "faction": GameManager.Faction.NEUTRAL, "troops": 18, "tier": 1},
+				{"id": "b2", "name": "Alice Springs", "pos": Vector2(540, 1000), "faction": GameManager.Faction.NEUTRAL, "troops": 18, "tier": 1, "type": "factory"},
 				{"id": "b3", "name": "Darwin", "pos": Vector2(540, 550), "faction": GameManager.Faction.ENEMY_1, "troops": 30, "tier": 2},
 				{"id": "b4", "name": "Perth", "pos": Vector2(780, 1200), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 2}
 			]
@@ -437,8 +451,8 @@ static func get_all_levels() -> Dictionary:
 			"target_time": 85,
 			"bases": [
 				{"id": "b1", "name": "Base Austral", "pos": Vector2(250, 1550), "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
-				{"id": "b2", "name": "Atolón Central", "pos": Vector2(540, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 30, "tier": 3},
-				{"id": "b3", "name": "Puesto de Coral", "pos": Vector2(540, 550), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 1},
+				{"id": "b2", "name": "Atolón Central", "pos": Vector2(540, 1050), "faction": GameManager.Faction.NEUTRAL, "troops": 30, "tier": 3, "type": "fortress"},
+				{"id": "b3", "name": "Puesto de Coral", "pos": Vector2(540, 550), "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 1, "type": "factory"},
 				{"id": "b4", "name": "Imperio Auckland", "pos": Vector2(850, 1450), "faction": GameManager.Faction.ENEMY_1, "troops": 40, "tier": 3},
 				{"id": "b5", "name": "Flota del Norte", "pos": Vector2(850, 500), "faction": GameManager.Faction.ENEMY_2, "troops": 40, "tier": 3},
 				{"id": "b6", "name": "Reino Pacífico", "pos": Vector2(250, 550), "faction": GameManager.Faction.ENEMY_3, "troops": 40, "tier": 3}

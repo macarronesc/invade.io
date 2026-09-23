@@ -10,7 +10,6 @@ class_name BattleHUD
 @onready var bar_player: ColorRect = %BarPlayer
 @onready var bar_enemy: ColorRect = %BarEnemy
 @onready var bar_neutral: ColorRect = %BarNeutral
-@onready var btn_dispatch_mode: Button = %BtnDispatchMode
 
 # Modales
 @onready var victory_panel: Control = %VictoryPanel
@@ -40,7 +39,6 @@ func _ready() -> void:
 	EventBus.battle_started.connect(_on_battle_started)
 	EventBus.battle_won.connect(_on_battle_won)
 	EventBus.battle_lost.connect(_on_battle_lost)
-	EventBus.dispatch_percentage_changed.connect(_on_dispatch_percentage_changed)
 	
 	# Conexión de botones
 	btn_pause.pressed.connect(_on_pause_pressed)
@@ -53,10 +51,6 @@ func _ready() -> void:
 	btn_retry.pressed.connect(_on_retry_pressed)
 	btn_defeat_upgrade.pressed.connect(_on_upgrade_pressed)
 	
-	if btn_dispatch_mode:
-		btn_dispatch_mode.pressed.connect(_on_dispatch_mode_pressed)
-		_update_dispatch_mode_label(1.0)
-	
 	if battle_controller and battle_controller.level_data:
 		label_level_name.text = battle_controller.level_data.get("name", "Batalla")
 
@@ -64,22 +58,6 @@ func _on_battle_started(level_id: String) -> void:
 	var data = LevelDatabase.get_level_data(level_id)
 	if label_level_name:
 		label_level_name.text = data.get("name", "Batalla")
-	if btn_dispatch_mode:
-		btn_dispatch_mode.visible = true
-		_update_dispatch_mode_label(1.0)
-
-func _on_dispatch_mode_pressed() -> void:
-	AudioManager.play_click()
-	if battle_controller:
-		var new_pct = battle_controller.toggle_dispatch_percentage()
-		_update_dispatch_mode_label(new_pct)
-
-func _on_dispatch_percentage_changed(pct: float) -> void:
-	_update_dispatch_mode_label(pct)
-
-func _update_dispatch_mode_label(_pct: float = 1.0) -> void:
-	if btn_dispatch_mode:
-		btn_dispatch_mode.text = "⚔ Asalto: 100%"
 
 func _process(_delta: float) -> void:
 	if not battle_controller:
@@ -103,8 +81,6 @@ func _update_coins(amount: int) -> void:
 		label_coins.text = "🪙 %d" % amount
 
 func _on_battle_won(stats: Dictionary) -> void:
-	if btn_dispatch_mode:
-		btn_dispatch_mode.visible = false
 	victory_panel.visible = true
 	var stars_count = stats.get("stars", 1)
 	var star_str = ""
@@ -114,8 +90,6 @@ func _on_battle_won(stats: Dictionary) -> void:
 	victory_reward_label.text = "+%d Monedas de Oro" % stats.get("gold_earned", 0)
 
 func _on_battle_lost() -> void:
-	if btn_dispatch_mode:
-		btn_dispatch_mode.visible = false
 	defeat_panel.visible = true
 
 func _on_pause_pressed() -> void:

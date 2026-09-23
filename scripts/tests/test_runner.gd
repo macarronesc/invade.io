@@ -69,6 +69,9 @@ func run_all_tests() -> void:
 	test_territory_scene_tree_integration()
 	test_territory_edge_cases_and_rapid_conquests()
 	test_territory_all_30_campaign_levels()
+	test_fortress_defense_absorption_and_production()
+	test_factory_production_and_vulnerability()
+	test_ai_archetypes_decision_making()
 
 func test_base_production_mechanics() -> void:
 	print("-> Test: Producción de Tropas y Límites de Capacidad")
@@ -857,13 +860,11 @@ func test_territory_scene_tree_integration() -> void:
 	assert_true(territory_node != null, "TerritoryMap está presente como nodo en BattleField")
 	assert_equals(territory_node.z_index, -5, "TerritoryMap tiene z_index = -5 (detrás de bases y tropas)")
 	
-	# Verificar que el HUD tiene configurado el asalto al 100%
+	# Verificar que el HUD no muestra el botón redundante de despacho (modo asalto al 100% permanente)
 	var hud = battle.get_node_or_null("BattleHUD")
 	assert_true(hud != null, "BattleHUD está presente en BattleField")
 	var btn_dispatch = hud.get_node_or_null("%BtnDispatchMode")
-	if btn_dispatch:
-		assert_true(btn_dispatch.text.contains("100%"), "Botón de HUD muestra indicador de asalto al 100%")
-		
+	assert_true(btn_dispatch == null, "BtnDispatchMode eliminado de la UI para no ocupar espacio visual (asalto al 100% es permanente)")
 	assert_equals(battle.dispatch_percentage, 1.0, "BattleField opera en modo asalto al 100%")
 	
 	battle.free()
@@ -974,5 +975,326 @@ func test_territory_all_30_campaign_levels() -> void:
 		tested_levels += 1
 		
 	assert_equals(tested_levels, 30, "Se validaron rigurosamente los 30 niveles de la campaña mundial")
+
+func test_fortress_defense_absorption_and_production() -> void:
+	print("\n-> Test: Especialización Bastión (Fortaleza) - Absorción Defensiva 2x y Producción Reducida")
+	var BaseNodeScript = load("res://scripts/battle/base_node.gd")
+	var fortress = BaseNodeScript.new()
+	fortress.set_base_type(BaseNodeScript.BaseType.FORTRESS)
+	fortress.faction = GameManager.Faction.PLAYER
+	fortress.tier = 1
+	fortress.troops = 10
+	
+	# 1. Multiplicadores
+	assert_equals(fortress.get_defense_multiplier(), 2.0, "Fortaleza tiene bonificación defensiva de 2.0x")
+	assert_equals(fortress.get_type_production_multiplier(), 0.3, "Fortaleza tiene multiplicador de producción de 0.3x")
+	
+	# 2. Configuración mediante setup() con diferentes formatos
+	var fortress_data = {"id": "f1", "name": "Ciudadela", "type": "fortress", "faction": GameManager.Faction.PLAYER, "troops": 10, "tier": 1}
+	var f2 = BaseNodeScript.new()
+	f2.setup(fortress_data)
+	assert_equals(f2.base_type, BaseNodeScript.BaseType.FORTRESS, "setup() configura correctamente base_type = FORTRESS desde string 'fortress'")
+	assert_equals(f2.structure_type, BaseNodeScript.BaseType.FORTRESS, "structure_type alias devuelve FORTRESS")
+	f2.structure_type = "standard"
+	assert_equals(f2.base_type, BaseNodeScript.BaseType.STANDARD, "structure_type = 'standard' actualiza base_type")
+	f2.structure_type = "fortress"
+	assert_equals(f2.base_type, BaseNodeScript.BaseType.FORTRESS, "structure_type = 'fortress' actualiza base_type")
+	f2.free()
+	
+	# 3. Ataque enemigo inferior a la absorción (10 defensores absorben hasta 20 atacantes)
+	# Ataque con 10 tropas enemigas -> debe costar 5 defensores
+	fortress.receive_troops(GameManager.Faction.ENEMY_1, 10)
+	assert_equals(fortress.troops, 5, "10 defensores en Fortaleza absorben 10 atacantes perdiendo solo 5 tropas (2x absorción: 10/2 = 5)")
+	assert_equals(fortress.faction, GameManager.Faction.PLAYER, "Fortaleza resiste y permanece bajo soberanía del jugador")
+	
+	# 4. Absorción golpe a golpe (bead-by-bead)
+	# Ahora tiene 5 tropas (10 puntos de defensa). Un atacante llega (count = 1):
+	fortress.receive_troops(GameManager.Faction.ENEMY_1, 1)
+	assert_equals(fortress.troops, 5, "Un único atacante es absorbido sin destruir al defensor (5 defensores retienen posición)")
+	assert_equals(fortress.fortress_absorbed_damage, 1, "Fortaleza registra 1 punto de daño absorbido en el defensor actual")
+	
+	# Segundo atacante individual (count = 1): completa los 2 puntos necesarios para vencer al defensor
+	fortress.receive_troops(GameManager.Faction.ENEMY_1, 1)
+	assert_equals(fortress.troops, 4, "Segundo atacante completa la absorción de 2 impactos y elimina 1 defensor (quedan 4)")
+	assert_equals(fortress.fortress_absorbed_damage, 0, "Daño absorbido se resetea a 0 para el siguiente defensor")
+	
+	# 5. Ataque superior que supera la absorción total y conquista
+	# Quedan 4 defensores (8 puntos de defensa). Llegan 14 atacantes enemigos:
+	# 8 atacantes eliminan a los 4 defensores; los 6 atacantes restantes conquistan la base.
+	fortress.receive_troops(GameManager.Faction.ENEMY_2, 14)
+	assert_equals(fortress.faction, GameManager.Faction.ENEMY_2, "Fortaleza es conquistada por enemigo al superar su defensa 2x")
+	assert_equals(fortress.troops, 6, "Guarnición restante tras conquista es el sobrante exacto (14 - 4*2 = 6)")
+	assert_equals(fortress.base_type, BaseNodeScript.BaseType.FORTRESS, "Base conserva su estructura de Fortaleza tras la conquista")
+	
+	# 6. Refuerzo aliado en Fortaleza
+	fortress.receive_troops(GameManager.Faction.ENEMY_2, 4)
+	assert_equals(fortress.troops, 10, "Refuerzo aliado en fortaleza incrementa guarnición normalmente (6 + 4 = 10)")
+	
+	# 7. Producción reducida (0.3x)
+	var neutral_fortress = BaseNodeScript.new()
+	neutral_fortress.setup({"id": "nf", "name": "Bastión Neutral", "type": "fortress", "faction": GameManager.Faction.NEUTRAL, "troops": 10})
+	neutral_fortress._process(3.0)
+	assert_equals(neutral_fortress.troops, 10, "Fortaleza neutral no produce tropas pasivas")
+	neutral_fortress.free()
+	
+	# 8. Casos límite: fortaleza con 1 tropa y fortaleza vacía con 0 tropas
+	var edge_fortress = BaseNodeScript.new()
+	edge_fortress.setup({"id": "ef", "name": "Fuerte Fronterizo", "type": "fortress", "faction": GameManager.Faction.PLAYER, "troops": 1})
+	edge_fortress.receive_troops(GameManager.Faction.ENEMY_1, 1)
+	assert_equals(edge_fortress.troops, 1, "Fortaleza con 1 tropa absorbe 1 impacto y retiene su única tropa centinela")
+	assert_equals(edge_fortress.fortress_absorbed_damage, 1, "Fortaleza registra 1 impacto absorbido")
+	
+	# Segundo impacto neutraliza la base
+	edge_fortress.receive_troops(GameManager.Faction.ENEMY_1, 1)
+	assert_equals(edge_fortress.troops, 0, "Segundo impacto agota la defensa de la tropa centinela y neutraliza la fortaleza")
+	assert_equals(edge_fortress.faction, GameManager.Faction.NEUTRAL, "Fortaleza neutralizada pasa a facción NEUTRAL")
+	
+	# Ocupación directa de fortaleza vacía con 0 tropas
+	edge_fortress.receive_troops(GameManager.Faction.ENEMY_2, 3)
+	assert_equals(edge_fortress.faction, GameManager.Faction.ENEMY_2, "Fortaleza vacía es conquistada directamente")
+	assert_equals(edge_fortress.troops, 3, "Fortaleza conquistada recibe las 3 tropas atacantes")
+	edge_fortress.free()
+	
+	fortress.free()
+
+func test_factory_production_and_vulnerability() -> void:
+	print("\n-> Test: Especialización Fábrica - Producción Acelerada (2.5x) y Vulnerabilidad Defensiva (0.5x)")
+	var BaseNodeScript = load("res://scripts/battle/base_node.gd")
+	var factory = BaseNodeScript.new()
+	factory.set_base_type(BaseNodeScript.BaseType.FACTORY)
+	factory.faction = GameManager.Faction.PLAYER
+	factory.tier = 1
+	factory.troops = 10
+	
+	# 1. Multiplicadores
+	assert_equals(factory.get_defense_multiplier(), 0.5, "Fábrica tiene multiplicador defensivo de 0.5x (vulnerable)")
+	assert_equals(factory.get_type_production_multiplier(), 2.5, "Fábrica tiene multiplicador de producción acelerada de 2.5x")
+	
+	# 2. Configuración mediante setup() con diferentes strings
+	var factory_data = {"id": "fac1", "name": "Complejo Industrial", "type": "factory", "faction": GameManager.Faction.PLAYER, "troops": 10, "tier": 1}
+	var f2 = BaseNodeScript.new()
+	f2.setup(factory_data)
+	assert_equals(f2.base_type, BaseNodeScript.BaseType.FACTORY, "setup() configura correctamente base_type = FACTORY desde string 'factory'")
+	f2.free()
+	
+	# 3. Vulnerabilidad defensiva (cada atacante elimina 2 defensores)
+	# 10 tropas defensoras en fábrica atacadas por 3 atacantes:
+	# 3 atacantes * 2 = 6 bajas defensoras -> quedan 4 defensores
+	factory.receive_troops(GameManager.Faction.ENEMY_1, 3)
+	assert_equals(factory.troops, 4, "3 atacantes causan 6 bajas en Fábrica vulnerable (10 - 3*2 = 4)")
+	assert_equals(factory.faction, GameManager.Faction.PLAYER, "Fábrica resiste mientras queden defensores")
+	
+	# 4. Conquista de fábrica vulnerable
+	# Quedan 4 defensores (equivalen a 2 atacantes de resistencia).
+	# Atacan 5 enemigos: 2 atacantes eliminan a los 4 defensores; 3 atacantes restantes conquistan la fábrica.
+	factory.receive_troops(GameManager.Faction.ENEMY_1, 5)
+	assert_equals(factory.faction, GameManager.Faction.ENEMY_1, "Fábrica es conquistada por atacante")
+	assert_equals(factory.troops, 3, "Guarnición restante de la fábrica conquistada es 3 (5 - ceil(4/2) = 3)")
+	assert_equals(factory.base_type, BaseNodeScript.BaseType.FACTORY, "Fábrica conserva su especialización industrial tras el cambio de soberanía")
+	
+	# 5. Ataque unitario (bead-by-bead): cada bola enemiga elimina 2 defensores
+	factory.troops = 6
+	factory.receive_troops(GameManager.Faction.PLAYER, 1)
+	assert_equals(factory.troops, 4, "1 atacante contra fábrica con 6 defensores elimina exactamente 2 tropas (6 - 2 = 4)")
+	
+	factory.receive_troops(GameManager.Faction.PLAYER, 1)
+	assert_equals(factory.troops, 2, "Segundo atacante elimina otras 2 tropas (4 - 2 = 2)")
+	
+	factory.receive_troops(GameManager.Faction.PLAYER, 1)
+	assert_equals(factory.troops, 0, "Tercer atacante neutraliza la fábrica (2 - 2 = 0)")
+	assert_equals(factory.faction, GameManager.Faction.NEUTRAL, "Fábrica pasa a NEUTRAL con 0 tropas")
+	
+	# 6. Producción acelerada en Fábrica
+	var factory_prod = BaseNodeScript.new()
+	factory_prod.setup({"id": "fp", "name": "Fábrica Aliada", "type": "factory", "faction": GameManager.Faction.PLAYER, "troops": 10, "tier": 1})
+	factory_prod.production_accumulator = 0.0
+	# En 1.05s a 2.5x base_rate (tier 1 = 1.0 * 2.5 = 2.5): acumula ~2.62 -> genera al menos 2 tropas
+	factory_prod._process(1.05)
+	assert_true(factory_prod.troops >= 12, "Fábrica produce a velocidad acelerada 2.5x (recluta >= 2 tropas en 1 segundo)")
+	factory_prod.free()
+	
+	# 7. Casos límite: fábrica con 1 tropa y fábrica vacía con 0 tropas
+	var edge_factory = BaseNodeScript.new()
+	edge_factory.setup({"id": "efac", "name": "Fábrica Fronteriza", "type": "factory", "faction": GameManager.Faction.PLAYER, "troops": 1})
+	# 1 atacante supera a 1 defensor en fábrica vulnerable (1 atacante tiene 2 puntos de ataque)
+	edge_factory.receive_troops(GameManager.Faction.ENEMY_1, 1)
+	assert_equals(edge_factory.faction, GameManager.Faction.ENEMY_1, "1 atacante vence a 1 defensor vulnerable y conquista la fábrica")
+	assert_equals(edge_factory.troops, 1, "Fábrica conquistada retiene 1 tropa ocupante")
+	
+	# Ocupación directa de fábrica neutral vacía con 0 tropas
+	edge_factory.troops = 0
+	edge_factory.faction = GameManager.Faction.NEUTRAL
+	edge_factory.receive_troops(GameManager.Faction.ENEMY_2, 4)
+	assert_equals(edge_factory.faction, GameManager.Faction.ENEMY_2, "Fábrica neutral vacía es conquistada directamente")
+	assert_equals(edge_factory.troops, 4, "Fábrica conquistada recibe las 4 tropas")
+	edge_factory.free()
+	
+	factory.free()
+
+func test_ai_archetypes_decision_making() -> void:
+	print("\n-> Test: Arquetipos de IA (Aggressive, Expansive, Opportunist) y Evaluación Heurística")
+	var AIControllerScript = load("res://scripts/battle/ai_controller.gd")
+	var BaseNodeScript = load("res://scripts/battle/base_node.gd")
+	var BattleControllerScript = load("res://scripts/battle/battle_controller.gd")
+	
+	var battle = BattleControllerScript.new()
+	
+	# Crear base origen para la IA
+	var src_base = BaseNodeScript.new()
+	src_base.global_position = Vector2(500, 1000)
+	src_base.faction = GameManager.Faction.ENEMY_1
+	src_base.troops = 25
+	src_base.max_capacity = 60
+	src_base.tier = 1
+	
+	# Crear objetivos equidistantes a 400px
+	var target_player = BaseNodeScript.new()
+	target_player.global_position = Vector2(500, 600)
+	target_player.faction = GameManager.Faction.PLAYER
+	target_player.troops = 10
+	target_player.base_type = BaseNodeScript.BaseType.STANDARD
+	
+	var target_neutral = BaseNodeScript.new()
+	target_neutral.global_position = Vector2(500, 1400)
+	target_neutral.faction = GameManager.Faction.NEUTRAL
+	target_neutral.troops = 10
+	target_neutral.base_type = BaseNodeScript.BaseType.STANDARD
+	
+	var target_factory_neutral = BaseNodeScript.new()
+	target_factory_neutral.global_position = Vector2(100, 1000)
+	target_factory_neutral.faction = GameManager.Faction.NEUTRAL
+	target_factory_neutral.troops = 10
+	target_factory_neutral.base_type = BaseNodeScript.BaseType.FACTORY
+	
+	var target_depleted = BaseNodeScript.new()
+	target_depleted.global_position = Vector2(900, 1000)
+	target_depleted.faction = GameManager.Faction.PLAYER
+	target_depleted.troops = 2 # Desangrada tras lanzar asalto al 100%
+	target_depleted.base_type = BaseNodeScript.BaseType.STANDARD
+	
+	var allied_fortress = BaseNodeScript.new()
+	allied_fortress.global_position = Vector2(700, 1200)
+	allied_fortress.faction = GameManager.Faction.ENEMY_3
+	allied_fortress.troops = 10
+	allied_fortress.base_type = BaseNodeScript.BaseType.FORTRESS
+	
+	# 1. Asignación automática de arquetipos por facción
+	var ai_red = AIControllerScript.new()
+	ai_red.setup(battle, GameManager.Faction.ENEMY_1)
+	assert_equals(ai_red.archetype, AIControllerScript.AIArchetype.AGGRESSIVE, "Facción ENEMY_1 (Rojo) asigna automáticamente arquetipo AGGRESSIVE")
+	
+	var ai_yellow = AIControllerScript.new()
+	ai_yellow.setup(battle, GameManager.Faction.ENEMY_2)
+	assert_equals(ai_yellow.archetype, AIControllerScript.AIArchetype.EXPANSIVE, "Facción ENEMY_2 (Amarillo) asigna automáticamente arquetipo EXPANSIVE")
+	
+	var ai_green = AIControllerScript.new()
+	ai_green.setup(battle, GameManager.Faction.ENEMY_3)
+	assert_equals(ai_green.archetype, AIControllerScript.AIArchetype.OPPORTUNIST, "Facción ENEMY_3 (Verde) asigna automáticamente arquetipo OPPORTUNIST")
+	
+	# 2. Comportamiento AGGRESSIVE: Prioriza atacar al jugador sobre bases neutrales
+	var agg_util_player = ai_red.evaluate_target_utility(src_base, target_player)
+	var agg_util_neutral = ai_red.evaluate_target_utility(src_base, target_neutral)
+	assert_true(agg_util_player > agg_util_neutral, "IA Agresiva prioriza asaltar la base del jugador frente a una neutral idéntica")
+	
+	# 3. Comportamiento EXPANSIVE: Prioriza capturar bases neutrales y asegurar fábricas
+	var exp_util_neutral = ai_yellow.evaluate_target_utility(src_base, target_neutral)
+	var exp_util_player = ai_yellow.evaluate_target_utility(src_base, target_player)
+	assert_true(exp_util_neutral > exp_util_player, "IA Expansiva prioriza expansión en base neutral frente a choque hostil con el jugador")
+	
+	var exp_util_factory = ai_yellow.evaluate_target_utility(src_base, target_factory_neutral)
+	assert_true(exp_util_factory > exp_util_neutral, "IA Expansiva prioriza conquistar Fábrica neutral sobre base Standard para maximizar producción")
+	
+	# 4. Comportamiento OPPORTUNIST: Ataca por la espalda bases desprotegidas tras asalto y se atrinchera en fortalezas
+	var opp_util_depleted = ai_green.evaluate_target_utility(src_base, target_depleted)
+	var opp_util_standard = ai_green.evaluate_target_utility(src_base, target_player)
+	assert_true(opp_util_depleted > opp_util_standard, "IA Oportunista ataca con máxima prioridad a la base desprotegida (2 tropas) tras lanzar asalto")
+	
+	var opp_util_fortress_allied = ai_green.evaluate_target_utility(src_base, allied_fortress)
+	assert_true(opp_util_fortress_allied > 100.0, "IA Oportunista valora altamente atrincherarse y reforzar fortalezas aliadas")
+	
+	# 5. Configuración manual de arquetipo
+	ai_red.set_archetype("expansive")
+	assert_equals(ai_red.archetype, AIControllerScript.AIArchetype.EXPANSIVE, "set_archetype('expansive') conmuta dinámicamente el arquetipo")
+	
+	# 6. Caso límite: evaluación hacia la misma base origen (debe ser inválida / -9999.0)
+	var self_util = ai_red.evaluate_target_utility(src_base, src_base)
+	assert_equals(self_util, -9999.0, "evaluate_target_utility descarta el nodo propio retornando -9999.0")
+	
+	# 7. Configuración por sobrescritura desde level_data
+	battle.level_data = {
+		"ai_archetypes": {
+			GameManager.Faction.ENEMY_1: AIControllerScript.AIArchetype.OPPORTUNIST
+		}
+	}
+	var ai_override = AIControllerScript.new()
+	ai_override.setup(battle, GameManager.Faction.ENEMY_1)
+	assert_equals(ai_override.archetype, AIControllerScript.AIArchetype.OPPORTUNIST, "Configuración en level_data sobrescribe el arquetipo por defecto de la facción")
+	ai_override.free()
+	
+	# 8. Configuración con claves string en level_data ('enemy_1', 'enemy2')
+	battle.level_data = {
+		"ai_archetypes": {
+			"enemy_1": "opportunist",
+			"enemy2": "aggressive"
+		}
+	}
+	var ai_str1 = AIControllerScript.new()
+	ai_str1.setup(battle, GameManager.Faction.ENEMY_1)
+	assert_equals(ai_str1.archetype, AIControllerScript.AIArchetype.OPPORTUNIST, "Clave string 'enemy_1' configura arquetipo OPPORTUNIST correctamente")
+	ai_str1.free()
+	
+	var ai_str2 = AIControllerScript.new()
+	ai_str2.setup(battle, GameManager.Faction.ENEMY_2)
+	assert_equals(ai_str2.archetype, AIControllerScript.AIArchetype.AGGRESSIVE, "Clave string 'enemy2' configura arquetipo AGGRESSIVE correctamente")
+	ai_str2.free()
+	
+	# 9. IA Agresiva evita suicidios fútiles contra fortalezas inexpugnables
+	var heavy_player_fortress = BaseNodeScript.new()
+	heavy_player_fortress.global_position = Vector2(500, 700)
+	heavy_player_fortress.faction = GameManager.Faction.PLAYER
+	heavy_player_fortress.troops = 35
+	heavy_player_fortress.base_type = BaseNodeScript.BaseType.FORTRESS
+	
+	var weak_src = BaseNodeScript.new()
+	weak_src.global_position = Vector2(500, 1000)
+	weak_src.faction = GameManager.Faction.ENEMY_1
+	weak_src.troops = 6
+	weak_src.base_type = BaseNodeScript.BaseType.STANDARD
+	
+	var agg_util_suicide = ai_red.evaluate_target_utility(weak_src, heavy_player_fortress)
+	assert_true(agg_util_suicide < 0.0, "IA Agresiva no se suicida contra una fortaleza del jugador fuertemente defendida con solo 6 tropas")
+	
+	# 10. IA Oportunista no desmantela su propia fortaleza para reforzar otra base
+	var src_fortress = BaseNodeScript.new()
+	src_fortress.global_position = Vector2(600, 1100)
+	src_fortress.faction = GameManager.Faction.ENEMY_3
+	src_fortress.troops = 20
+	src_fortress.max_capacity = 60
+	src_fortress.base_type = BaseNodeScript.BaseType.FORTRESS
+	
+	var opp_util_dismantle = ai_green.evaluate_target_utility(src_fortress, allied_fortress)
+	assert_true(opp_util_dismantle < 0.0, "IA Oportunista preserva su fortaleza y no drena su guarnición para reforzar otras bases")
+	
+	# 11. IA Oportunista no refuerza fortalezas que ya alcanzaron su capacidad máxima
+	allied_fortress.troops = allied_fortress.max_capacity
+	var opp_util_full_fortress = ai_green.evaluate_target_utility(src_base, allied_fortress)
+	assert_true(opp_util_full_fortress < 0.0, "IA Oportunista no despacha tropas hacia una fortaleza que ya está al 100% de capacidad")
+	allied_fortress.troops = 10 # Restaurar
+	
+	heavy_player_fortress.free()
+	weak_src.free()
+	src_fortress.free()
+	
+	ai_red.free()
+	ai_yellow.free()
+	ai_green.free()
+	src_base.free()
+	target_player.free()
+	target_neutral.free()
+	target_factory_neutral.free()
+	target_depleted.free()
+	allied_fortress.free()
+	battle.free()
+
 
 

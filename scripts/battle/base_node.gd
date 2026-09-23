@@ -3,11 +3,28 @@ class_name BaseNode
 
 ## BaseNode: Territorio interactivo con producción de tropas y combate
 
+enum BaseType {
+	STANDARD = 0,
+	FORTRESS = 1,
+	FACTORY = 2
+}
+
 @export var base_id: String = ""
 @export var base_name: String = "Territorio"
 @export var faction: int = GameManager.Faction.NEUTRAL
 @export var troops: int = 20
 @export var tier: int = 1
+@export var base_type: BaseType = BaseType.STANDARD
+
+var structure_type:
+	get:
+		return base_type
+	set(val):
+		_set_type_from_variant(val)
+		queue_redraw()
+
+var fortress_absorbed_damage: int = 0
+var factory_gear_angle: float = 0.0
 
 var radius: float = 60.0
 var max_capacity: int = 60
@@ -40,6 +57,44 @@ func _ready() -> void:
 	_update_label()
 	queue_redraw()
 
+func get_type_production_multiplier() -> float:
+	match base_type:
+		BaseType.FORTRESS:
+			return 0.3
+		BaseType.FACTORY:
+			return 2.5
+		_:
+			return 1.0
+
+func get_defense_multiplier() -> float:
+	match base_type:
+		BaseType.FORTRESS:
+			return 2.0
+		BaseType.FACTORY:
+			return 0.5
+		_:
+			return 1.0
+
+func set_base_type(p_type) -> void:
+	_set_type_from_variant(p_type)
+	queue_redraw()
+
+func set_structure_type(p_type) -> void:
+	_set_type_from_variant(p_type)
+	queue_redraw()
+
+func _set_type_from_variant(v) -> void:
+	if v is BaseType or v is int:
+		base_type = v as BaseType
+	elif v is String:
+		var s = (v as String).to_lower().strip_edges()
+		if s in ["fortress", "bastion", "fortaleza", "bastion_defensivo"]:
+			base_type = BaseType.FORTRESS
+		elif s in ["factory", "fabrica", "fábrica", "recruitment_factory"]:
+			base_type = BaseType.FACTORY
+		else:
+			base_type = BaseType.STANDARD
+
 func setup(data: Dictionary) -> void:
 	is_active = true
 	base_id = data.get("id", base_id)
@@ -49,6 +104,13 @@ func setup(data: Dictionary) -> void:
 	tier = data.get("tier", tier)
 	if data.has("pos"):
 		position = data["pos"]
+		
+	if data.has("base_type"):
+		_set_type_from_variant(data["base_type"])
+	elif data.has("structure_type"):
+		_set_type_from_variant(data["structure_type"])
+	elif data.has("type"):
+		_set_type_from_variant(data["type"])
 	
 	# Bonus de tropas iniciales para el jugador
 	if faction == GameManager.Faction.PLAYER:
@@ -90,6 +152,8 @@ func _process(delta: float) -> void:
 			2: base_rate = 1.7
 			3: base_rate = 2.5
 			
+		base_rate *= get_type_production_multiplier()
+		
 		if faction == GameManager.Faction.PLAYER:
 			base_rate *= GameManager.get_production_multiplier()
 			
@@ -101,6 +165,9 @@ func _process(delta: float) -> void:
 				troops = mini(max_capacity, troops + units_to_add)
 				_update_label()
 				_trigger_generation_pulse()
+				
+	if base_type == BaseType.FACTORY:
+		factory_gear_angle += delta * 2.4
 				
 	# Simulación de muelle elástico (Squash & Stretch) con sim_delta acotado para estabilidad
 	var sim_delta = minf(delta, 0.033)
@@ -177,42 +244,116 @@ func receive_troops(incoming_faction: int, count: int) -> void:
 	if incoming_faction == faction:
 		# Refuerzo aliado
 		troops += count
+		fortress_absorbed_damage = 0
 		elastic_scale = Vector2(1.08, 0.94)
 		elastic_velocity += Vector2(1.2, -1.2)
 		shake_intensity = 2.2
 		AudioManager.play_troop_absorb(true)
 	else:
 		# Combate
-		if count < troops:
-			troops -= count
-			elastic_scale = Vector2(1.14, 0.88)
-			elastic_velocity += Vector2(2.0, -2.0)
-			shake_intensity = 3.8
-			AudioManager.play_troop_absorb(false)
-		elif count == troops:
-			troops = 0
-			var prev_faction = faction
-			faction = GameManager.Faction.NEUTRAL
-			if prev_faction != GameManager.Faction.NEUTRAL:
-				_trigger_conquest_shockwave(faction)
-				AudioManager.play_capture()
-				EventBus.base_captured.emit(self, prev_faction, faction)
-			else:
-				# Agotamiento de guarnición neutral previa a conquista
-				elastic_scale = Vector2(1.15, 0.85)
-				elastic_velocity += Vector2(2.5, -2.5)
-				shake_intensity = 4.0
-				AudioManager.play_troop_absorb(false)
-		else:
-			# Conquista
-			var prev_faction = faction
-			var remaining = count - troops
-			faction = incoming_faction
-			troops = remaining
-			_trigger_conquest_shockwave(faction)
-			AudioManager.play_capture()
-			EventBus.base_captured.emit(self, prev_faction, faction)
-			
+		match base_type:
+			BaseType.FORTRESS:
+				# Bonificación defensiva 2x: cada tropa defensora absorbe 2 unidades enemigas antes de caer
+				var total_defense_power = troops * 2 - fortress_absorbed_damage
+				if count < total_defense_power:
+					total_defense_power -= count
+					troops = int(ceil(float(total_defense_power) / 2.0))
+					fortress_absorbed_damage = (troops * 2) - total_defense_power
+					elastic_scale = Vector2(1.14, 0.88)
+					elastic_velocity += Vector2(2.0, -2.0)
+					shake_intensity = 3.8
+					AudioManager.play_troop_absorb(false)
+				elif count == total_defense_power:
+					troops = 0
+					fortress_absorbed_damage = 0
+					var prev_faction = faction
+					faction = GameManager.Faction.NEUTRAL
+					if prev_faction != GameManager.Faction.NEUTRAL:
+						_trigger_conquest_shockwave(faction)
+						AudioManager.play_capture()
+						EventBus.base_captured.emit(self, prev_faction, faction)
+					else:
+						elastic_scale = Vector2(1.15, 0.85)
+						elastic_velocity += Vector2(2.5, -2.5)
+						shake_intensity = 4.0
+						AudioManager.play_troop_absorb(false)
+				else:
+					# Conquista de Fortaleza
+					var prev_faction = faction
+					var surplus = count - total_defense_power
+					faction = incoming_faction
+					troops = surplus
+					fortress_absorbed_damage = 0
+					_trigger_conquest_shockwave(faction)
+					AudioManager.play_capture()
+					EventBus.base_captured.emit(self, prev_faction, faction)
+					
+			BaseType.FACTORY:
+				# Vulnerable en defensa 0.5x: las tropas defensoras caen con el doble de facilidad
+				var effective_defense = troops
+				var effective_attack = count * 2
+				if effective_attack < effective_defense:
+					troops = effective_defense - effective_attack
+					elastic_scale = Vector2(1.14, 0.88)
+					elastic_velocity += Vector2(2.0, -2.0)
+					shake_intensity = 3.8
+					AudioManager.play_troop_absorb(false)
+				elif effective_attack == effective_defense:
+					troops = 0
+					var prev_faction = faction
+					faction = GameManager.Faction.NEUTRAL
+					if prev_faction != GameManager.Faction.NEUTRAL:
+						_trigger_conquest_shockwave(faction)
+						AudioManager.play_capture()
+						EventBus.base_captured.emit(self, prev_faction, faction)
+					else:
+						elastic_scale = Vector2(1.15, 0.85)
+						elastic_velocity += Vector2(2.5, -2.5)
+						shake_intensity = 4.0
+						AudioManager.play_troop_absorb(false)
+				else:
+					# Conquista de Fábrica
+					var prev_faction = faction
+					var attackers_used = int(ceil(float(effective_defense) / 2.0))
+					var surplus = maxi(1, count - attackers_used)
+					faction = incoming_faction
+					troops = surplus
+					_trigger_conquest_shockwave(faction)
+					AudioManager.play_capture()
+					EventBus.base_captured.emit(self, prev_faction, faction)
+					
+			_:
+				# Base STANDARD (regular 1.0x defensa)
+				if count < troops:
+					troops -= count
+					elastic_scale = Vector2(1.14, 0.88)
+					elastic_velocity += Vector2(2.0, -2.0)
+					shake_intensity = 3.8
+					AudioManager.play_troop_absorb(false)
+				elif count == troops:
+					troops = 0
+					var prev_faction = faction
+					faction = GameManager.Faction.NEUTRAL
+					if prev_faction != GameManager.Faction.NEUTRAL:
+						_trigger_conquest_shockwave(faction)
+						AudioManager.play_capture()
+						EventBus.base_captured.emit(self, prev_faction, faction)
+					else:
+						# Agotamiento de guarnición neutral previa a conquista
+						elastic_scale = Vector2(1.15, 0.85)
+						elastic_velocity += Vector2(2.5, -2.5)
+						shake_intensity = 4.0
+						AudioManager.play_troop_absorb(false)
+				else:
+					# Conquista
+					var prev_faction = faction
+					var remaining = count - troops
+					faction = incoming_faction
+					troops = remaining
+					_trigger_conquest_shockwave(faction)
+					AudioManager.play_capture()
+					EventBus.base_captured.emit(self, prev_faction, faction)
+					
 	_update_label()
 	queue_redraw()
 
@@ -248,20 +389,60 @@ func _draw() -> void:
 		draw_circle(Vector2.ZERO, current_radius + 14.0, Color(1, 1, 1, 0.25))
 		draw_arc(Vector2.ZERO, current_radius + 11.0, 0, TAU, 48, Color.WHITE, 4.0, true)
 		
-	# 4. Borde exterior blanco limpio y nítido
-	draw_circle(Vector2.ZERO, current_radius + 4.5, Color.WHITE)
+	# 4. Borde exterior y elementos tácticos distintivos según BaseType
+	if base_type == BaseType.FORTRESS:
+		# Borde reforzado con almenas de bastión defensivo
+		draw_circle(Vector2.ZERO, current_radius + 6.5, Color(0.2, 0.22, 0.26))
+		draw_circle(Vector2.ZERO, current_radius + 5.0, Color.WHITE)
+		var num_crenels = 8
+		for i in range(num_crenels):
+			var angle = i * (TAU / num_crenels)
+			var c_dir = Vector2(cos(angle), sin(angle))
+			var c_pos = c_dir * (current_radius + 5.0)
+			draw_circle(c_pos, 4.8, Color.WHITE)
+			draw_circle(c_pos, 3.0, Color(0.3, 0.35, 0.4))
+	elif base_type == BaseType.FACTORY:
+		# Engranaje industrial perimetral con pulsación
+		draw_circle(Vector2.ZERO, current_radius + 5.0, Color.WHITE)
+		var num_teeth = 8
+		for i in range(num_teeth):
+			var angle = i * (TAU / num_teeth) + factory_gear_angle
+			var t_dir = Vector2(cos(angle), sin(angle))
+			var t_pos = t_dir * (current_radius + 4.5)
+			draw_circle(t_pos, 4.8, Color(1.0, 0.8, 0.2, 0.95))
+			draw_circle(t_pos, 2.5, Color(0.25, 0.2, 0.1))
+	else:
+		# Base regular STANDARD
+		draw_circle(Vector2.ZERO, current_radius + 4.5, Color.WHITE)
 	
 	# 5. Cuerpo principal con color de la facción
 	draw_circle(Vector2.ZERO, current_radius, color)
 	
-	# 6. Iluminación domo / reflejo redondeado 2.5D superior
+	# 6. Emblema distintivo procedural
+	if base_type == BaseType.FORTRESS:
+		var shield_y = current_radius * 0.44
+		var s_pts = PackedVector2Array([
+			Vector2(-8, shield_y - 6),
+			Vector2(8, shield_y - 6),
+			Vector2(8, shield_y + 1),
+			Vector2(0, shield_y + 8),
+			Vector2(-8, shield_y + 1)
+		])
+		draw_colored_polygon(s_pts, Color(1, 1, 1, 0.35))
+		draw_polyline(s_pts, Color.WHITE, 1.6, true)
+	elif base_type == BaseType.FACTORY:
+		var gear_y = current_radius * 0.44
+		draw_arc(Vector2(0, gear_y), 6.0, 0, TAU, 16, Color(1, 1, 1, 0.45), 2.0, true)
+		draw_circle(Vector2(0, gear_y), 2.2, Color(1, 1, 1, 0.55))
+	
+	# 7. Iluminación domo / reflejo redondeado 2.5D superior
 	var dome_highlight = Color(1.0, 1.0, 1.0, 0.28)
 	draw_arc(Vector2(0, -current_radius * 0.12), current_radius * 0.72, PI * 1.15, PI * 1.85, 32, dome_highlight, 3.5, true)
 	
-	# 7. Anillo interior decorativo sutil
+	# 8. Anillo interior decorativo sutil
 	draw_arc(Vector2.ZERO, current_radius * 0.82, 0, TAU, 40, Color(1, 1, 1, 0.18), 1.8, true)
 	
-	# 8. Indicadores de Tier (pips redondeados elegantes en la parte superior)
+	# 9. Indicadores de Tier (pips redondeados elegantes en la parte superior)
 	var pip_spacing = 16.0
 	var start_x = -((tier - 1) * pip_spacing) / 2.0
 	for i in range(tier):

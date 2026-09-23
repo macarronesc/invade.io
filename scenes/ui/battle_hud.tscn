@@ -280,16 +280,3 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 28
 text = "SALIR AL MAPA"
 
-[node name="BtnDispatchMode" type="Button" parent="."]
-unique_name_in_owner = true
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 50.0
-offset_top = -140.0
-offset_right = 280.0
-offset_bottom = -60.0
-grow_vertical = 0
-theme_override_font_sizes/font_size = 26
-text = "⚔ Asalto: 100%"
-
