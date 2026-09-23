@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://bdg81k0f5e3p2"]
+[gd_scene format=3 uid="uid://bdg81k0f5e3p2"]
 
 [ext_resource type="Script" path="res://scripts/ui/upgrade_menu.gd" id="1_upgrade_script"]
 

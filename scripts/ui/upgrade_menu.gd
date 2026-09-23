@@ -77,7 +77,7 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 		btn_buy.disabled = (GameManager.coins < cost)
 		
 	btn_buy.add_theme_font_size_override("font_size", 26)
-	btn_buy.pressed.connect(func(): _buy_upgrade(upgrade_id))
+	btn_buy.pressed.connect(_buy_upgrade.bind(upgrade_id))
 	hbox.add_child(btn_buy)
 	
 	return panel

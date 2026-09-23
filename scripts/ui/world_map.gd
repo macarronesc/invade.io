@@ -16,7 +16,6 @@ var current_continent_index: int = 0
 
 func _ready() -> void:
 	continents = LevelDatabase.get_continents()
-	# Localizar continente guardado
 	for i in range(continents.size()):
 		if continents[i]["id"] == GameManager.current_continent:
 			current_continent_index = i
@@ -38,9 +37,14 @@ func _update_coins(amount: int) -> void:
 
 func _refresh_display() -> void:
 	var cont = continents[current_continent_index]
-	continent_title.text = cont["name"]
 	GameManager.current_continent = cont["id"]
 	GameManager.save_game()
+	
+	# Calcular estrellas del continente
+	var earned_stars = 0
+	for lvl in range(1, 6):
+		earned_stars += GameManager.completed_levels.get("%s_%d" % [cont["id"], lvl], 0)
+	continent_title.text = "%s (%d/15 ⭐)" % [cont["name"], earned_stars]
 	
 	# Limpiar niveles anteriores
 	for child in levels_container.get_children():
@@ -54,20 +58,21 @@ func _refresh_display() -> void:
 		var stars = GameManager.completed_levels.get(level_id, 0)
 		
 		var btn = Button.new()
-		btn.custom_minimum_size = Vector2(0, 95)
+		btn.custom_minimum_size = Vector2(0, 100)
 		
 		var title_text = level_data.get("name", "Nivel %d" % lvl_num)
+		var desc_text = level_data.get("description", "")
 		if is_unlocked:
 			var stars_text = ""
 			for s in range(3):
 				stars_text += "⭐" if s < stars else "☆"
-			btn.text = "%s   [%s]" % [title_text, stars_text]
-			btn.pressed.connect(func(): _start_level(level_id))
+			btn.text = "%s  [%s]\n%s" % [title_text, stars_text, desc_text]
+			btn.pressed.connect(_start_level.bind(level_id))
 		else:
 			btn.text = "🔒 %s (Bloqueado)" % title_text
 			btn.disabled = true
 			
-		btn.add_theme_font_size_override("font_size", 24)
+		btn.add_theme_font_size_override("font_size", 22)
 		levels_container.add_child(btn)
 
 func _on_prev_continent() -> void:

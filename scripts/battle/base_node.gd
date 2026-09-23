@@ -15,16 +15,33 @@ var is_selected: bool = false
 var production_accumulator: float = 0.0
 var pulse_scale: float = 1.0
 
+var elastic_scale: Vector2 = Vector2.ONE
+var elastic_velocity: Vector2 = Vector2.ZERO
+const SPRING_STIFFNESS: float = 240.0
+const SPRING_DAMPING: float = 16.0
+
+var shake_offset: Vector2 = Vector2.ZERO
+var shake_intensity: float = 0.0
+
+var shockwave_radius: float = 0.0
+var shockwave_alpha: float = 0.0
+var shockwave_color: Color = Color.WHITE
+
+var is_active: bool = true
+
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
 @onready var label_troops: Label = $TroopLabel
 @onready var label_name: Label = $NameLabel
 
 func _ready() -> void:
+	EventBus.battle_won.connect(func(_stats): is_active = false)
+	EventBus.battle_lost.connect(func(): is_active = false)
 	_update_tier_parameters()
 	_update_label()
 	queue_redraw()
 
 func setup(data: Dictionary) -> void:
+	is_active = true
 	base_id = data.get("id", base_id)
 	base_name = data.get("name", base_name)
 	faction = data.get("faction", faction)
@@ -58,8 +75,13 @@ func _update_tier_parameters() -> void:
 			
 	if collision_shape and collision_shape.shape is CircleShape2D:
 		(collision_shape.shape as CircleShape2D).radius = radius
+	if label_name:
+		label_name.position.y = radius + 6.0
 
 func _process(delta: float) -> void:
+	if not is_active:
+		return
+		
 	# Producción pasiva de tropas (sólo para bases capturadas)
 	if faction != GameManager.Faction.NEUTRAL:
 		var base_rate: float = 1.0
@@ -76,13 +98,55 @@ func _process(delta: float) -> void:
 			var units_to_add = int(production_accumulator)
 			production_accumulator -= units_to_add
 			if troops < max_capacity:
-				troops += units_to_add
+				troops = mini(max_capacity, troops + units_to_add)
 				_update_label()
+				_trigger_generation_pulse()
 				
+	# Simulación de muelle elástico (Squash & Stretch) con sim_delta acotado para estabilidad
+	var sim_delta = minf(delta, 0.033)
+	var displacement = elastic_scale - Vector2.ONE
+	var spring_force = -SPRING_STIFFNESS * displacement - SPRING_DAMPING * elastic_velocity
+	elastic_velocity += spring_force * sim_delta
+	elastic_scale += elastic_velocity * sim_delta
+	elastic_scale.x = clampf(elastic_scale.x, 0.35, 2.2)
+	elastic_scale.y = clampf(elastic_scale.y, 0.35, 2.2)
+	
 	# Animación suave de pulso
 	if pulse_scale > 1.0:
 		pulse_scale = max(1.0, pulse_scale - delta * 2.5)
-		queue_redraw()
+		
+	# Sacudida elástica (Shake)
+	if shake_intensity > 0.0:
+		shake_intensity = max(0.0, shake_intensity - delta * 22.0)
+		shake_offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake_intensity
+	else:
+		shake_offset = Vector2.ZERO
+		
+	# Expansión y desvanecimiento de onda expansiva
+	if shockwave_alpha > 0.0:
+		shockwave_radius += delta * (radius * 4.5)
+		shockwave_alpha = max(0.0, shockwave_alpha - delta * 2.6)
+		
+	# Sincronizar etiqueta de tropas con escala elástica y sacudida
+	if label_troops:
+		label_troops.position = Vector2(-50.0, -25.0) + shake_offset
+		label_troops.scale = elastic_scale * pulse_scale
+		label_troops.pivot_offset = Vector2(50.0, 25.0)
+		
+	queue_redraw()
+
+func _trigger_generation_pulse() -> void:
+	# Pulso elástico suave y sutil al reclutar cada unidad
+	elastic_velocity += Vector2(0.9, 0.9)
+
+func _trigger_conquest_shockwave(new_faction: int) -> void:
+	# Rebote elástico dramático de conquista + onda expansiva State.io
+	elastic_scale = Vector2(1.32, 1.32)
+	elastic_velocity = Vector2(3.5, 3.5)
+	shake_intensity = 6.0
+	shockwave_radius = radius * 0.7
+	shockwave_alpha = 0.95
+	shockwave_color = GameManager.FACTION_COLORS.get(new_faction, Color.WHITE)
 
 func set_selected(selected: bool) -> void:
 	if is_selected != selected:
@@ -92,15 +156,18 @@ func set_selected(selected: bool) -> void:
 func is_point_inside(global_pt: Vector2) -> bool:
 	return global_position.distance_to(global_pt) <= (radius + 20.0)
 
-func send_troops(percentage: float = 0.5) -> int:
+func send_troops(_percentage: float = 1.0) -> int:
 	if troops <= 1:
 		return 0
-	var count = int(floor(troops * percentage))
-	if count < 1:
-		count = 1
+	# En State.io el modo de asalto es al 100% constante:
+	# se envían todas las tropas disponibles reteniendo 1 centinela de guardia para conservar la soberanía territorial
+	var count = troops - 1
 	troops -= count
 	_update_label()
 	pulse_scale = 1.15
+	# Contracción elástica al expulsar pelotón
+	elastic_scale = Vector2(0.92, 1.08)
+	elastic_velocity = Vector2(-1.2, 1.2)
 	queue_redraw()
 	return count
 
@@ -110,22 +177,39 @@ func receive_troops(incoming_faction: int, count: int) -> void:
 	if incoming_faction == faction:
 		# Refuerzo aliado
 		troops += count
-		AudioManager.play_reinforce()
+		elastic_scale = Vector2(1.08, 0.94)
+		elastic_velocity += Vector2(1.2, -1.2)
+		shake_intensity = 2.2
+		AudioManager.play_troop_absorb(true)
 	else:
 		# Combate
 		if count < troops:
 			troops -= count
+			elastic_scale = Vector2(1.14, 0.88)
+			elastic_velocity += Vector2(2.0, -2.0)
+			shake_intensity = 3.8
+			AudioManager.play_troop_absorb(false)
 		elif count == troops:
 			troops = 0
 			var prev_faction = faction
 			faction = GameManager.Faction.NEUTRAL
-			EventBus.base_captured.emit(self, prev_faction, faction)
+			if prev_faction != GameManager.Faction.NEUTRAL:
+				_trigger_conquest_shockwave(faction)
+				AudioManager.play_capture()
+				EventBus.base_captured.emit(self, prev_faction, faction)
+			else:
+				# Agotamiento de guarnición neutral previa a conquista
+				elastic_scale = Vector2(1.15, 0.85)
+				elastic_velocity += Vector2(2.5, -2.5)
+				shake_intensity = 4.0
+				AudioManager.play_troop_absorb(false)
 		else:
 			# Conquista
 			var prev_faction = faction
 			var remaining = count - troops
 			faction = incoming_faction
 			troops = remaining
+			_trigger_conquest_shockwave(faction)
 			AudioManager.play_capture()
 			EventBus.base_captured.emit(self, prev_faction, faction)
 			
@@ -142,26 +226,49 @@ func _draw() -> void:
 	var color = GameManager.FACTION_COLORS.get(faction, Color.GRAY)
 	var current_radius = radius * pulse_scale
 	
-	# Anillo de selección exterior si está seleccionada
+	# 1. Onda expansiva de impacto y conquista
+	if shockwave_alpha > 0.0:
+		var sw_col = Color(shockwave_color.r, shockwave_color.g, shockwave_color.b, shockwave_alpha * 0.85)
+		var sw_width = maxf(1.0, 5.0 * shockwave_alpha)
+		draw_arc(Vector2.ZERO, shockwave_radius, 0, TAU, 48, sw_col, sw_width, true)
+		var fill_col = Color(shockwave_color.r, shockwave_color.g, shockwave_color.b, shockwave_alpha * 0.18)
+		draw_circle(Vector2.ZERO, shockwave_radius, fill_col)
+		
+	# Aplicar transformación de sacudida y escala elástica
+	draw_set_transform(shake_offset, 0.0, elastic_scale)
+	
+	# 2. Sombra 2.5D difusa multicapa State.io (+Y hacia abajo)
+	draw_circle(Vector2(0, 14), current_radius + 12.0, Color(0, 0, 0, 0.05))
+	draw_circle(Vector2(0, 10), current_radius + 8.0, Color(0, 0, 0, 0.09))
+	draw_circle(Vector2(0, 7), current_radius + 4.0, Color(0, 0, 0, 0.15))
+	draw_circle(Vector2(0, 4), current_radius + 1.0, Color(0, 0, 0, 0.22))
+	
+	# 3. Anillo de selección exterior si está seleccionada
 	if is_selected:
-		draw_circle(Vector2.ZERO, current_radius + 12.0, Color(1, 1, 1, 0.45))
-		draw_arc(Vector2.ZERO, current_radius + 10.0, 0, TAU, 36, Color.WHITE, 4.0)
+		draw_circle(Vector2.ZERO, current_radius + 14.0, Color(1, 1, 1, 0.25))
+		draw_arc(Vector2.ZERO, current_radius + 11.0, 0, TAU, 48, Color.WHITE, 4.0, true)
+		
+	# 4. Borde exterior blanco limpio y nítido
+	draw_circle(Vector2.ZERO, current_radius + 4.5, Color.WHITE)
 	
-	# Sombra exterior suave
-	draw_circle(Vector2(0, 6), current_radius + 4.0, Color(0, 0, 0, 0.25))
-	
-	# Borde exterior de la base
-	draw_circle(Vector2.ZERO, current_radius + 4.0, Color.WHITE)
-	
-	# Cuerpo principal de la base
+	# 5. Cuerpo principal con color de la facción
 	draw_circle(Vector2.ZERO, current_radius, color)
 	
-	# Anillo interior decorativo
-	draw_arc(Vector2.ZERO, current_radius * 0.75, 0, TAU, 32, Color(1, 1, 1, 0.35), 2.5)
+	# 6. Iluminación domo / reflejo redondeado 2.5D superior
+	var dome_highlight = Color(1.0, 1.0, 1.0, 0.28)
+	draw_arc(Vector2(0, -current_radius * 0.12), current_radius * 0.72, PI * 1.15, PI * 1.85, 32, dome_highlight, 3.5, true)
 	
-	# Indicadores de Tier (pips en la parte superior)
+	# 7. Anillo interior decorativo sutil
+	draw_arc(Vector2.ZERO, current_radius * 0.82, 0, TAU, 40, Color(1, 1, 1, 0.18), 1.8, true)
+	
+	# 8. Indicadores de Tier (pips redondeados elegantes en la parte superior)
 	var pip_spacing = 16.0
 	var start_x = -((tier - 1) * pip_spacing) / 2.0
 	for i in range(tier):
 		var pip_pos = Vector2(start_x + i * pip_spacing, -current_radius - 12.0)
-		draw_circle(pip_pos, 4.0, Color.WHITE)
+		draw_circle(pip_pos + Vector2(0, 2), 4.5, Color(0, 0, 0, 0.35))
+		draw_circle(pip_pos, 4.5, Color.WHITE)
+		draw_circle(pip_pos, 3.0, Color(0.92, 0.92, 0.96))
+		
+	# Restablecer transformación
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

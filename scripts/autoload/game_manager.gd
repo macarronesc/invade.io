@@ -103,9 +103,14 @@ func complete_level(level_id: String, stars: int) -> void:
 		completed_levels[level_id] = stars
 	
 	# Desbloquear siguiente nivel
-	var next_id = _calculate_next_level(level_id)
-	if next_id != "" and not unlocked_levels.has(next_id):
-		unlocked_levels.append(next_id)
+	var next_id = get_next_level(level_id)
+	if next_id != "":
+		if not unlocked_levels.has(next_id):
+			unlocked_levels.append(next_id)
+		current_level_id = next_id
+		var next_cont = next_id.substr(0, next_id.rfind("_"))
+		if next_cont != "":
+			current_continent = next_cont
 	
 	save_game()
 
@@ -113,10 +118,13 @@ func is_level_unlocked(level_id: String) -> bool:
 	return unlocked_levels.has(level_id)
 
 func _calculate_next_level(level_id: String) -> String:
-	var parts = level_id.split("_")
-	if parts.size() == 2:
-		var continent = parts[0]
-		var index = int(parts[1])
+	return get_next_level(level_id)
+
+func get_next_level(level_id: String) -> String:
+	var last_underscore = level_id.rfind("_")
+	if last_underscore != -1:
+		var continent = level_id.substr(0, last_underscore)
+		var index = int(level_id.substr(last_underscore + 1))
 		if index < 5:
 			return "%s_%d" % [continent, index + 1]
 		else:
@@ -133,7 +141,8 @@ func save_game() -> void:
 		"upgrades": upgrades,
 		"completed_levels": completed_levels,
 		"unlocked_levels": unlocked_levels,
-		"current_continent": current_continent
+		"current_continent": current_continent,
+		"current_level_id": current_level_id
 	}
 	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -158,6 +167,7 @@ func load_game() -> void:
 			for l in ul:
 				unlocked_levels.append(str(l))
 			current_continent = data.get("current_continent", current_continent)
+			current_level_id = data.get("current_level_id", current_level_id)
 
 func reset_save() -> void:
 	coins = 150
