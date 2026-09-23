@@ -72,6 +72,9 @@ func run_all_tests() -> void:
 	test_fortress_defense_absorption_and_production()
 	test_factory_production_and_vulnerability()
 	test_ai_archetypes_decision_making()
+	test_slow_motion_and_time_scale_safety()
+	test_confetti_and_star_revelation()
+	test_audio_fanfares_and_continental_conquest()
 
 func test_base_production_mechanics() -> void:
 	print("-> Test: Producción de Tropas y Límites de Capacidad")
@@ -1295,6 +1298,238 @@ func test_ai_archetypes_decision_making() -> void:
 	target_depleted.free()
 	allied_fortress.free()
 	battle.free()
+
+func test_slow_motion_and_time_scale_safety() -> void:
+	print("\n-> Test: Slow-Motion Cinemático de Victoria y Seguridad de Engine.time_scale")
+	var BattleControllerScript = load("res://scripts/battle/battle_controller.gd")
+	var BaseNodeScript = load("res://scripts/battle/base_node.gd")
+	var TroopScript = load("res://scripts/battle/troop.gd")
+	var BattleHUDScene = load("res://scenes/ui/battle_hud.tscn")
+	
+	var battle = BattleControllerScript.new()
+	assert_equals(Engine.time_scale, 1.0, "time_scale inicial es exactamente 1.0")
+	
+	# 1. Disparo manual de slow motion
+	battle.start_slow_motion()
+	assert_true(battle.is_slow_motion_active, "start_slow_motion() activa is_slow_motion_active")
+	
+	# Simular transición suave de tiempo con _process
+	battle._process(0.5)
+	assert_true(Engine.time_scale < 1.0, "Engine.time_scale desciende suavemente durante slow motion")
+	assert_true(Engine.time_scale >= battle.SLOW_MOTION_TARGET, "Engine.time_scale no desciende por debajo de SLOW_MOTION_TARGET")
+	
+	# 2. Restablecimiento seguro con reset_time_scale()
+	battle.reset_time_scale()
+	assert_equals(battle.is_slow_motion_active, false, "reset_time_scale desactiva slow motion")
+	assert_equals(Engine.time_scale, 1.0, "reset_time_scale restaura Engine.time_scale a 1.0 limpiamente")
+	
+	# 3. Detección de asalto decisivo en _check_decisive_assault()
+	battle.is_game_over = false
+	var b_player = BaseNodeScript.new()
+	b_player.faction = GameManager.Faction.PLAYER
+	b_player.troops = 20
+	b_player.position = Vector2(200, 200)
+	b_player.global_position = Vector2(200, 200)
+	battle.bases.append(b_player)
+	
+	var b_enemy = BaseNodeScript.new()
+	b_enemy.faction = GameManager.Faction.ENEMY_1
+	b_enemy.troops = 5
+	b_enemy.position = Vector2(300, 200)
+	b_enemy.global_position = Vector2(300, 200)
+	battle.bases.append(b_enemy)
+	
+	# No hay asalto aún: no debe activar slow motion
+	battle._check_decisive_assault()
+	assert_true(not battle.is_slow_motion_active, "No se activa slow motion si no hay tropas en asalto final")
+	
+	# Crear tropa de asalto fatal cercana a la última base enemiga
+	var assault_troop = TroopScript.new()
+	assault_troop.faction = GameManager.Faction.PLAYER
+	assault_troop.count = 12
+	assault_troop.target_base = b_enemy
+	assault_troop.position = Vector2(280, 200)
+	assault_troop.global_position = Vector2(280, 200)
+	battle.active_troops.append(assault_troop)
+	
+	battle._check_decisive_assault()
+	assert_true(battle.is_slow_motion_active, "Asalto decisivo superior a la guarnición enemiga activa slow motion cinemático")
+	
+	# Restablecer para probar integración con HUD
+	battle.reset_time_scale()
+	assert_equals(Engine.time_scale, 1.0, "time_scale restablecido tras test de asalto")
+	
+	# 4. Probar que BattleHUD restablece time_scale en despliegue de victoria, pausa, etc.
+	var hud = BattleHUDScene.instantiate()
+	add_child(hud)
+	hud.battle_controller = battle
+	Engine.time_scale = 0.28
+	battle.is_slow_motion_active = true
+	
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 100, "is_continent_conquest": false})
+	assert_equals(Engine.time_scale, 1.0, "deploy_victory_modal restaura Engine.time_scale a 1.0 para 60 FPS en interfaz")
+	assert_equals(battle.is_slow_motion_active, false, "deploy_victory_modal limpia is_slow_motion_active en BattleController")
+	
+	# Probar pausa / reanudar
+	Engine.time_scale = 0.3
+	hud._on_pause_pressed()
+	assert_equals(Engine.time_scale, 1.0, "Pausa restaura Engine.time_scale a 1.0")
+	hud._on_resume_pressed()
+	assert_equals(Engine.time_scale, 1.0, "Reanudar mantiene Engine.time_scale a 1.0")
+	
+	# 5. Probar recuperación tras fracaso del asalto decisivo
+	battle.is_game_over = false
+	b_enemy.troops = 10
+	battle.active_troops.clear()
+	battle.start_slow_motion()
+	assert_true(battle.is_slow_motion_active, "Slow motion activo al iniciar asalto")
+	# Todas las tropas aliadas concluyen sin conquistar la base (incoming_player = 0)
+	battle._check_decisive_assault()
+	assert_true(not battle.is_slow_motion_active, "Asalto fallido cancela is_slow_motion_active")
+	battle._process(0.5)
+	assert_true(Engine.time_scale > 0.28, "Engine.time_scale se recupera suavemente hacia 1.0 tras asalto fallido")
+	
+	# 6. Probar detección de erradicación de última tropa hostil con 0 bases enemigas
+	battle.reset_time_scale()
+	battle.bases.clear()
+	battle.bases.append(b_player) # Sólo base del jugador
+	var enemy_last_troop = TroopScript.new()
+	enemy_last_troop.faction = GameManager.Faction.ENEMY_1
+	enemy_last_troop.count = 4
+	enemy_last_troop.target_base = b_player
+	enemy_last_troop.position = Vector2(250, 200)
+	enemy_last_troop.global_position = Vector2(250, 200)
+	battle.active_troops.append(enemy_last_troop)
+	b_player.troops = 20 # Defensa superior al atacante
+	
+	battle._check_decisive_assault()
+	assert_true(battle.is_slow_motion_active, "Golpe de gracia sobre última tropa hostil activa slow motion")
+	enemy_last_troop.free()
+	battle.active_troops.clear()
+	
+	# 7. Probar que _exit_tree restablece time_scale limpiamente
+	Engine.time_scale = 0.28
+	battle._exit_tree()
+	assert_equals(Engine.time_scale, 1.0, "BattleController._exit_tree restablece limpiamente Engine.time_scale a 1.0")
+	
+	remove_child(hud)
+	hud.free()
+	b_player.free()
+	b_enemy.free()
+	assault_troop.free()
+	battle.free()
+	Engine.time_scale = 1.0
+
+func test_confetti_and_star_revelation() -> void:
+	print("\n-> Test: Sistema de Confeti Festivo y Revelación Secuencial de Estrellas")
+	var BattleHUDScene = load("res://scenes/ui/battle_hud.tscn")
+	var hud = BattleHUDScene.instantiate()
+	add_child(hud)
+	
+	# 1. Verificar existencia y configuración de ConfettiParticles (CPUParticles2D)
+	var confetti = hud.get_node_or_null("%ConfettiParticles")
+	assert_true(confetti != null, "Nodo ConfettiParticles (CPUParticles2D) existe en la escena BattleHUD")
+	assert_true(confetti is CPUParticles2D, "ConfettiParticles es de tipo CPUParticles2D")
+	assert_true(confetti.amount >= 50, "Cantidad de partículas festivas configurada adecuadamente (>= 50)")
+	assert_true(confetti.one_shot, "ConfettiParticles configurado como one_shot")
+	
+	# 2. Verificar disparador de confeti, partículas y simulación procedural
+	hud.trigger_confetti()
+	assert_true(confetti.emitting, "trigger_confetti() activa emisión en CPUParticles2D")
+	assert_true(hud.confetti_pieces.size() >= 50, "trigger_confetti() genera piezas de confeti multicolor")
+	var first_piece = hud.confetti_pieces[0]
+	assert_true(first_piece.has("pos") and first_piece.has("vel") and first_piece.has("color"), "Piezas de confeti poseen parámetros físicos")
+	
+	# Verificar existencia de ConfettiOverlay y simulación física activa en _process
+	var overlay = hud.get_node_or_null("%ConfettiOverlay")
+	assert_true(overlay != null, "ConfettiOverlay Control existe en VictoryPanel")
+	assert_equals(overlay.mouse_filter, Control.MOUSE_FILTER_IGNORE, "ConfettiOverlay no bloquea eventos de ratón (MOUSE_FILTER_IGNORE)")
+	var initial_y = hud.confetti_pieces[0]["pos"].y
+	hud._process(0.1)
+	assert_true(hud.confetti_pieces[0]["pos"].y > initial_y or hud.confetti_pieces[0]["vel"].y != 0.0, "Piezas de confeti actualizan su posición y física en _process")
+	
+	# 3. Verificar contenedor de estrellas y labels individuales
+	var stars_container = hud.get_node_or_null("%StarsContainer")
+	assert_true(stars_container != null, "StarsContainer presente en VictoryPanel")
+	var star1 = hud.get_node_or_null("%Star1")
+	var star2 = hud.get_node_or_null("%Star2")
+	var star3 = hud.get_node_or_null("%Star3")
+	assert_true(star1 != null and star2 != null and star3 != null, "Las 3 estrellas individuales (Star1, Star2, Star3) existen en VictoryPanel")
+	
+	# 4. Probar configuración con 1 estrella
+	hud.animate_stars(1)
+	assert_equals(star1.text, "⭐", "Con 1 estrella ganada: Star1 es ⭐")
+	assert_equals(star2.text, "★", "Con 1 estrella ganada: Star2 es ★ inactiva")
+	assert_equals(star3.text, "★", "Con 1 estrella ganada: Star3 es ★ inactiva")
+	
+	# 5. Probar configuración con 2 estrellas
+	hud.animate_stars(2)
+	assert_equals(star1.text, "⭐", "Con 2 estrellas ganadas: Star1 es ⭐")
+	assert_equals(star2.text, "⭐", "Con 2 estrellas ganadas: Star2 es ⭐")
+	assert_equals(star3.text, "★", "Con 2 estrellas ganadas: Star3 es ★ inactiva")
+	
+	# 6. Probar configuración con 3 estrellas y re-disparo seguro de tweens
+	hud.animate_stars(3)
+	assert_equals(star1.text, "⭐", "Con 3 estrellas ganadas: Star1 es ⭐")
+	assert_equals(star2.text, "⭐", "Con 3 estrellas ganadas: Star2 es ⭐")
+	assert_equals(star3.text, "⭐", "Con 3 estrellas ganadas: Star3 es ⭐")
+	assert_true(hud._star_tweens.size() > 0, "animate_stars gestiona lista activa de tweens sin conflictos")
+	
+	# 7. Probar despliegue completo de modal con conquista continental
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 150, "is_continent_conquest": true})
+	assert_true(hud.victory_panel.visible, "VictoryPanel es visible tras deploy_victory_modal()")
+	var title = hud.get_node_or_null("%VictoryTitle")
+	assert_true(title != null, "Label de título en VictoryPanel existe")
+	assert_equals(title.text, "¡CONTINENTE CONQUISTADO!", "Título conmuta a '¡CONTINENTE CONQUISTADO!' al completar nivel 5")
+	
+	# Probar despliegue de victoria estándar
+	hud.deploy_victory_modal({"stars": 2, "gold_earned": 90, "is_continent_conquest": false})
+	assert_equals(title.text, "¡VICTORIA!", "Título conmuta a '¡VICTORIA!' en niveles normales")
+	
+	remove_child(hud)
+	hud.free()
+
+func test_audio_fanfares_and_continental_conquest() -> void:
+	print("\n-> Test: Fanfarrias Triunfales, Conquista Continental y Sonidos Secuenciales de Estrellas")
+	assert_true(AudioManager != null, "AudioManager está disponible")
+	assert_true(AudioManager.generator.buffer_length >= 1.0, "AudioManager buffer_length tiene suficiente capacidad (>= 1.0s) para fanfarrias")
+	
+	# 1. Probar fanfarria de victoria estándar
+	AudioManager.play_victory()
+	assert_equals(AudioManager.last_played_fanfare, "victory", "AudioManager ejecuta fanfarria triunfal de victoria")
+	
+	# 2. Probar fanfarria de conquista continental con riqueza armónica
+	AudioManager.play_continent_conquest()
+	assert_equals(AudioManager.last_played_fanfare, "continent_conquest", "AudioManager ejecuta fanfarria de conquista continental")
+	
+	# 3. Probar sonidos secuenciales de estrellas
+	AudioManager.play_star_reveal(0)
+	assert_equals(AudioManager.last_star_sound_index, 0, "AudioManager ejecuta sonido de revelación de Estrella 1 (index 0)")
+	
+	AudioManager.play_star_reveal(1)
+	assert_equals(AudioManager.last_star_sound_index, 1, "AudioManager ejecuta sonido de revelación de Estrella 2 (index 1)")
+	
+	AudioManager.play_star_reveal(2)
+	assert_equals(AudioManager.last_star_sound_index, 2, "AudioManager ejecuta sonido de revelación de Estrella 3 (index 2)")
+	
+	AudioManager.play_star_pop(2)
+	assert_equals(AudioManager.last_star_sound_index, 2, "play_star_pop funciona como alias de play_star_reveal")
+	
+	# 4. Probar detección de nivel 5 y selección automática de fanfarria en BattleController
+	var BattleControllerScript = load("res://scripts/battle/battle_controller.gd")
+	var battle = BattleControllerScript.new()
+	battle.level_id = "europe_5"
+	battle._trigger_victory()
+	assert_equals(AudioManager.last_played_fanfare, "continent_conquest", "Nivel europe_5 (fin de continente) dispara automáticamente fanfarria de conquista continental")
+	
+	battle.level_id = "europe_3"
+	battle._trigger_victory()
+	assert_equals(AudioManager.last_played_fanfare, "victory", "Nivel europe_3 (nivel regular) dispara fanfarria de victoria estándar")
+	
+	battle.reset_time_scale()
+	battle.free()
+	Engine.time_scale = 1.0
+
 
 
 

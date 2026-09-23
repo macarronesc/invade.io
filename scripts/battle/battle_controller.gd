@@ -25,12 +25,24 @@ var target_time: float = 45.0
 var level_data: Dictionary = {}
 var dispatch_percentage: float = 1.0
 
+var is_slow_motion_active: bool = false
+const SLOW_MOTION_TARGET: float = 0.28
+const SLOW_MOTION_SPEED: float = 2.5
+
 @onready var bases_container: Node2D = get_node_or_null("BasesContainer")
 @onready var troops_container: Node2D = get_node_or_null("TroopsContainer")
 @onready var arrow_overlay: Node2D = get_node_or_null("ArrowOverlay")
 @onready var territory_map: Node2D = get_node_or_null("TerritoryMap")
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		reset_time_scale()
+
+func _exit_tree() -> void:
+	reset_time_scale()
+
 func _ready() -> void:
+	reset_time_scale()
 	if GameManager.current_level_id != "":
 		level_id = GameManager.current_level_id
 	load_level(level_id)
@@ -39,12 +51,21 @@ func _ready() -> void:
 	if arrow_overlay:
 		arrow_overlay.draw.connect(_draw_drag_overlay)
 
+func start_slow_motion() -> void:
+	if not is_slow_motion_active:
+		is_slow_motion_active = true
+
+func reset_time_scale() -> void:
+	is_slow_motion_active = false
+	Engine.time_scale = 1.0
+
 func toggle_dispatch_percentage() -> float:
 	dispatch_percentage = 1.0
 	EventBus.dispatch_percentage_changed.emit(dispatch_percentage)
 	return dispatch_percentage
 
 func load_level(p_level_id: String) -> void:
+	reset_time_scale()
 	level_id = p_level_id
 	level_data = LevelDatabase.get_level_data(level_id)
 	target_time = level_data.get("target_time", 45.0)
@@ -105,11 +126,95 @@ func load_level(p_level_id: String) -> void:
 func _process(delta: float) -> void:
 	if not is_game_over:
 		battle_time += delta
+		_check_decisive_assault()
 		_process_troop_collisions()
 		_check_game_over_conditions()
+		
+	# Transición suave de cámara lenta
+	if is_slow_motion_active:
+		var unscaled_dt = delta / maxf(Engine.time_scale, 0.01)
+		Engine.time_scale = move_toward(Engine.time_scale, SLOW_MOTION_TARGET, unscaled_dt * SLOW_MOTION_SPEED)
+	elif not is_game_over and Engine.time_scale < 1.0:
+		var unscaled_dt = delta / maxf(Engine.time_scale, 0.01)
+		Engine.time_scale = move_toward(Engine.time_scale, 1.0, unscaled_dt * SLOW_MOTION_SPEED)
+
 	queue_redraw()
 	if arrow_overlay:
 		arrow_overlay.queue_redraw()
+
+func _check_decisive_assault() -> void:
+	if is_game_over:
+		return
+		
+	var enemy_bases: Array[BaseNode] = []
+	for b in bases:
+		if is_instance_valid(b) and b.faction != GameManager.Faction.PLAYER and b.faction != GameManager.Faction.NEUTRAL:
+			enemy_bases.append(b)
+			
+	var enemy_troops: Array[Troop] = []
+	for t in active_troops:
+		if is_instance_valid(t) and not t.is_queued_for_deletion() and t.faction != GameManager.Faction.PLAYER and t.faction != GameManager.Faction.NEUTRAL and t.count > 0:
+			enemy_troops.append(t)
+			
+	# Si la cámara lenta ya está activa, verificar si el asalto decisivo ha concluido o fracasado
+	if is_slow_motion_active:
+		if enemy_bases.size() > 1:
+			# El enemigo recuperó bases; ya no es asalto decisivo final
+			is_slow_motion_active = false
+		elif enemy_bases.size() == 1:
+			var target_base = enemy_bases[0]
+			var incoming_player = 0
+			for t in active_troops:
+				if is_instance_valid(t) and not t.is_queued_for_deletion() and t.faction == GameManager.Faction.PLAYER and t.target_base == target_base and t.count > 0:
+					incoming_player += t.count
+			# Si ya no quedan tropas aliadas marchando contra la última base y no fue conquistada, cancelar slow motion
+			if incoming_player == 0:
+				is_slow_motion_active = false
+		return
+		
+	# Caso 1: Asalto decisivo sobre la última base enemiga
+	if enemy_bases.size() == 1:
+		var target_base = enemy_bases[0]
+		var incoming_player = 0
+		var is_close = false
+		for t in active_troops:
+			if is_instance_valid(t) and not t.is_queued_for_deletion() and t.faction == GameManager.Faction.PLAYER and t.target_base == target_base and t.count > 0:
+				incoming_player += t.count
+				var d = t.global_position.distance_to(target_base.global_position)
+				if d <= (target_base.radius + 200.0):
+					is_close = true
+		
+		var defense_threshold = target_base.troops
+		if target_base.base_type == BaseNode.BaseType.FORTRESS:
+			defense_threshold = target_base.troops * 2 - target_base.fortress_absorbed_damage
+		elif target_base.base_type == BaseNode.BaseType.FACTORY:
+			defense_threshold = int(ceil(float(target_base.troops) / 2.0))
+			
+		if incoming_player > defense_threshold and is_close:
+			start_slow_motion()
+			
+	# Caso 2: Golpe de gracia sobre la última tropa hostil (0 bases enemigas)
+	elif enemy_bases.size() == 0 and enemy_troops.size() > 0:
+		var all_doomed = true
+		var any_close = false
+		for et in enemy_troops:
+			if not is_instance_valid(et.target_base) or et.target_base.faction != GameManager.Faction.PLAYER:
+				all_doomed = false
+				break
+			var player_base = et.target_base
+			var player_defense = player_base.troops
+			if player_base.base_type == BaseNode.BaseType.FORTRESS:
+				player_defense = player_base.troops * 2 - player_base.fortress_absorbed_damage
+			elif player_base.base_type == BaseNode.BaseType.FACTORY:
+				player_defense = int(ceil(float(player_base.troops) / 2.0))
+			if et.count > player_defense:
+				all_doomed = false
+				break
+			var d = et.global_position.distance_to(player_base.global_position)
+			if d <= (player_base.radius + 200.0):
+				any_close = true
+		if all_doomed and any_close:
+			start_slow_motion()
 
 func _process_troop_collisions() -> void:
 	var i = 0
@@ -392,6 +497,10 @@ func _check_game_over_conditions() -> void:
 
 func _trigger_victory() -> void:
 	is_game_over = true
+	# Si no se había activado slow motion por asalto decisivo previo, activar en el golpe de gracia
+	if not is_slow_motion_active:
+		start_slow_motion()
+		
 	var stars = 1
 	if battle_time <= target_time:
 		stars = 3
@@ -408,18 +517,26 @@ func _trigger_victory() -> void:
 	
 	GameManager.complete_level(level_id, stars)
 	GameManager.add_coins(total_gold)
-	AudioManager.play_victory()
+	
+	# Comprobar si es conquista continental (nivel 5 de cualquier continente)
+	var is_continent_conquest = level_id.ends_with("_5")
+	if is_continent_conquest:
+		AudioManager.play_continent_conquest()
+	else:
+		AudioManager.play_victory()
 	
 	var stats = {
 		"level_id": level_id,
 		"stars": stars,
 		"time": battle_time,
 		"gold_earned": total_gold,
-		"bases_conquered": player_bases_count
+		"bases_conquered": player_bases_count,
+		"is_continent_conquest": is_continent_conquest
 	}
 	EventBus.battle_won.emit(stats)
 
 func _trigger_defeat() -> void:
+	reset_time_scale()
 	is_game_over = true
 	AudioManager.play_defeat()
 	EventBus.battle_lost.emit()

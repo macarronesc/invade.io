@@ -2,6 +2,10 @@
 
 [ext_resource type="Script" path="res://scripts/ui/battle_hud.gd" id="1_hud_script"]
 
+[sub_resource type="Gradient" id="Gradient_confetti"]
+offsets = PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8, 1)
+colors = PackedColorArray(1, 0.84, 0, 1, 0.13, 0.59, 0.95, 1, 0.96, 0.26, 0.21, 1, 0.3, 0.69, 0.31, 1, 1, 0.4, 0.8, 1, 1, 1, 1, 1)
+
 [node name="BattleHUD" type="CanvasLayer"]
 process_mode = 3
 script = ExtResource("1_hud_script")
@@ -105,6 +109,37 @@ offset_bottom = 350.0
 grow_horizontal = 2
 grow_vertical = 2
 
+[node name="ConfettiParticles" type="CPUParticles2D" parent="VictoryPanel"]
+unique_name_in_owner = true
+position = Vector2(420, 250)
+emitting = false
+amount = 80
+lifetime = 2.5
+one_shot = true
+explosiveness = 0.85
+emission_shape = 3
+emission_rect_extents = Vector2(380, 20)
+direction = Vector2(0, -1)
+spread = 70.0
+gravity = Vector2(0, 650)
+initial_velocity_min = 280.0
+initial_velocity_max = 620.0
+angular_velocity_min = -180.0
+angular_velocity_max = 180.0
+scale_amount_min = 6.0
+scale_amount_max = 14.0
+color_initial_ramp = SubResource("Gradient_confetti")
+
+[node name="ConfettiOverlay" type="Control" parent="VictoryPanel"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
 [node name="VBox" type="VBoxContainer" parent="VictoryPanel"]
 layout_mode = 1
 anchors_preset = 15
@@ -119,7 +154,8 @@ grow_vertical = 2
 theme_override_constants/separation = 30
 alignment = 1
 
-[node name="Title" type="Label" parent="VictoryPanel/VBox"]
+[node name="VictoryTitle" type="Label" parent="VictoryPanel/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.2, 0.9, 0.3, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
@@ -128,8 +164,45 @@ theme_override_font_sizes/font_size = 54
 text = "¡VICTORIA!"
 horizontal_alignment = 1
 
+[node name="StarsContainer" type="HBoxContainer" parent="VictoryPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="Star1" type="Label" parent="VictoryPanel/VBox/StarsContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(70, 70)
+layout_mode = 2
+pivot_offset = Vector2(35, 35)
+theme_override_font_sizes/font_size = 54
+text = "⭐"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Star2" type="Label" parent="VictoryPanel/VBox/StarsContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(70, 70)
+layout_mode = 2
+pivot_offset = Vector2(35, 35)
+theme_override_font_sizes/font_size = 54
+text = "⭐"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Star3" type="Label" parent="VictoryPanel/VBox/StarsContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(70, 70)
+layout_mode = 2
+pivot_offset = Vector2(35, 35)
+theme_override_font_sizes/font_size = 54
+text = "⭐"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="VictoryStarsLabel" type="Label" parent="VictoryPanel/VBox"]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
 theme_override_font_sizes/font_size = 48
 text = "⭐ ⭐ ⭐"

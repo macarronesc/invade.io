@@ -141,11 +141,8 @@ func _update_tier_parameters() -> void:
 		label_name.position.y = radius + 6.0
 
 func _process(delta: float) -> void:
-	if not is_active:
-		return
-		
-	# Producción pasiva de tropas (sólo para bases capturadas)
-	if faction != GameManager.Faction.NEUTRAL:
+	# Producción pasiva de tropas (sólo para bases activas y capturadas)
+	if is_active and faction != GameManager.Faction.NEUTRAL:
 		var base_rate: float = 1.0
 		match tier:
 			1: base_rate = 1.0
