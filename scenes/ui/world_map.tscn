@@ -1,0 +1,153 @@
+[gd_scene load_steps=2 format=3 uid="uid://c54j7m4k1p9qv"]
+
+[ext_resource type="Script" path="res://scripts/ui/world_map.gd" id="1_world_map"]
+
+[node name="WorldMap" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_world_map")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.12, 0.14, 0.17, 1)
+
+[node name="Header" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 160.0
+grow_horizontal = 2
+
+[node name="BtnBack" type="Button" parent="Header"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 40.0
+offset_top = 50.0
+offset_right = 140.0
+offset_bottom = 120.0
+theme_override_font_sizes/font_size = 28
+text = "◀ MENÚ"
+
+[node name="Title" type="Label" parent="Header"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -250.0
+offset_top = 50.0
+offset_right = 250.0
+offset_bottom = 120.0
+grow_horizontal = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 36
+text = "MAPA MUNDIAL"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CoinsLabel" type="Label" parent="Header"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -220.0
+offset_top = 50.0
+offset_right = -40.0
+offset_bottom = 120.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 32
+text = "🪙 150"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="ContinentSelector" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 180.0
+offset_bottom = 260.0
+grow_horizontal = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="BtnPrevContinent" type="Button" parent="ContinentSelector"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "◀"
+
+[node name="ContinentTitle" type="Label" parent="ContinentSelector"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(450, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.8, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 40
+text = "Europa"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BtnNextContinent" type="Button" parent="ContinentSelector"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "▶"
+
+[node name="LevelsScroll" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 60.0
+offset_top = 300.0
+offset_right = -60.0
+offset_bottom = -180.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="LevelsContainer" type="VBoxContainer" parent="LevelsScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 24
+
+[node name="Footer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -140.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="BtnUpgrades" type="Button" parent="Footer"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -45.0
+offset_right = 300.0
+offset_bottom = 45.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 30
+text = "🛡️ TIENDA DE MEJORAS"

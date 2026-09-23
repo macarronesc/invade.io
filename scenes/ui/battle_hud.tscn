@@ -1,0 +1,281 @@
+[gd_scene load_steps=2 format=3 uid="uid://cx82m5vy6lae8"]
+
+[ext_resource type="Script" path="res://scripts/ui/battle_hud.gd" id="1_hud_script"]
+
+[node name="BattleHUD" type="CanvasLayer"]
+process_mode = 3
+script = ExtResource("1_hud_script")
+
+[node name="TopBar" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 200.0
+grow_horizontal = 2
+
+[node name="DominanceBarContainer" type="HBoxContainer" parent="TopBar"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -400.0
+offset_top = 40.0
+offset_right = 400.0
+offset_bottom = 65.0
+grow_horizontal = 2
+theme_override_constants/separation = 0
+
+[node name="BarPlayer" type="ColorRect" parent="TopBar/DominanceBarContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(266, 25)
+layout_mode = 2
+color = Color(0.13, 0.59, 0.95, 1)
+
+[node name="BarNeutral" type="ColorRect" parent="TopBar/DominanceBarContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(266, 25)
+layout_mode = 2
+color = Color(0.47, 0.56, 0.61, 1)
+
+[node name="BarEnemy" type="ColorRect" parent="TopBar/DominanceBarContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(268, 25)
+layout_mode = 2
+color = Color(0.96, 0.26, 0.21, 1)
+
+[node name="LevelNameLabel" type="Label" parent="TopBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -300.0
+offset_top = 85.0
+offset_right = 300.0
+offset_bottom = 135.0
+grow_horizontal = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 28
+text = "Europa - Nivel 1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CoinsLabel" type="Label" parent="TopBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -220.0
+offset_top = 85.0
+offset_right = -40.0
+offset_bottom = 135.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 32
+text = "🪙 150"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="BtnPause" type="Button" parent="TopBar"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 40.0
+offset_top = 80.0
+offset_right = 110.0
+offset_bottom = 140.0
+theme_override_font_sizes/font_size = 28
+text = "⏸"
+
+[node name="VictoryPanel" type="Panel" parent="."]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -420.0
+offset_top = -350.0
+offset_right = 420.0
+offset_bottom = 350.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="VictoryPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = 50.0
+offset_right = -40.0
+offset_bottom = -50.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 30
+alignment = 1
+
+[node name="Title" type="Label" parent="VictoryPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.9, 0.3, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 54
+text = "¡VICTORIA!"
+horizontal_alignment = 1
+
+[node name="VictoryStarsLabel" type="Label" parent="VictoryPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "⭐ ⭐ ⭐"
+horizontal_alignment = 1
+
+[node name="VictoryRewardLabel" type="Label" parent="VictoryPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 32
+text = "+120 Monedas de Oro"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="VictoryPanel/VBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="BtnNextLevel" type="Button" parent="VictoryPanel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "SIGUIENTE NIVEL"
+
+[node name="BtnVictoryMap" type="Button" parent="VictoryPanel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "MAPA MUNDIAL"
+
+[node name="DefeatPanel" type="Panel" parent="."]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -420.0
+offset_top = -320.0
+offset_right = 420.0
+offset_bottom = 320.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="DefeatPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = 50.0
+offset_right = -40.0
+offset_bottom = -50.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 30
+alignment = 1
+
+[node name="Title" type="Label" parent="DefeatPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.25, 0.2, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 52
+text = "DERROTA"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="DefeatPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 26
+text = "Tus territorios han sido invadidos."
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="DefeatPanel/VBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="BtnRetry" type="Button" parent="DefeatPanel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "REINTENTAR"
+
+[node name="BtnDefeatUpgrade" type="Button" parent="DefeatPanel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "MEJORAR TROPAS"
+
+[node name="PausePanel" type="Panel" parent="."]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -400.0
+offset_top = -300.0
+offset_right = 400.0
+offset_bottom = 300.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="PausePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = 40.0
+offset_right = -40.0
+offset_bottom = -40.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 25
+alignment = 1
+
+[node name="Title" type="Label" parent="PausePanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 46
+text = "PAUSA"
+horizontal_alignment = 1
+
+[node name="BtnResume" type="Button" parent="PausePanel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "REANUDAR"
+
+[node name="BtnPauseRetry" type="Button" parent="PausePanel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "REINICIAR BATALLA"
+
+[node name="BtnPauseMap" type="Button" parent="PausePanel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "SALIR AL MAPA"
