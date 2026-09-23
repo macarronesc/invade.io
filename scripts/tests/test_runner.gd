@@ -2025,8 +2025,7 @@ func test_world_map_campaign_route_and_briefing() -> void:
 	# 3. Nodos de la ruta de campaña (5 niveles por continente)
 	world_map.current_continent_index = 0 # Europa
 	world_map._refresh_display()
-	var active_nodes = world_map.levels_container.get_children().filter(func(c): return not c.is_queued_for_deletion())
-	assert_equals(active_nodes.size(), 5, "Existen exactamente 5 nodos de campaña para Europa")
+	assert_equals(world_map.levels_container.get_child_count(), 5, "Existen exactamente 5 nodos de campaña para Europa")
 	
 	var node1 = world_map.levels_container.get_node_or_null("NodeHolder_1")
 	assert_true(node1 != null, "NodeHolder_1 presente en la ruta")
@@ -2040,6 +2039,14 @@ func test_world_map_campaign_route_and_briefing() -> void:
 	assert_true(btn5 != null, "BtnLevel_5 presente")
 	assert_true(btn5.disabled, "Nivel 5 de Europa está bloqueado inicialmente")
 	assert_equals(btn5.text, "🔒", "Nivel bloqueado muestra candado")
+	
+	# Verificar cambio limpio de continente sin nodos fantasma
+	world_map._on_next_continent() # Norteamérica
+	assert_equals(world_map.levels_container.get_child_count(), 5, "Cambio de continente mantiene exactamente 5 nodos limpios")
+	var na_node1 = world_map.levels_container.get_node_or_null("NodeHolder_1")
+	assert_true(na_node1 != null and not na_node1.is_queued_for_deletion(), "NodeHolder_1 activo y no marcado para borrado en nuevo continente")
+	world_map._on_prev_continent() # Regresar a Europa
+	assert_equals(world_map.levels_container.get_child_count(), 5, "Regreso a Europa conserva 5 nodos limpios")
 	
 	# 4. Actualización del panel de briefing
 	world_map._select_level("europe_1")
@@ -2076,8 +2083,8 @@ func test_upgrade_menu_cards_and_pips() -> void:
 	assert_true(upgrade_menu.btn_back != null, "BtnBack existe en UpgradeMenu")
 	
 	# 2. Verificar las 4 tarjetas de mejoras tácticas
-	var active_cards = upgrade_menu.cards_container.get_children().filter(func(c): return not c.is_queued_for_deletion())
-	assert_equals(active_cards.size(), 4, "Existen exactamente 4 tarjetas de mejoras tácticas")
+	assert_equals(upgrade_menu.cards_container.get_child_count(), 4, "Existen exactamente 4 tarjetas de mejoras tácticas activas")
+	var active_cards = upgrade_menu.cards_container.get_children()
 	
 	# 3. Verificar barra segmentada de 10 pips en la primera tarjeta
 	var card0 = active_cards[0] as PanelContainer
@@ -2099,10 +2106,18 @@ func test_upgrade_menu_cards_and_pips() -> void:
 	assert_equals(GameManager.coins, 500 - cost, "Oro descontado tras la compra")
 	assert_true(upgrade_menu.coins_label.text.contains(str(500 - cost)), "CoinsLabel refleja el saldo de oro restante")
 	
+	# Caso borde: Intento de compra con fondos insuficientes
+	GameManager.coins = 10
+	upgrade_menu._update_coins(10)
+	var buy_result = GameManager.buy_upgrade("production_rate")
+	assert_equals(buy_result, false, "Compra rechazada cuando los fondos son insuficientes")
+	assert_equals(GameManager.upgrades["production_rate"], 0, "Nivel de mejora no cambia tras compra rechazada")
+	
 	# 5. Tarjeta en nivel máximo (MÁXIMO y deshabilitado)
 	GameManager.upgrades["starting_troops"] = 10
 	upgrade_menu._build_cards()
-	var updated_cards = upgrade_menu.cards_container.get_children().filter(func(c): return not c.is_queued_for_deletion())
+	assert_equals(upgrade_menu.cards_container.get_child_count(), 4, "CardsContainer conserva exactamente 4 tarjetas tras reconstrucción")
+	var updated_cards = upgrade_menu.cards_container.get_children()
 	var card_max = updated_cards[0]
 	var buy_btn: Button = null
 	for b in card_max.find_children("", "Button", true, false):
@@ -2139,6 +2154,7 @@ func test_battle_hud_modals_and_sound_toggle() -> void:
 	hud._on_pause_pressed()
 	assert_true(hud.pause_panel.visible, "PausePanel visible tras pausar")
 	assert_true(hud.dim_overlay.visible, "DimOverlay visible durante la pausa")
+	assert_equals(hud.dim_overlay.mouse_filter, Control.MOUSE_FILTER_STOP, "DimOverlay bloquea clics táctiles (MOUSE_FILTER_STOP) en pausa")
 	assert_true(get_tree().paused, "Árbol de escena queda pausado")
 	
 	var prev_muted = AudioManager.is_muted
@@ -2153,7 +2169,7 @@ func test_battle_hud_modals_and_sound_toggle() -> void:
 	hud.pause_panel.visible = false
 	hud.dim_overlay.visible = false
 	
-	# 3. Modal de Victoria estándar y confeti
+	# 3. Modal de Victoria estándar y confeti (3 estrellas)
 	hud.deploy_victory_modal({"stars": 3, "gold_earned": 150, "is_continent_conquest": false})
 	assert_true(hud.victory_panel.visible, "VictoryPanel visible tras victoria")
 	assert_true(hud.dim_overlay.visible, "DimOverlay visible tras victoria")
@@ -2162,6 +2178,12 @@ func test_battle_hud_modals_and_sound_toggle() -> void:
 	assert_equals(hud.confetti_pieces.size(), 75, "Sistema de confeti genera 75 partículas festivas")
 	hud._update_confetti(0.1)
 	assert_true(hud.confetti_pieces.size() > 0, "Partículas de confeti se procesan sin error")
+	
+	# Victoria parcial de 1 estrella (validar estrellas rellenas y vacías)
+	hud.deploy_victory_modal({"stars": 1, "gold_earned": 50, "is_continent_conquest": false})
+	assert_equals(hud.star_1.text, "⭐", "Primera estrella otorgada")
+	assert_equals(hud.star_2.text, "★", "Segunda estrella apagada")
+	assert_equals(hud.star_3.text, "★", "Tercera estrella apagada")
 	
 	# 4. Modal de Conquista Continental
 	hud.deploy_victory_modal({"stars": 3, "gold_earned": 300, "is_continent_conquest": true})
@@ -2216,9 +2238,21 @@ func test_cartographic_background_and_theme_helper() -> void:
 		assert_true(not bg.ambient_troops.has(tr), "Tropas ambientales que completan marcha son podadas limpiamente")
 	bg.free()
 	
+	# Prueba de robustez con grid_spacing no positivo
+	var bg_invalid = CartographicBackground.new()
+	bg_invalid.grid_spacing = -10.0
+	add_child(bg_invalid)
+	bg_invalid.queue_redraw()
+	assert_true(bg_invalid.grid_spacing < 0.0, "CartographicBackground acepta asignación de grid_spacing negativo de forma segura")
+	remove_child(bg_invalid)
+	bg_invalid.free()
+	
 	# 2. Probar UIThemeHelper - Botones táctiles 2.5D
 	var btn = Button.new()
 	UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_PRIMARY, Color.TRANSPARENT, 18, 5)
+	# Aplicar segunda vez para probar idempotencia
+	UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_PRIMARY, Color.TRANSPARENT, 18, 5)
+	assert_true(btn.has_meta("_bounce_setup"), "Configuración de bounce es idempotente sin duplicar señales")
 	assert_true(btn.has_theme_stylebox_override("normal"), "Estilo 'normal' aplicado al botón")
 	assert_true(btn.has_theme_stylebox_override("hover"), "Estilo 'hover' aplicado al botón")
 	assert_true(btn.has_theme_stylebox_override("pressed"), "Estilo 'pressed' aplicado al botón")
@@ -2246,11 +2280,13 @@ func test_cartographic_background_and_theme_helper() -> void:
 	assert_equals(sb_pill.corner_radius_top_left, 22, "Radio de píldora igual a 22")
 	pill.free()
 	
-	# 4. Probar animaciones de modal
+	# 4. Probar animaciones de modal y cancelación segura de tween previo
 	var ctrl = Control.new()
 	add_child(ctrl)
 	UIThemeHelper.animate_modal_pop_in(ctrl)
 	assert_true(ctrl.visible, "animate_modal_pop_in hace visible el control")
 	UIThemeHelper.animate_modal_pop_out(ctrl)
+	UIThemeHelper.animate_modal_pop_in(ctrl)
+	assert_true(ctrl.visible, "animate_modal_pop_in cancela pop_out previo y conserva visibilidad")
 	remove_child(ctrl)
 	ctrl.free()

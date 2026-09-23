@@ -131,6 +131,7 @@ func _refresh_display() -> void:
 	
 	# Limpiar y regenerar nodos de la ruta de campaña
 	for child in levels_container.get_children():
+		levels_container.remove_child(child)
 		child.queue_free()
 		
 	for lvl_idx in range(5):

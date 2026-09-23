@@ -81,6 +81,7 @@ func _update_stars() -> void:
 
 func _build_cards() -> void:
 	for child in cards_container.get_children():
+		cards_container.remove_child(child)
 		child.queue_free()
 		
 	for key in UPGRADE_KEYS:

@@ -106,6 +106,9 @@ static func apply_stateio_button_style(
 static func setup_button_bounce(btn: Button) -> void:
 	if not is_instance_valid(btn):
 		return
+	if btn.has_meta("_bounce_setup"):
+		return
+	btn.set_meta("_bounce_setup", true)
 	
 	var update_pivot = func():
 		if is_instance_valid(btn):
@@ -115,46 +118,56 @@ static func setup_button_bounce(btn: Button) -> void:
 		btn.resized.connect(update_pivot)
 	update_pivot.call()
 	
+	var kill_bounce_tween = func():
+		if is_instance_valid(btn) and btn.has_meta("_bounce_tween"):
+			var old_tw = btn.get_meta("_bounce_tween") as Tween
+			if old_tw and old_tw.is_valid():
+				old_tw.kill()
+	
 	var on_enter = func():
 		if not is_instance_valid(btn) or btn.disabled or not btn.is_inside_tree():
 			return
 		update_pivot.call()
+		kill_bounce_tween.call()
 		var tw = btn.create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		btn.set_meta("_bounce_tween", tw)
 		tw.tween_property(btn, "scale", Vector2(1.035, 1.035), 0.12)
 		
 	var on_exit = func():
 		if not is_instance_valid(btn) or not btn.is_inside_tree():
 			return
 		update_pivot.call()
+		kill_bounce_tween.call()
 		var tw = btn.create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		btn.set_meta("_bounce_tween", tw)
 		tw.tween_property(btn, "scale", Vector2.ONE, 0.10)
 		
 	var on_down = func():
 		if not is_instance_valid(btn) or btn.disabled or not btn.is_inside_tree():
 			return
 		update_pivot.call()
+		kill_bounce_tween.call()
 		var tw = btn.create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		btn.set_meta("_bounce_tween", tw)
 		tw.tween_property(btn, "scale", Vector2(0.95, 0.95), 0.08)
 		
 	var on_up = func():
 		if not is_instance_valid(btn) or not btn.is_inside_tree():
 			return
 		update_pivot.call()
+		kill_bounce_tween.call()
 		var tw = btn.create_tween().set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 		tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		btn.set_meta("_bounce_tween", tw)
 		tw.tween_property(btn, "scale", Vector2.ONE, 0.18)
 		
-	if not btn.mouse_entered.is_connected(on_enter):
-		btn.mouse_entered.connect(on_enter)
-	if not btn.mouse_exited.is_connected(on_exit):
-		btn.mouse_exited.connect(on_exit)
-	if not btn.button_down.is_connected(on_down):
-		btn.button_down.connect(on_down)
-	if not btn.button_up.is_connected(on_up):
-		btn.button_up.connect(on_up)
+	btn.mouse_entered.connect(on_enter)
+	btn.mouse_exited.connect(on_exit)
+	btn.button_down.connect(on_down)
+	btn.button_up.connect(on_up)
 
 ## Aplica estilo de tarjeta/panel moderno a paneles o contenedores
 static func apply_card_style(
@@ -217,6 +230,10 @@ static func apply_pill_style(
 static func animate_modal_pop_in(modal: Control) -> void:
 	if not is_instance_valid(modal) or not modal.is_inside_tree():
 		return
+	if modal.has_meta("_modal_tween"):
+		var old_tw = modal.get_meta("_modal_tween") as Tween
+		if old_tw and old_tw.is_valid():
+			old_tw.kill()
 	modal.visible = true
 	modal.pivot_offset = modal.size * 0.5
 	modal.scale = Vector2(0.70, 0.70)
@@ -224,6 +241,7 @@ static func animate_modal_pop_in(modal: Control) -> void:
 	
 	var tw = modal.create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	modal.set_meta("_modal_tween", tw)
 	tw.tween_property(modal, "scale", Vector2.ONE, 0.28)
 	tw.parallel().tween_property(modal, "modulate:a", 1.0, 0.18)
 
@@ -231,9 +249,14 @@ static func animate_modal_pop_in(modal: Control) -> void:
 static func animate_modal_pop_out(modal: Control, on_complete: Callable = Callable()) -> void:
 	if not is_instance_valid(modal) or not modal.is_inside_tree():
 		return
+	if modal.has_meta("_modal_tween"):
+		var old_tw = modal.get_meta("_modal_tween") as Tween
+		if old_tw and old_tw.is_valid():
+			old_tw.kill()
 	modal.pivot_offset = modal.size * 0.5
 	var tw = modal.create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	modal.set_meta("_modal_tween", tw)
 	tw.tween_property(modal, "scale", Vector2(0.75, 0.75), 0.18)
 	tw.parallel().tween_property(modal, "modulate:a", 0.0, 0.14)
 	tw.tween_callback(func():

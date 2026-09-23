@@ -55,8 +55,8 @@ func _setup_ambient_nodes() -> void:
 		{"col": UIThemeHelper.COLOR_NEUTRAL, "f": GameManager.Faction.NEUTRAL}
 	]
 	
-	var w = 1080.0
-	var h = 1920.0
+	var w = size.x if size.x > 0 else 1080.0
+	var h = size.y if size.y > 0 else 1920.0
 	
 	for i in range(factions.size()):
 		var node = AmbientNode.new()
@@ -101,16 +101,18 @@ func _process(delta: float) -> void:
 	spawn_timer += delta
 	if spawn_timer >= 1.6 and ambient_nodes.size() >= 2:
 		spawn_timer = 0.0
-		var n1 = ambient_nodes[randi() % ambient_nodes.size()]
-		var n2 = ambient_nodes[randi() % ambient_nodes.size()]
-		if n1 != n2 and n1.pos.distance_to(n2.pos) < 420.0:
-			var t = AmbientTroop.new()
-			t.from_pos = n1.pos
-			t.to_pos = n2.pos
-			t.progress = 0.0
-			t.speed = randf_range(0.25, 0.45)
-			t.color = n1.color
-			ambient_troops.append(t)
+		for _attempt in range(6):
+			var n1 = ambient_nodes[randi() % ambient_nodes.size()]
+			var n2 = ambient_nodes[randi() % ambient_nodes.size()]
+			if n1 != n2 and n1.pos.distance_to(n2.pos) < 420.0:
+				var t = AmbientTroop.new()
+				t.from_pos = n1.pos
+				t.to_pos = n2.pos
+				t.progress = 0.0
+				t.speed = randf_range(0.25, 0.45)
+				t.color = n1.color
+				ambient_troops.append(t)
+				break
 			
 	var i = ambient_troops.size() - 1
 	while i >= 0:
@@ -130,23 +132,24 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 0, w, h), bg_color)
 	
 	# 2. Cuadrícula técnica (líneas finas y mayores)
-	var major_interval = grid_spacing * 4.0
+	var spacing = maxf(grid_spacing, 20.0)
+	var major_interval = spacing * 4.0
 	
 	var x = 0.0
 	while x <= w:
-		var is_major = fmod(x, major_interval) < 1.0
+		var is_major = int(round(x / spacing)) % 4 == 0
 		var col = major_line_color if is_major else grid_line_color
 		var width = 1.6 if is_major else 1.0
 		draw_line(Vector2(x, 0), Vector2(x, h), col, width)
-		x += grid_spacing
+		x += spacing
 		
 	var y = 0.0
 	while y <= h:
-		var is_major = fmod(y, major_interval) < 1.0
+		var is_major = int(round(y / spacing)) % 4 == 0
 		var col = major_line_color if is_major else grid_line_color
 		var width = 1.6 if is_major else 1.0
 		draw_line(Vector2(0, y), Vector2(w, y), col, width)
-		y += grid_spacing
+		y += spacing
 		
 	# 3. Marcas cruciformes (+) en intersecciones mayores
 	x = major_interval
