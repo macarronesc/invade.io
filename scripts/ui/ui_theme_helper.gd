@@ -19,6 +19,17 @@ const COLOR_NEUTRAL: Color = Color(0.47, 0.56, 0.61)       # Gris pizarra
 const COLOR_NEUTRAL_DARK: Color = Color(0.30, 0.38, 0.43)
 const COLOR_HEADER_PILL: Color = Color(0.08, 0.10, 0.14, 0.88)
 
+## Desplaza hacia abajo una cabecera anclada arriba para que no quede bajo el notch o la cámara
+static func apply_safe_area_top(control: Control) -> void:
+	if not is_instance_valid(control) or not OS.has_feature("mobile"):
+		return
+	var window_h := DisplayServer.window_get_size().y
+	if window_h <= 0:
+		return
+	var inset := float(DisplayServer.get_display_safe_area().position.y) * control.get_viewport_rect().size.y / float(window_h)
+	control.offset_top += inset
+	control.offset_bottom += inset
+
 ## Aplica el estilo 2.5D State.io con relieve y sombreado proyectado a cualquier botón
 static func apply_stateio_button_style(
 	btn: Button,

@@ -14,10 +14,16 @@ var faction: int = GameManager.Faction.ENEMY_1
 var archetype: AIArchetype = AIArchetype.AGGRESSIVE
 var think_timer: float = 0.0
 var think_interval: float = 1.8
+## Escala del intervalo de decisión según la dificultad del nivel (<1 = piensa más rápido)
+var think_scale: float = 1.0
+## Tropas en marcha por base objetivo: {BaseNode: {faction: unidades}}
+var _incoming: Dictionary = {}
 
 func setup(p_battle_controller: BattleController, p_faction: int, p_archetype = null) -> void:
 	battle_controller = p_battle_controller
 	faction = p_faction
+	if battle_controller:
+		think_scale = lerpf(1.25, 0.7, LevelDatabase.get_difficulty(battle_controller.level_id))
 	
 	if p_archetype != null:
 		set_archetype(p_archetype)
@@ -78,6 +84,7 @@ func _configure_timers_for_archetype() -> void:
 			think_interval = randf_range(1.3, 1.9)
 		AIArchetype.OPPORTUNIST:
 			think_interval = randf_range(1.5, 2.3)
+	think_interval *= think_scale
 	think_timer = randf_range(0.2, think_interval)
 
 func _process(delta: float) -> void:
@@ -89,14 +96,32 @@ func _process(delta: float) -> void:
 		_configure_timers_for_archetype()
 		_evaluate_and_execute()
 
-func _get_effective_defense(base: BaseNode) -> int:
-	if not is_instance_valid(base):
-		return 0
-	if base.base_type == BaseNode.BaseType.FORTRESS:
-		return base.troops * 2 - base.fortress_absorbed_damage
-	elif base.base_type == BaseNode.BaseType.FACTORY:
-		return int(ceil(float(base.troops) * 0.5))
-	return base.troops
+## Segundos iniciales en los que la IA no ataca al jugador (12 s en el primer nivel, 0 en el último)
+func get_player_grace_period() -> float:
+	return lerpf(12.0, 0.0, LevelDatabase.get_difficulty(battle_controller.level_id)) if battle_controller else 0.0
+
+func _rebuild_incoming() -> void:
+	_incoming.clear()
+	for t in battle_controller.active_troops:
+		if is_instance_valid(t) and not t.is_queued_for_deletion() and t.count > 0 and is_instance_valid(t.target_base):
+			_add_incoming(t.target_base, t.faction, t.count)
+
+func _add_incoming(dst: BaseNode, f: int, amount: int) -> void:
+	var per_faction: Dictionary = _incoming.get_or_add(dst, {})
+	per_faction[f] = per_faction.get(f, 0) + amount
+
+## Atacantes que harían falta al llegar: defensa actual + producción durante el viaje,
+## descontando los ataques ya en camino y sumando los refuerzos que va a recibir
+func get_projected_defense(src: BaseNode, dst: BaseNode) -> float:
+	var def := float(dst.get_effective_defense())
+	var m := dst.get_defense_multiplier()
+	if dst.faction != GameManager.Faction.NEUTRAL and dst.faction != faction:
+		var travel_time := src.global_position.distance_to(dst.global_position) / Troop.BASE_SPEED
+		def += dst.get_production_rate() * travel_time * m
+	var per_faction: Dictionary = _incoming.get(dst, {})
+	for f in per_faction:
+		def += per_faction[f] * m if f == dst.faction else -per_faction[f]
+	return def
 
 func evaluate_target_utility(src: BaseNode, dst: BaseNode) -> float:
 	if not is_instance_valid(src) or not is_instance_valid(dst) or src == dst:
@@ -104,8 +129,19 @@ func evaluate_target_utility(src: BaseNode, dst: BaseNode) -> float:
 		
 	var dist = src.global_position.distance_to(dst.global_position)
 	var potential_send = src.troops - 1
-	var effective_def = _get_effective_defense(dst)
+	var projected = get_projected_defense(src, dst)
+	# Objetivo ya cubierto por nuestras tropas en marcha: no malgastar otro envío
+	if dst.faction != faction and projected < -2.0 and _incoming.get(dst, {}).get(faction, 0) > 0:
+		return -500.0
+	var effective_def = ceili(maxf(projected, 0.0))
 	var is_near_cap = src.troops >= (src.max_capacity - 5)
+	if dst.faction != faction:
+		# Periodo de gracia al inicio de los niveles fáciles antes de atacar al jugador
+		if dst.faction == GameManager.Faction.PLAYER and battle_controller and battle_controller.battle_time < get_player_grace_period():
+			return -9999.0
+		# Sin goteos inútiles: sólo atacar si se puede ganar, salvo que la base esté a punto de llenarse
+		if potential_send <= effective_def and not is_near_cap:
+			return -100.0
 	var utility: float = 0.0
 	
 	match archetype:
@@ -244,6 +280,7 @@ func _evaluate_and_execute() -> void:
 			
 	if my_bases.is_empty():
 		return
+	_rebuild_incoming()
 		
 	# 1. Evaluar si podemos coordinar un ataque conjunto multi-base sobre un objetivo clave
 	if my_bases.size() >= 2:
@@ -252,6 +289,8 @@ func _evaluate_and_execute() -> void:
 		
 		for dst in other_bases:
 			if not is_instance_valid(dst):
+				continue
+			if dst.faction == GameManager.Faction.PLAYER and battle_controller.battle_time < get_player_grace_period():
 				continue
 			var combined_send = 0
 			var avg_dist = 0.0
@@ -268,7 +307,7 @@ func _evaluate_and_execute() -> void:
 				continue
 				
 			avg_dist /= max(1, participating_bases.size())
-			var effective_def = _get_effective_defense(dst)
+			var effective_def = get_projected_defense(participating_bases[0], dst)
 			
 			if combined_send > (effective_def + 3):
 				var score = (combined_send - effective_def) * 3.5 - (avg_dist * 0.05)
@@ -296,7 +335,8 @@ func _evaluate_and_execute() -> void:
 			var sent_count = 0
 			for src in my_bases:
 				if src.troops > 2 and src.global_position.distance_to(target_candidate.global_position) < 900.0:
-					battle_controller.dispatch_troops(src, target_candidate, 1.0)
+					_add_incoming(target_candidate, faction, src.troops - 1)
+					battle_controller.dispatch_troops(src, target_candidate)
 					sent_count += 1
 					if sent_count >= 3:
 						break
@@ -330,7 +370,8 @@ func _evaluate_and_execute() -> void:
 			threshold = 40.0
 			
 		if best_target != null and highest_utility > threshold:
-			battle_controller.dispatch_troops(src, best_target, 1.0)
+			_add_incoming(best_target, faction, src.troops - 1)
+			battle_controller.dispatch_troops(src, best_target)
 			actions_executed += 1
 			if actions_executed >= 2:
 				break

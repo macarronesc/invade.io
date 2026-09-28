@@ -5,7 +5,13 @@ class_name BattleController
 
 const BaseNodeScene = preload("res://scenes/battle/base_node.tscn")
 const TroopScene = preload("res://scenes/battle/troop.tscn")
-const TerritoryMap2DScript = preload("res://scripts/battle/territory_map_2d.gd")
+const TutorialOverlayScript = preload("res://scripts/battle/tutorial_overlay.gd")
+
+## Distancia máxima entre las perlas delanteras de dos hileras enfrentadas para que combatan
+const HEAD_ON_RANGE: float = 20.0
+const SLOW_MOTION_TARGET: float = 0.28
+const SLOW_MOTION_SPEED: float = 2.5
+const MAP_SIZE := Vector2(1080, 1920)
 
 @export var level_id: String = "europe_1"
 
@@ -28,23 +34,30 @@ var slice_trail_segments: Array[Dictionary] = []
 var slice_cut_flash_effects: Array[Dictionary] = []
 
 var is_game_over: bool = false
+var simulation_paused: bool = false
 var battle_time: float = 0.0
 var target_time: float = 45.0
 var level_data: Dictionary = {}
-var dispatch_percentage: float = 1.0
 
 var is_slow_motion_active: bool = false
-const SLOW_MOTION_TARGET: float = 0.28
-const SLOW_MOTION_SPEED: float = 2.5
+## Escala de tiempo de reposo (el tutorial la reduce temporalmente para enseñar el corte)
+var base_time_scale: float = 1.0
+
+var _overlay_was_active: bool = false
+var _shake: float = 0.0
+var _tutorial: Node = null
 
 @onready var bases_container: Node2D = get_node_or_null("BasesContainer")
 @onready var troops_container: Node2D = get_node_or_null("TroopsContainer")
 @onready var arrow_overlay: Node2D = get_node_or_null("ArrowOverlay")
 @onready var territory_map: Node2D = get_node_or_null("TerritoryMap")
+@onready var camera: Camera2D = get_node_or_null("Camera2D")
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
 		reset_time_scale()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_cancel_gesture()
 
 func _exit_tree() -> void:
 	reset_time_scale()
@@ -60,17 +73,22 @@ func _ready() -> void:
 		arrow_overlay.draw.connect(_draw_drag_overlay)
 
 func start_slow_motion() -> void:
-	if not is_slow_motion_active:
-		is_slow_motion_active = true
+	is_slow_motion_active = true
 
 func reset_time_scale() -> void:
 	is_slow_motion_active = false
+	base_time_scale = 1.0
 	Engine.time_scale = 1.0
 
-func toggle_dispatch_percentage() -> float:
-	dispatch_percentage = 1.0
-	EventBus.dispatch_percentage_changed.emit(dispatch_percentage)
-	return dispatch_percentage
+## Congela producción e IA (lo usa el tutorial mientras enseña el primer gesto)
+func set_simulation_paused(paused: bool) -> void:
+	simulation_paused = paused
+	for ai in ai_controllers:
+		if is_instance_valid(ai):
+			ai.set_process(not paused)
+	for b in bases:
+		if is_instance_valid(b):
+			b.is_active = not paused
 
 func load_level(p_level_id: String) -> void:
 	reset_time_scale()
@@ -79,317 +97,274 @@ func load_level(p_level_id: String) -> void:
 	target_time = level_data.get("target_time", 45.0)
 	battle_time = 0.0
 	is_game_over = false
-	dispatch_percentage = 1.0
+	simulation_paused = false
 	selected_sources.clear()
 	hovered_target = null
 	candidate_chained_base = null
-	
+
+	# Curva de dificultad: los enemigos producen más rápido a medida que avanza la campaña
+	var difficulty = LevelDatabase.get_difficulty(level_id)
+	GameManager.enemy_production_multiplier = lerpf(0.9, 1.35, difficulty)
+
 	# Limpiar elementos previos
-	for b in bases:
-		if is_instance_valid(b):
-			b.queue_free()
+	for list in [bases, active_troops, ai_controllers]:
+		for node in list:
+			if is_instance_valid(node):
+				node.queue_free()
 	bases.clear()
-	
-	for t in active_troops:
-		if is_instance_valid(t):
-			t.queue_free()
 	active_troops.clear()
-	
-	for ai in ai_controllers:
-		if is_instance_valid(ai):
-			ai.queue_free()
 	ai_controllers.clear()
-	
+
 	# Instanciar bases según los datos del nivel
-	var base_defs = level_data.get("bases", [])
 	var enemy_factions_present: Array[int] = []
-	
-	for b_def in base_defs:
+	for b_def in level_data.get("bases", []):
 		var base_inst: BaseNode = BaseNodeScene.instantiate()
-		if bases_container:
-			bases_container.add_child(base_inst)
-		else:
-			add_child(base_inst)
+		(bases_container if bases_container else self).add_child(base_inst)
 		base_inst.setup(b_def)
 		bases.append(base_inst)
-		
 		var f = base_inst.faction
-		if f != GameManager.Faction.NEUTRAL and f != GameManager.Faction.PLAYER:
-			if not enemy_factions_present.has(f):
-				enemy_factions_present.append(f)
-				
-	# Generar mapa político de estados y partición territorial Voronoi
-	if territory_map and is_instance_valid(territory_map):
+		if f != GameManager.Faction.NEUTRAL and f != GameManager.Faction.PLAYER and not enemy_factions_present.has(f):
+			enemy_factions_present.append(f)
+
+	# Mapa político de estados y partición territorial Voronoi
+	if territory_map:
 		territory_map.generate_map(bases)
-				
-	# Instanciar IA para cada facción enemiga
+
+	# IA para cada facción enemiga
 	for ef in enemy_factions_present:
 		var ai: AIController = AIController.new()
 		add_child(ai)
 		ai.setup(self, ef)
 		ai_controllers.append(ai)
-		
+
+	# Tutorial interactivo en los primeros niveles (sólo en la escena real de batalla)
+	if is_instance_valid(_tutorial):
+		_tutorial.queue_free()
+		_tutorial = null
+	if bases_container and TutorialOverlayScript.has_pending_steps(level_id, level_data):
+		_tutorial = TutorialOverlayScript.new()
+		add_child(_tutorial)
+		_tutorial.setup(self)
+
+	queue_redraw()
 	EventBus.battle_started.emit(level_id)
 
 func _process(delta: float) -> void:
 	if not is_game_over:
-		battle_time += delta
+		# El reloj (estrellas y periodo de gracia de la IA) no corre mientras el tutorial espera
+		if not simulation_paused:
+			battle_time += delta
 		_check_decisive_assault()
 		_process_troop_collisions()
 		_update_siege_alerts()
 		_check_game_over_conditions()
-		
+
 	# Transición suave de cámara lenta
+	var unscaled_dt = delta / maxf(Engine.time_scale, 0.01)
 	if is_slow_motion_active:
-		var unscaled_dt = delta / maxf(Engine.time_scale, 0.01)
 		Engine.time_scale = move_toward(Engine.time_scale, SLOW_MOTION_TARGET, unscaled_dt * SLOW_MOTION_SPEED)
-	elif not is_game_over and Engine.time_scale < 1.0:
-		var unscaled_dt = delta / maxf(Engine.time_scale, 0.01)
-		Engine.time_scale = move_toward(Engine.time_scale, 1.0, unscaled_dt * SLOW_MOTION_SPEED)
+	elif not is_game_over and Engine.time_scale != base_time_scale:
+		Engine.time_scale = move_toward(Engine.time_scale, base_time_scale, unscaled_dt * SLOW_MOTION_SPEED)
 
-	# Actualizar animación de marcha de puntos y amortiguación de velocidad de arrastre
+	# Temblor de cámara tras conquistas importantes
+	if camera:
+		if _shake > 0.0:
+			_shake = maxf(0.0, _shake - unscaled_dt * 30.0)
+			camera.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake
+		elif camera.offset != Vector2.ZERO:
+			camera.offset = Vector2.ZERO
+
+	# Animación de marcha de puntos y amortiguación de velocidad de arrastre
 	marching_dots_phase = fmod(marching_dots_phase + delta * 1.6, 1.0)
-	drag_velocity = drag_velocity.lerp(Vector2.ZERO, delta * 6.0)
-	
-	# Desvanecimiento y limpieza de segmentos de estela de corte
-	var i = slice_trail_segments.size() - 1
-	while i >= 0:
-		var seg = slice_trail_segments[i]
-		seg["alpha"] -= delta * 3.8
-		if seg["alpha"] <= 0.0:
-			slice_trail_segments.remove_at(i)
-		i -= 1
-		
-	# Desvanecimiento y limpieza de destellos de corte
-	var j = slice_cut_flash_effects.size() - 1
-	while j >= 0:
-		var flash = slice_cut_flash_effects[j]
-		flash["timer"] -= delta
-		if flash["timer"] <= 0.0:
-			slice_cut_flash_effects.remove_at(j)
-		j -= 1
+	drag_velocity = drag_velocity.lerp(Vector2.ZERO, minf(1.0, delta * 6.0))
 
-	queue_redraw()
-	if arrow_overlay:
-		arrow_overlay.queue_redraw()
+	# Desvanecimiento de estelas y destellos de corte
+	for i in range(slice_trail_segments.size() - 1, -1, -1):
+		slice_trail_segments[i]["alpha"] -= delta * 3.8
+		if slice_trail_segments[i]["alpha"] <= 0.0:
+			slice_trail_segments.remove_at(i)
+	for j in range(slice_cut_flash_effects.size() - 1, -1, -1):
+		slice_cut_flash_effects[j]["timer"] -= delta
+		if slice_cut_flash_effects[j]["timer"] <= 0.0:
+			slice_cut_flash_effects.remove_at(j)
+
+	# Redibujar la capa de flechas sólo mientras haya algo que mostrar (y un último frame para limpiarla)
+	var overlay_active = is_dragging or not slice_trail_segments.is_empty() or not slice_cut_flash_effects.is_empty()
+	if overlay_active or _overlay_was_active:
+		if arrow_overlay:
+			arrow_overlay.queue_redraw()
+		else:
+			queue_redraw()
+	_overlay_was_active = overlay_active
+
+func shake_camera(amount: float) -> void:
+	_shake = maxf(_shake, amount)
 
 func _update_siege_alerts() -> void:
 	for b in bases:
 		if is_instance_valid(b):
 			b.update_siege_status(active_troops)
 
+static func _is_alive(t) -> bool:
+	return is_instance_valid(t) and not t.is_queued_for_deletion() and t.count > 0
+
+func _incoming_player_troops(target: BaseNode) -> Array:
+	var total := 0
+	var is_close := false
+	for t in active_troops:
+		if _is_alive(t) and t.faction == GameManager.Faction.PLAYER and t.target_base == target:
+			total += t.count
+			if t.global_position.distance_to(target.global_position) <= target.radius + 200.0:
+				is_close = true
+	return [total, is_close]
+
 func _check_decisive_assault() -> void:
 	if is_game_over:
 		return
-		
 	var enemy_bases: Array[BaseNode] = []
 	for b in bases:
 		if is_instance_valid(b) and b.faction != GameManager.Faction.PLAYER and b.faction != GameManager.Faction.NEUTRAL:
 			enemy_bases.append(b)
-			
-	var enemy_troops: Array[Troop] = []
-	for t in active_troops:
-		if is_instance_valid(t) and not t.is_queued_for_deletion() and t.faction != GameManager.Faction.PLAYER and t.faction != GameManager.Faction.NEUTRAL and t.count > 0:
-			enemy_troops.append(t)
-			
+
 	# Si la cámara lenta ya está activa, verificar si el asalto decisivo ha concluido o fracasado
 	if is_slow_motion_active:
-		if enemy_bases.size() > 1:
-			# El enemigo recuperó bases; ya no es asalto decisivo final
+		if enemy_bases.size() > 1 or (enemy_bases.size() == 1 and _incoming_player_troops(enemy_bases[0])[0] == 0):
 			is_slow_motion_active = false
-		elif enemy_bases.size() == 1:
-			var target_base = enemy_bases[0]
-			var incoming_player = 0
-			for t in active_troops:
-				if is_instance_valid(t) and not t.is_queued_for_deletion() and t.faction == GameManager.Faction.PLAYER and t.target_base == target_base and t.count > 0:
-					incoming_player += t.count
-			# Si ya no quedan tropas aliadas marchando contra la última base y no fue conquistada, cancelar slow motion
-			if incoming_player == 0:
-				is_slow_motion_active = false
 		return
-		
+
 	# Caso 1: Asalto decisivo sobre la última base enemiga
 	if enemy_bases.size() == 1:
-		var target_base = enemy_bases[0]
-		var incoming_player = 0
-		var is_close = false
-		for t in active_troops:
-			if is_instance_valid(t) and not t.is_queued_for_deletion() and t.faction == GameManager.Faction.PLAYER and t.target_base == target_base and t.count > 0:
-				incoming_player += t.count
-				var d = t.global_position.distance_to(target_base.global_position)
-				if d <= (target_base.radius + 200.0):
-					is_close = true
-		
-		var defense_threshold = target_base.troops
-		if target_base.base_type == BaseNode.BaseType.FORTRESS:
-			defense_threshold = target_base.troops * 2 - target_base.fortress_absorbed_damage
-		elif target_base.base_type == BaseNode.BaseType.FACTORY:
-			defense_threshold = int(ceil(float(target_base.troops) / 2.0))
-			
-		if incoming_player > defense_threshold and is_close:
+		var incoming = _incoming_player_troops(enemy_bases[0])
+		if incoming[0] > enemy_bases[0].get_effective_defense() and incoming[1]:
 			start_slow_motion()
-			
 	# Caso 2: Golpe de gracia sobre la última tropa hostil (0 bases enemigas)
-	elif enemy_bases.size() == 0 and enemy_troops.size() > 0:
-		var all_doomed = true
-		var any_close = false
-		for et in enemy_troops:
-			if not is_instance_valid(et.target_base) or et.target_base.faction != GameManager.Faction.PLAYER:
-				all_doomed = false
-				break
-			var player_base = et.target_base
-			var player_defense = player_base.troops
-			if player_base.base_type == BaseNode.BaseType.FORTRESS:
-				player_defense = player_base.troops * 2 - player_base.fortress_absorbed_damage
-			elif player_base.base_type == BaseNode.BaseType.FACTORY:
-				player_defense = int(ceil(float(player_base.troops) / 2.0))
-			if et.count > player_defense:
-				all_doomed = false
-				break
-			var d = et.global_position.distance_to(player_base.global_position)
-			if d <= (player_base.radius + 200.0):
+	elif enemy_bases.is_empty():
+		var any_enemy := false
+		var any_close := false
+		for et in active_troops:
+			if not _is_alive(et) or et.faction == GameManager.Faction.PLAYER or et.faction == GameManager.Faction.NEUTRAL:
+				continue
+			any_enemy = true
+			var pb = et.target_base
+			if not is_instance_valid(pb) or pb.faction != GameManager.Faction.PLAYER or et.count > pb.get_effective_defense():
+				return
+			if et.global_position.distance_to(pb.global_position) <= pb.radius + 200.0:
 				any_close = true
-		if all_doomed and any_close:
+		if any_enemy and any_close:
 			start_slow_motion()
 
+## Combate en tránsito entre hileras hostiles. Coste O(1) por pareja: en un choque frontal sólo
+## pueden tocarse las perlas delanteras, y en un cruce sólo las que ocupan el punto de cruce.
 func _process_troop_collisions() -> void:
-	var i = 0
-	while i < active_troops.size():
+	var n = active_troops.size()
+	for i in n:
 		var t1 = active_troops[i]
-		if not is_instance_valid(t1) or t1.is_queued_for_deletion() or t1.count <= 0:
-			i += 1
+		if not _is_alive(t1) or t1.bead_values.is_empty():
 			continue
-		var j = i + 1
-		var t1_removed = false
-		while j < active_troops.size():
+		for j in range(i + 1, n):
 			var t2 = active_troops[j]
-			if not is_instance_valid(t2) or t2.is_queued_for_deletion() or t2.count <= 0:
-				j += 1
+			if not _is_alive(t2) or t2.bead_values.is_empty():
 				continue
-			# Colisión en el mapa entre tropas enemigas enfrentadas
-			if t1.faction != t2.faction and t1.faction != GameManager.Faction.NEUTRAL and t2.faction != GameManager.Faction.NEUTRAL:
-				if t1.beads.is_empty() or t2.beads.is_empty():
-					# Fallback para tests unitarios que configuran directamente global_position sin beads
-					if t1.global_position.distance_to(t2.global_position) <= 26.0:
-						if t1.count > t2.count:
-							t1.count -= t2.count
-							t1.update_count()
-							active_troops.erase(t2)
-							if t2.is_inside_tree():
-								t2.queue_free()
-							else:
-								t2.free()
-							AudioManager.play_reinforce()
-							continue
-						elif t2.count > t1.count:
-							t2.count -= t1.count
-							t2.update_count()
-							active_troops.erase(t1)
-							if t1.is_inside_tree():
-								t1.queue_free()
-							else:
-								t1.free()
-							AudioManager.play_reinforce()
-							t1_removed = true
-							break
-						else:
-							# Cancelación simétrica exacta
-							active_troops.erase(t2)
-							active_troops.erase(t1)
-							if t1.is_inside_tree():
-								t1.queue_free()
-							else:
-								t1.free()
-							if t2.is_inside_tree():
-								t2.queue_free()
-							else:
-								t2.free()
-							AudioManager.play_reinforce()
-							t1_removed = true
-							break
-				else:
-					# Colisión perla a perla entre hileras de tropas
-					var is_head_on = (t1.origin_base != null and t2.origin_base != null and t1.origin_base == t2.target_base and t1.target_base == t2.origin_base)
-					var collided = false
-					for b1 in t1.beads:
-						if b1["absorbed"] or b1["dist"] < 0:
-							continue
-						var p1 = t1.start_pos + t1.move_dir * b1["dist"]
-						for b2 in t2.beads:
-							if b2["absorbed"] or b2["dist"] < 0:
-								continue
-							var p2 = t2.start_pos + t2.move_dir * b2["dist"]
-							var should_collide = p1.distance_to(p2) <= 20.0
-							if not should_collide and is_head_on:
-								if (b1["dist"] + b2["dist"]) >= (t1.path_length - 8.0):
-									should_collide = true
-									
-							if should_collide:
-								b1["absorbed"] = true
-								b2["absorbed"] = true
-								t1.count -= 1
-								t2.count -= 1
-								t1.update_count()
-								t2.update_count()
-								AudioManager.play_troop_absorb(false)
-								collided = true
-								break
-						if t1.count <= 0 or t2.count <= 0:
-							break
-							
-					if collided:
-						if t1.count <= 0:
-							active_troops.erase(t1)
-							if t1.is_inside_tree():
-								t1.queue_free()
-							else:
-								t1.free()
-							t1_removed = true
-						if t2.count <= 0:
-							active_troops.erase(t2)
-							if t2.is_inside_tree():
-								t2.queue_free()
-							else:
-								t2.free()
-						else:
-							j += 1
-							
-						if t1_removed:
-							break
-					else:
-						j += 1
+			if t1.faction == t2.faction or t1.faction == GameManager.Faction.NEUTRAL or t2.faction == GameManager.Faction.NEUTRAL:
+				continue
+			if t1.origin_base == t2.target_base and t1.target_base == t2.origin_base:
+				_resolve_head_on(t1, t2)
 			else:
-				j += 1
-		if not t1_removed:
-			i += 1
+				_resolve_crossing(t1, t2)
+			if not _is_alive(t1):
+				break
+
+	for t in active_troops.duplicate():
+		if is_instance_valid(t) and t.count <= 0 and not t.bead_values.is_empty():
+			_destroy_troop(t)
+
+func _resolve_head_on(t1: Troop, t2: Troop) -> void:
+	while true:
+		var f1 = t1.front_index()
+		var f2 = t2.front_index()
+		if f1 < 0 or f2 < 0:
+			return
+		var d1 = t1.bead_dist(f1)
+		var d2 = t2.bead_dist(f2)
+		if d1 < 0.0 or d2 < 0.0 or t1.path_length - d1 - d2 > HEAD_ON_RANGE:
+			return
+		_clash(t1, f1, t2, f2)
+
+func _resolve_crossing(t1: Troop, t2: Troop) -> void:
+	var r = t1.move_dir * t1.path_length
+	var s = t2.move_dir * t2.path_length
+	var denom = r.cross(s)
+	if absf(denom) < 0.0001:
+		return
+	var qp = t2.start_pos - t1.start_pos
+	var k1 = qp.cross(s) / denom
+	var k2 = qp.cross(r) / denom
+	if k1 < 0.0 or k1 > 1.0 or k2 < 0.0 or k2 > 1.0:
+		return
+	var near1 = t1.beads_near(k1 * t1.path_length)
+	var near2 = t2.beads_near(k2 * t2.path_length)
+	var a := 0
+	var b := 0
+	while a < near1.size() and b < near2.size():
+		_clash(t1, near1[a], t2, near2[b])
+		if t1.bead_values[near1[a]] <= 0:
+			a += 1
+		if t2.bead_values[near2[b]] <= 0:
+			b += 1
+
+func _clash(t1: Troop, i1: int, t2: Troop, i2: int) -> void:
+	var dmg = mini(t1.bead_values[i1], t2.bead_values[i2])
+	t1.damage_bead(i1, dmg)
+	t2.damage_bead(i2, dmg)
+	AudioManager.play_troop_absorb(false)
+
+func _destroy_troop(t: Troop) -> void:
+	active_troops.erase(t)
+	if t.is_inside_tree():
+		t.queue_free()
+	else:
+		t.free()
+
+# =========================================================================
+# Entrada táctil (un solo dedo; el ratón de escritorio se emula como toque)
+# =========================================================================
 
 func _unhandled_input(event: InputEvent) -> void:
 	if is_game_over:
 		return
-		
-	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			if event.pressed:
-				_handle_press(get_global_mouse_position())
-			else:
-				_handle_release(get_global_mouse_position())
-	elif event is InputEventMouseMotion:
-		if is_dragging:
-			_handle_drag(get_global_mouse_position())
-		elif is_slicing:
-			_handle_slice_motion(get_global_mouse_position())
-	elif event is InputEventScreenTouch:
-		var touch_pos = get_canvas_transform().affine_inverse() * event.position
+	if event is InputEventScreenTouch:
+		if event.index != 0:
+			return
+		if event.canceled:
+			_cancel_gesture()
+			return
+		var pos = _screen_to_world(event.position)
 		if event.pressed:
-			_handle_press(touch_pos)
+			_handle_press(pos)
 		else:
-			_handle_release(touch_pos)
+			_handle_release(pos)
 	elif event is InputEventScreenDrag:
-		var drag_pos = get_canvas_transform().affine_inverse() * event.position
+		if event.index != 0:
+			return
+		var pos = _screen_to_world(event.position)
 		if is_dragging:
-			_handle_drag(drag_pos)
+			_handle_drag(pos)
 		elif is_slicing:
-			_handle_slice_motion(drag_pos)
+			_handle_slice_motion(pos)
+
+func _screen_to_world(screen_pos: Vector2) -> Vector2:
+	return get_canvas_transform().affine_inverse() * screen_pos
+
+func _cancel_gesture() -> void:
+	for src in selected_sources:
+		if is_instance_valid(src):
+			src.set_selected(false)
+	selected_sources.clear()
+	hovered_target = null
+	candidate_chained_base = null
+	is_dragging = false
+	is_slicing = false
+	slice_points.clear()
 
 func _handle_press(pos: Vector2) -> void:
 	var base = _get_base_at(pos)
@@ -405,13 +380,10 @@ func _handle_press(pos: Vector2) -> void:
 		candidate_chained_base = null
 		AudioManager.play_click()
 	else:
-		_start_slice(pos)
-
-func _start_slice(pos: Vector2) -> void:
-	is_slicing = true
-	is_dragging = false
-	slice_points.clear()
-	slice_points.append(pos)
+		is_slicing = true
+		is_dragging = false
+		slice_points.clear()
+		slice_points.append(pos)
 
 func _handle_slice_motion(pos: Vector2) -> void:
 	if not is_slicing:
@@ -419,53 +391,40 @@ func _handle_slice_motion(pos: Vector2) -> void:
 	if slice_points.is_empty():
 		slice_points.append(pos)
 		return
-	var prev_pt = slice_points.back()
-	if prev_pt.distance_to(pos) >= 5.0:
-		slice_points.append(pos)
-		slice_trail_segments.append({
-			"p1": prev_pt,
-			"p2": pos,
-			"alpha": 1.0,
-			"width": 6.5
-		})
-		_check_slice_intersections(prev_pt, pos)
+	if slice_points.back().distance_to(pos) >= 5.0:
+		_add_slice_segment(pos)
+
+func _add_slice_segment(pos: Vector2) -> void:
+	var prev_pt: Vector2 = slice_points.back()
+	slice_points.append(pos)
+	slice_trail_segments.append({"p1": prev_pt, "p2": pos, "alpha": 1.0, "width": 6.5})
+	_check_slice_intersections(prev_pt, pos)
 
 func _check_slice_intersections(p1: Vector2, p2: Vector2) -> void:
 	if is_game_over:
 		return
 	var any_cut = false
 	for t in active_troops:
-		if not is_instance_valid(t) or t.is_queued_for_deletion() or t.count <= 0:
-			continue
 		# Solo tropas aliadas que no se encuentren ya en retirada
-		if t.faction == GameManager.Faction.PLAYER and not t.is_retreating:
-			if t.intersects_segment(p1, p2):
-				t.abort_mission()
-				any_cut = true
-				var mid = (p1 + p2) * 0.5
-				slice_cut_flash_effects.append({
-					"pos": mid,
-					"timer": 0.35,
-					"max_time": 0.35
-				})
+		if _is_alive(t) and t.faction == GameManager.Faction.PLAYER and not t.is_retreating and t.intersects_segment(p1, p2):
+			t.abort_mission()
+			any_cut = true
+			slice_cut_flash_effects.append({"pos": (p1 + p2) * 0.5, "timer": 0.35, "max_time": 0.35})
 	if any_cut:
 		AudioManager.play_troop_retreat()
+		GameManager.haptic(15)
+		EventBus.troops_retreated.emit(GameManager.Faction.PLAYER)
 
 func _handle_drag(pos: Vector2) -> void:
-	var move_delta = pos - prev_drag_pos
-	drag_velocity = drag_velocity.lerp(move_delta * 30.0, 0.4)
+	drag_velocity = drag_velocity.lerp((pos - prev_drag_pos) * 30.0, 0.4)
 	prev_drag_pos = pos
 	drag_current_pos = pos
 	var base = _get_base_at(pos)
-	
+
 	if base != null:
-		# Si teníamos una base candidata previa y ahora entramos en OTRA base distinta,
-		# la candidata previa queda confirmada como nodo intermedio de encadenamiento
-		if candidate_chained_base != null and is_instance_valid(candidate_chained_base) and candidate_chained_base != base:
-			_add_selected_source(candidate_chained_base)
-			candidate_chained_base = null
-			AudioManager.play_click()
-			
+		# Entrar en otra base confirma la candidata previa como nodo intermedio de encadenamiento
+		if is_instance_valid(candidate_chained_base) and candidate_chained_base != base:
+			_confirm_chained_candidate()
 		if not selected_sources.has(base):
 			hovered_target = base
 			# Si es aliada, marcarla como candidata para encadenar si el arrastre sigue adelante
@@ -474,26 +433,21 @@ func _handle_drag(pos: Vector2) -> void:
 		else:
 			hovered_target = null
 	else:
-		# Cursor en espacio abierto
-		if candidate_chained_base != null and is_instance_valid(candidate_chained_base):
-			if not candidate_chained_base.is_point_inside(pos):
-				_add_selected_source(candidate_chained_base)
-				candidate_chained_base = null
-				AudioManager.play_click()
+		# Cursor en espacio abierto: la candidata que hemos atravesado se suma al asalto
+		if is_instance_valid(candidate_chained_base) and not candidate_chained_base.is_point_inside(pos):
+			_confirm_chained_candidate()
 		hovered_target = null
+
+func _confirm_chained_candidate() -> void:
+	_add_selected_source(candidate_chained_base)
+	candidate_chained_base = null
+	AudioManager.play_click()
+	GameManager.haptic(8)
 
 func _handle_release(pos: Vector2) -> void:
 	if is_slicing:
-		if not slice_points.is_empty():
-			var prev_pt = slice_points.back()
-			if prev_pt.distance_to(pos) >= 4.0:
-				slice_trail_segments.append({
-					"p1": prev_pt,
-					"p2": pos,
-					"alpha": 1.0,
-					"width": 6.5
-				})
-				_check_slice_intersections(prev_pt, pos)
+		if not slice_points.is_empty() and slice_points.back().distance_to(pos) >= 4.0:
+			_add_slice_segment(pos)
 		is_slicing = false
 		slice_points.clear()
 		return
@@ -501,36 +455,26 @@ func _handle_release(pos: Vector2) -> void:
 	if not is_dragging:
 		return
 	is_dragging = false
-	
+
 	var target = _get_base_at(pos)
-	
-	# Si teníamos una base aliada candidata y soltamos sobre un objetivo distinto a ella,
-	# la base candidata debe sumarse al asalto combinado
-	if candidate_chained_base != null and is_instance_valid(candidate_chained_base):
-		if target != candidate_chained_base:
-			_add_selected_source(candidate_chained_base)
-		candidate_chained_base = null
-	
+	# Una base aliada candidata se suma al asalto combinado si soltamos sobre otro objetivo
+	if is_instance_valid(candidate_chained_base) and target != candidate_chained_base:
+		_add_selected_source(candidate_chained_base)
+	candidate_chained_base = null
+
 	if target != null:
-		# Si soltamos sobre una base que estaba en selected_sources
 		if selected_sources.has(target):
+			# Arrastre desde otras bases hacia esta base aliada para reforzarla
 			if selected_sources.size() > 1 and selected_sources.back() == target:
-				# El usuario arrastró de una base hacia esta base aliada para reforzarla
 				selected_sources.erase(target)
 				target.set_selected(false)
 				for src in selected_sources:
-					dispatch_troops(src, target, dispatch_percentage)
+					dispatch_troops(src, target)
 		else:
-			# Objetivo exterior (neutral, enemigo o aliado que no formaba parte del origen)
 			for src in selected_sources:
-				dispatch_troops(src, target, dispatch_percentage)
-				
-	for src in selected_sources:
-		if is_instance_valid(src):
-			src.set_selected(false)
-	selected_sources.clear()
-	hovered_target = null
-	candidate_chained_base = null
+				dispatch_troops(src, target)
+
+	_cancel_gesture()
 
 func _add_selected_source(base: BaseNode) -> void:
 	if not selected_sources.has(base):
@@ -543,67 +487,57 @@ func _get_base_at(pos: Vector2) -> BaseNode:
 			return b
 	return null
 
-func dispatch_troops(from_base: BaseNode, to_base: BaseNode, percentage: float = 1.0) -> void:
-	if not is_instance_valid(from_base) or not is_instance_valid(to_base):
+func dispatch_troops(from_base: BaseNode, to_base: BaseNode) -> void:
+	if not is_instance_valid(from_base) or not is_instance_valid(to_base) or from_base == to_base:
 		return
-	if from_base == to_base:
-		return
-		
-	var count = from_base.send_troops(percentage)
+	var count = from_base.send_troops()
 	if count <= 0:
 		return
-		
 	var troop: Troop = TroopScene.instantiate()
-	if troops_container:
-		troops_container.add_child(troop)
-	else:
-		add_child(troop)
+	(troops_container if troops_container else self).add_child(troop)
 	troop.setup(from_base, to_base, count, from_base.faction)
 	active_troops.append(troop)
-	
+
 	if from_base.faction == GameManager.Faction.PLAYER:
 		AudioManager.play_launch()
-		
+		GameManager.haptic(10)
 	EventBus.troops_dispatched.emit(from_base, to_base, count, from_base.faction)
 
 func _on_troop_arrived(troop: Troop, _target_base: BaseNode) -> void:
-	if active_troops.has(troop):
-		active_troops.erase(troop)
+	active_troops.erase(troop)
 
-func _on_base_captured(_base: BaseNode, _prev_faction: int, _new_faction: int) -> void:
+func _on_base_captured(base: BaseNode, prev_faction: int, new_faction: int) -> void:
+	var player_involved = prev_faction == GameManager.Faction.PLAYER or new_faction == GameManager.Faction.PLAYER
+	if player_involved and is_instance_valid(base):
+		GameManager.haptic(60 if prev_faction == GameManager.Faction.PLAYER else 25)
+		if base.tier >= 3:
+			shake_camera(9.0)
 	_check_game_over_conditions()
 
 func _check_game_over_conditions() -> void:
 	if is_game_over:
 		return
-		
-	var player_has_bases = false
-	var enemy_has_bases = false
-	
+	var player_alive = false
+	var enemy_alive = false
 	for b in bases:
 		if not is_instance_valid(b):
 			continue
 		if b.faction == GameManager.Faction.PLAYER:
-			player_has_bases = true
+			player_alive = true
 		elif b.faction != GameManager.Faction.NEUTRAL:
-			enemy_has_bases = true
-			
-	var player_has_troops = false
-	var enemy_has_troops = false
-	
+			enemy_alive = true
 	for t in active_troops:
-		if not is_instance_valid(t) or t.is_queued_for_deletion() or t.count <= 0:
+		if not _is_alive(t):
 			continue
 		if t.faction == GameManager.Faction.PLAYER:
-			player_has_troops = true
+			player_alive = true
 		elif t.faction != GameManager.Faction.NEUTRAL:
-			enemy_has_troops = true
-			
-	# Condición de Victoria: Cero bases enemigas y cero tropas enemigas
-	if not enemy_has_bases and not enemy_has_troops:
+			enemy_alive = true
+
+	# Victoria: cero bases y cero tropas enemigas. Derrota: el jugador no tiene bases ni tropas
+	if not enemy_alive:
 		_trigger_victory()
-	# Condición de Derrota: El jugador no tiene bases ni tropas
-	elif not player_has_bases and not player_has_troops:
+	elif not player_alive:
 		_trigger_defeat()
 
 func _trigger_victory() -> void:
@@ -611,74 +545,72 @@ func _trigger_victory() -> void:
 	# Si no se había activado slow motion por asalto decisivo previo, activar en el golpe de gracia
 	if not is_slow_motion_active:
 		start_slow_motion()
-		
+
 	var stars = 1
 	if battle_time <= target_time:
 		stars = 3
 	elif battle_time <= target_time * 1.5:
 		stars = 2
-		
-	# Cálculo de recompensas
-	var base_gold = 60
+
 	var player_bases_count = 0
 	for b in bases:
 		if is_instance_valid(b) and b.faction == GameManager.Faction.PLAYER:
 			player_bases_count += 1
-	var total_gold = int((base_gold + player_bases_count * 15) * GameManager.get_gold_multiplier())
-	
+
+	var previous_stars: int = int(GameManager.completed_levels.get(level_id, 0))
+	var total_gold = GameManager.calculate_victory_gold(level_id, stars, 60 + player_bases_count * 15)
 	GameManager.complete_level(level_id, stars)
 	GameManager.add_coins(total_gold)
-	
-	# Comprobar si es conquista continental (nivel 5 de cualquier continente)
+	GameManager.haptic(80)
+
 	var is_continent_conquest = level_id.ends_with("_5")
 	if is_continent_conquest:
 		AudioManager.play_continent_conquest()
 	else:
 		AudioManager.play_victory()
-	
-	var stats = {
+
+	EventBus.battle_won.emit({
 		"level_id": level_id,
 		"stars": stars,
 		"time": battle_time,
 		"gold_earned": total_gold,
 		"bases_conquered": player_bases_count,
-		"is_continent_conquest": is_continent_conquest
-	}
-	EventBus.battle_won.emit(stats)
+		"is_continent_conquest": is_continent_conquest,
+		"is_replay": previous_stars > 0 and stars <= previous_stars
+	})
 
 func _trigger_defeat() -> void:
 	reset_time_scale()
 	is_game_over = true
 	AudioManager.play_defeat()
+	GameManager.haptic(120)
 	EventBus.battle_lost.emit()
 
 func get_faction_troop_counts() -> Dictionary:
-	var counts = {
-		GameManager.Faction.PLAYER: 0,
-		GameManager.Faction.ENEMY_1: 0,
-		GameManager.Faction.ENEMY_2: 0,
-		GameManager.Faction.ENEMY_3: 0,
-		GameManager.Faction.NEUTRAL: 0
-	}
+	var counts = {}
+	for f in GameManager.FACTION_COLORS:
+		counts[f] = 0
 	for b in bases:
 		if is_instance_valid(b):
-			counts[b.faction] = counts.get(b.faction, 0) + b.troops
-			
+			counts[b.faction] += b.troops
 	for t in active_troops:
-		if is_instance_valid(t) and not t.is_queued_for_deletion() and t.count > 0:
-			counts[t.faction] = counts.get(t.faction, 0) + t.count
+		if _is_alive(t):
+			counts[t.faction] += t.count
 	return counts
 
 func get_dominance_ratios() -> Dictionary:
 	var counts = get_faction_troop_counts()
-	var total: int = 0
+	var total := 0
 	for f in counts:
 		total += counts[f]
-			
 	var ratios = {}
 	for f in counts:
 		ratios[f] = (float(counts[f]) / float(total)) if total > 0 else 0.0
 	return ratios
+
+# =========================================================================
+# Flecha elástica de arrastre y vista previa del resultado
+# =========================================================================
 
 func get_bezier_control_point(p0: Vector2, p2: Vector2, vel: Vector2 = Vector2.ZERO) -> Vector2:
 	var mid = (p0 + p2) * 0.5
@@ -686,12 +618,9 @@ func get_bezier_control_point(p0: Vector2, p2: Vector2, vel: Vector2 = Vector2.Z
 	var dist = diff.length()
 	if dist < 2.0:
 		return mid
-	var dir = diff / dist
-	var normal = Vector2(-dir.y, dir.x)
-	# Deformación lateral elástica basada en la velocidad de arrastre
-	var lat_vel = vel.dot(normal)
-	var vel_offset = normal * clampf(lat_vel * 0.12, -50.0, 50.0)
-	# Leve arqueo elástico orgánico (slingshot bow)
+	var normal = Vector2(-diff.y, diff.x) / dist
+	# Deformación lateral elástica basada en la velocidad de arrastre (recta en reposo)
+	var vel_offset = normal * clampf(vel.dot(normal) * 0.12, -50.0, 50.0)
 	var bow_amount = sin(marching_dots_phase * TAU) * 2.5
 	return mid + vel_offset + normal * bow_amount
 
@@ -703,156 +632,150 @@ func sample_bezier_points(p0: Vector2, p1: Vector2, p2: Vector2, segments: int =
 	var pts = PackedVector2Array()
 	pts.resize(segments + 1)
 	for i in range(segments + 1):
-		var t = float(i) / float(segments)
-		pts[i] = evaluate_quadratic_bezier(p0, p1, p2, t)
+		pts[i] = evaluate_quadratic_bezier(p0, p1, p2, float(i) / float(segments))
 	return pts
+
+## Tropas que se lanzarían al soltar ahora mismo (incluye la base aliada candidata a encadenar)
+func get_pending_attack_count() -> int:
+	var total := 0
+	for src in selected_sources:
+		if is_instance_valid(src):
+			total += maxi(0, src.troops - 1)
+	if is_instance_valid(candidate_chained_base) and candidate_chained_base != hovered_target:
+		total += maxi(0, candidate_chained_base.troops - 1)
+	return total
 
 func _draw_slice_overlay(canvas: CanvasItem) -> void:
 	for seg in slice_trail_segments:
-		var alpha = clampf(seg.get("alpha", 1.0), 0.0, 1.0)
+		var alpha = clampf(seg["alpha"], 0.0, 1.0)
 		var p1 = canvas.to_local(seg["p1"])
 		var p2 = canvas.to_local(seg["p2"])
-		var w = seg.get("width", 6.5)
-		# Halo exterior cian
+		var w = seg["width"]
 		canvas.draw_line(p1, p2, Color(0.2, 0.85, 1.0, alpha * 0.4), w * 1.8, true)
-		# Filo interior blanco puro de cuchilla
 		canvas.draw_line(p1, p2, Color(1.0, 1.0, 1.0, alpha * 0.95), w, true)
-		
+
 	for flash in slice_cut_flash_effects:
 		var f_pos = canvas.to_local(flash["pos"])
 		var ratio = flash["timer"] / maxf(flash["max_time"], 0.001)
 		var f_r = 22.0 * (1.0 - ratio) + 6.0
-		var f_alpha = ratio
-		canvas.draw_circle(f_pos, f_r, Color(1.0, 1.0, 1.0, f_alpha * 0.6))
-		canvas.draw_circle(f_pos, f_r * 0.5, Color(0.2, 0.85, 1.0, f_alpha * 0.9))
+		canvas.draw_circle(f_pos, f_r, Color(1.0, 1.0, 1.0, ratio * 0.6))
+		canvas.draw_circle(f_pos, f_r * 0.5, Color(0.2, 0.85, 1.0, ratio * 0.9))
 		canvas.draw_line(f_pos - Vector2(f_r * 1.3, 0), f_pos + Vector2(f_r * 1.3, 0), Color.WHITE, 2.0, true)
 		canvas.draw_line(f_pos - Vector2(0, f_r * 1.3), f_pos + Vector2(0, f_r * 1.3), Color.WHITE, 2.0, true)
 
 func _draw() -> void:
-	# Dibujar elementos cartográficos de fondo estilizados
-	var continent_id = level_data.get("continent", "europe")
-	_draw_cartographic_grid(continent_id)
-
-	# Si no hay nodo overlay separado (ej. tests unitarios), dibujar flechas y cortes directamente
+	_draw_cartographic_grid()
+	# Sin nodo overlay separado (tests unitarios): dibujar flechas y cortes directamente
 	if not arrow_overlay:
 		_draw_drag_overlay()
 
 func _draw_drag_overlay() -> void:
-	var canvas: CanvasItem = arrow_overlay if (arrow_overlay and is_instance_valid(arrow_overlay)) else self
-	
-	# Renderizar estelas de cuchilla y destellos de corte táctico
+	var canvas: CanvasItem = arrow_overlay if is_instance_valid(arrow_overlay) else self
 	_draw_slice_overlay(canvas)
-	
+
 	if not is_dragging or selected_sources.is_empty():
 		return
-		
-	var player_color = GameManager.FACTION_COLORS[GameManager.Faction.PLAYER]
-	var end_global = hovered_target.global_position if (hovered_target and is_instance_valid(hovered_target)) else drag_current_pos
-	var end_pt = canvas.to_local(end_global)
-	
-	for src in selected_sources:
-		if not is_instance_valid(src):
-			continue
-		var start_pt = canvas.to_local(src.global_position)
-		var dist = start_pt.distance_to(end_pt)
-		if dist < 10.0:
-			continue
-			
-		var p1 = get_bezier_control_point(start_pt, end_pt, drag_velocity)
-		var segments = clampi(int(dist / 14.0), 16, 36)
-		var curve_pts = sample_bezier_points(start_pt, p1, end_pt, segments)
-		
-		# 1. Construir geometría de grosor cónico adaptativo
-		var upper_pts = PackedVector2Array()
-		var lower_pts = PackedVector2Array()
-		var upper_glow = PackedVector2Array()
-		var lower_glow = PackedVector2Array()
-		
-		for i in range(curve_pts.size()):
-			var t = float(i) / float(curve_pts.size() - 1)
-			var pt = curve_pts[i]
-			var tangent: Vector2
-			if i < curve_pts.size() - 1:
-				tangent = (curve_pts[i + 1] - pt).normalized()
-			else:
-				tangent = (pt - curve_pts[i - 1]).normalized()
-			var normal = Vector2(-tangent.y, tangent.x)
-			
-			var w_core = lerpf(13.0, 3.5, t)
-			var w_glow = lerpf(20.0, 6.5, t)
-			
-			upper_pts.append(pt + normal * (w_core * 0.5))
-			lower_pts.append(pt - normal * (w_core * 0.5))
-			upper_glow.append(pt + normal * (w_glow * 0.5))
-			lower_glow.append(pt - normal * (w_glow * 0.5))
-			
-		# Halo exterior translúcido
-		var glow_poly = PackedVector2Array()
-		glow_poly.append_array(upper_glow)
-		for k in range(lower_glow.size() - 1, -1, -1):
-			glow_poly.append(lower_glow[k])
-		canvas.draw_colored_polygon(glow_poly, Color(1.0, 1.0, 1.0, 0.28))
-		
-		# Cuerpo cónico con color de facción
-		var core_poly = PackedVector2Array()
-		core_poly.append_array(upper_pts)
-		for k in range(lower_pts.size() - 1, -1, -1):
-			core_poly.append(lower_pts[k])
-		canvas.draw_colored_polygon(core_poly, Color(player_color.r, player_color.g, player_color.b, 0.92))
-		
-		# 2. Puntos animados fluidos (Marching Dots)
-		var num_dots = clampi(int(dist / 38.0), 6, 14)
-		for d in range(num_dots):
-			var t_dot = fmod(marching_dots_phase + float(d) / float(num_dots), 1.0)
-			if t_dot < 0.05 or t_dot > 0.93:
-				continue
-			var dot_pos = evaluate_quadratic_bezier(start_pt, p1, end_pt, t_dot)
-			var dot_r = lerpf(4.5, 2.4, t_dot)
-			canvas.draw_circle(dot_pos, dot_r + 1.5, Color(1.0, 1.0, 1.0, 0.35))
-			canvas.draw_circle(dot_pos, dot_r, Color.WHITE)
-			
-		# 3. Cabeza de flecha poligonal orientada estilizada
-		if dist > 20.0:
-			var tip = end_pt
-			var end_sample = evaluate_quadratic_bezier(start_pt, p1, end_pt, 0.92)
-			var arrow_dir = (tip - end_sample).normalized()
-			if arrow_dir.length_squared() < 0.01:
-				arrow_dir = (end_pt - start_pt).normalized()
-			var arrow_normal = Vector2(-arrow_dir.y, arrow_dir.x)
-			var arrow_size = 22.0
-			
-			var p_tip = tip
-			var p_wing1 = tip - arrow_dir * arrow_size + arrow_normal * (arrow_size * 0.52)
-			var p_notch = tip - arrow_dir * (arrow_size * 0.72)
-			var p_wing2 = tip - arrow_dir * arrow_size - arrow_normal * (arrow_size * 0.52)
-			
-			var arrow_poly = PackedVector2Array([p_tip, p_wing1, p_notch, p_wing2])
-			canvas.draw_polyline(PackedVector2Array([p_tip, p_wing1, p_notch, p_wing2, p_tip]), Color.WHITE, 2.0, true)
-			canvas.draw_colored_polygon(arrow_poly, Color(player_color.r, player_color.g, player_color.b, 0.98))
-			canvas.draw_colored_polygon(PackedVector2Array([p_tip, p_wing1, p_notch]), Color(1.0, 1.0, 1.0, 0.3))
-			
-	# Anillo de fijación sobre el objetivo actual
-	if hovered_target and is_instance_valid(hovered_target):
-		var h_pos = canvas.to_local(hovered_target.global_position)
-		var ring_pulse = 1.0 + sin(marching_dots_phase * TAU * 2.0) * 0.04
-		canvas.draw_arc(h_pos, (hovered_target.radius + 16.0) * ring_pulse, 0, TAU, 48, Color(1, 1, 1, 0.95), 3.5, true)
-		canvas.draw_circle(h_pos, (hovered_target.radius + 16.0) * ring_pulse, Color(1, 1, 1, 0.08))
 
-func _draw_cartographic_grid(continent: String) -> void:
-	# Dibujar retícula cartográfica de fondo y título del continente
+	var player_color = GameManager.FACTION_COLORS[GameManager.Faction.PLAYER]
+	var end_global = hovered_target.global_position if is_instance_valid(hovered_target) else drag_current_pos
+	var end_pt = canvas.to_local(end_global)
+
+	for src in selected_sources:
+		if is_instance_valid(src):
+			_draw_arrow(canvas, canvas.to_local(src.global_position), end_pt, player_color)
+
+	if is_instance_valid(hovered_target):
+		_draw_target_preview(canvas, hovered_target)
+
+func _draw_arrow(canvas: CanvasItem, start_pt: Vector2, end_pt: Vector2, player_color: Color) -> void:
+	var dist = start_pt.distance_to(end_pt)
+	if dist < 10.0:
+		return
+	var p1 = get_bezier_control_point(start_pt, end_pt, drag_velocity)
+	var curve_pts = sample_bezier_points(start_pt, p1, end_pt, clampi(int(dist / 14.0), 16, 36))
+
+	# 1. Geometría de grosor cónico adaptativo (halo + núcleo)
+	var n = curve_pts.size()
+	var glow_poly = PackedVector2Array()
+	var core_poly = PackedVector2Array()
+	glow_poly.resize(n * 2)
+	core_poly.resize(n * 2)
+	for i in n:
+		var t = float(i) / float(n - 1)
+		var pt = curve_pts[i]
+		var tangent = ((curve_pts[i + 1] - pt) if i < n - 1 else (pt - curve_pts[i - 1])).normalized()
+		var normal = Vector2(-tangent.y, tangent.x)
+		var w_core = lerpf(13.0, 3.5, t) * 0.5
+		var w_glow = lerpf(20.0, 6.5, t) * 0.5
+		core_poly[i] = pt + normal * w_core
+		core_poly[n * 2 - 1 - i] = pt - normal * w_core
+		glow_poly[i] = pt + normal * w_glow
+		glow_poly[n * 2 - 1 - i] = pt - normal * w_glow
+	canvas.draw_colored_polygon(glow_poly, Color(1.0, 1.0, 1.0, 0.28))
+	canvas.draw_colored_polygon(core_poly, Color(player_color, 0.92))
+
+	# 2. Puntos animados fluidos (Marching Dots)
+	var num_dots = clampi(int(dist / 38.0), 6, 14)
+	for d in num_dots:
+		var t_dot = fmod(marching_dots_phase + float(d) / float(num_dots), 1.0)
+		if t_dot < 0.05 or t_dot > 0.93:
+			continue
+		var dot_pos = evaluate_quadratic_bezier(start_pt, p1, end_pt, t_dot)
+		var dot_r = lerpf(4.5, 2.4, t_dot)
+		canvas.draw_circle(dot_pos, dot_r + 1.5, Color(1.0, 1.0, 1.0, 0.35))
+		canvas.draw_circle(dot_pos, dot_r, Color.WHITE)
+
+	# 3. Cabeza de flecha poligonal orientada
+	if dist > 20.0:
+		var arrow_dir = (end_pt - evaluate_quadratic_bezier(start_pt, p1, end_pt, 0.92)).normalized()
+		if arrow_dir.length_squared() < 0.01:
+			arrow_dir = (end_pt - start_pt).normalized()
+		var arrow_normal = Vector2(-arrow_dir.y, arrow_dir.x)
+		var size = 22.0
+		var p_wing1 = end_pt - arrow_dir * size + arrow_normal * (size * 0.52)
+		var p_notch = end_pt - arrow_dir * (size * 0.72)
+		var p_wing2 = end_pt - arrow_dir * size - arrow_normal * (size * 0.52)
+		canvas.draw_polyline(PackedVector2Array([end_pt, p_wing1, p_notch, p_wing2, end_pt]), Color.WHITE, 2.0, true)
+		canvas.draw_colored_polygon(PackedVector2Array([end_pt, p_wing1, p_notch, p_wing2]), Color(player_color, 0.98))
+		canvas.draw_colored_polygon(PackedVector2Array([end_pt, p_wing1, p_notch]), Color(1.0, 1.0, 1.0, 0.3))
+
+## Anillo sobre el objetivo que anticipa el resultado: verde si conquistas, rojo si no alcanza
+func _draw_target_preview(canvas: CanvasItem, target: BaseNode) -> void:
+	var h_pos = canvas.to_local(target.global_position)
+	var ring_r = (target.radius + 16.0) * (1.0 + sin(marching_dots_phase * TAU * 2.0) * 0.04)
+	var attack = get_pending_attack_count()
+	var ring_color: Color
+	var text: String
+	if target.faction == GameManager.Faction.PLAYER:
+		ring_color = Color(0.55, 0.85, 1.0)
+		text = "+%d" % attack
+	else:
+		var margin = attack - target.get_effective_defense()
+		ring_color = Color(0.3, 0.95, 0.45) if margin > 0 else Color(1.0, 0.3, 0.25)
+		text = ("+%d" % margin) if margin > 0 else ("%d" % margin)
+	canvas.draw_circle(h_pos, ring_r, Color(ring_color, 0.10))
+	canvas.draw_arc(h_pos, ring_r, 0, TAU, 48, Color(ring_color, 0.95), 4.0, true)
+
+	var font = ThemeDB.fallback_font
+	var text_pos = h_pos + Vector2(-80.0, -ring_r - 14.0)
+	canvas.draw_string_outline(font, text_pos, text, HORIZONTAL_ALIGNMENT_CENTER, 160.0, 34, 8, Color(0, 0, 0, 0.75))
+	canvas.draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_CENTER, 160.0, 34, ring_color)
+
+func _draw_cartographic_grid() -> void:
+	# Retícula cartográfica de fondo
 	var grid_color = Color(1.0, 1.0, 1.0, 0.04)
 	for x in range(120, 1080, 160):
 		draw_line(Vector2(x, 200), Vector2(x, 1850), grid_color, 1.0)
 	for y in range(250, 1850, 160):
 		draw_line(Vector2(40, y), Vector2(1040, y), grid_color, 1.0)
-		
-	# Conexiones sutiles de ruta entre bases del nivel
+
+	# Conexiones sutiles de ruta entre bases cercanas
 	var route_color = Color(1.0, 1.0, 1.0, 0.07)
-	for i in range(bases.size()):
+	for i in bases.size():
 		var b1 = bases[i]
-		if not is_instance_valid(b1): continue
+		if not is_instance_valid(b1):
+			continue
 		for j in range(i + 1, bases.size()):
 			var b2 = bases[j]
-			if not is_instance_valid(b2): continue
-			if b1.global_position.distance_to(b2.global_position) < 450.0:
-				draw_dashed_line(to_local(b1.global_position), to_local(b2.global_position), route_color, 2.0, 8.0, true, true)
+			if is_instance_valid(b2) and b1.position.distance_to(b2.position) < 450.0:
+				draw_dashed_line(b1.position, b2.position, route_color, 2.0, 8.0, true, true)

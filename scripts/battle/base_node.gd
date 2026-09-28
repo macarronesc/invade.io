@@ -1,4 +1,4 @@
-extends Area2D
+extends Node2D
 class_name BaseNode
 
 ## BaseNode: Territorio interactivo con producción de tropas y combate
@@ -9,19 +9,19 @@ enum BaseType {
 	FACTORY = 2
 }
 
+const TIER_PARAMS = {
+	1: {"radius": 50.0, "capacity": 45, "rate": 1.0},
+	2: {"radius": 65.0, "capacity": 85, "rate": 1.7},
+	3: {"radius": 80.0, "capacity": 140, "rate": 2.5},
+}
+const DEFAULT_TIER_PARAMS = {"radius": 60.0, "capacity": 70, "rate": 1.0}
+
 @export var base_id: String = ""
 @export var base_name: String = "Territorio"
 @export var faction: int = GameManager.Faction.NEUTRAL
 @export var troops: int = 20
 @export var tier: int = 1
 @export var base_type: BaseType = BaseType.STANDARD
-
-var structure_type:
-	get:
-		return base_type
-	set(val):
-		_set_type_from_variant(val)
-		queue_redraw()
 
 var fortress_absorbed_damage: int = 0
 var factory_gear_angle: float = 0.0
@@ -50,17 +50,24 @@ var siege_pulse_time: float = 0.0
 var siege_incoming_hostile_count: int = 0
 
 var is_active: bool = true
+var _dirty: bool = true
 
-@onready var collision_shape: CollisionShape2D = get_node_or_null("CollisionShape2D")
 @onready var label_troops: Label = get_node_or_null("TroopLabel")
 @onready var label_name: Label = get_node_or_null("NameLabel")
 
 func _ready() -> void:
-	EventBus.battle_won.connect(func(_stats): is_active = false; is_under_siege = false; siege_incoming_hostile_count = 0; queue_redraw())
-	EventBus.battle_lost.connect(func(): is_active = false; is_under_siege = false; siege_incoming_hostile_count = 0; queue_redraw())
+	EventBus.battle_won.connect(_on_battle_ended.unbind(1))
+	EventBus.battle_lost.connect(_on_battle_ended)
+	if label_troops:
+		label_troops.pivot_offset = Vector2(50.0, 25.0)
 	_update_tier_parameters()
 	_update_label()
-	queue_redraw()
+
+func _on_battle_ended() -> void:
+	is_active = false
+	is_under_siege = false
+	siege_incoming_hostile_count = 0
+	_dirty = true
 
 func get_type_production_multiplier() -> float:
 	match base_type:
@@ -80,55 +87,43 @@ func get_defense_multiplier() -> float:
 		_:
 			return 1.0
 
+## Tropas generadas por segundo con los modificadores de nivel, tipo y facción
+func get_production_rate() -> float:
+	var rate: float = TIER_PARAMS.get(tier, DEFAULT_TIER_PARAMS)["rate"]
+	return rate * get_type_production_multiplier() * GameManager.get_faction_production_multiplier(faction)
+
+## Puntos de defensa restantes (fortaleza absorbe 2 impactos por tropa, fábrica 0.5)
+func get_defense_power() -> float:
+	return maxf(0.0, troops * get_defense_multiplier() - fortress_absorbed_damage)
+
+## Número de atacantes necesarios para neutralizar la base
 func get_effective_defense() -> int:
-	match base_type:
-		BaseType.FORTRESS:
-			return maxi(0, troops * 2 - fortress_absorbed_damage)
-		BaseType.FACTORY:
-			return int(ceil(float(troops) / 2.0))
-		_:
-			return troops
+	return ceili(get_defense_power())
 
 func update_siege_status(troops_list: Array) -> void:
+	var was_under_siege = is_under_siege
 	if not is_active or faction == GameManager.Faction.NEUTRAL:
 		is_under_siege = false
 		siege_incoming_hostile_count = 0
-		return
-		
-	var effective_def = get_effective_defense()
-	var hostile_incoming = 0
-	var has_close_hostile = false
-	
-	for t in troops_list:
-		if not is_instance_valid(t) or t.is_queued_for_deletion() or t.count <= 0:
-			continue
-		if t.target_base == self and t.faction != faction and t.faction != GameManager.Faction.NEUTRAL:
-			var d = global_position.distance_to(t.global_position)
-			if d <= SIEGE_RADIUS:
-				hostile_incoming += t.count
-				has_close_hostile = true
-				
-	siege_incoming_hostile_count = hostile_incoming
-	
-	if has_close_hostile and hostile_incoming > effective_def:
-		is_under_siege = true
 	else:
-		is_under_siege = false
-
-func evaluate_siege(troops_list: Array) -> bool:
-	update_siege_status(troops_list)
-	return is_under_siege
+		var hostile_incoming = 0
+		for t in troops_list:
+			if not is_instance_valid(t) or t.is_queued_for_deletion() or t.count <= 0:
+				continue
+			if t.target_base == self and t.faction != faction and t.faction != GameManager.Faction.NEUTRAL:
+				if global_position.distance_to(t.global_position) <= SIEGE_RADIUS:
+					hostile_incoming += t.count
+		siege_incoming_hostile_count = hostile_incoming
+		is_under_siege = hostile_incoming > get_effective_defense()
+	if was_under_siege != is_under_siege:
+		_dirty = true
 
 func set_base_type(p_type) -> void:
 	_set_type_from_variant(p_type)
-	queue_redraw()
-
-func set_structure_type(p_type) -> void:
-	_set_type_from_variant(p_type)
-	queue_redraw()
+	_dirty = true
 
 func _set_type_from_variant(v) -> void:
-	if v is BaseType or v is int:
+	if v is int:
 		base_type = v as BaseType
 	elif v is String:
 		var s = (v as String).to_lower().strip_edges()
@@ -148,57 +143,30 @@ func setup(data: Dictionary) -> void:
 	tier = data.get("tier", tier)
 	if data.has("pos"):
 		position = data["pos"]
-		
-	if data.has("base_type"):
-		_set_type_from_variant(data["base_type"])
-	elif data.has("structure_type"):
-		_set_type_from_variant(data["structure_type"])
-	elif data.has("type"):
-		_set_type_from_variant(data["type"])
-	
+	for key in ["base_type", "structure_type", "type"]:
+		if data.has(key):
+			_set_type_from_variant(data[key])
+			break
+
 	# Bonus de tropas iniciales para el jugador
 	if faction == GameManager.Faction.PLAYER:
 		troops += GameManager.get_starting_troops_bonus()
-	
+
 	_update_tier_parameters()
 	_update_label()
-	queue_redraw()
 
 func _update_tier_parameters() -> void:
-	match tier:
-		1:
-			radius = 50.0
-			max_capacity = 45
-		2:
-			radius = 65.0
-			max_capacity = 85
-		3:
-			radius = 80.0
-			max_capacity = 140
-		_:
-			radius = 60.0
-			max_capacity = 70
-			
-	if collision_shape and collision_shape.shape is CircleShape2D:
-		(collision_shape.shape as CircleShape2D).radius = radius
+	var params: Dictionary = TIER_PARAMS.get(tier, DEFAULT_TIER_PARAMS)
+	radius = params["radius"]
+	max_capacity = params["capacity"]
 	if label_name:
 		label_name.position.y = radius + 6.0
+	_dirty = true
 
 func _process(delta: float) -> void:
 	# Producción pasiva de tropas (sólo para bases activas y capturadas)
 	if is_active and faction != GameManager.Faction.NEUTRAL:
-		var base_rate: float = 1.0
-		match tier:
-			1: base_rate = 1.0
-			2: base_rate = 1.7
-			3: base_rate = 2.5
-			
-		base_rate *= get_type_production_multiplier()
-		
-		if faction == GameManager.Faction.PLAYER:
-			base_rate *= GameManager.get_production_multiplier()
-			
-		production_accumulator += delta * base_rate
+		production_accumulator += delta * get_production_rate()
 		if production_accumulator >= 1.0:
 			var units_to_add = int(production_accumulator)
 			production_accumulator -= units_to_add
@@ -206,52 +174,64 @@ func _process(delta: float) -> void:
 				troops = mini(max_capacity, troops + units_to_add)
 				_update_label()
 				_trigger_generation_pulse()
-				
+
+	var animating := _animate(delta)
+	if animating or _dirty:
+		_dirty = false
+		if label_troops:
+			label_troops.position = Vector2(-50.0, -25.0) + shake_offset
+			label_troops.scale = elastic_scale * pulse_scale
+		queue_redraw()
+
+## Avanza las animaciones y devuelve true mientras alguna siga activa
+func _animate(delta: float) -> bool:
+	var animating := false
 	if base_type == BaseType.FACTORY:
 		factory_gear_angle += delta * 2.4
-				
+		animating = true
+
 	# Simulación de muelle elástico (Squash & Stretch) con sim_delta acotado para estabilidad
-	var sim_delta = minf(delta, 0.033)
 	var displacement = elastic_scale - Vector2.ONE
-	var spring_force = -SPRING_STIFFNESS * displacement - SPRING_DAMPING * elastic_velocity
-	elastic_velocity += spring_force * sim_delta
-	elastic_scale += elastic_velocity * sim_delta
-	elastic_scale.x = clampf(elastic_scale.x, 0.35, 2.2)
-	elastic_scale.y = clampf(elastic_scale.y, 0.35, 2.2)
-	
-	# Animación suave de pulso
+	if displacement.length_squared() > 1e-6 or elastic_velocity.length_squared() > 1e-5:
+		var sim_delta = minf(delta, 0.033)
+		var spring_force = -SPRING_STIFFNESS * displacement - SPRING_DAMPING * elastic_velocity
+		elastic_velocity += spring_force * sim_delta
+		elastic_scale += elastic_velocity * sim_delta
+		elastic_scale = elastic_scale.clamp(Vector2(0.35, 0.35), Vector2(2.2, 2.2))
+		animating = true
+	elif elastic_scale != Vector2.ONE:
+		elastic_scale = Vector2.ONE
+		elastic_velocity = Vector2.ZERO
+		animating = true
+
 	if pulse_scale > 1.0:
-		pulse_scale = max(1.0, pulse_scale - delta * 2.5)
-		
-	# Sacudida elástica (Shake)
+		pulse_scale = maxf(1.0, pulse_scale - delta * 2.5)
+		animating = true
+
 	if shake_intensity > 0.0:
-		shake_intensity = max(0.0, shake_intensity - delta * 22.0)
+		shake_intensity = maxf(0.0, shake_intensity - delta * 22.0)
 		shake_offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake_intensity
-	else:
+		animating = true
+	elif shake_offset != Vector2.ZERO:
 		shake_offset = Vector2.ZERO
-		
-	# Expansión y desvanecimiento de onda expansiva
+		animating = true
+
 	if shockwave_alpha > 0.0:
 		shockwave_radius += delta * (radius * 4.5)
-		shockwave_alpha = max(0.0, shockwave_alpha - delta * 2.6)
-		
-	# Sincronizar etiqueta de tropas con escala elástica y sacudida
-	if label_troops:
-		label_troops.position = Vector2(-50.0, -25.0) + shake_offset
-		label_troops.scale = elastic_scale * pulse_scale
-		label_troops.pivot_offset = Vector2(50.0, 25.0)
-		
+		shockwave_alpha = maxf(0.0, shockwave_alpha - delta * 2.6)
+		animating = true
+
 	if is_under_siege:
 		siege_pulse_time += delta * 6.5
-		
-	queue_redraw()
+		animating = true
+	return animating
 
 func _trigger_generation_pulse() -> void:
 	# Pulso elástico suave y sutil al reclutar cada unidad
 	elastic_velocity += Vector2(0.9, 0.9)
 
 func _trigger_conquest_shockwave(new_faction: int) -> void:
-	# Rebote elástico dramático de conquista + onda expansiva State.io
+	# Rebote elástico dramático de conquista + onda expansiva
 	is_under_siege = false
 	siege_incoming_hostile_count = 0
 	elastic_scale = Vector2(1.32, 1.32)
@@ -264,144 +244,70 @@ func _trigger_conquest_shockwave(new_faction: int) -> void:
 func set_selected(selected: bool) -> void:
 	if is_selected != selected:
 		is_selected = selected
-		queue_redraw()
+		_dirty = true
 
 func is_point_inside(global_pt: Vector2) -> bool:
 	return global_position.distance_to(global_pt) <= (radius + 20.0)
 
+## Envía todas las tropas menos 1 centinela (asalto al 100%, estilo State.io)
 func send_troops(_percentage: float = 1.0) -> int:
 	if troops <= 1:
 		return 0
-	# En State.io el modo de asalto es al 100% constante:
-	# se envían todas las tropas disponibles reteniendo 1 centinela de guardia para conservar la soberanía territorial
 	var count = troops - 1
-	troops -= count
+	troops = 1
 	_update_label()
 	pulse_scale = 1.15
 	# Contracción elástica al expulsar pelotón
 	elastic_scale = Vector2(0.92, 1.08)
 	elastic_velocity = Vector2(-1.2, 1.2)
-	queue_redraw()
 	return count
 
 func receive_troops(incoming_faction: int, count: int) -> void:
 	pulse_scale = 1.25
-	
 	if incoming_faction == faction:
 		# Refuerzo aliado
 		troops += count
 		fortress_absorbed_damage = 0
-		elastic_scale = Vector2(1.08, 0.94)
-		elastic_velocity += Vector2(1.2, -1.2)
-		shake_intensity = 2.2
+		_bump(Vector2(1.08, 0.94), Vector2(1.2, -1.2), 2.2)
 		AudioManager.play_troop_absorb(true)
 	else:
-		# Combate
-		match base_type:
-			BaseType.FORTRESS:
-				# Bonificación defensiva 2x: cada tropa defensora absorbe 2 unidades enemigas antes de caer
-				var total_defense_power = troops * 2 - fortress_absorbed_damage
-				if count < total_defense_power:
-					total_defense_power -= count
-					troops = int(ceil(float(total_defense_power) / 2.0))
-					fortress_absorbed_damage = (troops * 2) - total_defense_power
-					elastic_scale = Vector2(1.14, 0.88)
-					elastic_velocity += Vector2(2.0, -2.0)
-					shake_intensity = 3.8
-					AudioManager.play_troop_absorb(false)
-				elif count == total_defense_power:
-					troops = 0
-					fortress_absorbed_damage = 0
-					var prev_faction = faction
-					faction = GameManager.Faction.NEUTRAL
-					if prev_faction != GameManager.Faction.NEUTRAL:
-						_trigger_conquest_shockwave(faction)
-						AudioManager.play_capture()
-						EventBus.base_captured.emit(self, prev_faction, faction)
-					else:
-						elastic_scale = Vector2(1.15, 0.85)
-						elastic_velocity += Vector2(2.5, -2.5)
-						shake_intensity = 4.0
-						AudioManager.play_troop_absorb(false)
-				else:
-					# Conquista de Fortaleza
-					var prev_faction = faction
-					var surplus = count - total_defense_power
-					faction = incoming_faction
-					troops = surplus
-					fortress_absorbed_damage = 0
-					_trigger_conquest_shockwave(faction)
-					AudioManager.play_capture()
-					EventBus.base_captured.emit(self, prev_faction, faction)
-					
-			BaseType.FACTORY:
-				# Vulnerable en defensa 0.5x: las tropas defensoras caen con el doble de facilidad
-				var effective_defense = troops
-				var effective_attack = count * 2
-				if effective_attack < effective_defense:
-					troops = effective_defense - effective_attack
-					elastic_scale = Vector2(1.14, 0.88)
-					elastic_velocity += Vector2(2.0, -2.0)
-					shake_intensity = 3.8
-					AudioManager.play_troop_absorb(false)
-				elif effective_attack == effective_defense:
-					troops = 0
-					var prev_faction = faction
-					faction = GameManager.Faction.NEUTRAL
-					if prev_faction != GameManager.Faction.NEUTRAL:
-						_trigger_conquest_shockwave(faction)
-						AudioManager.play_capture()
-						EventBus.base_captured.emit(self, prev_faction, faction)
-					else:
-						elastic_scale = Vector2(1.15, 0.85)
-						elastic_velocity += Vector2(2.5, -2.5)
-						shake_intensity = 4.0
-						AudioManager.play_troop_absorb(false)
-				else:
-					# Conquista de Fábrica
-					var prev_faction = faction
-					var attackers_used = int(ceil(float(effective_defense) / 2.0))
-					var surplus = maxi(1, count - attackers_used)
-					faction = incoming_faction
-					troops = surplus
-					_trigger_conquest_shockwave(faction)
-					AudioManager.play_capture()
-					EventBus.base_captured.emit(self, prev_faction, faction)
-					
-			_:
-				# Base STANDARD (regular 1.0x defensa)
-				if count < troops:
-					troops -= count
-					elastic_scale = Vector2(1.14, 0.88)
-					elastic_velocity += Vector2(2.0, -2.0)
-					shake_intensity = 3.8
-					AudioManager.play_troop_absorb(false)
-				elif count == troops:
-					troops = 0
-					var prev_faction = faction
-					faction = GameManager.Faction.NEUTRAL
-					if prev_faction != GameManager.Faction.NEUTRAL:
-						_trigger_conquest_shockwave(faction)
-						AudioManager.play_capture()
-						EventBus.base_captured.emit(self, prev_faction, faction)
-					else:
-						# Agotamiento de guarnición neutral previa a conquista
-						elastic_scale = Vector2(1.15, 0.85)
-						elastic_velocity += Vector2(2.5, -2.5)
-						shake_intensity = 4.0
-						AudioManager.play_troop_absorb(false)
-				else:
-					# Conquista
-					var prev_faction = faction
-					var remaining = count - troops
-					faction = incoming_faction
-					troops = remaining
-					_trigger_conquest_shockwave(faction)
-					AudioManager.play_capture()
-					EventBus.base_captured.emit(self, prev_faction, faction)
-					
+		var m := get_defense_multiplier()
+		var power := get_defense_power()
+		if count < power:
+			# Resistencia: la fortaleza puede absorber impactos parciales en un defensor
+			var remaining := power - count
+			troops = ceili(remaining / m)
+			fortress_absorbed_damage = int(round(troops * m - remaining))
+			_bump(Vector2(1.14, 0.88), Vector2(2.0, -2.0), 3.8)
+			AudioManager.play_troop_absorb(false)
+		elif float(count) == power:
+			troops = 0
+			fortress_absorbed_damage = 0
+			if faction != GameManager.Faction.NEUTRAL:
+				_change_faction(GameManager.Faction.NEUTRAL)
+			else:
+				# Agotamiento de guarnición neutral previa a conquista
+				_bump(Vector2(1.15, 0.85), Vector2(2.5, -2.5), 4.0)
+				AudioManager.play_troop_absorb(false)
+		else:
+			# Conquista
+			troops = maxi(1, count - ceili(power))
+			fortress_absorbed_damage = 0
+			_change_faction(incoming_faction)
 	_update_label()
-	queue_redraw()
+	_dirty = true
+
+func _bump(squash: Vector2, velocity: Vector2, shake: float) -> void:
+	elastic_scale = squash
+	elastic_velocity += velocity
+	shake_intensity = shake
+
+func _change_faction(new_faction: int) -> void:
+	var prev_faction = faction
+	faction = new_faction
+	_trigger_conquest_shockwave(new_faction)
+	AudioManager.play_capture()
+	EventBus.base_captured.emit(self, prev_faction, new_faction)
 
 func _update_label() -> void:
 	if label_troops:
@@ -412,58 +318,49 @@ func _update_label() -> void:
 func _draw() -> void:
 	var color = GameManager.FACTION_COLORS.get(faction, Color.GRAY)
 	var current_radius = radius * pulse_scale
-	
+
 	# 1. Onda expansiva de impacto y conquista
 	if shockwave_alpha > 0.0:
-		var sw_col = Color(shockwave_color.r, shockwave_color.g, shockwave_color.b, shockwave_alpha * 0.85)
-		var sw_width = maxf(1.0, 5.0 * shockwave_alpha)
-		draw_arc(Vector2.ZERO, shockwave_radius, 0, TAU, 48, sw_col, sw_width, true)
-		var fill_col = Color(shockwave_color.r, shockwave_color.g, shockwave_color.b, shockwave_alpha * 0.18)
-		draw_circle(Vector2.ZERO, shockwave_radius, fill_col)
-		
+		var sw_col = Color(shockwave_color, shockwave_alpha * 0.85)
+		draw_arc(Vector2.ZERO, shockwave_radius, 0, TAU, 48, sw_col, maxf(1.0, 5.0 * shockwave_alpha), true)
+		draw_circle(Vector2.ZERO, shockwave_radius, Color(shockwave_color, shockwave_alpha * 0.18))
+
 	# Aplicar transformación de sacudida y escala elástica
 	draw_set_transform(shake_offset, 0.0, elastic_scale)
-	
-	# 2. Sombra 2.5D difusa multicapa State.io (+Y hacia abajo)
+
+	# 2. Sombra 2.5D difusa multicapa (+Y hacia abajo)
 	draw_circle(Vector2(0, 14), current_radius + 12.0, Color(0, 0, 0, 0.05))
 	draw_circle(Vector2(0, 10), current_radius + 8.0, Color(0, 0, 0, 0.09))
 	draw_circle(Vector2(0, 7), current_radius + 4.0, Color(0, 0, 0, 0.15))
 	draw_circle(Vector2(0, 4), current_radius + 1.0, Color(0, 0, 0, 0.22))
-	
+
 	# 3. Anillo de selección exterior si está seleccionada
 	if is_selected:
 		draw_circle(Vector2.ZERO, current_radius + 14.0, Color(1, 1, 1, 0.25))
 		draw_arc(Vector2.ZERO, current_radius + 11.0, 0, TAU, 48, Color.WHITE, 4.0, true)
-		
+
 	# 4. Borde exterior y elementos tácticos distintivos según BaseType
 	if base_type == BaseType.FORTRESS:
 		# Borde reforzado con almenas de bastión defensivo
 		draw_circle(Vector2.ZERO, current_radius + 6.5, Color(0.2, 0.22, 0.26))
 		draw_circle(Vector2.ZERO, current_radius + 5.0, Color.WHITE)
-		var num_crenels = 8
-		for i in range(num_crenels):
-			var angle = i * (TAU / num_crenels)
-			var c_dir = Vector2(cos(angle), sin(angle))
-			var c_pos = c_dir * (current_radius + 5.0)
+		for i in 8:
+			var c_pos = Vector2.from_angle(i * TAU / 8.0) * (current_radius + 5.0)
 			draw_circle(c_pos, 4.8, Color.WHITE)
 			draw_circle(c_pos, 3.0, Color(0.3, 0.35, 0.4))
 	elif base_type == BaseType.FACTORY:
-		# Engranaje industrial perimetral con pulsación
+		# Engranaje industrial perimetral giratorio
 		draw_circle(Vector2.ZERO, current_radius + 5.0, Color.WHITE)
-		var num_teeth = 8
-		for i in range(num_teeth):
-			var angle = i * (TAU / num_teeth) + factory_gear_angle
-			var t_dir = Vector2(cos(angle), sin(angle))
-			var t_pos = t_dir * (current_radius + 4.5)
+		for i in 8:
+			var t_pos = Vector2.from_angle(i * TAU / 8.0 + factory_gear_angle) * (current_radius + 4.5)
 			draw_circle(t_pos, 4.8, Color(1.0, 0.8, 0.2, 0.95))
 			draw_circle(t_pos, 2.5, Color(0.25, 0.2, 0.1))
 	else:
-		# Base regular STANDARD
 		draw_circle(Vector2.ZERO, current_radius + 4.5, Color.WHITE)
-	
+
 	# 5. Cuerpo principal con color de la facción
 	draw_circle(Vector2.ZERO, current_radius, color)
-	
+
 	# 6. Emblema distintivo procedural
 	if base_type == BaseType.FORTRESS:
 		var shield_y = current_radius * 0.44
@@ -480,57 +377,62 @@ func _draw() -> void:
 		var gear_y = current_radius * 0.44
 		draw_arc(Vector2(0, gear_y), 6.0, 0, TAU, 16, Color(1, 1, 1, 0.45), 2.0, true)
 		draw_circle(Vector2(0, gear_y), 2.2, Color(1, 1, 1, 0.55))
-	
-	# 7. Iluminación domo / reflejo redondeado 2.5D superior
-	var dome_highlight = Color(1.0, 1.0, 1.0, 0.28)
-	draw_arc(Vector2(0, -current_radius * 0.12), current_radius * 0.72, PI * 1.15, PI * 1.85, 32, dome_highlight, 3.5, true)
-	
-	# 8. Anillo interior decorativo sutil
+
+	# 7. Símbolo de facción (accesibilidad para daltonismo: no depender sólo del color)
+	_draw_faction_symbol(Vector2(0, -current_radius * 0.62), 5.5)
+
+	# 8. Iluminación domo / reflejo redondeado 2.5D superior
+	draw_arc(Vector2(0, -current_radius * 0.12), current_radius * 0.72, PI * 1.15, PI * 1.85, 32, Color(1, 1, 1, 0.28), 3.5, true)
+
+	# 9. Anillo interior decorativo sutil
 	draw_arc(Vector2.ZERO, current_radius * 0.82, 0, TAU, 40, Color(1, 1, 1, 0.18), 1.8, true)
-	
-	# 9. Indicadores de Tier (pips redondeados elegantes en la parte superior)
+
+	# 10. Indicadores de Tier (pips redondeados en la parte superior)
 	var pip_spacing = 16.0
 	var start_x = -((tier - 1) * pip_spacing) / 2.0
-	for i in range(tier):
+	for i in tier:
 		var pip_pos = Vector2(start_x + i * pip_spacing, -current_radius - 12.0)
 		draw_circle(pip_pos + Vector2(0, 2), 4.5, Color(0, 0, 0, 0.35))
 		draw_circle(pip_pos, 4.5, Color.WHITE)
 		draw_circle(pip_pos, 3.0, Color(0.92, 0.92, 0.96))
-		
-	# 10. Alerta Visual de Asedio Inminente (Under Siege Alert)
+
+	# 11. Alerta Visual de Asedio Inminente
 	if is_under_siege and is_active:
-		var p = (sin(siege_pulse_time) + 1.0) * 0.5
-		var halo_r = current_radius + 12.0 + p * 8.0
-		var halo_col = Color(1.0, 0.15, 0.15, 0.45 + p * 0.45)
-		draw_arc(Vector2.ZERO, halo_r, 0, TAU, 48, halo_col, 4.0, true)
-		draw_circle(Vector2.ZERO, halo_r, Color(1.0, 0.1, 0.1, 0.07 + p * 0.08))
-		
-		# Marcador de exclamación ⚠ animado sobre el territorio
-		var badge_y = -current_radius - 32.0 + sin(siege_pulse_time * 1.5) * 4.0
-		var badge_center = Vector2(0, badge_y)
-		
-		# Glow exterior del marcador
-		draw_circle(badge_center, 18.0 + p * 3.0, Color(1.0, 0.2, 0.2, 0.35 * p))
-		
-		# Triángulo de advertencia estilizado
-		var tri_size = 17.0
-		var p_top = badge_center + Vector2(0, -tri_size * 0.95)
-		var p_right = badge_center + Vector2(tri_size * 0.95, tri_size * 0.65)
-		var p_left = badge_center + Vector2(-tri_size * 0.95, tri_size * 0.65)
-		var tri_pts = PackedVector2Array([p_top, p_right, p_left])
-		
-		# Sombra del marcador
-		var shadow_pts = PackedVector2Array([p_top + Vector2(0, 3), p_right + Vector2(0, 3), p_left + Vector2(0, 3)])
-		draw_colored_polygon(shadow_pts, Color(0, 0, 0, 0.35))
-		
-		# Relleno del triángulo amarillo de advertencia
-		draw_colored_polygon(tri_pts, Color(1.0, 0.82, 0.1))
-		# Borde rojo de contraste
-		draw_polyline(PackedVector2Array([p_top, p_right, p_left, p_top]), Color(0.9, 0.15, 0.1), 2.2, true)
-		
-		# Signo de exclamación ! en negro en el centro
-		draw_line(badge_center + Vector2(0, -tri_size * 0.28), badge_center + Vector2(0, tri_size * 0.16), Color(0.12, 0.12, 0.12), 2.8, true)
-		draw_circle(badge_center + Vector2(0, tri_size * 0.38), 1.7, Color(0.12, 0.12, 0.12))
-		
-	# Restablecer transformación
+		_draw_siege_alert(current_radius)
+
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+func _draw_faction_symbol(center: Vector2, s: float) -> void:
+	var col = Color(1, 1, 1, 0.85)
+	match faction:
+		GameManager.Faction.PLAYER:
+			draw_circle(center, s * 0.8, col)
+		GameManager.Faction.ENEMY_1:
+			draw_colored_polygon(PackedVector2Array([center + Vector2(0, -s), center + Vector2(s, s * 0.8), center + Vector2(-s, s * 0.8)]), col)
+		GameManager.Faction.ENEMY_2:
+			draw_rect(Rect2(center - Vector2(s, s) * 0.75, Vector2(s, s) * 1.5), col)
+		GameManager.Faction.ENEMY_3:
+			draw_colored_polygon(PackedVector2Array([center + Vector2(0, -s), center + Vector2(s, 0), center + Vector2(0, s), center + Vector2(-s, 0)]), col)
+
+func _draw_siege_alert(current_radius: float) -> void:
+	var p = (sin(siege_pulse_time) + 1.0) * 0.5
+	var halo_r = current_radius + 12.0 + p * 8.0
+	draw_arc(Vector2.ZERO, halo_r, 0, TAU, 48, Color(1.0, 0.15, 0.15, 0.45 + p * 0.45), 4.0, true)
+	draw_circle(Vector2.ZERO, halo_r, Color(1.0, 0.1, 0.1, 0.07 + p * 0.08))
+
+	# Marcador de advertencia animado sobre el territorio
+	var badge_center = Vector2(0, -current_radius - 32.0 + sin(siege_pulse_time * 1.5) * 4.0)
+	draw_circle(badge_center, 18.0 + p * 3.0, Color(1.0, 0.2, 0.2, 0.35 * p))
+
+	var tri_size = 17.0
+	var p_top = badge_center + Vector2(0, -tri_size * 0.95)
+	var p_right = badge_center + Vector2(tri_size * 0.95, tri_size * 0.65)
+	var p_left = badge_center + Vector2(-tri_size * 0.95, tri_size * 0.65)
+	var shadow = Vector2(0, 3)
+	draw_colored_polygon(PackedVector2Array([p_top + shadow, p_right + shadow, p_left + shadow]), Color(0, 0, 0, 0.35))
+	draw_colored_polygon(PackedVector2Array([p_top, p_right, p_left]), Color(1.0, 0.82, 0.1))
+	draw_polyline(PackedVector2Array([p_top, p_right, p_left, p_top]), Color(0.9, 0.15, 0.1), 2.2, true)
+
+	var ink = Color(0.12, 0.12, 0.12)
+	draw_line(badge_center + Vector2(0, -tri_size * 0.28), badge_center + Vector2(0, tri_size * 0.16), ink, 2.8, true)
+	draw_circle(badge_center + Vector2(0, tri_size * 0.38), 1.7, ink)

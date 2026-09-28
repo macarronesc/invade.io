@@ -13,6 +13,10 @@ static func get_continents() -> Array[Dictionary]:
 		{"id": "oceania", "name": "Oceanía", "color": Color(0.1, 0.7, 0.7), "total_levels": 5}
 	]
 
+const CONTINENT_ORDER = ["europe", "north_america", "south_america", "africa", "asia", "oceania"]
+
+static var _levels_cache: Dictionary = {}
+
 static func get_level_data(level_id: String) -> Dictionary:
 	var all_levels = get_all_levels()
 	if all_levels.has(level_id):
@@ -20,7 +24,24 @@ static func get_level_data(level_id: String) -> Dictionary:
 	# Fallback a europe_1 si no existe
 	return all_levels.get("europe_1", {})
 
+## Dificultad normalizada 0.0 (primer nivel) .. 1.0 (último nivel de la campaña)
+static func get_difficulty(level_id: String) -> float:
+	var sep = level_id.rfind("_")
+	if sep == -1:
+		return 0.0
+	var c_idx = CONTINENT_ORDER.find(level_id.substr(0, sep))
+	var lvl = int(level_id.substr(sep + 1)) - 1
+	if c_idx < 0:
+		return 0.0
+	var total = CONTINENT_ORDER.size() * 5 - 1
+	return clampf(float(c_idx * 5 + lvl) / float(total), 0.0, 1.0)
+
 static func get_all_levels() -> Dictionary:
+	if _levels_cache.is_empty():
+		_levels_cache = _build_levels()
+	return _levels_cache
+
+static func _build_levels() -> Dictionary:
 	return {
 		# ===================== EUROPA =====================
 		"europe_1": {

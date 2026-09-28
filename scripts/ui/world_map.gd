@@ -43,8 +43,13 @@ var selected_level_id: String = ""
 var marching_phase: float = 0.0
 var pulse_time: float = 0.0
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_on_back_pressed()
+
 func _ready() -> void:
 	_apply_visual_styling()
+	UIThemeHelper.apply_safe_area_top($Header)
 	
 	continents = LevelDatabase.get_continents()
 	for i in range(continents.size()):
@@ -219,7 +224,7 @@ func _update_briefing_card() -> void:
 	for b in bases:
 		var f = b.get("faction", 0)
 		if f != GameManager.Faction.PLAYER and f != GameManager.Faction.NEUTRAL:
-			var f_name = "Rojo" if f == GameManager.Faction.ENEMY_1 else ("Ámbar" if f == GameManager.Faction.ENEMY_2 else "Verde")
+			var f_name = GameManager.FACTION_NAMES[f]
 			if not enemy_types.has(f_name):
 				enemy_types.append(f_name)
 				enemy_count += 1

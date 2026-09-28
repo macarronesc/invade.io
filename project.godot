@@ -12,7 +12,9 @@ config_version=5
 
 config/name="invade.io"
 run/main_scene="res://scenes/ui/main_menu.tscn"
+config/quit_on_go_back=false
 config/features=PackedStringArray("4.7", "GL Compatibility")
+run/low_processor_mode=true
 config/icon="res://icon.svg"
 
 [autoload]
@@ -25,19 +27,22 @@ AudioManager="*res://scripts/autoload/audio_manager.gd"
 
 window/size/viewport_width=1080
 window/size/viewport_height=1920
+window/size/window_width_override=540
+window/size/window_height_override=960
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[gui]
+
+theme/custom_font="res://assets/fonts/game_font.tres"
 
 [input_devices]
 
 pointing/emulate_touch_from_mouse=true
 
-[physics]
-
-3d/physics_engine="Jolt Physics"
-
 [rendering]
 
-rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.1, 0.12, 0.16, 1)

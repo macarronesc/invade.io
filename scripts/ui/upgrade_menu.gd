@@ -50,8 +50,13 @@ const UPGRADE_CONFIG: Dictionary = {
 	}
 }
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_on_back_pressed()
+
 func _ready() -> void:
 	_apply_visual_styling()
+	UIThemeHelper.apply_safe_area_top($Header)
 	
 	btn_back.pressed.connect(_on_back_pressed)
 	EventBus.coins_updated.connect(_update_coins)
@@ -235,7 +240,7 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 
 func _buy_upgrade(upgrade_id: String) -> void:
 	if GameManager.buy_upgrade(upgrade_id):
-		AudioManager.play_reinforce()
+		AudioManager.play_troop_absorb(true)
 		_animate_coin_spend()
 		_build_cards()
 

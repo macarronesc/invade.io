@@ -2,16 +2,11 @@
 
 [ext_resource type="Script" path="res://scripts/battle/base_node.gd" id="1_script"]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_1"]
-radius = 60.0
-
-[node name="BaseNode" type="Area2D"]
+[node name="BaseNode" type="Node2D"]
 script = ExtResource("1_script")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("CircleShape2D_1")
-
 [node name="TroopLabel" type="Label" parent="."]
+mouse_filter = 2
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -31,6 +26,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="NameLabel" type="Label" parent="."]
+mouse_filter = 2
 anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0

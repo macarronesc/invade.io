@@ -16,11 +16,21 @@ const UIThemeHelper = preload("res://scripts/ui/ui_theme_helper.gd")
 @onready var stars_pill: PanelContainer = %StarsPill
 @onready var coins_pill: PanelContainer = %CoinsPill
 
+const RESET_CONFIRM_WINDOW := 3.0
+const RESET_LABEL := "🔄 REINICIAR PROGRESO"
+
 var _play_pulse_tween: Tween = null
+var _reset_armed: bool = false
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		get_tree().quit()
 
 func _ready() -> void:
 	# 1. Aplicar estilos visuales 2.5D State.io
 	_apply_visual_styling()
+	UIThemeHelper.apply_safe_area_top($TopBar)
+	btn_reset.text = RESET_LABEL
 	
 	# 2. Conectar eventos de interacción
 	btn_play.pressed.connect(_on_play_pressed)
@@ -103,8 +113,21 @@ func _on_upgrades_pressed() -> void:
 	AudioManager.play_click()
 	get_tree().change_scene_to_file("res://scenes/ui/upgrade_menu.tscn")
 
+## Reinicio en dos pasos: el primer toque pide confirmación durante unos segundos
 func _on_reset_pressed() -> void:
 	AudioManager.play_click()
+	if not _reset_armed:
+		_reset_armed = true
+		btn_reset.text = "⚠️ ¿SEGURO? PULSA DE NUEVO PARA BORRAR TODO"
+		if is_inside_tree():
+			get_tree().create_timer(RESET_CONFIRM_WINDOW).timeout.connect(_disarm_reset)
+		return
+	_disarm_reset()
 	GameManager.reset_save()
 	_update_coins(GameManager.coins)
 	_update_stars()
+
+func _disarm_reset() -> void:
+	_reset_armed = false
+	if is_instance_valid(btn_reset):
+		btn_reset.text = RESET_LABEL

@@ -18,6 +18,14 @@ const FACTION_COLORS = {
 	Faction.ENEMY_3: Color(0.30, 0.69, 0.31)     # Verde esmeralda
 }
 
+const FACTION_NAMES = {
+	Faction.NEUTRAL: "Gris",
+	Faction.PLAYER: "Azul",
+	Faction.ENEMY_1: "Rojo",
+	Faction.ENEMY_2: "Ámbar",
+	Faction.ENEMY_3: "Verde"
+}
+
 const UPGRADE_BASE_COSTS = {
 	"starting_troops": 50,
 	"production_rate": 75,
@@ -25,48 +33,46 @@ const UPGRADE_BASE_COSTS = {
 	"gold_bonus": 100
 }
 
-const UPGRADE_DESCRIPTIONS = {
-	"starting_troops": "+5 tropas adicionales en tu base al iniciar la batalla",
-	"production_rate": "+15% velocidad de generación de tropas en todas tus bases",
-	"troop_speed": "+10% velocidad de marcha de tus tropas hacia el objetivo",
-	"gold_bonus": "+20% más oro por victoria conseguida en campaña"
-}
-
-const UPGRADE_TITLES = {
-	"starting_troops": "Guarnición Inicial",
-	"production_rate": "Velocidad de Reclutamiento",
-	"troop_speed": "Velocidad de Marcha",
-	"gold_bonus": "Botín de Guerra"
-}
-
 const MAX_UPGRADE_LEVEL = 10
+const DEFAULT_COINS = 150
+const SAVE_VERSION = 2
 
-var coins: int = 150
-var upgrades: Dictionary = {
-	"starting_troops": 0,
-	"production_rate": 0,
-	"troop_speed": 0,
-	"gold_bonus": 0
-}
+## Fracción de oro que se concede al repetir un nivel ya superado sin mejorar estrellas
+const REPLAY_GOLD_FACTOR = 0.25
 
+var coins: int = DEFAULT_COINS
+var upgrades: Dictionary = _default_upgrades()
 var current_continent: String = "europe"
 var current_level_id: String = "europe_1"
 var completed_levels: Dictionary = {} # level_id: stars (1-3)
 var unlocked_levels: Array[String] = ["europe_1"]
+var sound_muted: bool = false
+var seen_tips: Array[String] = []
 
-const SAVE_PATH = "user://invade_save.json"
+## Multiplicador de producción de las facciones enemigas en la batalla actual (curva de dificultad)
+var enemy_production_multiplier: float = 1.0
+
+var save_path: String = "user://invade_save.json"
 
 func _ready() -> void:
 	load_game()
 
+static func _default_upgrades() -> Dictionary:
+	return {
+		"starting_troops": 0,
+		"production_rate": 0,
+		"troop_speed": 0,
+		"gold_bonus": 0
+	}
+
 func get_total_stars() -> int:
-	var total = 0
+	var total := 0
 	for lvl in completed_levels:
-		total += completed_levels[lvl]
+		total += int(completed_levels[lvl])
 	return total
 
 func get_max_possible_stars() -> int:
-	return 30 * 3 # 6 continentes * 5 niveles * 3 estrellas
+	return LevelDatabase.get_all_levels().size() * 3
 
 func get_starting_troops_bonus() -> int:
 	return upgrades.get("starting_troops", 0) * 5
@@ -79,6 +85,14 @@ func get_troop_speed_multiplier() -> float:
 
 func get_gold_multiplier() -> float:
 	return 1.0 + (upgrades.get("gold_bonus", 0) * 0.20)
+
+## Multiplicador de producción aplicable a una facción en la batalla actual
+func get_faction_production_multiplier(faction: int) -> float:
+	if faction == Faction.PLAYER:
+		return get_production_multiplier()
+	if faction == Faction.NEUTRAL:
+		return 0.0
+	return enemy_production_multiplier
 
 func get_upgrade_cost(upgrade_id: String) -> int:
 	var lvl: int = upgrades.get(upgrade_id, 0)
@@ -106,8 +120,17 @@ func add_coins(amount: int) -> void:
 	save_game()
 	EventBus.coins_updated.emit(coins)
 
+## Oro a conceder por una victoria: completo la primera vez, la mitad si se mejoran estrellas
+## y una fracción reducida al repetir (evita el farmeo del primer nivel)
+func calculate_victory_gold(level_id: String, stars: int, base_amount: int) -> int:
+	var previous: int = int(completed_levels.get(level_id, 0))
+	var factor := 1.0
+	if previous > 0:
+		factor = 0.5 if stars > previous else REPLAY_GOLD_FACTOR
+	return int(round(base_amount * factor * get_gold_multiplier()))
+
 func complete_level(level_id: String, stars: int) -> void:
-	var current_stars = completed_levels.get(level_id, 0)
+	var current_stars: int = int(completed_levels.get(level_id, 0))
 	if stars > current_stars:
 		completed_levels[level_id] = stars
 	
@@ -126,9 +149,6 @@ func complete_level(level_id: String, stars: int) -> void:
 func is_level_unlocked(level_id: String) -> bool:
 	return unlocked_levels.has(level_id)
 
-func _calculate_next_level(level_id: String) -> String:
-	return get_next_level(level_id)
-
 func get_next_level(level_id: String) -> String:
 	var last_underscore = level_id.rfind("_")
 	if last_underscore != -1:
@@ -138,55 +158,83 @@ func get_next_level(level_id: String) -> String:
 			return "%s_%d" % [continent, index + 1]
 		else:
 			# Desbloquear primer nivel del siguiente continente
-			var continent_order = ["europe", "north_america", "south_america", "africa", "asia", "oceania"]
+			var continent_order = LevelDatabase.CONTINENT_ORDER
 			var c_idx = continent_order.find(continent)
 			if c_idx >= 0 and c_idx + 1 < continent_order.size():
 				return "%s_1" % continent_order[c_idx + 1]
 	return ""
 
+func has_seen_tip(tip_id: String) -> bool:
+	return seen_tips.has(tip_id)
+
+func mark_tip_seen(tip_id: String) -> void:
+	if not seen_tips.has(tip_id):
+		seen_tips.append(tip_id)
+		save_game()
+
+## Vibración háptica breve en dispositivos móviles (no hace nada en escritorio)
+func haptic(duration_ms: int) -> void:
+	if OS.has_feature("mobile"):
+		Input.vibrate_handheld(duration_ms)
+
 func save_game() -> void:
 	var data = {
+		"version": SAVE_VERSION,
 		"coins": coins,
 		"upgrades": upgrades,
 		"completed_levels": completed_levels,
 		"unlocked_levels": unlocked_levels,
 		"current_continent": current_continent,
-		"current_level_id": current_level_id
+		"current_level_id": current_level_id,
+		"sound_muted": sound_muted,
+		"seen_tips": seen_tips
 	}
-	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(data))
-		file.close()
+	# Escritura atómica: un cierre inesperado a mitad de escritura no corrompe la partida
+	var tmp_path = save_path + ".tmp"
+	var file = FileAccess.open(tmp_path, FileAccess.WRITE)
+	if not file:
+		return
+	file.store_string(JSON.stringify(data))
+	file.close()
+	DirAccess.rename_absolute(tmp_path, save_path)
 
 func load_game() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
+	if not FileAccess.file_exists(save_path):
 		return
-	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if file:
-		var content = file.get_as_text()
-		file.close()
-		var json = JSON.new()
-		if json.parse(content) == OK and typeof(json.data) == TYPE_DICTIONARY:
-			var data = json.data
-			coins = data.get("coins", 150)
-			upgrades = data.get("upgrades", upgrades)
-			completed_levels = data.get("completed_levels", completed_levels)
-			var ul = data.get("unlocked_levels", unlocked_levels)
-			unlocked_levels.clear()
-			for l in ul:
-				unlocked_levels.append(str(l))
-			current_continent = data.get("current_continent", current_continent)
-			current_level_id = data.get("current_level_id", current_level_id)
+	var json = JSON.new()
+	if json.parse(FileAccess.get_file_as_string(save_path)) != OK or typeof(json.data) != TYPE_DICTIONARY:
+		return
+	var data: Dictionary = json.data
+	# JSON devuelve los números como float: convertir explícitamente a int
+	coins = int(data.get("coins", DEFAULT_COINS))
+	upgrades = _default_upgrades()
+	var saved_upgrades = data.get("upgrades", {})
+	if saved_upgrades is Dictionary:
+		for key in saved_upgrades:
+			upgrades[key] = clampi(int(saved_upgrades[key]), 0, MAX_UPGRADE_LEVEL)
+	completed_levels.clear()
+	var saved_levels = data.get("completed_levels", {})
+	if saved_levels is Dictionary:
+		for key in saved_levels:
+			completed_levels[str(key)] = clampi(int(saved_levels[key]), 0, 3)
+	unlocked_levels.clear()
+	for l in data.get("unlocked_levels", ["europe_1"]):
+		unlocked_levels.append(str(l))
+	if unlocked_levels.is_empty():
+		unlocked_levels.append("europe_1")
+	seen_tips.clear()
+	for t in data.get("seen_tips", []):
+		seen_tips.append(str(t))
+	current_continent = str(data.get("current_continent", current_continent))
+	current_level_id = str(data.get("current_level_id", current_level_id))
+	sound_muted = bool(data.get("sound_muted", false))
 
 func reset_save() -> void:
-	coins = 150
-	upgrades = {
-		"starting_troops": 0,
-		"production_rate": 0,
-		"troop_speed": 0,
-		"gold_bonus": 0
-	}
+	coins = DEFAULT_COINS
+	upgrades = _default_upgrades()
 	completed_levels = {}
 	unlocked_levels = ["europe_1"]
 	current_continent = "europe"
+	current_level_id = "europe_1"
+	seen_tips.clear()
 	save_game()
