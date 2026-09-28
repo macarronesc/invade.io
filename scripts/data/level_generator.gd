@@ -25,6 +25,15 @@ const VIEW_PADDING := 0.12
 const MIN_VIEW_SPAN := 8.0
 const RELAX_ITERATIONS := 80
 
+## Desafío diario: centro entre las ciudades más pobladas y vecinas a una distancia jugable
+const DAILY_CENTER_POOL := 150
+const DAILY_NEIGHBOR_POOL := 600
+const DAILY_MIN_DEGREES := 3.0
+const DAILY_MAX_DEGREES := 16.0
+const DAILY_ANCHORS := 5
+const DAILY_ATTEMPTS := 40
+const DAILY_TARGET_TIME := 60
+
 static func build(def: Dictionary, difficulty: float) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(def.get("id", ""))
@@ -59,6 +68,67 @@ static func build(def: Dictionary, difficulty: float) -> Dictionary:
 	level["target_time"] = def.get("target_time", 45) + extras.size() * EXTRA_TARGET_TIME
 	level["geo"] = project_geography(proj, GEO_CLIP_RECT)
 	return level
+
+## Definición del desafío de un día: la misma para todos los jugadores ese día.
+## El jugador parte de una gran ciudad; el rival más lejano es la IA y el resto, neutrales.
+static func daily_challenge_definition(day: int) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(DailyRewards.challenge_id(day))
+	var cities := GeoDatabase.get_cities()
+	var center: Dictionary = {}
+	var near: Array[Dictionary] = []
+	for attempt in DAILY_ATTEMPTS:
+		center = cities[rng.randi() % mini(DAILY_CENTER_POOL, cities.size())]
+		# Tras muchos intentos (regiones aisladas) se admiten vecinas más lejanas
+		var max_deg := DAILY_MAX_DEGREES * (1.0 if attempt < DAILY_ATTEMPTS - 5 else 3.0)
+		near = _spread_neighbors(center, cities, max_deg)
+		if near.size() >= DAILY_ANCHORS - 1:
+			break
+
+	# Rival principal: la vecina más lejana. A veces, un segundo rival lejos de ambos.
+	near.sort_custom(func(a, b): return _geo_distance(center, a) > _geo_distance(center, b))
+	var bases: Array[Dictionary] = [
+		{"id": "b1", "city": center["key"], "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
+		{"id": "b2", "city": near[0]["key"], "faction": GameManager.Faction.ENEMY_1, "troops": 30, "tier": 2},
+	]
+	var second_enemy := rng.randf() < 0.5
+	for i in range(1, near.size()):
+		var neutral := {"id": "b%d" % (i + 2), "city": near[i]["key"], "faction": GameManager.Faction.NEUTRAL,
+			"troops": rng.randi_range(10, 18), "tier": 1}
+		if second_enemy and i == 1:
+			neutral.merge({"faction": GameManager.Faction.ENEMY_2, "troops": 25, "tier": 2}, true)
+		bases.append(neutral)
+	return {
+		"id": DailyRewards.challenge_id(day),
+		"name": "Desafío diario: %s" % center["name_es"],
+		"continent": "daily",
+		"description": "Un frente nuevo cada día. Conquista la región de %s antes de medianoche." % center["name_es"],
+		"target_time": DAILY_TARGET_TIME,
+		"bases": bases,
+	}
+
+## Distancia aproximada en grados (longitud corregida por la latitud y el antimeridiano)
+static func _geo_distance(a: Dictionary, b: Dictionary) -> float:
+	var la: Vector2 = a["lonlat"]
+	var lb: Vector2 = b["lonlat"]
+	var dlon := wrapf(lb.x - la.x, -180.0, 180.0) * cos(deg_to_rad((la.y + lb.y) * 0.5))
+	return Vector2(dlon, lb.y - la.y).length()
+
+## Hasta DAILY_ANCHORS - 1 vecinas a distancia jugable y no amontonadas entre sí
+static func _spread_neighbors(center: Dictionary, cities: Array[Dictionary], max_deg: float) -> Array[Dictionary]:
+	var candidates: Array[Dictionary] = []
+	for i in mini(DAILY_NEIGHBOR_POOL, cities.size()):
+		var d := _geo_distance(center, cities[i])
+		if d >= DAILY_MIN_DEGREES and d <= max_deg:
+			candidates.append(cities[i])
+	candidates.sort_custom(func(a, b): return _geo_distance(center, a) < _geo_distance(center, b))
+	var chosen: Array[Dictionary] = []
+	for c in candidates:
+		if chosen.size() >= DAILY_ANCHORS - 1:
+			break
+		if chosen.all(func(o): return _geo_distance(o, c) >= DAILY_MIN_DEGREES):
+			chosen.append(c)
+	return chosen
 
 ## Costas y fronteras visibles con esta proyección, recortadas a `clip_rect`
 static func project_geography(proj: MapProjection, clip_rect: Rect2) -> Dictionary:

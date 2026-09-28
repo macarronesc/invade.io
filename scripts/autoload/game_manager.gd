@@ -49,6 +49,17 @@ var unlocked_levels: Array[String] = ["europe_1"]
 var sound_muted: bool = false
 var music_muted: bool = false
 var seen_tips: Array[String] = []
+## Estadísticas acumuladas para los logros (bases capturadas, victorias...)
+var stats: Dictionary = {}
+## Estado de cada logro: ACHIEVEMENT_UNLOCKED (recompensa pendiente) o ACHIEVEMENT_CLAIMED
+var achievements: Dictionary = {}
+## Recompensa diaria y desafío del día (días locales, ver DailyRewards.today)
+var daily: Dictionary = _default_daily()
+## Desafío diario en juego; vacío = se juega current_level_id de la campaña
+var challenge_level_id: String = ""
+
+const ACHIEVEMENT_UNLOCKED := "unlocked"
+const ACHIEVEMENT_CLAIMED := "claimed"
 
 ## Multiplicador de producción de las facciones enemigas en la batalla actual (curva de dificultad)
 var enemy_production_multiplier: float = 1.0
@@ -57,6 +68,9 @@ var save_path: String = "user://invade_save.json"
 
 func _ready() -> void:
 	load_game()
+
+static func _default_daily() -> Dictionary:
+	return {"last_claim_day": -1, "streak": 0, "challenge_day": -1}
 
 static func _default_upgrades() -> Dictionary:
 	return {
@@ -165,6 +179,90 @@ func get_next_level(level_id: String) -> String:
 				return "%s_1" % continent_order[c_idx + 1]
 	return ""
 
+## Nivel que carga la batalla: el desafío diario si hay uno en juego, si no el de la campaña
+func get_battle_level_id() -> String:
+	return challenge_level_id if challenge_level_id != "" else current_level_id
+
+## Elige el nivel de la próxima batalla sin perder el punto de la campaña
+func play_level(level_id: String) -> void:
+	if DailyRewards.is_challenge(level_id):
+		challenge_level_id = level_id
+	else:
+		challenge_level_id = ""
+		current_level_id = level_id
+
+# =========================================================================
+# Estadísticas y logros (AchievementManager decide cuándo se cumplen)
+# =========================================================================
+
+func get_stat(stat: String) -> int:
+	return int(stats.get(stat, 0))
+
+func add_stat(stat: String, amount: int = 1) -> void:
+	stats[stat] = get_stat(stat) + amount
+
+## Guarda el valor sólo si supera el récord anterior
+func record_stat_max(stat: String, value: int) -> void:
+	stats[stat] = maxi(get_stat(stat), value)
+
+func is_achievement_unlocked(id: String) -> bool:
+	return achievements.has(id)
+
+func is_achievement_claimed(id: String) -> bool:
+	return achievements.get(id, "") == ACHIEVEMENT_CLAIMED
+
+## Devuelve true si el logro se acaba de desbloquear
+func unlock_achievement(id: String) -> bool:
+	if achievements.has(id):
+		return false
+	achievements[id] = ACHIEVEMENT_UNLOCKED
+	save_game()
+	return true
+
+## Cobra la recompensa de un logro desbloqueado; devuelve el oro concedido (0 si no procede)
+func claim_achievement(id: String) -> int:
+	if achievements.get(id, "") != ACHIEVEMENT_UNLOCKED:
+		return 0
+	achievements[id] = ACHIEVEMENT_CLAIMED
+	var reward: int = AchievementDatabase.get_by_id(id).get("reward", 0)
+	add_coins(reward)
+	EventBus.achievement_claimed.emit(id, reward)
+	return reward
+
+func get_claimable_achievement_count() -> int:
+	return achievements.values().count(ACHIEVEMENT_UNLOCKED)
+
+# =========================================================================
+# Recompensa diaria y desafío del día
+# =========================================================================
+
+func get_daily_reward_state(day: int = DailyRewards.today()) -> Dictionary:
+	return DailyRewards.evaluate(int(daily["last_claim_day"]), int(daily["streak"]), day)
+
+## Cobra la recompensa del día; devuelve el oro concedido (0 si ya se cobró)
+func claim_daily_reward(day: int = DailyRewards.today()) -> int:
+	var state := get_daily_reward_state(day)
+	if not state["can_claim"]:
+		return 0
+	daily["last_claim_day"] = day
+	daily["streak"] = state["streak"]
+	record_stat_max("daily_streak", state["streak"])
+	add_coins(state["reward"])
+	EventBus.daily_reward_claimed.emit(state["streak"], state["reward"])
+	return state["reward"]
+
+func is_daily_challenge_done(day: int = DailyRewards.today()) -> bool:
+	return int(daily["challenge_day"]) == day
+
+## Registra la victoria en un desafío diario; devuelve el oro (completo sólo la primera vez del día)
+func complete_daily_challenge(level_id: String) -> int:
+	var day := DailyRewards.challenge_day(level_id)
+	var factor := REPLAY_GOLD_FACTOR if is_daily_challenge_done(day) else 1.0
+	if not is_daily_challenge_done(day):
+		daily["challenge_day"] = day
+		add_stat("daily_challenges")
+	return int(round(DailyRewards.DAILY_CHALLENGE_GOLD * factor * get_gold_multiplier()))
+
 func has_seen_tip(tip_id: String) -> bool:
 	return seen_tips.has(tip_id)
 
@@ -189,7 +287,10 @@ func save_game() -> void:
 		"current_level_id": current_level_id,
 		"sound_muted": sound_muted,
 		"music_muted": music_muted,
-		"seen_tips": seen_tips
+		"seen_tips": seen_tips,
+		"stats": stats,
+		"achievements": achievements,
+		"daily": daily
 	}
 	# Escritura atómica: un cierre inesperado a mitad de escritura no corrompe la partida
 	var tmp_path = save_path + ".tmp"
@@ -231,6 +332,23 @@ func load_game() -> void:
 	current_level_id = str(data.get("current_level_id", current_level_id))
 	sound_muted = bool(data.get("sound_muted", false))
 	music_muted = bool(data.get("music_muted", false))
+	stats.clear()
+	var saved_stats = data.get("stats", {})
+	if saved_stats is Dictionary:
+		for key in saved_stats:
+			stats[str(key)] = maxi(0, int(saved_stats[key]))
+	achievements.clear()
+	var saved_achievements = data.get("achievements", {})
+	if saved_achievements is Dictionary:
+		for key in saved_achievements:
+			var state = str(saved_achievements[key])
+			if state == ACHIEVEMENT_UNLOCKED or state == ACHIEVEMENT_CLAIMED:
+				achievements[str(key)] = state
+	daily = _default_daily()
+	var saved_daily = data.get("daily", {})
+	if saved_daily is Dictionary:
+		for key in daily:
+			daily[key] = int(saved_daily.get(key, daily[key]))
 
 func reset_save() -> void:
 	coins = DEFAULT_COINS
@@ -240,4 +358,8 @@ func reset_save() -> void:
 	current_continent = "europe"
 	current_level_id = "europe_1"
 	seen_tips.clear()
+	stats.clear()
+	achievements.clear()
+	daily = _default_daily()
+	challenge_level_id = ""
 	save_game()

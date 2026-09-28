@@ -20,16 +20,19 @@ static var _built: Dictionary = {}
 
 ## Nivel listo para jugar: bases con posición en pantalla y geografía proyectada.
 ## Se construye la primera vez que se pide y queda en caché.
+## Los desafíos diarios ("daily_<día>") se generan a partir del número de día.
 static func get_level_data(level_id: String) -> Dictionary:
-	var defs = _get_definitions()
-	if not defs.has(level_id):
-		level_id = "europe_1"
 	if not _built.has(level_id):
-		_built[level_id] = LevelGenerator.build(defs[level_id], get_difficulty(level_id))
+		var def := get_level_definition(level_id)
+		if def.is_empty():
+			return get_level_data("europe_1")
+		_built[level_id] = LevelGenerator.build(def, get_difficulty(level_id))
 	return _built[level_id]
 
 ## Definición original (ciudades y facciones) sin construir
 static func get_level_definition(level_id: String) -> Dictionary:
+	if DailyRewards.is_challenge(level_id):
+		return LevelGenerator.daily_challenge_definition(DailyRewards.challenge_day(level_id))
 	return _get_definitions().get(level_id, {})
 
 static func get_level_ids() -> Array:
@@ -42,6 +45,8 @@ static func _get_definitions() -> Dictionary:
 
 ## Dificultad normalizada 0.0 (primer nivel) .. 1.0 (último nivel de la campaña)
 static func get_difficulty(level_id: String) -> float:
+	if DailyRewards.is_challenge(level_id):
+		return DailyRewards.CHALLENGE_DIFFICULTY
 	var sep = level_id.rfind("_")
 	if sep == -1:
 		return 0.0

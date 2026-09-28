@@ -178,6 +178,26 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 30
 text = "🛡️ TIENDA DE MEJORAS"
 
+[node name="SecondaryRow" type="HBoxContainer" parent="ButtonsVBox"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="BtnDaily" type="Button" parent="ButtonsVBox/SecondaryRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 90)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 26
+text = "🎯 DESAFÍO DIARIO"
+
+[node name="BtnAchievements" type="Button" parent="ButtonsVBox/SecondaryRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 90)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 26
+text = "🏆 LOGROS"
+
 [node name="BtnReset" type="Button" parent="ButtonsVBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 68)

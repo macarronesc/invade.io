@@ -64,8 +64,8 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	reset_time_scale()
-	if GameManager.current_level_id != "":
-		level_id = GameManager.current_level_id
+	if GameManager.get_battle_level_id() != "":
+		level_id = GameManager.get_battle_level_id()
 	load_level(level_id)
 	AudioManager.play_music("battle")
 	EventBus.base_captured.connect(_on_base_captured)
@@ -466,16 +466,19 @@ func _handle_release(pos: Vector2) -> void:
 	candidate_chained_base = null
 
 	if target != null:
+		var sources: Array[BaseNode] = []
 		if selected_sources.has(target):
 			# Arrastre desde otras bases hacia esta base aliada para reforzarla
 			if selected_sources.size() > 1 and selected_sources.back() == target:
 				selected_sources.erase(target)
 				target.set_selected(false)
-				for src in selected_sources:
-					dispatch_troops(src, target)
+				sources = selected_sources
 		else:
-			for src in selected_sources:
-				dispatch_troops(src, target)
+			sources = selected_sources
+		for src in sources:
+			dispatch_troops(src, target)
+		if not sources.is_empty():
+			EventBus.player_assault.emit(sources.size())
 
 	_cancel_gesture()
 
@@ -560,9 +563,18 @@ func _trigger_victory() -> void:
 		if is_instance_valid(b) and b.faction == GameManager.Faction.PLAYER:
 			player_bases_count += 1
 
-	var previous_stars: int = int(GameManager.completed_levels.get(level_id, 0))
-	var total_gold = GameManager.calculate_victory_gold(level_id, stars, 60 + player_bases_count * 15)
-	GameManager.complete_level(level_id, stars)
+	var is_challenge = DailyRewards.is_challenge(level_id)
+	var is_replay: bool
+	var total_gold: int
+	if is_challenge:
+		# Los desafíos diarios no cuentan para la campaña ni para las estrellas
+		is_replay = GameManager.is_daily_challenge_done(DailyRewards.challenge_day(level_id))
+		total_gold = GameManager.complete_daily_challenge(level_id)
+	else:
+		var previous_stars: int = int(GameManager.completed_levels.get(level_id, 0))
+		is_replay = previous_stars > 0 and stars <= previous_stars
+		total_gold = GameManager.calculate_victory_gold(level_id, stars, 60 + player_bases_count * 15)
+		GameManager.complete_level(level_id, stars)
 	GameManager.add_coins(total_gold)
 	GameManager.haptic(80)
 
@@ -581,7 +593,8 @@ func _trigger_victory() -> void:
 		"gold_earned": total_gold,
 		"bases_conquered": player_bases_count,
 		"is_continent_conquest": is_continent_conquest,
-		"is_replay": previous_stars > 0 and stars <= previous_stars
+		"is_replay": is_replay,
+		"is_daily_challenge": is_challenge
 	})
 
 func _trigger_defeat() -> void:

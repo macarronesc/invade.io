@@ -272,7 +272,11 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 	dim_overlay.visible = true
 	UIThemeHelper.animate_modal_pop_in(victory_panel)
 
-	if stats.get("is_continent_conquest", false):
+	btn_next_level.visible = not stats.get("is_daily_challenge", false)
+	if stats.get("is_daily_challenge", false):
+		victory_title.text = "¡DESAFÍO SUPERADO!"
+		victory_title.add_theme_color_override("font_color", UIThemeHelper.COLOR_ACCENT)
+	elif stats.get("is_continent_conquest", false):
 		victory_title.text = "¡CONTINENTE CONQUISTADO!"
 		victory_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	else:
@@ -395,45 +399,10 @@ func show_tip_card(title: String, body: String, on_close: Callable = Callable())
 	if is_instance_valid(_tip_panel):
 		_tip_panel.queue_free()
 	_tip_on_close = on_close
-	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(820, 0)
-	UIThemeHelper.apply_card_style(panel, Color(0.12, 0.15, 0.20, 0.97), UIThemeHelper.COLOR_ACCENT, 24, 3)
-	var margin = MarginContainer.new()
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 40)
-	panel.add_child(margin)
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 26)
-	margin.add_child(vbox)
-	var lbl_title = Label.new()
-	lbl_title.text = title
-	lbl_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl_title.add_theme_font_size_override("font_size", 52)
-	lbl_title.add_theme_color_override("font_color", UIThemeHelper.COLOR_ACCENT)
-	vbox.add_child(lbl_title)
-	var lbl_body = Label.new()
-	lbl_body.text = body
-	lbl_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl_body.add_theme_font_size_override("font_size", 34)
-	vbox.add_child(lbl_body)
-	var btn = Button.new()
-	btn.text = "¡ENTENDIDO!"
-	btn.add_theme_font_size_override("font_size", 36)
-	btn.custom_minimum_size = Vector2(0, 100)
-	UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_SUCCESS, Color.TRANSPARENT, 18, 6)
-	btn.pressed.connect(_close_tip_card)
-	vbox.add_child(btn)
-	# El CenterContainer centra la tarjeta una vez conocido el ancho con ajuste de línea
-	var center = CenterContainer.new()
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	center.add_child(panel)
-	add_child(center)
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_tip_panel = center
+	_tip_panel = UIThemeHelper.create_modal_card(title, body, "¡ENTENDIDO!", _close_tip_card)
+	add_child(_tip_panel)
 	dim_overlay.visible = true
 	get_tree().paused = true
-	UIThemeHelper.animate_modal_pop_in.call_deferred(panel)
 
 func _close_tip_card() -> void:
 	AudioManager.play_click()

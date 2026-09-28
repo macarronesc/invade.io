@@ -334,7 +334,7 @@ func _on_start_selected_level() -> void:
 
 func _start_level(level_id: String) -> void:
 	AudioManager.play_click()
-	GameManager.current_level_id = level_id
+	GameManager.play_level(level_id)
 	get_tree().change_scene_to_file("res://scenes/battle/battle_field.tscn")
 
 func _on_back_pressed() -> void:

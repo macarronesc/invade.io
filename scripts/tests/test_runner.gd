@@ -95,6 +95,9 @@ func run_all_tests() -> void:
 	test_tutorial_steps_and_tips()
 	test_real_geography_and_bigger_levels()
 	test_procedural_music()
+	test_daily_rewards_and_streaks()
+	test_achievements_system()
+	test_daily_challenge_levels()
 
 func test_base_production_mechanics() -> void:
 	print("-> Test: Producción de Tropas y Límites de Capacidad")
@@ -2583,3 +2586,196 @@ func test_procedural_music() -> void:
 	GameManager.load_game()
 	assert_true(GameManager.music_muted, "El silencio de la música se guarda aparte del de los efectos")
 	AudioManager.set_music_muted(was)
+
+func test_daily_rewards_and_streaks() -> void:
+	print("\n-> Test: Recompensa Diaria con Racha")
+	# 1. Reglas puras
+	var first = DailyRewards.evaluate(-1, 0, 100)
+	assert_true(first["can_claim"] and first["streak"] == 1, "La primera recompensa inicia la racha en 1")
+	assert_equals(first["reward"], DailyRewards.STREAK_REWARDS[0], "El día 1 da la recompensa base")
+	assert_equals(DailyRewards.evaluate(100, 1, 101)["streak"], 2, "Volver al día siguiente suma racha")
+	assert_equals(DailyRewards.evaluate(100, 5, 103)["streak"], 1, "Saltarse un día reinicia la racha")
+	assert_true(not DailyRewards.evaluate(100, 1, 100)["can_claim"], "No se cobra dos veces el mismo día")
+	assert_equals(DailyRewards.reward_for_streak(7), DailyRewards.STREAK_REWARDS[-1], "El día 7 da el premio gordo")
+	assert_equals(DailyRewards.reward_for_streak(8), DailyRewards.STREAK_REWARDS[0], "El día 8 vuelve a empezar el ciclo")
+	assert_true(DailyRewards.today() > 19000, "El día local actual es coherente (días desde 1970)")
+
+	# 2. Cobro real: oro, racha guardada y récord de racha para el logro
+	GameManager.reset_save()
+	var coins0 = GameManager.coins
+	var gold = GameManager.claim_daily_reward(500)
+	assert_equals(GameManager.coins, coins0 + gold, "Recoger la recompensa suma el oro")
+	assert_equals(GameManager.claim_daily_reward(500), 0, "El segundo cobro del mismo día no da nada")
+	GameManager.claim_daily_reward(501)
+	GameManager.claim_daily_reward(502)
+	GameManager.load_game()
+	assert_equals(int(GameManager.daily["streak"]), 3, "La racha sobrevive a guardar y cargar")
+	assert_equals(GameManager.get_stat("daily_streak"), 3, "Se registra la mejor racha")
+	GameManager.claim_daily_reward(510)
+	assert_equals(int(GameManager.daily["streak"]), 1, "Tras una ausencia, la racha vuelve a 1")
+	assert_equals(GameManager.get_stat("daily_streak"), 3, "La mejor racha no se pierde al romperse")
+	GameManager.reset_save()
+
+func test_achievements_system() -> void:
+	print("\n-> Test: Sistema de Logros (Eventos, Progreso, Reclamo y Guardado)")
+	GameManager.reset_save()
+	var unlocked_events: Array[String] = []
+	var on_unlock = func(id): unlocked_events.append(id)
+	EventBus.achievement_unlocked.connect(on_unlock)
+
+	# 1. Datos: ids únicos, recompensas positivas y estadísticas conocidas
+	var ids = {}
+	for a in AchievementDatabase.get_all():
+		ids[a["id"]] = true
+	assert_equals(ids.size(), AchievementDatabase.get_all().size(), "Los ids de logro son únicos")
+	assert_true(AchievementDatabase.get_all().all(func(a): return a["goal"] > 0 and a["reward"] > 0), "Todos los logros tienen meta y recompensa")
+
+	# 2. Una victoria rápida y sin bajas desbloquea tres logros a la vez (sin dar oro todavía)
+	var coins0 = GameManager.coins
+	EventBus.battle_started.emit("europe_1")
+	EventBus.base_captured.emit(null, GameManager.Faction.NEUTRAL, GameManager.Faction.PLAYER)
+	EventBus.battle_won.emit({"time": 12.0})
+	assert_equals(GameManager.get_stat("victories"), 1, "Se cuentan las victorias")
+	assert_equals(GameManager.get_stat("bases_captured"), 1, "Se cuentan los territorios capturados")
+	for id in ["first_victory", "blitz", "flawless"]:
+		assert_true(GameManager.is_achievement_unlocked(id), "Logro '%s' desbloqueado" % id)
+	assert_true(unlocked_events.has("first_victory"), "Se avisa del desbloqueo por el EventBus")
+	assert_equals(GameManager.coins, coins0, "Desbloquear no da oro: la recompensa se reclama")
+	assert_equals(GameManager.get_claimable_achievement_count(), 3, "Hay 3 recompensas pendientes")
+
+	# 3. Perder un territorio impide el logro sin bajas en esa batalla
+	EventBus.battle_started.emit("europe_2")
+	EventBus.base_captured.emit(null, GameManager.Faction.PLAYER, GameManager.Faction.ENEMY_1)
+	EventBus.battle_won.emit({"time": 60.0})
+	assert_equals(GameManager.get_stat("flawless_victories"), 1, "Una victoria con bajas no cuenta como impecable")
+	assert_equals(GameManager.get_stat("fast_victories"), 1, "Una victoria lenta no cuenta como relámpago")
+
+	# 4. Logros de combate en vivo
+	EventBus.player_assault.emit(3)
+	assert_true(GameManager.is_achievement_unlocked("coordination"), "Atacar desde 3 bases en un trazo desbloquea 'Ofensiva total'")
+	EventBus.troops_dispatched.emit(null, null, 120, GameManager.Faction.ENEMY_1)
+	assert_true(not GameManager.is_achievement_unlocked("big_army"), "Las hileras enemigas no cuentan para el jugador")
+	EventBus.troops_dispatched.emit(null, null, 120, GameManager.Faction.PLAYER)
+	assert_true(GameManager.is_achievement_unlocked("big_army"), "Una hilera de 120 tropas desbloquea 'Gran ejército'")
+	for i in 10:
+		EventBus.troops_retreated.emit(GameManager.Faction.PLAYER)
+	assert_true(GameManager.is_achievement_unlocked("tactical_retreat"), "10 retiradas desbloquean 'Retirada táctica'")
+
+	# 5. Estadísticas derivadas del progreso
+	for i in range(1, 6):
+		GameManager.completed_levels["europe_%d" % i] = 3
+	assert_equals(AchievementManager.get_stat("continents_completed"), 1, "Europa completa cuenta como continente")
+	assert_equals(AchievementManager.get_stat("three_star_levels"), 5, "Se cuentan los niveles con 3 estrellas")
+	assert_equals(AchievementManager.get_progress(AchievementDatabase.get_by_id("strategist")), 0.5, "El progreso de 'Estratega' es 5/10")
+	assert_true(AchievementManager.check_all().has("continental"), "check_all desbloquea 'Dominio continental'")
+	assert_true(AchievementManager.check_all().is_empty(), "Un logro no se desbloquea dos veces")
+
+	# 6. Reclamar: oro una sola vez y estado guardado
+	var reward = AchievementDatabase.get_by_id("first_victory")["reward"]
+	assert_equals(GameManager.claim_achievement("first_victory"), reward, "Reclamar da la recompensa del logro")
+	assert_equals(GameManager.coins, coins0 + reward, "El oro llega al saldo")
+	assert_equals(GameManager.claim_achievement("first_victory"), 0, "No se puede reclamar dos veces")
+	assert_equals(GameManager.claim_achievement("emperor"), 0, "No se puede reclamar un logro bloqueado")
+	GameManager.save_game()
+	GameManager.achievements.clear()
+	GameManager.stats.clear()
+	GameManager.load_game()
+	assert_true(GameManager.is_achievement_claimed("first_victory"), "El logro reclamado sigue reclamado tras cargar")
+	assert_true(GameManager.is_achievement_unlocked("blitz") and not GameManager.is_achievement_claimed("blitz"), "El pendiente sigue pendiente tras cargar")
+	assert_equals(GameManager.get_stat("victories"), 2, "Las estadísticas se guardan")
+
+	# 7. Guardado corrupto: se descartan estados desconocidos
+	var f = FileAccess.open(GameManager.save_path, FileAccess.WRITE)
+	f.store_string(JSON.stringify({"achievements": {"blitz": "hacked", "flawless": "claimed"}, "stats": {"victories": -5}, "daily": "x"}))
+	f.close()
+	GameManager.load_game()
+	assert_true(not GameManager.is_achievement_unlocked("blitz"), "Un estado de logro inválido se descarta")
+	assert_true(GameManager.is_achievement_claimed("flawless"), "Los estados válidos se conservan")
+	assert_equals(GameManager.get_stat("victories"), 0, "Una estadística negativa se corrige a 0")
+	assert_equals(int(GameManager.daily["last_claim_day"]), -1, "Datos diarios corruptos vuelven a los valores por defecto")
+
+	# 8. Pantalla de logros: reclamar desde la tarjeta
+	GameManager.reset_save()
+	GameManager.unlock_achievement("first_victory")
+	var menu: AchievementsMenuUI = load("res://scenes/ui/achievements_menu.tscn").instantiate()
+	add_child(menu)
+	assert_equals(menu.cards_container.get_child_count(), AchievementDatabase.get_all().size(), "Hay una tarjeta por logro")
+	var first_card = menu.cards_container.get_child(0)
+	assert_equals(first_card.name, "Card_first_victory", "Los logros por reclamar aparecen primero")
+	var btn = first_card.find_child("BtnClaim", true, false)
+	assert_true(btn != null, "La tarjeta pendiente tiene botón de reclamar")
+	var before = GameManager.coins
+	btn.pressed.emit()
+	assert_equals(GameManager.coins, before + reward, "Pulsar RECLAMAR suma el oro")
+	assert_true(menu.cards_container.find_child("BtnClaim", true, false) == null, "Tras reclamar ya no queda botón")
+	assert_true(menu.count_label.text.contains("1/%d" % AchievementDatabase.get_all().size()), "El contador muestra los logros conseguidos")
+	remove_child(menu)
+	menu.free()
+
+	# 9. Menú principal: contador de pendientes y tarjeta de recompensa diaria
+	GameManager.reset_save()
+	GameManager.unlock_achievement("blitz")
+	var main: MainMenuUI = load("res://scenes/ui/main_menu.tscn").instantiate()
+	add_child(main)
+	assert_true(main.btn_achievements.text.contains("(1)"), "El botón de logros indica las recompensas pendientes")
+	main._show_daily_reward_card()
+	assert_true(is_instance_valid(main._daily_card), "Se ofrece la recompensa diaria pendiente")
+	var coins_before = GameManager.coins
+	main._daily_card.find_child("BtnConfirm", true, false).pressed.emit()
+	assert_true(GameManager.coins > coins_before and not GameManager.get_daily_reward_state()["can_claim"], "Recoger desde la tarjeta cobra la recompensa del día")
+	main._show_daily_reward_card()
+	assert_true(not is_instance_valid(main._daily_card), "No se vuelve a ofrecer hasta mañana")
+	remove_child(main)
+	main.free()
+
+	EventBus.achievement_unlocked.disconnect(on_unlock)
+	GameManager.reset_save()
+
+func test_daily_challenge_levels() -> void:
+	print("\n-> Test: Desafío Diario (Generación, Rutas y Recompensa)")
+	var today = DailyRewards.today()
+	var id = DailyRewards.challenge_id(today)
+	assert_true(DailyRewards.is_challenge(id) and not DailyRewards.is_challenge("europe_1"), "Se reconocen los ids de desafío")
+	assert_equals(DailyRewards.challenge_day(id), today, "El id guarda el día")
+	assert_equals(LevelDatabase.get_difficulty(id), DailyRewards.CHALLENGE_DIFFICULTY, "El desafío tiene dificultad fija")
+
+	# 1. Un año de desafíos: todos jugables, con ciudades reales, jugador y rival
+	var problems: Array[String] = []
+	var centers = {}
+	for d in 365:
+		var def = LevelGenerator.daily_challenge_definition(today + d)
+		var factions = def["bases"].map(func(b): return b["faction"])
+		if def["bases"].size() < 3 or not factions.has(GameManager.Faction.PLAYER) or not factions.has(GameManager.Faction.ENEMY_1):
+			problems.append("%d: %d bases" % [today + d, def["bases"].size()])
+		if not def["bases"].all(func(b): return GeoDatabase.has_city(b["city"])):
+			problems.append("%d: ciudad desconocida" % (today + d))
+		centers[def["bases"][0]["city"]] = true
+	assert_true(problems.is_empty(), "Los desafíos de un año son todos jugables %s" % str(problems.slice(0, 5)))
+	assert_true(centers.size() > 60, "Los desafíos varían de un día a otro (%d regiones distintas)" % centers.size())
+	assert_equals(str(LevelGenerator.daily_challenge_definition(today)), str(LevelGenerator.daily_challenge_definition(today)), "El desafío de un día es el mismo para todos")
+
+	# 2. Nivel construido: bases dentro de la zona de juego y geografía real
+	var level = LevelDatabase.get_level_data(id)
+	assert_equals(level["id"], id, "LevelDatabase construye el desafío a partir del id")
+	assert_true(level["bases"].size() >= 5, "El desafío añade neutrales extra (%d bases)" % level["bases"].size())
+	assert_true(level["bases"].all(func(b): return LevelGenerator.PLAY_RECT.grow(1.0).has_point(b["pos"])), "Las bases del desafío están en la zona de juego")
+	assert_true(level["geo"]["land"].size() > 0, "El desafío se juega sobre costas reales")
+
+	# 3. Jugar un desafío no mueve el punto de la campaña
+	GameManager.reset_save()
+	GameManager.current_level_id = "europe_3"
+	GameManager.play_level(id)
+	assert_equals(GameManager.get_battle_level_id(), id, "La batalla carga el desafío")
+	assert_equals(GameManager.current_level_id, "europe_3", "La campaña conserva su nivel actual")
+	GameManager.play_level("europe_3")
+	assert_equals(GameManager.get_battle_level_id(), "europe_3", "Volver a la campaña descarta el desafío")
+
+	# 4. Recompensa: completa una vez al día, reducida al repetir, sin estrellas de campaña
+	var full = GameManager.complete_daily_challenge(id)
+	assert_equals(full, int(round(DailyRewards.DAILY_CHALLENGE_GOLD * GameManager.get_gold_multiplier())), "La primera victoria del día da el oro completo")
+	assert_true(GameManager.is_daily_challenge_done(), "El desafío de hoy queda superado")
+	assert_true(GameManager.complete_daily_challenge(id) < full, "Repetirlo el mismo día da menos oro")
+	assert_equals(GameManager.get_stat("daily_challenges"), 1, "Sólo cuenta un desafío por día para los logros")
+	assert_equals(GameManager.get_total_stars(), 0, "Los desafíos no suman estrellas de campaña")
+	assert_true(not GameManager.completed_levels.has(id), "Los desafíos no se guardan como niveles de campaña")
+	GameManager.reset_save()

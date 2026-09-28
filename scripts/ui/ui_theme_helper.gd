@@ -21,14 +21,73 @@ const COLOR_HEADER_PILL: Color = Color(0.08, 0.10, 0.14, 0.88)
 
 ## Desplaza hacia abajo una cabecera anclada arriba para que no quede bajo el notch o la cámara
 static func apply_safe_area_top(control: Control) -> void:
-	if not is_instance_valid(control) or not OS.has_feature("mobile"):
+	if not is_instance_valid(control):
 		return
-	var window_h := DisplayServer.window_get_size().y
-	if window_h <= 0:
-		return
-	var inset := float(DisplayServer.get_display_safe_area().position.y) * control.get_viewport_rect().size.y / float(window_h)
+	var inset := get_safe_area_top(control)
 	control.offset_top += inset
 	control.offset_bottom += inset
+
+## Alto de la muesca o barra de estado del móvil en coordenadas del lienzo (0 en escritorio)
+static func get_safe_area_top(control: Control) -> float:
+	if not OS.has_feature("mobile"):
+		return 0.0
+	var window_h := DisplayServer.window_get_size().y
+	if window_h <= 0:
+		return 0.0
+	return float(DisplayServer.get_display_safe_area().position.y) * control.get_viewport_rect().size.y / float(window_h)
+
+## Tarjeta modal centrada con título, texto y un botón. Devuelve el contenedor a pantalla completa
+## que hay que añadir a la escena; la tarjeta aparece con la animación de pop-in.
+## Con `backdrop` oscurece el fondo y bloquea los toques (si la escena no se pausa por debajo).
+static func create_modal_card(title: String, body: String, button_text: String, on_press: Callable, backdrop: bool = false) -> Control:
+	var panel = PanelContainer.new()
+	panel.custom_minimum_size = Vector2(820, 0)
+	apply_card_style(panel, Color(0.12, 0.15, 0.20, 0.97), COLOR_ACCENT, 24, 3)
+	var margin = MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 40)
+	panel.add_child(margin)
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 26)
+	margin.add_child(vbox)
+	var lbl_title = Label.new()
+	lbl_title.text = title
+	lbl_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_title.add_theme_font_size_override("font_size", 52)
+	lbl_title.add_theme_color_override("font_color", COLOR_ACCENT)
+	vbox.add_child(lbl_title)
+	var lbl_body = Label.new()
+	lbl_body.text = body
+	lbl_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl_body.add_theme_font_size_override("font_size", 34)
+	vbox.add_child(lbl_body)
+	var btn = Button.new()
+	btn.name = "BtnConfirm"
+	btn.text = button_text
+	btn.add_theme_font_size_override("font_size", 36)
+	btn.custom_minimum_size = Vector2(0, 100)
+	apply_stateio_button_style(btn, COLOR_SUCCESS, Color.TRANSPARENT, 18, 6)
+	btn.pressed.connect(on_press)
+	vbox.add_child(btn)
+	# El CenterContainer centra la tarjeta una vez conocido el ancho con ajuste de línea
+	var center = CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.add_child(panel)
+	var root: Control = center
+	if backdrop:
+		root = ColorRect.new()
+		root.color = Color(0, 0, 0, 0.6)
+		root.mouse_filter = Control.MOUSE_FILTER_STOP
+		root.add_child(center)
+	root.tree_entered.connect(func():
+		root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		# Diferido para conocer el tamaño final; la tarjeta puede cerrarse antes
+		var panel_ref = weakref(panel)
+		(func(): if panel_ref.get_ref(): animate_modal_pop_in(panel_ref.get_ref())).call_deferred()
+	, CONNECT_ONE_SHOT)
+	return root
 
 ## Botón de música: el icono se atenúa cuando la música está silenciada
 static func update_music_button(btn: Button, muted: bool) -> void:
