@@ -93,6 +93,8 @@ func run_all_tests() -> void:
 	test_save_robustness_and_replay_rewards()
 	test_ai_projected_defense_and_difficulty()
 	test_tutorial_steps_and_tips()
+	test_real_geography_and_bigger_levels()
+	test_procedural_music()
 
 func test_base_production_mechanics() -> void:
 	print("-> Test: Producción de Tropas y Límites de Capacidad")
@@ -1492,7 +1494,7 @@ func test_confetti_and_star_revelation() -> void:
 func test_audio_fanfares_and_continental_conquest() -> void:
 	print("\n-> Test: Fanfarrias Triunfales, Conquista Continental y Sonidos Secuenciales de Estrellas")
 	assert_true(AudioManager != null, "AudioManager está disponible")
-	var wav = AudioManager._to_wav(AudioManager._render_tone(440.0, 0.1, 0.2))
+	var wav = MusicSynth.to_wav(AudioManager._render_tone(440.0, 0.1, 0.2))
 	assert_equals(wav.data.size(), int(AudioManager.MIX_RATE * 0.1) * 2, "Los sonidos se pre-renderizan a WAV de 16 bits")
 
 	# 1. Probar fanfarria de victoria estándar
@@ -2455,3 +2457,129 @@ func test_tutorial_steps_and_tips() -> void:
 	get_tree().paused = false
 	Engine.time_scale = 1.0
 	GameManager.reset_save()
+
+func test_real_geography_and_bigger_levels() -> void:
+	print("\n-> Test: Geografía Real (Costas, Fronteras, Ciudades) y Niveles Más Grandes")
+	# 1. Datos geográficos
+	assert_true(GeoDatabase.get_land().size() > 100, "Se cargan las costas reales")
+	assert_true(GeoDatabase.get_borders().size() > 100, "Se cargan las fronteras entre países")
+	var madrid = GeoDatabase.get_city("madrid")
+	assert_equals(madrid.get("name_es", ""), "Madrid", "Las ciudades traen su nombre en español")
+	assert_true(madrid["lonlat"].distance_to(Vector2(-3.7, 40.4)) < 0.3, "Madrid está en su posición real")
+	var missing: Array[String] = []
+	for level_id in LevelDatabase.get_level_ids():
+		for b in LevelDatabase.get_level_definition(level_id)["bases"]:
+			if not GeoDatabase.has_city(b["city"]):
+				missing.append("%s/%s" % [level_id, b["city"]])
+	assert_true(missing.is_empty(), "Todas las ciudades de los 30 niveles existen %s" % str(missing))
+
+	# 2. Proyección: norte arriba, este a la derecha, continua en el antimeridiano
+	var proj = MapProjection.new(0.0)
+	proj.fit(Rect2(-10, -60, 20, 20), Rect2(0, 0, 100, 100))
+	assert_true(proj.project(Vector2(0, 60)).y < proj.project(Vector2(0, 50)).y, "El norte queda arriba")
+	assert_true(proj.project(Vector2(5, 0)).x > proj.project(Vector2(-5, 0)).x, "El este queda a la derecha")
+	var p = Vector2(33.0, 44.0)
+	assert_true(proj.screen_to_mercator(proj.mercator_to_screen(p)).distance_to(p) < 0.001, "Pantalla y Mercator son inversas")
+	var pacific = MapProjection.new(178.0)
+	var line = pacific.project_points(PackedVector2Array([Vector2(179.0, -17.0), Vector2(-179.0, -17.0)]))
+	assert_true(line[0].distance_to(line[1]) < 3.0 * pacific.scale, "Una línea que cruza el antimeridiano no salta de lado a lado")
+
+	# 3. Generador: determinista, bases separadas y dentro de la zona de juego
+	var a = LevelGenerator.build(LevelDatabase.get_level_definition("asia_4"), 0.8)
+	var b = LevelGenerator.build(LevelDatabase.get_level_definition("asia_4"), 0.8)
+	assert_equals(str(a["bases"].map(func(x): return x["pos"])), str(b["bases"].map(func(x): return x["pos"])), "El mismo nivel genera siempre el mismo mapa")
+	var worst_gap = INF
+	var all_inside = true
+	for level_id in LevelDatabase.get_level_ids():
+		var bases: Array = LevelDatabase.get_level_data(level_id)["bases"]
+		for i in bases.size():
+			all_inside = all_inside and LevelGenerator.PLAY_RECT.grow(1.0).has_point(bases[i]["pos"])
+			for j in range(i + 1, bases.size()):
+				var gap = bases[i]["pos"].distance_to(bases[j]["pos"]) - LevelGenerator.min_distance(bases[i].get("tier", 1), bases[j].get("tier", 1))
+				worst_gap = minf(worst_gap, gap)
+	assert_true(all_inside, "Todas las bases de los 30 niveles quedan dentro de la zona de juego")
+	assert_true(worst_gap > -8.0, "Ninguna pareja de bases se solapa (peor holgura: %.1f px)" % worst_gap)
+
+	# 4. Niveles más grandes a medida que avanza la campaña, sin tocar los tutoriales
+	var first = LevelDatabase.get_level_data("europe_1")["bases"].size()
+	var last = LevelDatabase.get_level_data("asia_5")["bases"].size()
+	assert_equals(first, 4, "El primer nivel (tutorial) conserva sus 4 bases")
+	assert_true(last >= 10, "Los últimos niveles son mucho más grandes (%d bases)" % last)
+	var extra = LevelDatabase.get_level_data("asia_5")["bases"].filter(func(x): return x["id"].begins_with("x"))
+	assert_true(extra.all(func(x): return x["faction"] == GameManager.Faction.NEUTRAL), "Las bases añadidas son neutrales")
+	assert_true(LevelDatabase.get_level_data("asia_5")["target_time"] > LevelDatabase.get_level_definition("asia_5")["target_time"], "El tiempo para 3 estrellas crece con las bases añadidas")
+
+	# 5. Territorios recortados a la costa real
+	var level = LevelDatabase.get_level_data("europe_4")
+	assert_true(level["geo"]["land"].size() > 0, "El nivel trae la tierra firme de su región")
+	var map = load("res://scripts/battle/territory_map_2d.gd").new()
+	var nodes: Array[BaseNode] = []
+	for def in level["bases"]:
+		var bn = load("res://scripts/battle/base_node.gd").new()
+		bn.setup(def)
+		bn.global_position = bn.position
+		nodes.append(bn)
+	map.generate_map(nodes, LevelGenerator.GEO_CLIP_RECT, level["geo"])
+	var clipped_to_land = true
+	var capitals_covered = true
+	for cell in map.get_cells():
+		var visible = 0.0
+		for piece in cell.pieces:
+			visible += map.calculate_polygon_area(piece)
+		clipped_to_land = clipped_to_land and visible < map.calculate_polygon_area(cell.polygon)
+		capitals_covered = capitals_covered and cell.pieces.any(func(pc): return Geometry2D.is_point_in_polygon(cell.capital_pos, pc))
+	assert_true(clipped_to_land, "El mar no pertenece a ningún territorio")
+	assert_true(capitals_covered, "Cada capital se asienta sobre su propio territorio (o su islote)")
+	for n in nodes:
+		n.free()
+	map.free()
+
+	# 6. Mapa del mundo: cada nivel sobre su región real, sin nodos solapados
+	var layout = load("res://scripts/ui/world_map.gd")._build_continent_layout("europe")
+	var pts: PackedVector2Array = layout["nodes"]
+	assert_equals(pts.size(), 5, "El mapa del mundo sitúa los 5 niveles del continente")
+	var min_sep = INF
+	for i in pts.size():
+		for j in range(i + 1, pts.size()):
+			min_sep = minf(min_sep, pts[i].distance_to(pts[j]))
+	assert_true(min_sep >= 145.0, "Los nodos de nivel no se solapan (%.0f px)" % min_sep)
+	assert_true(pts[0].x < pts[4].x or pts[0].y > pts[2].y, "europe_1 (Iberia) queda al oeste de la región")
+	assert_true(layout["geo"]["land"].size() > 0, "Se dibuja la silueta real del continente")
+
+func test_procedural_music() -> void:
+	print("\n-> Test: Música Procedural en Bucle (Síntesis, Bucle sin Costuras y Ajustes)")
+	# 1. Síntesis de un bucle corto: duración exacta, sin saturar y determinista
+	var spec = {"bpm": 120, "beats_per_chord": 2, "chords": [[60, 64, 67], [57, 60, 64]], "bass_step": 1.0, "arp_step": 0.5, "drums": true, "seed": 3}
+	var loop = MusicSynth.render(spec)
+	assert_equals(loop.size(), int(MusicSynth.loop_seconds(spec) * MusicSynth.MIX_RATE), "El bucle dura exactamente 2 acordes x 2 pulsos a 120 BPM (2 s)")
+	var peak = 0.0
+	for v in loop:
+		peak = maxf(peak, absf(v))
+	assert_true(peak > 0.5 and peak <= MusicSynth.PEAK + 0.001, "La mezcla se normaliza sin saturar (pico %.2f)" % peak)
+	assert_true(MusicSynth.render(spec) == loop, "La misma pista se sintetiza siempre igual")
+	assert_true(absf(loop[loop.size() - 1] - loop[0]) < 0.15, "El final del bucle enlaza con el principio sin chasquido")
+
+	var wav = MusicSynth.to_wav(loop, true)
+	assert_equals(wav.loop_mode, AudioStreamWAV.LOOP_FORWARD, "La pista se reproduce en bucle")
+	assert_equals(wav.loop_end, loop.size(), "El bucle abarca la pista completa")
+
+	# 2. Pistas del juego: duración razonable y síntesis rápida (se hace en un hilo aparte)
+	for track in MusicSynth.TRACKS:
+		var secs = MusicSynth.loop_seconds(MusicSynth.TRACKS[track])
+		assert_true(secs >= 12.0 and secs <= 40.0, "Pista '%s' dura %.1f s" % [track, secs])
+	var t0 = Time.get_ticks_msec()
+	MusicSynth.render_track("battle")
+	var ms = Time.get_ticks_msec() - t0
+	assert_true(ms < 8000, "La pista de batalla se sintetiza en %d ms (en segundo plano)" % ms)
+
+	# 3. Control desde AudioManager (sin dispositivo de audio en modo headless)
+	AudioManager.play_music("battle")
+	assert_equals(AudioManager.current_track, "battle", "play_music recuerda la pista pedida")
+	AudioManager.stop_music()
+	assert_equals(AudioManager.current_track, "", "stop_music detiene la música")
+	var was = AudioManager.music_muted
+	AudioManager.set_music_muted(true)
+	GameManager.music_muted = false
+	GameManager.load_game()
+	assert_true(GameManager.music_muted, "El silencio de la música se guarda aparte del de los efectos")
+	AudioManager.set_music_muted(was)

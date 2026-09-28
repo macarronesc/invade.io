@@ -67,6 +67,7 @@ func _ready() -> void:
 	if GameManager.current_level_id != "":
 		level_id = GameManager.current_level_id
 	load_level(level_id)
+	AudioManager.play_music("battle")
 	EventBus.base_captured.connect(_on_base_captured)
 	EventBus.troop_arrived.connect(_on_troop_arrived)
 	if arrow_overlay:
@@ -128,7 +129,9 @@ func load_level(p_level_id: String) -> void:
 
 	# Mapa político de estados y partición territorial Voronoi
 	if territory_map:
-		territory_map.generate_map(bases)
+		var geo: Dictionary = level_data.get("geo", {})
+		# Con geografía, los territorios cubren toda la tierra visible (también en pantallas altas)
+		territory_map.generate_map(bases, LevelGenerator.GEO_CLIP_RECT if geo else Rect2(), geo)
 
 	# IA para cada facción enemiga
 	for ef in enemy_factions_present:
@@ -564,6 +567,8 @@ func _trigger_victory() -> void:
 	GameManager.haptic(80)
 
 	var is_continent_conquest = level_id.ends_with("_5")
+	# La fanfarria suena sola: la música se retira y vuelve la del menú al salir
+	AudioManager.stop_music()
 	if is_continent_conquest:
 		AudioManager.play_continent_conquest()
 	else:
@@ -582,6 +587,7 @@ func _trigger_victory() -> void:
 func _trigger_defeat() -> void:
 	reset_time_scale()
 	is_game_over = true
+	AudioManager.stop_music()
 	AudioManager.play_defeat()
 	GameManager.haptic(120)
 	EventBus.battle_lost.emit()

@@ -47,6 +47,7 @@ var current_level_id: String = "europe_1"
 var completed_levels: Dictionary = {} # level_id: stars (1-3)
 var unlocked_levels: Array[String] = ["europe_1"]
 var sound_muted: bool = false
+var music_muted: bool = false
 var seen_tips: Array[String] = []
 
 ## Multiplicador de producción de las facciones enemigas en la batalla actual (curva de dificultad)
@@ -72,7 +73,7 @@ func get_total_stars() -> int:
 	return total
 
 func get_max_possible_stars() -> int:
-	return LevelDatabase.get_all_levels().size() * 3
+	return LevelDatabase.get_level_ids().size() * 3
 
 func get_starting_troops_bonus() -> int:
 	return upgrades.get("starting_troops", 0) * 5
@@ -133,7 +134,7 @@ func complete_level(level_id: String, stars: int) -> void:
 	var current_stars: int = int(completed_levels.get(level_id, 0))
 	if stars > current_stars:
 		completed_levels[level_id] = stars
-	
+
 	# Desbloquear siguiente nivel
 	var next_id = get_next_level(level_id)
 	if next_id != "":
@@ -143,7 +144,7 @@ func complete_level(level_id: String, stars: int) -> void:
 		var next_cont = next_id.substr(0, next_id.rfind("_"))
 		if next_cont != "":
 			current_continent = next_cont
-	
+
 	save_game()
 
 func is_level_unlocked(level_id: String) -> bool:
@@ -187,6 +188,7 @@ func save_game() -> void:
 		"current_continent": current_continent,
 		"current_level_id": current_level_id,
 		"sound_muted": sound_muted,
+		"music_muted": music_muted,
 		"seen_tips": seen_tips
 	}
 	# Escritura atómica: un cierre inesperado a mitad de escritura no corrompe la partida
@@ -228,6 +230,7 @@ func load_game() -> void:
 	current_continent = str(data.get("current_continent", current_continent))
 	current_level_id = str(data.get("current_level_id", current_level_id))
 	sound_muted = bool(data.get("sound_muted", false))
+	music_muted = bool(data.get("music_muted", false))
 
 func reset_save() -> void:
 	coins = DEFAULT_COINS

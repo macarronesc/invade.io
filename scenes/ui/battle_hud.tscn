@@ -381,9 +381,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -420.0
-offset_top = -320.0
+offset_top = -370.0
 offset_right = 420.0
-offset_bottom = 320.0
+offset_bottom = 370.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -423,6 +423,13 @@ custom_minimum_size = Vector2(0, 68)
 layout_mode = 2
 theme_override_font_sizes/font_size = 26
 text = "🔊 SONIDO: ACTIVADO"
+
+[node name="BtnPauseMusic" type="Button" parent="PausePanel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 68)
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "🎵 MÚSICA: ACTIVADA"
 
 [node name="BtnPauseRetry" type="Button" parent="PausePanel/VBox"]
 unique_name_in_owner = true

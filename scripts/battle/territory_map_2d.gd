@@ -2,22 +2,29 @@ extends Node2D
 class_name TerritoryMap2D
 
 ## TerritoryMap2D: Sistema de partición territorial Voronoi y mapa político de estados (Estética State.io)
-## Divide el área de juego 1080x1920 en polígonos territoriales de influencia por cada base,
+## Divide el área de juego en polígonos territoriales de influencia por cada base,
 ## dibuja fronteras nítidas y realiza transiciones suaves de color al ser conquistadas las bases.
+## Con geografía (costas y fronteras reales de LevelGenerator) cada territorio se recorta a tierra
+## firme y el mar queda sin dueño; sin ella, las celdas cubren todo el rectángulo del mapa.
 
 class TerritoryCell extends RefCounted:
 	var base_node: BaseNode = null
 	var base_id: String = ""
 	var base_name: String = ""
 	var capital_pos: Vector2 = Vector2.ZERO
+	## Celda Voronoi convexa completa (lógica de juego y búsqueda por punto)
 	var polygon: PackedVector2Array = PackedVector2Array()
+	## Partes visibles: la celda recortada a tierra firme (o la celda entera sin geografía)
+	var pieces: Array[PackedVector2Array] = []
+	## Las mismas partes trianguladas una vez para rellenarlas sin coste en cada redibujado
+	var fills: Array[FilledPolygon] = []
 	var faction: int = GameManager.Faction.NEUTRAL
-	
+
 	# Colores para interpolación suave
 	var current_color: Color = Color.WHITE
 	var target_color: Color = Color.WHITE
 	var start_color: Color = Color.WHITE
-	
+
 	# Transición y feedback de conquista
 	var transition_progress: float = 1.0 # 0.0 (inicio) a 1.0 (finalizado)
 	var transition_duration: float = 0.65
@@ -29,32 +36,48 @@ class TerritoryCell extends RefCounted:
 @export var border_color: Color = Color(1.0, 1.0, 1.0, 0.40)
 @export var border_width: float = 3.5
 @export var transition_duration: float = 0.65
+@export var land_color: Color = Color(0.19, 0.22, 0.26)
+@export var coast_color: Color = Color(0.45, 0.62, 0.75, 0.35)
+@export var country_border_color: Color = Color(1.0, 1.0, 1.0, 0.10)
 
 var cells: Array[TerritoryCell] = []
+## Radio del islote que se dibuja bajo una capital sin tierra propia (en radios de la base)
+const ISLET_RADIUS_FACTOR := 1.9
+var land: Array[PackedVector2Array] = []
+var country_borders: Array[PackedVector2Array] = []
+var _land_bounds: Array[Rect2] = []
+var _land_fills: Array[FilledPolygon] = []
 var _is_transitioning: bool = false
 
 func _ready() -> void:
 	EventBus.base_captured.connect(_on_base_captured)
 	queue_redraw()
 
-func setup(bases: Array, bounds: Rect2 = Rect2()) -> void:
-	generate_map(bases, bounds)
+func setup(bases: Array, bounds: Rect2 = Rect2(), geo: Dictionary = {}) -> void:
+	generate_map(bases, bounds, geo)
 
-func generate_map(bases: Array, bounds: Rect2 = Rect2()) -> void:
+## `geo` = {"land": [polígonos], "borders": [polilíneas]} en coordenadas del mapa (opcional)
+func generate_map(bases: Array, bounds: Rect2 = Rect2(), geo: Dictionary = {}) -> void:
 	if bounds.size.x > 0 and bounds.size.y > 0:
 		map_bounds = bounds
-		
+	land.assign(geo.get("land", []))
+	country_borders.assign(geo.get("borders", []))
+	_land_bounds.clear()
+	for poly in land:
+		_land_bounds.append(_bounds_of(poly))
+	_land_fills = FilledPolygon.build_all(land)
+
 	cells.clear()
-	
+
 	var valid_bases: Array[BaseNode] = []
 	for b in bases:
 		if is_instance_valid(b):
 			valid_bases.append(b)
-			
+
 	if valid_bases.is_empty():
 		queue_redraw()
 		return
-		
+
 	# Caso base: 1 sola base ocupa todo el territorio acotado
 	if valid_bases.size() == 1:
 		var single_base = valid_bases[0]
@@ -66,13 +89,14 @@ func generate_map(bases: Array, bounds: Rect2 = Rect2()) -> void:
 		cell.polygon = _get_initial_bounding_polygon(map_bounds)
 		cell.faction = single_base.faction
 		cell.transition_duration = transition_duration
-		
+
 		var init_col = get_faction_territory_color(cell.faction)
 		cell.current_color = init_col
 		cell.target_color = init_col
 		cell.start_color = init_col
 		cell.transition_progress = 1.0
 		cells.append(cell)
+		_build_pieces()
 		queue_redraw()
 		return
 
@@ -80,28 +104,28 @@ func generate_map(bases: Array, bounds: Rect2 = Rect2()) -> void:
 	for i in range(valid_bases.size()):
 		var base_i = valid_bases[i]
 		var pos_i = base_i.global_position
-		
+
 		# Iniciar con el polígono rectangular delimitador del mapa
 		var current_poly = _get_initial_bounding_polygon(map_bounds)
-		
+
 		for j in range(valid_bases.size()):
 			if i == j:
 				continue
 			var base_j = valid_bases[j]
 			var pos_j = base_j.global_position
-			
+
 			if pos_i.distance_squared_to(pos_j) < 0.01:
 				continue
-				
+
 			# La mediatriz equidistante entre base_i y base_j
 			var midpoint = (pos_i + pos_j) * 0.5
 			var normal = (pos_j - pos_i).normalized()
-			
+
 			# Recortar polígono con el semiplano donde (X - midpoint) . normal <= 0
 			current_poly = clip_polygon_halfplane(current_poly, midpoint, normal)
 			if current_poly.size() < 3:
 				break
-				
+
 		var cell = TerritoryCell.new()
 		cell.base_node = base_i
 		cell.base_id = base_i.base_id
@@ -110,7 +134,7 @@ func generate_map(bases: Array, bounds: Rect2 = Rect2()) -> void:
 		cell.polygon = current_poly
 		cell.faction = base_i.faction
 		cell.transition_duration = transition_duration
-		
+
 		var init_col = get_faction_territory_color(cell.faction)
 		cell.current_color = init_col
 		cell.target_color = init_col
@@ -118,23 +142,59 @@ func generate_map(bases: Array, bounds: Rect2 = Rect2()) -> void:
 		cell.transition_progress = 1.0
 		cell.flash_intensity = 0.0
 		cells.append(cell)
-		
+
+	_build_pieces()
 	queue_redraw()
+
+## Recorta cada celda a la tierra firme (o la deja entera si el nivel no tiene geografía)
+func _build_pieces() -> void:
+	for cell in cells:
+		cell.pieces.clear()
+		if cell.polygon.size() < 3:
+			continue
+		if land.is_empty():
+			cell.pieces.append(cell.polygon)
+			continue
+		var cell_bounds := _bounds_of(cell.polygon)
+		for i in land.size():
+			if not cell_bounds.intersects(_land_bounds[i]):
+				continue
+			for piece in Geometry2D.intersect_polygons(cell.polygon, land[i]):
+				if piece.size() >= 3:
+					cell.pieces.append(piece)
+		# Capital en una isla diminuta o en el mar: un islote alrededor mantiene visible su dueño
+		if not cell.pieces.any(func(p): return Geometry2D.is_point_in_polygon(cell.capital_pos, p)):
+			var r = (cell.base_node.radius if is_instance_valid(cell.base_node) else 50.0) * ISLET_RADIUS_FACTOR
+			for piece in Geometry2D.intersect_polygons(_circle(cell.capital_pos, r), cell.polygon):
+				cell.pieces.append(piece)
+		cell.fills = FilledPolygon.build_all(cell.pieces)
+
+static func _circle(center: Vector2, r: float, segments: int = 32) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for i in segments:
+		pts.append(center + Vector2.from_angle(TAU * i / segments) * r)
+	return pts
+
+static func _bounds_of(pts: PackedVector2Array) -> Rect2:
+	var r := Rect2(pts[0], Vector2.ZERO)
+	for p in pts:
+		r = r.expand(p)
+	return r
 
 func _process(delta: float) -> void:
 	var has_active_animation = false
-	
+
 	for cell in cells:
 		if cell.transition_progress < 1.0:
 			cell.transition_progress = minf(1.0, cell.transition_progress + (delta / cell.transition_duration))
 			var t = smoothstep(0.0, 1.0, cell.transition_progress)
 			cell.current_color = cell.start_color.lerp(cell.target_color, t)
 			has_active_animation = true
-			
+
 		if cell.flash_intensity > 0.0:
 			cell.flash_intensity = maxf(0.0, cell.flash_intensity - delta * 2.2)
 			has_active_animation = true
-			
+
 	if has_active_animation or _is_transitioning:
 		_is_transitioning = has_active_animation
 		queue_redraw()
@@ -178,62 +238,58 @@ func get_faction_territory_color(faction: int) -> Color:
 	return Color(base_col.r, base_col.g, base_col.b, alpha)
 
 func _draw() -> void:
-	if cells.is_empty():
+	if cells.is_empty() and land.is_empty():
 		return
-		
-	# 1. Pase de Relleno: Polígonos territoriales con efecto destello (flash) de conquista
+
+	# 1. Tierra firme sin dueño (también fuera del mapa, para pantallas más altas o anchas)
+	for fill in _land_fills:
+		fill.draw(self, land_color)
+
+	# 2. Relleno territorial con destello de conquista
 	for cell in cells:
-		if cell.polygon.size() < 3:
-			continue
-			
 		var fill_col = cell.current_color
 		if cell.flash_intensity > 0.0:
 			fill_col = fill_col.lerp(Color.WHITE, cell.flash_intensity * 0.65)
 			fill_col.a = clampf(fill_col.a + cell.flash_intensity * 0.25, 0.05, 0.6)
-			
-		draw_colored_polygon(cell.polygon, fill_col)
-		
-	# 2. Pase de Auras: Áreas de influencia de las capitales territoriales
+		for fill in cell.fills:
+			fill.draw(self, fill_col)
+
+	# 3. Fronteras reales entre países y línea de costa (referencia cartográfica sutil)
+	for line in country_borders:
+		draw_polyline(line, country_border_color, 1.5, true)
+	for poly in land:
+		draw_polyline(_closed(poly), coast_color, 2.0, true)
+
+	# 4. Auras de influencia de las capitales territoriales
 	for cell in cells:
-		if cell.polygon.size() < 3:
+		if cell.pieces.is_empty():
 			continue
 		var fill_col = cell.current_color
-		var r = 50.0
-		if is_instance_valid(cell.base_node):
-			r = cell.base_node.radius
+		var r = cell.base_node.radius if is_instance_valid(cell.base_node) else 50.0
 		draw_circle(cell.capital_pos, r * 2.1, Color(fill_col.r, fill_col.g, fill_col.b, 0.08))
 		draw_arc(cell.capital_pos, r * 1.6, 0, TAU, 32, Color(1, 1, 1, 0.10), 1.5, true)
-		
-	# 3. Pase de Sombras: Relieve cartográfico debajo de las fronteras (dibujado antes para no tapar bordes)
+
+	# 5. Fronteras territoriales por pasadas (sombra, trazo nítido y acento de facción) para que
+	#    la sombra de una celda no tape el borde de su vecina
 	for cell in cells:
-		var pts = cell.polygon
-		if pts.size() < 3:
-			continue
-		var closed_pts = pts.duplicate()
-		closed_pts.append(pts[0])
-		draw_polyline(closed_pts, Color(0.04, 0.06, 0.08, 0.40), border_width + 1.8, true)
-		
-	# 4. Pase de Fronteras Nítidas: Líneas principales divisorias entre estados
+		for piece in cell.pieces:
+			draw_polyline(_closed(piece), Color(0.04, 0.06, 0.08, 0.40), border_width + 1.8, true)
 	for cell in cells:
-		var pts = cell.polygon
-		if pts.size() < 3:
-			continue
-		var closed_pts = pts.duplicate()
-		closed_pts.append(pts[0])
-		draw_polyline(closed_pts, border_color, border_width, true)
-		
-	# 5. Pase de Acentos: Trazo sutil con el color de la facción sobre el perímetro del estado
+		for piece in cell.pieces:
+			draw_polyline(_closed(piece), border_color, border_width, true)
 	for cell in cells:
-		var pts = cell.polygon
-		if pts.size() < 3:
-			continue
-		var closed_pts = pts.duplicate()
-		closed_pts.append(pts[0])
 		var accent_col = Color(cell.current_color.r, cell.current_color.g, cell.current_color.b, 0.55)
-		draw_polyline(closed_pts, accent_col, 1.4, true)
-		
-	# 6. Pase de Perímetro: Marco perimetral del mapa geopolítico
-	draw_rect(map_bounds, Color(1.0, 1.0, 1.0, 0.15), false, 2.5)
+		for piece in cell.pieces:
+			draw_polyline(_closed(piece), accent_col, 1.4, true)
+
+	# 6. Marco perimetral (sólo en el mapa abstracto sin geografía)
+	if land.is_empty():
+		draw_rect(map_bounds, Color(1.0, 1.0, 1.0, 0.15), false, 2.5)
+
+static func _closed(pts: PackedVector2Array) -> PackedVector2Array:
+	var closed := pts.duplicate()
+	closed.append(pts[0])
+	return closed
 
 # =========================================================================
 # Utilidades Geométricas (Voronoi & Polygons)
@@ -253,18 +309,18 @@ static func clip_polygon_halfplane(polygon: PackedVector2Array, plane_point: Vec
 	var n = polygon.size()
 	if n < 3:
 		return PackedVector2Array()
-		
+
 	var clipped = PackedVector2Array()
 	for i in range(n):
 		var a = polygon[i]
 		var b = polygon[(i + 1) % n]
-		
+
 		var dist_a = (a - plane_point).dot(plane_normal)
 		var dist_b = (b - plane_point).dot(plane_normal)
-		
+
 		var in_a = dist_a <= 0.0001
 		var in_b = dist_b <= 0.0001
-		
+
 		if in_a and in_b:
 			clipped.append(b)
 		elif in_a and not in_b:
@@ -278,7 +334,7 @@ static func clip_polygon_halfplane(polygon: PackedVector2Array, plane_point: Vec
 				var t = clampf(dist_a / diff, 0.0, 1.0)
 				clipped.append(a + (b - a) * t)
 			clipped.append(b)
-			
+
 	return _clean_polygon(clipped)
 
 static func _clean_polygon(poly: PackedVector2Array) -> PackedVector2Array:

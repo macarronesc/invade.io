@@ -2,3 +2,6 @@
 .godot/
 /android/
 docs/PLAN_MAESTRO_STATE_IO.md
+
+# Caché de descargas de tools/build_geo_data.py
+tools/.ne_cache/

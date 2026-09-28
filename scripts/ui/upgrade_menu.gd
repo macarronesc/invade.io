@@ -55,13 +55,14 @@ func _notification(what: int) -> void:
 		_on_back_pressed()
 
 func _ready() -> void:
+	AudioManager.play_music("menu")
 	_apply_visual_styling()
 	UIThemeHelper.apply_safe_area_top($Header)
-	
+
 	btn_back.pressed.connect(_on_back_pressed)
 	EventBus.coins_updated.connect(_update_coins)
 	EventBus.upgrade_purchased.connect(_on_upgrade_purchased)
-	
+
 	_update_coins(GameManager.coins)
 	_update_stars()
 	_build_cards()
@@ -88,7 +89,7 @@ func _build_cards() -> void:
 	for child in cards_container.get_children():
 		cards_container.remove_child(child)
 		child.queue_free()
-		
+
 	for key in UPGRADE_KEYS:
 		var card = _create_upgrade_card(key)
 		cards_container.add_child(card)
@@ -102,27 +103,27 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 		"unit": "bonus",
 		"step": 1
 	})
-	
+
 	var lvl = GameManager.upgrades.get(upgrade_id, 0)
 	var max_lvl = GameManager.MAX_UPGRADE_LEVEL
 	var badge_col: Color = cfg["badge_color"]
-	
+
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(0, 200)
 	UIThemeHelper.apply_card_style(panel, UIThemeHelper.COLOR_CARD, UIThemeHelper.COLOR_CARD_BORDER, 20, 2)
-	
+
 	var margin = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 24)
 	margin.add_theme_constant_override("margin_right", 24)
 	margin.add_theme_constant_override("margin_top", 20)
 	margin.add_theme_constant_override("margin_bottom", 20)
 	panel.add_child(margin)
-	
+
 	var hbox = HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 24)
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	margin.add_child(hbox)
-	
+
 	# 1. Columna Izquierda: Insignia e icono visual temático
 	var icon_box = PanelContainer.new()
 	icon_box.custom_minimum_size = Vector2(95, 95)
@@ -136,7 +137,7 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 	icon_style.border_width_right = 2
 	icon_style.set_corner_radius_all(18)
 	icon_box.add_theme_stylebox_override("panel", icon_style)
-	
+
 	var icon_lbl = Label.new()
 	icon_lbl.text = cfg["icon"]
 	icon_lbl.add_theme_font_size_override("font_size", 46)
@@ -144,30 +145,30 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 	icon_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	icon_box.add_child(icon_lbl)
 	hbox.add_child(icon_box)
-	
+
 	# 2. Columna Central: Información, estadísticas y barra segmentada
 	var vbox_info = VBoxContainer.new()
 	vbox_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox_info.add_theme_constant_override("separation", 8)
 	hbox.add_child(vbox_info)
-	
+
 	# Cabecera de la tarjeta: Título + Nivel
 	var header_hbox = HBoxContainer.new()
 	vbox_info.add_child(header_hbox)
-	
+
 	var lbl_title = Label.new()
 	lbl_title.text = cfg["title"]
 	lbl_title.add_theme_font_size_override("font_size", 26)
 	lbl_title.add_theme_color_override("font_color", Color.WHITE)
 	lbl_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_hbox.add_child(lbl_title)
-	
+
 	var lbl_level = Label.new()
 	lbl_level.text = "Nivel %d/%d" % [lvl, max_lvl]
 	lbl_level.add_theme_font_size_override("font_size", 22)
 	lbl_level.add_theme_color_override("font_color", badge_col.lightened(0.20))
 	header_hbox.add_child(lbl_level)
-	
+
 	# Descripción del efecto
 	var lbl_desc = Label.new()
 	lbl_desc.text = cfg["desc"]
@@ -175,7 +176,7 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 	lbl_desc.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88))
 	lbl_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox_info.add_child(lbl_desc)
-	
+
 	# Estadísticas comparativas (Actual vs Siguiente)
 	var current_bonus = lvl * cfg["step"]
 	var next_bonus = (lvl + 1) * cfg["step"]
@@ -188,13 +189,13 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 		lbl_stats.add_theme_color_override("font_color", Color(0.35, 0.85, 0.95))
 	lbl_stats.add_theme_font_size_override("font_size", 17)
 	vbox_info.add_child(lbl_stats)
-	
+
 	# Barra de progreso segmentada en 10 pips visuales
 	var pips_container = HBoxContainer.new()
 	pips_container.custom_minimum_size = Vector2(0, 14)
 	pips_container.add_theme_constant_override("separation", 6)
 	vbox_info.add_child(pips_container)
-	
+
 	for pip_idx in range(max_lvl):
 		var pip = Panel.new()
 		pip.custom_minimum_size = Vector2(0, 12)
@@ -211,13 +212,13 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 			pip_style.border_width_bottom = 1
 		pip.add_theme_stylebox_override("panel", pip_style)
 		pips_container.add_child(pip)
-		
+
 	# 3. Columna Derecha: Botón táctil de compra 2.5D
 	var btn_buy = Button.new()
 	btn_buy.custom_minimum_size = Vector2(210, 85)
 	btn_buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	btn_buy.add_theme_font_size_override("font_size", 28)
-	
+
 	var cost = GameManager.get_upgrade_cost(upgrade_id)
 	if lvl >= max_lvl:
 		btn_buy.text = "MÁXIMO"
@@ -232,10 +233,10 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 			UIThemeHelper.apply_stateio_button_style(btn_buy, UIThemeHelper.COLOR_SUCCESS, Color.TRANSPARENT, 16, 6)
 		else:
 			UIThemeHelper.apply_stateio_button_style(btn_buy, Color(0.25, 0.28, 0.35, 0.70), Color.TRANSPARENT, 16, 3)
-			
+
 	btn_buy.pressed.connect(_buy_upgrade.bind(upgrade_id))
 	hbox.add_child(btn_buy)
-	
+
 	return panel
 
 func _buy_upgrade(upgrade_id: String) -> void:

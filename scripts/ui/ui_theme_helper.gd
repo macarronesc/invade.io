@@ -30,6 +30,12 @@ static func apply_safe_area_top(control: Control) -> void:
 	control.offset_top += inset
 	control.offset_bottom += inset
 
+## Botón de música: el icono se atenúa cuando la música está silenciada
+static func update_music_button(btn: Button, muted: bool) -> void:
+	btn.text = "🎵"
+	btn.modulate = Color(1, 1, 1, 0.35) if muted else Color.WHITE
+	btn.tooltip_text = "Música desactivada" if muted else "Música activada"
+
 ## Aplica el estilo 2.5D State.io con relieve y sombreado proyectado a cualquier botón
 static func apply_stateio_button_style(
 	btn: Button,
@@ -40,9 +46,9 @@ static func apply_stateio_button_style(
 ) -> void:
 	if not is_instance_valid(btn):
 		return
-		
+
 	var dark_border = border_color if border_color != Color.TRANSPARENT else bg_color.darkened(0.30)
-	
+
 	# Estado Normal
 	var style_normal = StyleBoxFlat.new()
 	style_normal.bg_color = bg_color
@@ -56,7 +62,7 @@ static func apply_stateio_button_style(
 	style_normal.content_margin_bottom = 10.0 + float(border_depth)
 	style_normal.content_margin_left = 18.0
 	style_normal.content_margin_right = 18.0
-	
+
 	# Estado Hover (cursor encima)
 	var style_hover = StyleBoxFlat.new()
 	style_hover.bg_color = bg_color.lightened(0.09)
@@ -70,7 +76,7 @@ static func apply_stateio_button_style(
 	style_hover.content_margin_bottom = 10.0 + float(border_depth)
 	style_hover.content_margin_left = 18.0
 	style_hover.content_margin_right = 18.0
-	
+
 	# Estado Pressed (pulsado/hundido)
 	var style_pressed = StyleBoxFlat.new()
 	style_pressed.bg_color = bg_color.darkened(0.12)
@@ -84,7 +90,7 @@ static func apply_stateio_button_style(
 	style_pressed.content_margin_bottom = 10.0 + float(maxi(1, border_depth - 3))
 	style_pressed.content_margin_left = 18.0
 	style_pressed.content_margin_right = 18.0
-	
+
 	# Estado Disabled
 	var style_disabled = StyleBoxFlat.new()
 	style_disabled.bg_color = Color(0.20, 0.23, 0.28, 0.70)
@@ -96,21 +102,21 @@ static func apply_stateio_button_style(
 	style_disabled.content_margin_bottom = 12.0
 	style_disabled.content_margin_left = 18.0
 	style_disabled.content_margin_right = 18.0
-	
+
 	# Estado Focus
 	var style_focus = StyleBoxEmpty.new()
-	
+
 	btn.add_theme_stylebox_override("normal", style_normal)
 	btn.add_theme_stylebox_override("hover", style_hover)
 	btn.add_theme_stylebox_override("pressed", style_pressed)
 	btn.add_theme_stylebox_override("disabled", style_disabled)
 	btn.add_theme_stylebox_override("focus", style_focus)
-	
+
 	btn.add_theme_color_override("font_color", Color.WHITE)
 	btn.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 1.0))
 	btn.add_theme_color_override("font_pressed_color", Color(0.92, 0.92, 0.92))
 	btn.add_theme_color_override("font_disabled_color", Color(0.55, 0.58, 0.62))
-	
+
 	setup_button_bounce(btn)
 
 ## Configura animación reactiva táctil de escala (Tween bounce) al interactuar con el botón
@@ -120,21 +126,21 @@ static func setup_button_bounce(btn: Button) -> void:
 	if btn.has_meta("_bounce_setup"):
 		return
 	btn.set_meta("_bounce_setup", true)
-	
+
 	var update_pivot = func():
 		if is_instance_valid(btn):
 			btn.pivot_offset = btn.size * 0.5
-			
+
 	if not btn.resized.is_connected(update_pivot):
 		btn.resized.connect(update_pivot)
 	update_pivot.call()
-	
+
 	var kill_bounce_tween = func():
 		if is_instance_valid(btn) and btn.has_meta("_bounce_tween"):
 			var old_tw = btn.get_meta("_bounce_tween") as Tween
 			if old_tw and old_tw.is_valid():
 				old_tw.kill()
-	
+
 	var on_enter = func():
 		if not is_instance_valid(btn) or btn.disabled or not btn.is_inside_tree():
 			return
@@ -144,7 +150,7 @@ static func setup_button_bounce(btn: Button) -> void:
 		tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 		btn.set_meta("_bounce_tween", tw)
 		tw.tween_property(btn, "scale", Vector2(1.035, 1.035), 0.12)
-		
+
 	var on_exit = func():
 		if not is_instance_valid(btn) or not btn.is_inside_tree():
 			return
@@ -154,7 +160,7 @@ static func setup_button_bounce(btn: Button) -> void:
 		tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 		btn.set_meta("_bounce_tween", tw)
 		tw.tween_property(btn, "scale", Vector2.ONE, 0.10)
-		
+
 	var on_down = func():
 		if not is_instance_valid(btn) or btn.disabled or not btn.is_inside_tree():
 			return
@@ -164,7 +170,7 @@ static func setup_button_bounce(btn: Button) -> void:
 		tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 		btn.set_meta("_bounce_tween", tw)
 		tw.tween_property(btn, "scale", Vector2(0.95, 0.95), 0.08)
-		
+
 	var on_up = func():
 		if not is_instance_valid(btn) or not btn.is_inside_tree():
 			return
@@ -174,7 +180,7 @@ static func setup_button_bounce(btn: Button) -> void:
 		tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 		btn.set_meta("_bounce_tween", tw)
 		tw.tween_property(btn, "scale", Vector2.ONE, 0.18)
-		
+
 	btn.mouse_entered.connect(on_enter)
 	btn.mouse_exited.connect(on_exit)
 	btn.button_down.connect(on_down)
@@ -201,7 +207,7 @@ static func apply_card_style(
 	style.shadow_color = Color(0, 0, 0, 0.35)
 	style.shadow_size = 6
 	style.shadow_offset = Vector2(0, 4)
-	
+
 	if panel is Panel:
 		panel.add_theme_stylebox_override("panel", style)
 	elif panel is PanelContainer:
@@ -231,7 +237,7 @@ static func apply_pill_style(
 	style.content_margin_right = 16.0
 	style.content_margin_top = 6.0
 	style.content_margin_bottom = 6.0
-	
+
 	if control is Panel:
 		control.add_theme_stylebox_override("panel", style)
 	elif control is PanelContainer:
@@ -249,7 +255,7 @@ static func animate_modal_pop_in(modal: Control) -> void:
 	modal.pivot_offset = modal.size * 0.5
 	modal.scale = Vector2(0.70, 0.70)
 	modal.modulate = Color(1, 1, 1, 0.0)
-	
+
 	var tw = modal.create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	modal.set_meta("_modal_tween", tw)

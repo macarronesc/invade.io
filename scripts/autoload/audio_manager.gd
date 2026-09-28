@@ -1,10 +1,16 @@
 extends Node
 
-## AudioManager: Efectos de sonido procedurales pre-renderizados y mezclados con polifonía.
-## Cada sonido se sintetiza una sola vez (caché de AudioStreamWAV) y se reproduce mediante
+## AudioManager: Efectos de sonido procedurales pre-renderizados y mezclados con polifonía,
+## y música procedural en bucle (MusicSynth).
+## Cada efecto se sintetiza una sola vez (caché de AudioStreamWAV) y se reproduce mediante
 ## AudioStreamPolyphonic, de modo que varios efectos suenan a la vez sin retrasos ni cortes.
+## Las pistas de música se sintetizan en un hilo aparte y cambian con un fundido suave.
+## "Sonido" silencia todo; "Música" silencia sólo la música.
 
-const MIX_RATE := 22050
+const MIX_RATE := MusicSynth.MIX_RATE
+const MUSIC_VOLUME_DB := -11.0
+const MUSIC_SILENT_DB := -40.0
+const MUSIC_FADE := 0.8
 const POLYPHONY := 24
 ## Intervalo mínimo entre sonidos de absorción para no saturar la mezcla con cientos de perlas
 const ABSORB_MIN_INTERVAL_MSEC := 45
@@ -14,6 +20,9 @@ const PENTATONIC_HIT = [440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50]
 const STAR_NOTES = [659.25, 783.99, 1046.50] # E5, G5, C6 brillante
 
 var is_muted: bool = false
+var music_muted: bool = false
+## Pista que debería sonar ahora ("" = ninguna), aunque esté silenciada o aún se esté sintetizando
+var current_track: String = ""
 var last_played_fanfare: String = ""
 var last_star_sound_index: int = -1
 var last_played_sfx: String = ""
@@ -26,9 +35,18 @@ var _player: AudioStreamPlayer
 var _playback: AudioStreamPlaybackPolyphonic
 var _cache: Dictionary = {}
 
+var _music_player: AudioStreamPlayer
+var _music_cache: Dictionary = {}
+var _music_tasks: Dictionary = {}
+var _music_tween: Tween
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	is_muted = GameManager.sound_muted
+	music_muted = GameManager.music_muted
+	_music_player = AudioStreamPlayer.new()
+	_music_player.volume_db = MUSIC_SILENT_DB
+	add_child(_music_player)
 	var poly := AudioStreamPolyphonic.new()
 	poly.polyphony = POLYPHONY
 	_player = AudioStreamPlayer.new()
@@ -39,6 +57,8 @@ func _ready() -> void:
 		_player.play()
 		_playback = _player.get_stream_playback()
 		_prewarm.call_deferred()
+		for track in MusicSynth.TRACKS:
+			_request_music(track)
 
 func toggle_mute() -> bool:
 	set_muted(not is_muted)
@@ -48,7 +68,81 @@ func set_muted(muted: bool) -> void:
 	is_muted = muted
 	GameManager.sound_muted = muted
 	GameManager.save_game()
+	_refresh_music()
 	EventBus.sound_toggled.emit(is_muted)
+
+func toggle_music() -> bool:
+	set_music_muted(not music_muted)
+	return music_muted
+
+func set_music_muted(muted: bool) -> void:
+	music_muted = muted
+	GameManager.music_muted = muted
+	GameManager.save_game()
+	_refresh_music()
+
+# =========================================================================
+# Música
+# =========================================================================
+
+## Cambia a la pista indicada con un fundido (no hace nada si ya está sonando)
+func play_music(track: String) -> void:
+	if track == current_track and (_music_player.playing or not _can_play_music()):
+		return
+	current_track = track
+	_refresh_music()
+
+func stop_music() -> void:
+	current_track = ""
+	_refresh_music()
+
+func is_music_playing() -> bool:
+	return _music_player.playing and current_track != ""
+
+func _can_play_music() -> bool:
+	return not is_muted and not music_muted and DisplayServer.get_name() != "headless"
+
+func _refresh_music() -> void:
+	if current_track == "" or not _can_play_music():
+		_fade_music_to(null)
+	elif _music_cache.has(current_track):
+		if _music_player.stream != _music_cache[current_track] or not _music_player.playing:
+			_fade_music_to(_music_cache[current_track])
+	else:
+		_request_music(current_track)
+
+## Funde la pista actual y, si se indica, entra la nueva
+func _fade_music_to(stream: AudioStream) -> void:
+	if _music_tween:
+		_music_tween.kill()
+	_music_tween = create_tween()
+	if _music_player.playing:
+		_music_tween.tween_property(_music_player, "volume_db", MUSIC_SILENT_DB, MUSIC_FADE * 0.5)
+	_music_tween.tween_callback(func():
+		_music_player.stop()
+		if stream:
+			_music_player.stream = stream
+			_music_player.play()
+	)
+	if stream:
+		_music_tween.tween_property(_music_player, "volume_db", MUSIC_VOLUME_DB, MUSIC_FADE)
+
+func _request_music(track: String) -> void:
+	if _music_cache.has(track) or _music_tasks.has(track):
+		return
+	_music_tasks[track] = WorkerThreadPool.add_task(_render_music.bind(track), false, "music_%s" % track)
+
+## Se ejecuta en un hilo de trabajo: sintetizar ~20 s de audio no congela la interfaz
+func _render_music(track: String) -> void:
+	var wav := MusicSynth.to_wav(MusicSynth.render_track(track), true)
+	_on_music_rendered.call_deferred(track, wav)
+
+func _on_music_rendered(track: String, wav: AudioStreamWAV) -> void:
+	WorkerThreadPool.wait_for_task_completion(_music_tasks[track])
+	_music_tasks.erase(track)
+	_music_cache[track] = wav
+	if track == current_track:
+		_refresh_music()
 
 func play_click() -> void:
 	_play("click", func(): return _render_tone(650.0, 0.04, 0.15))
@@ -116,7 +210,7 @@ func _play(key: String, render: Callable) -> void:
 
 func _get_stream(key: String, render: Callable) -> AudioStreamWAV:
 	if not _cache.has(key):
-		_cache[key] = _to_wav(render.call())
+		_cache[key] = MusicSynth.to_wav(render.call())
 	return _cache[key]
 
 ## Sintetiza por adelantado los sonidos más largos para evitar tirones en mitad de la partida
@@ -124,18 +218,6 @@ func _prewarm() -> void:
 	_get_stream("victory", func(): return _render_arpeggio([523.25, 659.25, 783.99, 1046.50], 0.10, 0.26))
 	_get_stream("continent", func(): return _render_fanfare([523.25, 659.25, 783.99], [523.25, 659.25, 1046.50], 0.09, 0.28, 0.30))
 	_get_stream("defeat", func(): return _render_tone(349.23, 0.5, 0.25, 130.81))
-
-static func _to_wav(samples: PackedFloat32Array) -> AudioStreamWAV:
-	var data := PackedByteArray()
-	data.resize(samples.size() * 2)
-	for i in samples.size():
-		data.encode_s16(i * 2, int(clampf(samples[i], -1.0, 1.0) * 32767.0))
-	var wav := AudioStreamWAV.new()
-	wav.format = AudioStreamWAV.FORMAT_16_BITS
-	wav.mix_rate = MIX_RATE
-	wav.stereo = false
-	wav.data = data
-	return wav
 
 # =========================================================================
 # Síntesis

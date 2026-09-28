@@ -47,6 +47,7 @@ const ENEMY_FACTIONS = [GameManager.Faction.ENEMY_1, GameManager.Faction.ENEMY_2
 @onready var btn_pause: Button = %BtnPause
 @onready var btn_resume: Button = %BtnResume
 @onready var btn_pause_sound: Button = %BtnPauseSound
+@onready var btn_pause_music: Button = %BtnPauseMusic
 @onready var btn_pause_retry: Button = %BtnPauseRetry
 @onready var btn_pause_map: Button = %BtnPauseMap
 
@@ -103,6 +104,7 @@ func _ready() -> void:
 	btn_pause_retry.pressed.connect(_on_retry_pressed)
 	btn_pause_map.pressed.connect(_on_map_pressed)
 	btn_pause_sound.pressed.connect(_on_pause_sound_pressed)
+	btn_pause_music.pressed.connect(_on_pause_music_pressed)
 	_update_pause_sound_label(AudioManager.is_muted)
 	btn_next_level.pressed.connect(_on_next_level_pressed)
 	btn_victory_map.pressed.connect(_on_map_pressed)
@@ -125,6 +127,7 @@ func _apply_visual_styling() -> void:
 	UIThemeHelper.apply_stateio_button_style(btn_defeat_map, Color(0.20, 0.26, 0.35), Color.TRANSPARENT, 16, 4)
 	UIThemeHelper.apply_stateio_button_style(btn_resume, UIThemeHelper.COLOR_PRIMARY, Color.TRANSPARENT, 18, 6)
 	UIThemeHelper.apply_stateio_button_style(btn_pause_sound, Color(0.22, 0.30, 0.40), Color.TRANSPARENT, 16, 4)
+	UIThemeHelper.apply_stateio_button_style(btn_pause_music, Color(0.22, 0.30, 0.40), Color.TRANSPARENT, 16, 4)
 	UIThemeHelper.apply_stateio_button_style(btn_pause_retry, Color(0.22, 0.30, 0.40), Color.TRANSPARENT, 16, 4)
 	UIThemeHelper.apply_stateio_button_style(btn_pause_map, Color(0.20, 0.26, 0.35), Color.TRANSPARENT, 16, 4)
 
@@ -147,6 +150,12 @@ func _build_faction_bars() -> void:
 
 func _update_pause_sound_label(muted: bool) -> void:
 	btn_pause_sound.text = "🔇 SONIDO: SILENCIADO" if muted else "🔊 SONIDO: ACTIVADO"
+	btn_pause_music.text = "🎵 MÚSICA: DESACTIVADA" if AudioManager.music_muted else "🎵 MÚSICA: ACTIVADA"
+
+func _on_pause_music_pressed() -> void:
+	AudioManager.play_click()
+	AudioManager.toggle_music()
+	_update_pause_sound_label(AudioManager.is_muted)
 
 func _on_pause_sound_pressed() -> void:
 	var new_muted = AudioManager.toggle_mute()
