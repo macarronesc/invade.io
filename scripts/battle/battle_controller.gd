@@ -11,7 +11,8 @@ const TutorialOverlayScript = preload("res://scripts/battle/tutorial_overlay.gd"
 const HEAD_ON_RANGE: float = 20.0
 const SLOW_MOTION_TARGET: float = 0.28
 const SLOW_MOTION_SPEED: float = 2.5
-const MAP_SIZE := Vector2(1080, 1920)
+const SLICE_WIDTH := 6.5
+const CUT_FLASH_TIME := 0.35
 
 @export var level_id: String = "europe_1"
 
@@ -54,19 +55,14 @@ var _tutorial: Node = null
 @onready var camera: Camera2D = get_node_or_null("Camera2D")
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_PREDELETE:
-		reset_time_scale()
-	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		_cancel_gesture()
 
 func _exit_tree() -> void:
 	reset_time_scale()
 
 func _ready() -> void:
-	reset_time_scale()
-	if GameManager.get_battle_level_id() != "":
-		level_id = GameManager.get_battle_level_id()
-	load_level(level_id)
+	load_level(GameManager.get_battle_level_id())
 	AudioManager.play_music("battle")
 	EventBus.base_captured.connect(_on_base_captured)
 	EventBus.troop_arrived.connect(_on_troop_arrived)
@@ -85,36 +81,19 @@ func reset_time_scale() -> void:
 func set_simulation_paused(paused: bool) -> void:
 	simulation_paused = paused
 	for ai in ai_controllers:
-		if is_instance_valid(ai):
-			ai.set_process(not paused)
+		ai.set_process(not paused)
 	for b in bases:
-		if is_instance_valid(b):
-			b.is_active = not paused
+		b.is_active = not paused
 
+## Monta el nivel una sola vez, al entrar en la escena (reintentar recarga la escena)
 func load_level(p_level_id: String) -> void:
 	reset_time_scale()
 	level_id = p_level_id
 	level_data = LevelDatabase.get_level_data(level_id)
 	target_time = level_data.get("target_time", 45.0)
-	battle_time = 0.0
-	is_game_over = false
-	simulation_paused = false
-	selected_sources.clear()
-	hovered_target = null
-	candidate_chained_base = null
 
 	# Curva de dificultad: los enemigos producen más rápido a medida que avanza la campaña
-	var difficulty = LevelDatabase.get_difficulty(level_id)
-	GameManager.enemy_production_multiplier = lerpf(0.9, 1.35, difficulty)
-
-	# Limpiar elementos previos
-	for list in [bases, active_troops, ai_controllers]:
-		for node in list:
-			if is_instance_valid(node):
-				node.queue_free()
-	bases.clear()
-	active_troops.clear()
-	ai_controllers.clear()
+	GameManager.enemy_production_multiplier = lerpf(0.9, 1.35, LevelDatabase.get_difficulty(level_id))
 
 	# Instanciar bases según los datos del nivel
 	var enemy_factions_present: Array[int] = []
@@ -140,10 +119,7 @@ func load_level(p_level_id: String) -> void:
 		ai.setup(self, ef)
 		ai_controllers.append(ai)
 
-	# Tutorial interactivo en los primeros niveles (sólo en la escena real de batalla)
-	if is_instance_valid(_tutorial):
-		_tutorial.queue_free()
-		_tutorial = null
+	# Tutorial interactivo en los primeros niveles (sólo en la escena real de batalla, con HUD)
 	if bases_container and TutorialOverlayScript.has_pending_steps(level_id, level_data):
 		_tutorial = TutorialOverlayScript.new()
 		add_child(_tutorial)
@@ -205,9 +181,9 @@ func shake_camera(amount: float) -> void:
 
 func _update_siege_alerts() -> void:
 	for b in bases:
-		if is_instance_valid(b):
-			b.update_siege_status(active_troops)
+		b.update_siege_status(active_troops)
 
+## Tropa en juego: no liberada, no pendiente de borrar y con unidades
 static func _is_alive(t) -> bool:
 	return is_instance_valid(t) and not t.is_queued_for_deletion() and t.count > 0
 
@@ -222,11 +198,9 @@ func _incoming_player_troops(target: BaseNode) -> Array:
 	return [total, is_close]
 
 func _check_decisive_assault() -> void:
-	if is_game_over:
-		return
 	var enemy_bases: Array[BaseNode] = []
 	for b in bases:
-		if is_instance_valid(b) and b.faction != GameManager.Faction.PLAYER and b.faction != GameManager.Faction.NEUTRAL:
+		if b.faction != GameManager.Faction.PLAYER and b.faction != GameManager.Faction.NEUTRAL:
 			enemy_bases.append(b)
 
 	# Si la cámara lenta ya está activa, verificar si el asalto decisivo ha concluido o fracasado
@@ -371,48 +345,36 @@ func _cancel_gesture() -> void:
 
 func _handle_press(pos: Vector2) -> void:
 	var base = _get_base_at(pos)
+	_cancel_gesture()
 	if base and base.faction == GameManager.Faction.PLAYER:
 		is_dragging = true
-		is_slicing = false
-		selected_sources.clear()
 		_add_selected_source(base)
 		drag_current_pos = pos
 		prev_drag_pos = pos
 		drag_velocity = Vector2.ZERO
-		hovered_target = null
-		candidate_chained_base = null
 		AudioManager.play_click()
 	else:
 		is_slicing = true
-		is_dragging = false
-		slice_points.clear()
 		slice_points.append(pos)
 
 func _handle_slice_motion(pos: Vector2) -> void:
-	if not is_slicing:
-		return
-	if slice_points.is_empty():
-		slice_points.append(pos)
-		return
 	if slice_points.back().distance_to(pos) >= 5.0:
 		_add_slice_segment(pos)
 
 func _add_slice_segment(pos: Vector2) -> void:
 	var prev_pt: Vector2 = slice_points.back()
 	slice_points.append(pos)
-	slice_trail_segments.append({"p1": prev_pt, "p2": pos, "alpha": 1.0, "width": 6.5})
+	slice_trail_segments.append({"p1": prev_pt, "p2": pos, "alpha": 1.0})
 	_check_slice_intersections(prev_pt, pos)
 
 func _check_slice_intersections(p1: Vector2, p2: Vector2) -> void:
-	if is_game_over:
-		return
 	var any_cut = false
-	for t in active_troops:
-		# Solo tropas aliadas que no se encuentren ya en retirada
-		if _is_alive(t) and t.faction == GameManager.Faction.PLAYER and not t.is_retreating and t.intersects_segment(p1, p2):
+	# Copia: una retirada que se reintegra al instante sale de active_troops durante el bucle
+	for t in active_troops.duplicate():
+		if _is_alive(t) and t.faction == GameManager.Faction.PLAYER and t.intersects_segment(p1, p2):
 			t.abort_mission()
 			any_cut = true
-			slice_cut_flash_effects.append({"pos": (p1 + p2) * 0.5, "timer": 0.35, "max_time": 0.35})
+			slice_cut_flash_effects.append({"pos": (p1 + p2) * 0.5, "timer": CUT_FLASH_TIME})
 	if any_cut:
 		AudioManager.play_troop_retreat()
 		GameManager.haptic(15)
@@ -426,7 +388,7 @@ func _handle_drag(pos: Vector2) -> void:
 
 	if base != null:
 		# Entrar en otra base confirma la candidata previa como nodo intermedio de encadenamiento
-		if is_instance_valid(candidate_chained_base) and candidate_chained_base != base:
+		if candidate_chained_base and candidate_chained_base != base:
 			_confirm_chained_candidate()
 		if not selected_sources.has(base):
 			hovered_target = base
@@ -437,7 +399,7 @@ func _handle_drag(pos: Vector2) -> void:
 			hovered_target = null
 	else:
 		# Cursor en espacio abierto: la candidata que hemos atravesado se suma al asalto
-		if is_instance_valid(candidate_chained_base) and not candidate_chained_base.is_point_inside(pos):
+		if candidate_chained_base:
 			_confirm_chained_candidate()
 		hovered_target = null
 
@@ -461,7 +423,7 @@ func _handle_release(pos: Vector2) -> void:
 
 	var target = _get_base_at(pos)
 	# Una base aliada candidata se suma al asalto combinado si soltamos sobre otro objetivo
-	if is_instance_valid(candidate_chained_base) and target != candidate_chained_base:
+	if candidate_chained_base and target != candidate_chained_base:
 		_add_selected_source(candidate_chained_base)
 	candidate_chained_base = null
 
@@ -475,10 +437,13 @@ func _handle_release(pos: Vector2) -> void:
 				sources = selected_sources
 		else:
 			sources = selected_sources
+		var launched := 0
 		for src in sources:
-			dispatch_troops(src, target)
-		if not sources.is_empty():
-			EventBus.player_assault.emit(sources.size())
+			# Una base seleccionada puede haber caído durante el arrastre
+			if src.faction == GameManager.Faction.PLAYER and dispatch_troops(src, target):
+				launched += 1
+		if launched > 0:
+			EventBus.player_assault.emit(launched)
 
 	_cancel_gesture()
 
@@ -489,16 +454,17 @@ func _add_selected_source(base: BaseNode) -> void:
 
 func _get_base_at(pos: Vector2) -> BaseNode:
 	for b in bases:
-		if is_instance_valid(b) and b.is_point_inside(pos):
+		if b.is_point_inside(pos):
 			return b
 	return null
 
-func dispatch_troops(from_base: BaseNode, to_base: BaseNode) -> void:
-	if not is_instance_valid(from_base) or not is_instance_valid(to_base) or from_base == to_base:
-		return
+## Lanza todas las tropas de `from_base` (menos una) hacia `to_base`; false si no había a quién enviar
+func dispatch_troops(from_base: BaseNode, to_base: BaseNode) -> bool:
+	if from_base == to_base:
+		return false
 	var count = from_base.send_troops()
 	if count <= 0:
-		return
+		return false
 	var troop: Troop = TroopScene.instantiate()
 	(troops_container if troops_container else self).add_child(troop)
 	troop.setup(from_base, to_base, count, from_base.faction)
@@ -508,13 +474,14 @@ func dispatch_troops(from_base: BaseNode, to_base: BaseNode) -> void:
 		AudioManager.play_launch()
 		GameManager.haptic(10)
 	EventBus.troops_dispatched.emit(from_base, to_base, count, from_base.faction)
+	return true
 
-func _on_troop_arrived(troop: Troop, _target_base: BaseNode) -> void:
+func _on_troop_arrived(troop: Troop) -> void:
 	active_troops.erase(troop)
 
 func _on_base_captured(base: BaseNode, prev_faction: int, new_faction: int) -> void:
 	var player_involved = prev_faction == GameManager.Faction.PLAYER or new_faction == GameManager.Faction.PLAYER
-	if player_involved and is_instance_valid(base):
+	if player_involved:
 		GameManager.haptic(60 if prev_faction == GameManager.Faction.PLAYER else 25)
 		if base.tier >= 3:
 			shake_camera(9.0)
@@ -526,8 +493,6 @@ func _check_game_over_conditions() -> void:
 	var player_alive = false
 	var enemy_alive = false
 	for b in bases:
-		if not is_instance_valid(b):
-			continue
 		if b.faction == GameManager.Faction.PLAYER:
 			player_alive = true
 		elif b.faction != GameManager.Faction.NEUTRAL:
@@ -548,9 +513,7 @@ func _check_game_over_conditions() -> void:
 
 func _trigger_victory() -> void:
 	is_game_over = true
-	# Si no se había activado slow motion por asalto decisivo previo, activar en el golpe de gracia
-	if not is_slow_motion_active:
-		start_slow_motion()
+	start_slow_motion()
 
 	var stars = 1
 	if battle_time <= target_time:
@@ -560,7 +523,7 @@ func _trigger_victory() -> void:
 
 	var player_bases_count = 0
 	for b in bases:
-		if is_instance_valid(b) and b.faction == GameManager.Faction.PLAYER:
+		if b.faction == GameManager.Faction.PLAYER:
 			player_bases_count += 1
 
 	var is_challenge = DailyRewards.is_challenge(level_id)
@@ -578,7 +541,7 @@ func _trigger_victory() -> void:
 	GameManager.add_coins(total_gold)
 	GameManager.haptic(80)
 
-	var is_continent_conquest = level_id.ends_with("_5")
+	var is_continent_conquest = not is_challenge and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT
 	# La fanfarria suena sola: la música se retira y vuelve la del menú al salir
 	AudioManager.stop_music()
 	if is_continent_conquest:
@@ -610,8 +573,7 @@ func get_faction_troop_counts() -> Dictionary:
 	for f in GameManager.FACTION_COLORS:
 		counts[f] = 0
 	for b in bases:
-		if is_instance_valid(b):
-			counts[b.faction] += b.troops
+		counts[b.faction] += b.troops
 	for t in active_troops:
 		if _is_alive(t):
 			counts[t.faction] += t.count
@@ -654,14 +616,12 @@ func sample_bezier_points(p0: Vector2, p1: Vector2, p2: Vector2, segments: int =
 		pts[i] = evaluate_quadratic_bezier(p0, p1, p2, float(i) / float(segments))
 	return pts
 
-## Tropas que se lanzarían al soltar ahora mismo (incluye la base aliada candidata a encadenar)
+## Tropas que se lanzarían al soltar ahora mismo desde las bases seleccionadas que siguen siendo nuestras
 func get_pending_attack_count() -> int:
 	var total := 0
 	for src in selected_sources:
-		if is_instance_valid(src):
+		if src.faction == GameManager.Faction.PLAYER:
 			total += maxi(0, src.troops - 1)
-	if is_instance_valid(candidate_chained_base) and candidate_chained_base != hovered_target:
-		total += maxi(0, candidate_chained_base.troops - 1)
 	return total
 
 func _draw_slice_overlay(canvas: CanvasItem) -> void:
@@ -669,13 +629,12 @@ func _draw_slice_overlay(canvas: CanvasItem) -> void:
 		var alpha = clampf(seg["alpha"], 0.0, 1.0)
 		var p1 = canvas.to_local(seg["p1"])
 		var p2 = canvas.to_local(seg["p2"])
-		var w = seg["width"]
-		canvas.draw_line(p1, p2, Color(0.2, 0.85, 1.0, alpha * 0.4), w * 1.8, true)
-		canvas.draw_line(p1, p2, Color(1.0, 1.0, 1.0, alpha * 0.95), w, true)
+		canvas.draw_line(p1, p2, Color(0.2, 0.85, 1.0, alpha * 0.4), SLICE_WIDTH * 1.8, true)
+		canvas.draw_line(p1, p2, Color(1.0, 1.0, 1.0, alpha * 0.95), SLICE_WIDTH, true)
 
 	for flash in slice_cut_flash_effects:
 		var f_pos = canvas.to_local(flash["pos"])
-		var ratio = flash["timer"] / maxf(flash["max_time"], 0.001)
+		var ratio = flash["timer"] / CUT_FLASH_TIME
 		var f_r = 22.0 * (1.0 - ratio) + 6.0
 		canvas.draw_circle(f_pos, f_r, Color(1.0, 1.0, 1.0, ratio * 0.6))
 		canvas.draw_circle(f_pos, f_r * 0.5, Color(0.2, 0.85, 1.0, ratio * 0.9))
@@ -696,14 +655,13 @@ func _draw_drag_overlay() -> void:
 		return
 
 	var player_color = GameManager.FACTION_COLORS[GameManager.Faction.PLAYER]
-	var end_global = hovered_target.global_position if is_instance_valid(hovered_target) else drag_current_pos
+	var end_global = hovered_target.global_position if hovered_target else drag_current_pos
 	var end_pt = canvas.to_local(end_global)
 
 	for src in selected_sources:
-		if is_instance_valid(src):
-			_draw_arrow(canvas, canvas.to_local(src.global_position), end_pt, player_color)
+		_draw_arrow(canvas, canvas.to_local(src.global_position), end_pt, player_color)
 
-	if is_instance_valid(hovered_target):
+	if hovered_target:
 		_draw_target_preview(canvas, hovered_target)
 
 func _draw_arrow(canvas: CanvasItem, start_pt: Vector2, end_pt: Vector2, player_color: Color) -> void:
@@ -762,16 +720,18 @@ func _draw_arrow(canvas: CanvasItem, start_pt: Vector2, end_pt: Vector2, player_
 func _draw_target_preview(canvas: CanvasItem, target: BaseNode) -> void:
 	var h_pos = canvas.to_local(target.global_position)
 	var ring_r = (target.radius + 16.0) * (1.0 + sin(marching_dots_phase * TAU * 2.0) * 0.04)
-	var attack = get_pending_attack_count()
+	var attack := get_pending_attack_count()
 	var ring_color: Color
 	var text: String
 	if target.faction == GameManager.Faction.PLAYER:
 		ring_color = Color(0.55, 0.85, 1.0)
 		text = "+%d" % attack
 	else:
-		var margin = attack - target.get_effective_defense()
-		ring_color = Color(0.3, 0.95, 0.45) if margin > 0 else Color(1.0, 0.3, 0.25)
-		text = ("+%d" % margin) if margin > 0 else ("%d" % margin)
+		# Misma regla que BaseNode.receive_troops: se conquista al superar la defensa (puede ser x.5)
+		var wins := attack > target.get_defense_power()
+		var margin := attack - target.get_effective_defense()
+		ring_color = Color(0.3, 0.95, 0.45) if wins else Color(1.0, 0.3, 0.25)
+		text = ("+%d" % maxi(1, margin)) if wins else ("%d" % margin)
 	canvas.draw_circle(h_pos, ring_r, Color(ring_color, 0.10))
 	canvas.draw_arc(h_pos, ring_r, 0, TAU, 48, Color(ring_color, 0.95), 4.0, true)
 
@@ -792,9 +752,7 @@ func _draw_cartographic_grid() -> void:
 	var route_color = Color(1.0, 1.0, 1.0, 0.07)
 	for i in bases.size():
 		var b1 = bases[i]
-		if not is_instance_valid(b1):
-			continue
 		for j in range(i + 1, bases.size()):
 			var b2 = bases[j]
-			if is_instance_valid(b2) and b1.position.distance_to(b2.position) < 450.0:
+			if b1.position.distance_to(b2.position) < 450.0:
 				draw_dashed_line(b1.position, b2.position, route_color, 2.0, 8.0, true, true)

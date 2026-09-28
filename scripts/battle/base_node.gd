@@ -47,7 +47,6 @@ var shockwave_color: Color = Color.WHITE
 var is_under_siege: bool = false
 const SIEGE_RADIUS: float = 220.0
 var siege_pulse_time: float = 0.0
-var siege_incoming_hostile_count: int = 0
 
 var is_active: bool = true
 var _dirty: bool = true
@@ -66,7 +65,6 @@ func _ready() -> void:
 func _on_battle_ended() -> void:
 	is_active = false
 	is_under_siege = false
-	siege_incoming_hostile_count = 0
 	_dirty = true
 
 func get_type_production_multiplier() -> float:
@@ -104,16 +102,14 @@ func update_siege_status(troops_list: Array) -> void:
 	var was_under_siege = is_under_siege
 	if not is_active or faction == GameManager.Faction.NEUTRAL:
 		is_under_siege = false
-		siege_incoming_hostile_count = 0
 	else:
 		var hostile_incoming = 0
 		for t in troops_list:
-			if not is_instance_valid(t) or t.is_queued_for_deletion() or t.count <= 0:
+			if not BattleController._is_alive(t):
 				continue
 			if t.target_base == self and t.faction != faction and t.faction != GameManager.Faction.NEUTRAL:
 				if global_position.distance_to(t.global_position) <= SIEGE_RADIUS:
 					hostile_incoming += t.count
-		siege_incoming_hostile_count = hostile_incoming
 		is_under_siege = hostile_incoming > get_effective_defense()
 	if was_under_siege != is_under_siege:
 		_dirty = true
@@ -122,17 +118,12 @@ func set_base_type(p_type) -> void:
 	_set_type_from_variant(p_type)
 	_dirty = true
 
+## Acepta el enum o el texto de las definiciones de nivel ("fortress" / "factory")
 func _set_type_from_variant(v) -> void:
 	if v is int:
 		base_type = v as BaseType
-	elif v is String:
-		var s = (v as String).to_lower().strip_edges()
-		if s in ["fortress", "bastion", "fortaleza", "bastion_defensivo"]:
-			base_type = BaseType.FORTRESS
-		elif s in ["factory", "fabrica", "fábrica", "recruitment_factory"]:
-			base_type = BaseType.FACTORY
-		else:
-			base_type = BaseType.STANDARD
+	else:
+		base_type = {"fortress": BaseType.FORTRESS, "factory": BaseType.FACTORY}.get(v, BaseType.STANDARD)
 
 func setup(data: Dictionary) -> void:
 	is_active = true
@@ -143,10 +134,10 @@ func setup(data: Dictionary) -> void:
 	tier = data.get("tier", tier)
 	if data.has("pos"):
 		position = data["pos"]
-	for key in ["base_type", "structure_type", "type"]:
-		if data.has(key):
-			_set_type_from_variant(data[key])
-			break
+	if data.has("type"):
+		_set_type_from_variant(data["type"])
+	if label_name:
+		label_name.text = base_name
 
 	# Bonus de tropas iniciales para el jugador
 	if faction == GameManager.Faction.PLAYER:
@@ -233,7 +224,6 @@ func _trigger_generation_pulse() -> void:
 func _trigger_conquest_shockwave(new_faction: int) -> void:
 	# Rebote elástico dramático de conquista + onda expansiva
 	is_under_siege = false
-	siege_incoming_hostile_count = 0
 	elastic_scale = Vector2(1.32, 1.32)
 	elastic_velocity = Vector2(3.5, 3.5)
 	shake_intensity = 6.0
@@ -250,7 +240,7 @@ func is_point_inside(global_pt: Vector2) -> bool:
 	return global_position.distance_to(global_pt) <= (radius + 20.0)
 
 ## Envía todas las tropas menos 1 centinela (asalto al 100%, estilo State.io)
-func send_troops(_percentage: float = 1.0) -> int:
+func send_troops() -> int:
 	if troops <= 1:
 		return 0
 	var count = troops - 1
@@ -312,8 +302,6 @@ func _change_faction(new_faction: int) -> void:
 func _update_label() -> void:
 	if label_troops:
 		label_troops.text = str(troops)
-	if label_name:
-		label_name.text = base_name
 
 func _draw() -> void:
 	var color = GameManager.FACTION_COLORS.get(faction, Color.GRAY)
@@ -397,7 +385,7 @@ func _draw() -> void:
 		draw_circle(pip_pos, 3.0, Color(0.92, 0.92, 0.96))
 
 	# 11. Alerta Visual de Asedio Inminente
-	if is_under_siege and is_active:
+	if is_under_siege:
 		_draw_siege_alert(current_radius)
 
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

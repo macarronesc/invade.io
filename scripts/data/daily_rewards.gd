@@ -18,7 +18,8 @@ static func today() -> int:
 
 ## Estado de la recompensa: {"can_claim", "streak" (tras reclamar hoy), "reward"}
 static func evaluate(last_claim_day: int, streak: int, day: int) -> Dictionary:
-	if last_claim_day == day:
+	# day < last_claim_day: reloj atrasado; no se paga hasta volver al día del último cobro
+	if day <= last_claim_day:
 		return {"can_claim": false, "streak": streak, "reward": 0}
 	var new_streak := streak + 1 if last_claim_day == day - 1 else 1
 	return {"can_claim": true, "streak": new_streak, "reward": reward_for_streak(new_streak)}

@@ -26,16 +26,14 @@ func get_stat(stat: String) -> int:
 		"levels_completed":
 			return GameManager.completed_levels.size()
 		"continents_completed":
-			return LevelDatabase.CONTINENT_ORDER.filter(_is_continent_completed).size()
+			var done := 0
+			for c in LevelDatabase.get_continents():
+				if LevelDatabase.get_continent_level_ids(c["id"]).all(func(id): return GameManager.completed_levels.has(id)):
+					done += 1
+			return done
 		"max_upgrade_level":
 			return GameManager.upgrades.values().max()
 	return GameManager.get_stat(stat)
-
-func _is_continent_completed(continent_id: String) -> bool:
-	for i in range(1, 6):
-		if not GameManager.completed_levels.has("%s_%d" % [continent_id, i]):
-			return false
-	return true
 
 ## Progreso de un logro en [0, 1]
 func get_progress(achievement: Dictionary) -> float:

@@ -1,14 +1,12 @@
 extends Control
 class_name CartographicBackground
 
-const UIThemeHelper = preload("res://scripts/ui/ui_theme_helper.gd")
-
 ## CartographicBackground: Fondo cartográfico táctico State.io con cuadrícula geopolítica
 ## y nodos flotantes animados que simulan pequeñas batallas ambientales en segundo plano.
 
 @export var grid_spacing: float = 75.0
 @export var show_ambient_nodes: bool = false
-@export var bg_color: Color = Color(0.10, 0.12, 0.16)
+@export var bg_color: Color = UIThemeHelper.COLOR_BG
 @export var grid_line_color: Color = Color(0.22, 0.30, 0.40, 0.16)
 @export var major_line_color: Color = Color(0.30, 0.42, 0.55, 0.22)
 @export var crosshair_color: Color = Color(0.40, 0.55, 0.70, 0.35)
@@ -19,8 +17,6 @@ class AmbientNode:
 	var vel: Vector2 = Vector2.ZERO
 	var radius: float = 24.0
 	var color: Color = Color.WHITE
-	var faction: int = 0
-	var troops: int = 15
 	var pulse: float = 0.0
 
 class AmbientTroop:
@@ -38,50 +34,42 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if show_ambient_nodes:
 		_setup_ambient_nodes()
 
 func _setup_ambient_nodes() -> void:
 	ambient_nodes.clear()
-	var factions = [
-		{"col": UIThemeHelper.COLOR_PRIMARY, "f": GameManager.Faction.PLAYER},
-		{"col": UIThemeHelper.COLOR_DANGER, "f": GameManager.Faction.ENEMY_1},
-		{"col": UIThemeHelper.COLOR_ACCENT, "f": GameManager.Faction.ENEMY_2},
-		{"col": UIThemeHelper.COLOR_SUCCESS, "f": GameManager.Faction.ENEMY_3},
-		{"col": UIThemeHelper.COLOR_NEUTRAL, "f": GameManager.Faction.NEUTRAL},
-		{"col": UIThemeHelper.COLOR_PRIMARY, "f": GameManager.Faction.PLAYER},
-		{"col": UIThemeHelper.COLOR_DANGER, "f": GameManager.Faction.ENEMY_1},
-		{"col": UIThemeHelper.COLOR_NEUTRAL, "f": GameManager.Faction.NEUTRAL}
+	var colors = [
+		UIThemeHelper.COLOR_PRIMARY, UIThemeHelper.COLOR_DANGER, UIThemeHelper.COLOR_ACCENT,
+		UIThemeHelper.COLOR_SUCCESS, UIThemeHelper.COLOR_NEUTRAL, UIThemeHelper.COLOR_PRIMARY,
+		UIThemeHelper.COLOR_DANGER, UIThemeHelper.COLOR_NEUTRAL,
 	]
-	
+
 	var w = size.x if size.x > 0 else 1080.0
 	var h = size.y if size.y > 0 else 1920.0
-	
-	for i in range(factions.size()):
+
+	for color in colors:
 		var node = AmbientNode.new()
 		node.pos = Vector2(randf_range(80, w - 80), randf_range(120, h - 120))
 		var angle = randf_range(0, TAU)
 		var spd = randf_range(12.0, 24.0)
 		node.vel = Vector2(cos(angle) * spd, sin(angle) * spd)
 		node.radius = randf_range(22.0, 32.0)
-		node.color = factions[i]["col"]
-		node.faction = factions[i]["f"]
-		node.troops = randi_range(8, 35)
+		node.color = color
 		node.pulse = randf_range(0, TAU)
 		ambient_nodes.append(node)
 
 func _process(delta: float) -> void:
 	if not show_ambient_nodes:
 		return
-		
+
 	var w = size.x if size.x > 0 else 1080.0
 	var h = size.y if size.y > 0 else 1920.0
-	
+
 	for n in ambient_nodes:
 		n.pos += n.vel * delta
 		n.pulse += delta * 2.5
-		
+
 		# Rebote suave en los bordes
 		if n.pos.x < 60.0:
 			n.pos.x = 60.0
@@ -89,14 +77,14 @@ func _process(delta: float) -> void:
 		elif n.pos.x > w - 60.0:
 			n.pos.x = w - 60.0
 			n.vel.x = -absf(n.vel.x)
-			
+
 		if n.pos.y < 100.0:
 			n.pos.y = 100.0
 			n.vel.y = absf(n.vel.y)
 		elif n.pos.y > h - 100.0:
 			n.pos.y = h - 100.0
 			n.vel.y = -absf(n.vel.y)
-			
+
 	# Actualizar tropas ambientales
 	spawn_timer += delta
 	if spawn_timer >= 1.6 and ambient_nodes.size() >= 2:
@@ -113,7 +101,7 @@ func _process(delta: float) -> void:
 				t.color = n1.color
 				ambient_troops.append(t)
 				break
-			
+
 	var i = ambient_troops.size() - 1
 	while i >= 0:
 		var tr = ambient_troops[i]
@@ -121,20 +109,20 @@ func _process(delta: float) -> void:
 		if tr.progress >= 1.0:
 			ambient_troops.remove_at(i)
 		i -= 1
-		
+
 	queue_redraw()
 
 func _draw() -> void:
 	var w = size.x if size.x > 0 else 1080.0
 	var h = size.y if size.y > 0 else 1920.0
-	
+
 	# 1. Relleno cartográfico base
 	draw_rect(Rect2(0, 0, w, h), bg_color)
-	
+
 	# 2. Cuadrícula técnica (líneas finas y mayores)
 	var spacing = maxf(grid_spacing, 20.0)
 	var major_interval = spacing * 4.0
-	
+
 	var x = 0.0
 	while x <= w:
 		var is_major = int(round(x / spacing)) % 4 == 0
@@ -142,7 +130,7 @@ func _draw() -> void:
 		var width = 1.6 if is_major else 1.0
 		draw_line(Vector2(x, 0), Vector2(x, h), col, width)
 		x += spacing
-		
+
 	var y = 0.0
 	while y <= h:
 		var is_major = int(round(y / spacing)) % 4 == 0
@@ -150,7 +138,7 @@ func _draw() -> void:
 		var width = 1.6 if is_major else 1.0
 		draw_line(Vector2(0, y), Vector2(w, y), col, width)
 		y += spacing
-		
+
 	# 3. Marcas cruciformes (+) en intersecciones mayores
 	x = major_interval
 	while x < w:
@@ -162,12 +150,12 @@ func _draw() -> void:
 			draw_line(center - Vector2(0, cross_size), center + Vector2(0, cross_size), crosshair_color, 1.2)
 			y += major_interval
 		x += major_interval
-		
+
 	# 4. Elementos cartográficos técnicos (círculos de alcance y meridianos sutiles)
 	var center_pt = Vector2(w * 0.5, h * 0.45)
 	draw_arc(center_pt, 280.0, 0, TAU, 48, Color(0.28, 0.40, 0.55, 0.08), 1.5, true)
 	draw_arc(center_pt, 460.0, 0, TAU, 64, Color(0.28, 0.40, 0.55, 0.06), 1.5, true)
-	
+
 	# 5. Dibujar nodos ambientales y conexiones activas si está habilitado
 	if show_ambient_nodes:
 		# Conexiones entre nodos cercanos
@@ -179,19 +167,19 @@ func _draw() -> void:
 				if d < 380.0:
 					var line_alpha = (1.0 - (d / 380.0)) * 0.22
 					draw_dashed_line(na.pos, nb.pos, Color(1, 1, 1, line_alpha), 2.0, 8.0)
-					
+
 		# Tropas ambientales en marcha
 		for tr in ambient_troops:
 			var t_pos = tr.from_pos.lerp(tr.to_pos, tr.progress)
 			draw_circle(t_pos, 4.5, tr.color)
-			draw_circle(t_pos, 7.0, Color(tr.color.r, tr.color.g, tr.color.b, 0.30))
-			
+			draw_circle(t_pos, 7.0, Color(tr.color, 0.30))
+
 		# Nodos circulares geopolíticos
 		for n in ambient_nodes:
 			var pulse_scale = 1.0 + sin(n.pulse) * 0.06
 			var r = n.radius * pulse_scale
 			# Halo exterior
-			draw_circle(n.pos, r * 1.5, Color(n.color.r, n.color.g, n.color.b, 0.12))
+			draw_circle(n.pos, r * 1.5, Color(n.color, 0.12))
 			# Sombra 2.5D
 			draw_circle(n.pos + Vector2(0, 3), r, Color(0, 0, 0, 0.35))
 			# Círculo principal

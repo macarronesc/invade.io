@@ -9,6 +9,16 @@ enum AIArchetype {
 	OPPORTUNIST = 2
 }
 
+## Personalidad de cada facción: Rojo agresivo, Ámbar expansivo, Verde oportunista
+const FACTION_ARCHETYPES = {
+	GameManager.Faction.ENEMY_1: AIArchetype.AGGRESSIVE,
+	GameManager.Faction.ENEMY_2: AIArchetype.EXPANSIVE,
+	GameManager.Faction.ENEMY_3: AIArchetype.OPPORTUNIST,
+}
+## Máximo de bases que participan en un ataque conjunto
+const MAX_JOINT_SOURCES := 3
+const JOINT_ATTACK_RANGE := 900.0
+
 var battle_controller: BattleController
 var faction: int = GameManager.Faction.ENEMY_1
 var archetype: AIArchetype = AIArchetype.AGGRESSIVE
@@ -18,63 +28,20 @@ var think_interval: float = 1.8
 var think_scale: float = 1.0
 ## Tropas en marcha por base objetivo: {BaseNode: {faction: unidades}}
 var _incoming: Dictionary = {}
+var _grace_period: float = 0.0
 
-func setup(p_battle_controller: BattleController, p_faction: int, p_archetype = null) -> void:
+func setup(p_battle_controller: BattleController, p_faction: int) -> void:
 	battle_controller = p_battle_controller
 	faction = p_faction
-	if battle_controller:
-		think_scale = lerpf(1.25, 0.7, LevelDatabase.get_difficulty(battle_controller.level_id))
-	
-	if p_archetype != null:
-		set_archetype(p_archetype)
-	elif battle_controller and battle_controller.level_data:
-		var level_archetypes = battle_controller.level_data.get("ai_archetypes", {})
-		var faction_key_str = ""
-		match faction:
-			GameManager.Faction.ENEMY_1: faction_key_str = "enemy_1"
-			GameManager.Faction.ENEMY_2: faction_key_str = "enemy_2"
-			GameManager.Faction.ENEMY_3: faction_key_str = "enemy_3"
-			
-		if level_archetypes.has(faction):
-			set_archetype(level_archetypes[faction])
-		elif level_archetypes.has(str(faction)):
-			set_archetype(level_archetypes[str(faction)])
-		elif faction_key_str != "" and level_archetypes.has(faction_key_str):
-			set_archetype(level_archetypes[faction_key_str])
-		elif faction_key_str != "" and level_archetypes.has(faction_key_str.replace("_", "")):
-			set_archetype(level_archetypes[faction_key_str.replace("_", "")])
-		else:
-			_assign_default_archetype_by_faction()
-	else:
-		_assign_default_archetype_by_faction()
-		
-	_configure_timers_for_archetype()
+	var difficulty := LevelDatabase.get_difficulty(battle_controller.level_id)
+	think_scale = lerpf(1.25, 0.7, difficulty)
+	# Segundos iniciales sin atacar al jugador: 12 s en el primer nivel, 0 en el último
+	_grace_period = lerpf(12.0, 0.0, difficulty)
+	set_archetype(FACTION_ARCHETYPES.get(faction, AIArchetype.AGGRESSIVE))
 
-func set_archetype(p_archetype) -> void:
-	if p_archetype is AIArchetype or p_archetype is int:
-		archetype = p_archetype as AIArchetype
-	elif p_archetype is String:
-		var s = (p_archetype as String).to_lower().strip_edges()
-		if "aggress" in s or "agresor" in s:
-			archetype = AIArchetype.AGGRESSIVE
-		elif "expan" in s:
-			archetype = AIArchetype.EXPANSIVE
-		elif "opport" in s or "oportun" in s:
-			archetype = AIArchetype.OPPORTUNIST
-		else:
-			archetype = AIArchetype.AGGRESSIVE
+func set_archetype(p_archetype: AIArchetype) -> void:
+	archetype = p_archetype
 	_configure_timers_for_archetype()
-
-func _assign_default_archetype_by_faction() -> void:
-	match faction:
-		GameManager.Faction.ENEMY_1:
-			archetype = AIArchetype.AGGRESSIVE # El Agresor (Rojo)
-		GameManager.Faction.ENEMY_2:
-			archetype = AIArchetype.EXPANSIVE  # El Expansivo (Amarillo)
-		GameManager.Faction.ENEMY_3:
-			archetype = AIArchetype.OPPORTUNIST # El Oportunista (Verde)
-		_:
-			archetype = AIArchetype.AGGRESSIVE
 
 func _configure_timers_for_archetype() -> void:
 	match archetype:
@@ -88,22 +55,20 @@ func _configure_timers_for_archetype() -> void:
 	think_timer = randf_range(0.2, think_interval)
 
 func _process(delta: float) -> void:
-	if not battle_controller or battle_controller.is_game_over:
+	if battle_controller.is_game_over:
 		return
-		
 	think_timer -= delta
 	if think_timer <= 0.0:
 		_configure_timers_for_archetype()
 		_evaluate_and_execute()
 
-## Segundos iniciales en los que la IA no ataca al jugador (12 s en el primer nivel, 0 en el último)
 func get_player_grace_period() -> float:
-	return lerpf(12.0, 0.0, LevelDatabase.get_difficulty(battle_controller.level_id)) if battle_controller else 0.0
+	return _grace_period
 
 func _rebuild_incoming() -> void:
 	_incoming.clear()
 	for t in battle_controller.active_troops:
-		if is_instance_valid(t) and not t.is_queued_for_deletion() and t.count > 0 and is_instance_valid(t.target_base):
+		if BattleController._is_alive(t) and is_instance_valid(t.target_base):
 			_add_incoming(t.target_base, t.faction, t.count)
 
 func _add_incoming(dst: BaseNode, f: int, amount: int) -> void:
@@ -126,7 +91,7 @@ func get_projected_defense(src: BaseNode, dst: BaseNode) -> float:
 func evaluate_target_utility(src: BaseNode, dst: BaseNode) -> float:
 	if not is_instance_valid(src) or not is_instance_valid(dst) or src == dst:
 		return -9999.0
-		
+
 	var dist = src.global_position.distance_to(dst.global_position)
 	var potential_send = src.troops - 1
 	var projected = get_projected_defense(src, dst)
@@ -137,17 +102,17 @@ func evaluate_target_utility(src: BaseNode, dst: BaseNode) -> float:
 	var is_near_cap = src.troops >= (src.max_capacity - 5)
 	if dst.faction != faction:
 		# Periodo de gracia al inicio de los niveles fáciles antes de atacar al jugador
-		if dst.faction == GameManager.Faction.PLAYER and battle_controller and battle_controller.battle_time < get_player_grace_period():
+		if dst.faction == GameManager.Faction.PLAYER and battle_controller.battle_time < _grace_period:
 			return -9999.0
 		# Sin goteos inútiles: sólo atacar si se puede ganar, salvo que la base esté a punto de llenarse
 		if potential_send <= effective_def and not is_near_cap:
 			return -100.0
 	var utility: float = 0.0
-	
+
 	match archetype:
 		AIArchetype.AGGRESSIVE:
 			# El Agresor (Rojo): Prioriza asaltar bases vulnerables del jugador y rivales cercanos
-			if dst.faction == GameManager.Faction.PLAYER or (dst.faction != faction and dst.faction != GameManager.Faction.NEUTRAL):
+			if dst.faction != faction and dst.faction != GameManager.Faction.NEUTRAL:
 				utility = 220.0
 				if dst.faction == GameManager.Faction.PLAYER:
 					utility += 80.0 # Fijación prioritaria en eliminar al jugador
@@ -263,86 +228,65 @@ func evaluate_target_utility(src: BaseNode, dst: BaseNode) -> float:
 	return utility
 
 func _evaluate_and_execute() -> void:
-	if not battle_controller or battle_controller.is_game_over:
-		return
-		
 	var all_bases: Array[BaseNode] = battle_controller.bases
 	var my_bases: Array[BaseNode] = []
 	var other_bases: Array[BaseNode] = []
-	
 	for b in all_bases:
-		if not is_instance_valid(b):
-			continue
 		if b.faction == faction:
 			my_bases.append(b)
 		else:
 			other_bases.append(b)
-			
 	if my_bases.is_empty():
 		return
 	_rebuild_incoming()
-		
-	# 1. Evaluar si podemos coordinar un ataque conjunto multi-base sobre un objetivo clave
+
+	# 1. Ataque conjunto: las bases cercanas con tropas suman fuerzas sobre un objetivo clave
 	if my_bases.size() >= 2:
+		var best_sources: Array[BaseNode] = []
 		var target_candidate: BaseNode = null
-		var highest_target_score: float = -100.0
-		
+		var highest_target_score: float = 30.0
 		for dst in other_bases:
-			if not is_instance_valid(dst):
+			if dst.faction == GameManager.Faction.PLAYER and battle_controller.battle_time < _grace_period:
 				continue
-			if dst.faction == GameManager.Faction.PLAYER and battle_controller.battle_time < get_player_grace_period():
+			var sources := _joint_sources(my_bases, dst)
+			if sources.size() < 2:
 				continue
-			var combined_send = 0
-			var avg_dist = 0.0
-			var participating_bases: Array[BaseNode] = []
-			for src in my_bases:
-				if src.troops > 2:
-					var dist = src.global_position.distance_to(dst.global_position)
-					if dist < 900.0:
-						combined_send += (src.troops - 1)
-						avg_dist += dist
-						participating_bases.append(src)
-						
-			if participating_bases.size() < 2:
+			var combined_send := 0
+			var avg_dist := 0.0
+			for src in sources:
+				combined_send += src.troops - 1
+				avg_dist += src.global_position.distance_to(dst.global_position)
+			avg_dist /= sources.size()
+			var effective_def = get_projected_defense(sources[0], dst)
+			if combined_send <= effective_def + 3:
 				continue
-				
-			avg_dist /= max(1, participating_bases.size())
-			var effective_def = get_projected_defense(participating_bases[0], dst)
-			
-			if combined_send > (effective_def + 3):
-				var score = (combined_send - effective_def) * 3.5 - (avg_dist * 0.05)
-				match archetype:
-					AIArchetype.AGGRESSIVE:
-						if dst.faction == GameManager.Faction.PLAYER:
-							score += 60.0
-						score += 30.0
-					AIArchetype.EXPANSIVE:
-						if dst.faction == GameManager.Faction.NEUTRAL:
-							score += 50.0
-						if dst.base_type == BaseNode.BaseType.FACTORY:
-							score += 45.0
-					AIArchetype.OPPORTUNIST:
-						if dst.troops <= 4:
-							score += 70.0
-						if dst.base_type == BaseNode.BaseType.FORTRESS:
-							score += 40.0
-							
-				if score > highest_target_score:
-					highest_target_score = score
-					target_candidate = dst
-					
-		if target_candidate and highest_target_score > 30.0:
-			var sent_count = 0
-			for src in my_bases:
-				if src.troops > 2 and src.global_position.distance_to(target_candidate.global_position) < 900.0:
-					_add_incoming(target_candidate, faction, src.troops - 1)
-					battle_controller.dispatch_troops(src, target_candidate)
-					sent_count += 1
-					if sent_count >= 3:
-						break
-			if sent_count >= 2:
-				return
-				
+			var score = (combined_send - effective_def) * 3.5 - (avg_dist * 0.05)
+			match archetype:
+				AIArchetype.AGGRESSIVE:
+					if dst.faction == GameManager.Faction.PLAYER:
+						score += 60.0
+					score += 30.0
+				AIArchetype.EXPANSIVE:
+					if dst.faction == GameManager.Faction.NEUTRAL:
+						score += 50.0
+					if dst.base_type == BaseNode.BaseType.FACTORY:
+						score += 45.0
+				AIArchetype.OPPORTUNIST:
+					if dst.troops <= 4:
+						score += 70.0
+					if dst.base_type == BaseNode.BaseType.FORTRESS:
+						score += 40.0
+			if score > highest_target_score:
+				highest_target_score = score
+				target_candidate = dst
+				best_sources = sources
+
+		if target_candidate:
+			for src in best_sources:
+				_add_incoming(target_candidate, faction, src.troops - 1)
+				battle_controller.dispatch_troops(src, target_candidate)
+			return
+
 	# 2. Evaluación táctica individual por base
 	var actions_executed = 0
 	for src in my_bases:
@@ -350,25 +294,19 @@ func _evaluate_and_execute() -> void:
 			continue
 		if archetype == AIArchetype.OPPORTUNIST and src.troops < 3:
 			continue
-			
+
 		var best_target: BaseNode = null
 		var highest_utility: float = -9999.0
-		
+
 		for dst in all_bases:
-			if dst == src or not is_instance_valid(dst):
+			if dst == src:
 				continue
-				
 			var utility = evaluate_target_utility(src, dst)
 			if utility > highest_utility:
 				highest_utility = utility
 				best_target = dst
-				
-		var threshold = 35.0
-		if archetype == AIArchetype.AGGRESSIVE:
-			threshold = 25.0
-		elif archetype == AIArchetype.OPPORTUNIST:
-			threshold = 40.0
-			
+
+		var threshold = {AIArchetype.AGGRESSIVE: 25.0, AIArchetype.EXPANSIVE: 35.0, AIArchetype.OPPORTUNIST: 40.0}[archetype]
 		if best_target != null and highest_utility > threshold:
 			_add_incoming(best_target, faction, src.troops - 1)
 			battle_controller.dispatch_troops(src, best_target)
@@ -376,3 +314,12 @@ func _evaluate_and_execute() -> void:
 			if actions_executed >= 2:
 				break
 
+## Las bases más cercanas al objetivo con tropas para un ataque conjunto (hasta MAX_JOINT_SOURCES)
+func _joint_sources(my_bases: Array[BaseNode], dst: BaseNode) -> Array[BaseNode]:
+	var sources: Array[BaseNode] = []
+	sources.assign(my_bases.filter(func(src):
+		return src.troops > 2 and src.global_position.distance_to(dst.global_position) < JOINT_ATTACK_RANGE))
+	sources.sort_custom(func(a, b):
+		return a.global_position.distance_squared_to(dst.global_position) < b.global_position.distance_squared_to(dst.global_position))
+	sources.resize(mini(sources.size(), MAX_JOINT_SOURCES))
+	return sources

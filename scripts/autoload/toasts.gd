@@ -3,8 +3,6 @@ extends CanvasLayer
 ## Toasts: avisos breves por encima de cualquier escena (logros desbloqueados).
 ## Se encolan y se muestran de uno en uno; también funcionan con el juego en pausa.
 
-const UIThemeHelper = preload("res://scripts/ui/ui_theme_helper.gd")
-
 const SHOW_SECONDS := 2.6
 const SLIDE_SECONDS := 0.3
 const TOP_MARGIN := 40.0
@@ -26,9 +24,6 @@ func show_toast(icon: String, title: String, body: String) -> void:
 	_queue.append({"icon": icon, "title": title, "body": body})
 	if not _showing:
 		_show_next()
-
-func get_pending_count() -> int:
-	return _queue.size() + (1 if _showing else 0)
 
 func _show_next() -> void:
 	if _queue.is_empty():

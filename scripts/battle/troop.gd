@@ -14,12 +14,10 @@ const BASE_SPEED: float = 380.0
 var origin_base: BaseNode
 var target_base: BaseNode
 var count: int = 1
-var total_units: int = 1
 var faction: int = GameManager.Faction.PLAYER
 var speed: float = BASE_SPEED
 var is_active: bool = true
 var is_retreating: bool = false
-var retreat_dest_base: BaseNode = null
 
 ## Unidades que representa cada perla (0 = perla eliminada o ya absorbida)
 var bead_values: PackedInt32Array = PackedInt32Array()
@@ -28,7 +26,6 @@ var head_dist: float = 0.0
 ## Avance del último paso de simulación (para no perder cruces a pocos fps)
 var last_advance: float = 0.0
 var start_pos: Vector2 = Vector2.ZERO
-var target_pos: Vector2 = Vector2.ZERO
 var move_dir: Vector2 = Vector2.RIGHT
 var path_length: float = 0.0
 var arrival_dist: float = 0.0
@@ -39,16 +36,14 @@ func setup(p_origin: BaseNode, p_target: BaseNode, p_count: int, p_faction: int)
 	origin_base = p_origin
 	target_base = p_target
 	count = p_count
-	total_units = p_count
 	faction = p_faction
 	is_active = true
 	speed = BASE_SPEED
 	if faction == GameManager.Faction.PLAYER:
 		speed *= GameManager.get_troop_speed_multiplier()
 
-	start_pos = origin_base.global_position
+	_set_path(origin_base.global_position, target_base.global_position, target_base.radius)
 	global_position = start_pos
-	_set_path(start_pos, target_base.global_position, target_base.radius)
 
 	var n := mini(maxi(p_count, 1), MAX_BEADS)
 	bead_values.resize(n)
@@ -62,7 +57,6 @@ func setup(p_origin: BaseNode, p_target: BaseNode, p_count: int, p_faction: int)
 
 func _set_path(from: Vector2, to: Vector2, target_radius: float) -> void:
 	start_pos = from
-	target_pos = to
 	var path_vec := to - from
 	path_length = path_vec.length()
 	move_dir = path_vec / path_length if path_length > 0.001 else Vector2.RIGHT
@@ -92,8 +86,6 @@ func front_index() -> int:
 func beads_near(u: float) -> PackedInt32Array:
 	var result := PackedInt32Array()
 	var n := bead_values.size()
-	if n == 0:
-		return result
 	var half := BEAD_SPACING * 0.5
 	var first := maxi(0, ceili((head_dist - (u + half + last_advance)) / BEAD_SPACING))
 	var last := mini(n - 1, floori((head_dist - (u - half)) / BEAD_SPACING))
@@ -115,7 +107,7 @@ func _process(delta: float) -> void:
 	if not is_active:
 		return
 	if not is_instance_valid(target_base):
-		EventBus.troop_arrived.emit(self, null)
+		EventBus.troop_arrived.emit(self)
 		queue_free()
 		return
 	if bead_values.is_empty():
@@ -134,7 +126,7 @@ func _process(delta: float) -> void:
 		f = front_index()
 
 	if f < 0 or count <= 0:
-		EventBus.troop_arrived.emit(self, target_base)
+		EventBus.troop_arrived.emit(self)
 		queue_free()
 		return
 
@@ -146,10 +138,8 @@ func abort_mission() -> void:
 		return
 	is_retreating = true
 	var dest := origin_base
-	var old_target := target_base
+	origin_base = target_base
 	target_base = dest
-	retreat_dest_base = dest
-	origin_base = old_target
 
 	var n := bead_values.size()
 	# Las perlas que aún no habían salido de la base se reintegran directamente
@@ -164,30 +154,24 @@ func abort_mission() -> void:
 		count -= unemerged
 
 	# Invertir la hilera: la perla más retrasada pasa a ser la cabeza del regreso
-	var old_start := start_pos
-	var old_dir := move_dir
-	var old_tail_world := old_start + old_dir * bead_dist(n - 1)
-	var new_start := old_target.global_position if is_instance_valid(old_target) else old_start + old_dir * path_length
-	_set_path(new_start, dest.global_position, dest.radius)
+	var old_tail_world := bead_position(n - 1)
+	_set_path(start_pos + move_dir * path_length, dest.global_position, dest.radius)
 	bead_values.reverse()
 	head_dist = (old_tail_world - start_pos).dot(move_dir)
 	_front = 0
 	queue_redraw()
 
 	if count <= 0:
-		EventBus.troop_arrived.emit(self, dest)
+		EventBus.troop_arrived.emit(self)
 		if is_inside_tree():
 			queue_free()
-
-static func segments_intersect(p1: Vector2, p2: Vector2, p3: Vector2, p4: Vector2) -> bool:
-	return Geometry2D.segment_intersects_segment(p1, p2, p3, p4) != null
 
 ## ¿Un trazo de corte (seg_a -> seg_b) atraviesa la trayectoria o la hilera de esta tropa?
 func intersects_segment(seg_a: Vector2, seg_b: Vector2) -> bool:
 	if count <= 0 or not is_active or is_retreating or bead_values.is_empty():
 		return false
 	# 1. Cortar cualquier punto de la trayectoria restante (más permisivo con el dedo)
-	if segments_intersect(seg_a, seg_b, start_pos, start_pos + move_dir * path_length):
+	if Geometry2D.segment_intersects_segment(seg_a, seg_b, start_pos, start_pos + move_dir * path_length) != null:
 		return true
 	# 2. Proximidad al tramo ocupado por las perlas emergidas
 	var f := front_index()

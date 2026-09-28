@@ -1,8 +1,6 @@
 extends CanvasLayer
 class_name BattleHUD
 
-const UIThemeHelper = preload("res://scripts/ui/ui_theme_helper.gd")
-
 ## BattleHUD: Interfaz táctica durante la batalla (barra de dominancia, estados y modales animados)
 
 const DOMINANCE_BAR_WIDTH := 800.0
@@ -31,9 +29,7 @@ const ENEMY_FACTIONS = [GameManager.Faction.ENEMY_1, GameManager.Faction.ENEMY_2
 @onready var star_1: Label = %Star1
 @onready var star_2: Label = %Star2
 @onready var star_3: Label = %Star3
-@onready var victory_stars_label: Label = %VictoryStarsLabel
 @onready var victory_reward_label: Label = %VictoryRewardLabel
-@onready var confetti_particles: CPUParticles2D = %ConfettiParticles
 @onready var confetti_overlay: Control = %ConfettiOverlay
 @onready var btn_next_level: Button = %BtnNextLevel
 @onready var btn_victory_map: Button = %BtnVictoryMap
@@ -65,8 +61,6 @@ var _tip_on_close: Callable = Callable()
 
 func _notification(what: int) -> void:
 	match what:
-		NOTIFICATION_PREDELETE:
-			_cleanup_time_scale()
 		NOTIFICATION_WM_GO_BACK_REQUEST:
 			_on_back_requested()
 		NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED:
@@ -83,15 +77,11 @@ func _cleanup_time_scale() -> void:
 		battle_controller.reset_time_scale()
 
 func _ready() -> void:
-	_cleanup_time_scale()
 	_apply_visual_styling()
 	top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	UIThemeHelper.apply_safe_area_top(top_bar)
 	confetti_overlay.draw.connect(_draw_confetti)
 	_build_faction_bars()
-
-	for modal in [dim_overlay, victory_panel, defeat_panel, pause_panel]:
-		modal.visible = false
 
 	_update_coins(GameManager.coins)
 	EventBus.coins_updated.connect(_update_coins)
@@ -99,37 +89,36 @@ func _ready() -> void:
 	EventBus.battle_won.connect(_on_battle_won)
 	EventBus.battle_lost.connect(_on_battle_lost)
 
-	btn_pause.pressed.connect(_on_pause_pressed)
+	btn_pause.pressed.connect(func():
+		AudioManager.play_click()
+		_on_pause_pressed())
 	btn_resume.pressed.connect(_on_resume_pressed)
 	btn_pause_retry.pressed.connect(_on_retry_pressed)
 	btn_pause_map.pressed.connect(_on_map_pressed)
 	btn_pause_sound.pressed.connect(_on_pause_sound_pressed)
 	btn_pause_music.pressed.connect(_on_pause_music_pressed)
-	_update_pause_sound_label(AudioManager.is_muted)
+	_refresh_audio_buttons()
 	btn_next_level.pressed.connect(_on_next_level_pressed)
 	btn_victory_map.pressed.connect(_on_map_pressed)
 	btn_retry.pressed.connect(_on_retry_pressed)
 	btn_defeat_upgrade.pressed.connect(_on_upgrade_pressed)
 	btn_defeat_map.pressed.connect(_on_map_pressed)
 
-	if battle_controller and battle_controller.level_data:
-		label_level_name.text = battle_controller.level_data.get("name", "Batalla")
-
 func _apply_visual_styling() -> void:
-	UIThemeHelper.apply_stateio_button_style(btn_pause, Color(0.18, 0.24, 0.32), Color.TRANSPARENT, 14, 4)
+	UIThemeHelper.apply_stateio_button_style(btn_pause, UIThemeHelper.COLOR_BTN_SECONDARY, 14, 4)
 	UIThemeHelper.apply_card_style(victory_panel, Color(0.12, 0.16, 0.22, 0.96), Color(0.25, 0.70, 0.40, 0.8), 24, 3)
 	UIThemeHelper.apply_card_style(defeat_panel, Color(0.18, 0.12, 0.14, 0.96), Color(0.85, 0.25, 0.20, 0.8), 24, 3)
 	UIThemeHelper.apply_card_style(pause_panel, Color(0.12, 0.15, 0.20, 0.96), Color(0.25, 0.45, 0.65, 0.8), 24, 3)
-	UIThemeHelper.apply_stateio_button_style(btn_next_level, UIThemeHelper.COLOR_SUCCESS, Color.TRANSPARENT, 18, 6)
-	UIThemeHelper.apply_stateio_button_style(btn_victory_map, UIThemeHelper.COLOR_PRIMARY, Color.TRANSPARENT, 16, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_retry, UIThemeHelper.COLOR_PRIMARY, Color.TRANSPARENT, 18, 6)
-	UIThemeHelper.apply_stateio_button_style(btn_defeat_upgrade, Color(0.16, 0.50, 0.42), Color.TRANSPARENT, 16, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_defeat_map, Color(0.20, 0.26, 0.35), Color.TRANSPARENT, 16, 4)
-	UIThemeHelper.apply_stateio_button_style(btn_resume, UIThemeHelper.COLOR_PRIMARY, Color.TRANSPARENT, 18, 6)
-	UIThemeHelper.apply_stateio_button_style(btn_pause_sound, Color(0.22, 0.30, 0.40), Color.TRANSPARENT, 16, 4)
-	UIThemeHelper.apply_stateio_button_style(btn_pause_music, Color(0.22, 0.30, 0.40), Color.TRANSPARENT, 16, 4)
-	UIThemeHelper.apply_stateio_button_style(btn_pause_retry, Color(0.22, 0.30, 0.40), Color.TRANSPARENT, 16, 4)
-	UIThemeHelper.apply_stateio_button_style(btn_pause_map, Color(0.20, 0.26, 0.35), Color.TRANSPARENT, 16, 4)
+	UIThemeHelper.apply_stateio_button_style(btn_next_level, UIThemeHelper.COLOR_SUCCESS, 18, 6)
+	UIThemeHelper.apply_stateio_button_style(btn_victory_map, UIThemeHelper.COLOR_PRIMARY, 16, 5)
+	UIThemeHelper.apply_stateio_button_style(btn_retry, UIThemeHelper.COLOR_PRIMARY, 18, 6)
+	UIThemeHelper.apply_stateio_button_style(btn_defeat_upgrade, Color(0.16, 0.50, 0.42), 16, 5)
+	UIThemeHelper.apply_stateio_button_style(btn_defeat_map, Color(0.20, 0.26, 0.35), 16, 4)
+	UIThemeHelper.apply_stateio_button_style(btn_resume, UIThemeHelper.COLOR_PRIMARY, 18, 6)
+	UIThemeHelper.apply_stateio_button_style(btn_pause_sound, Color(0.22, 0.30, 0.40), 16, 4)
+	UIThemeHelper.apply_stateio_button_style(btn_pause_music, Color(0.22, 0.30, 0.40), 16, 4)
+	UIThemeHelper.apply_stateio_button_style(btn_pause_retry, Color(0.22, 0.30, 0.40), 16, 4)
+	UIThemeHelper.apply_stateio_button_style(btn_pause_map, Color(0.20, 0.26, 0.35), 16, 4)
 
 ## Un segmento de la barra de dominancia por facción (las enemigas 2 y 3 se crean aquí)
 func _build_faction_bars() -> void:
@@ -148,23 +137,22 @@ func _build_faction_bars() -> void:
 		_faction_bars[f].color = GameManager.FACTION_COLORS[f]
 		_faction_bars[f].custom_minimum_size.y = bar_player.custom_minimum_size.y
 
-func _update_pause_sound_label(muted: bool) -> void:
-	btn_pause_sound.text = "🔇 SONIDO: SILENCIADO" if muted else "🔊 SONIDO: ACTIVADO"
+func _refresh_audio_buttons() -> void:
+	btn_pause_sound.text = "🔇 SONIDO: SILENCIADO" if AudioManager.is_muted else "🔊 SONIDO: ACTIVADO"
 	btn_pause_music.text = "🎵 MÚSICA: DESACTIVADA" if AudioManager.music_muted else "🎵 MÚSICA: ACTIVADA"
 
 func _on_pause_music_pressed() -> void:
 	AudioManager.play_click()
 	AudioManager.toggle_music()
-	_update_pause_sound_label(AudioManager.is_muted)
+	_refresh_audio_buttons()
 
 func _on_pause_sound_pressed() -> void:
-	var new_muted = AudioManager.toggle_mute()
-	_update_pause_sound_label(new_muted)
-	if not new_muted:
+	if not AudioManager.toggle_mute():
 		AudioManager.play_click()
+	_refresh_audio_buttons()
 
 func _on_battle_started(level_id: String) -> void:
-	label_level_name.text = LevelDatabase.get_level_data(level_id).get("name", "Batalla")
+	label_level_name.text = LevelDatabase.get_level_data(level_id)["name"]
 
 func _process(delta: float) -> void:
 	crown_bob_time += delta
@@ -202,8 +190,6 @@ func _draw_confetti() -> void:
 		confetti_overlay.draw_colored_polygon(quad, Color(p["color"], clampf(p["alpha"], 0.0, 1.0)))
 
 func _update_dominance_bar() -> void:
-	if not battle_controller:
-		return
 	var counts: Dictionary = battle_controller.get_faction_troop_counts()
 	var total := 0
 	for f in counts:
@@ -213,8 +199,8 @@ func _update_dominance_bar() -> void:
 
 	# Etiquetas numéricas con el conteo vivo de tropas por facción
 	var player_count: int = counts.get(GameManager.Faction.PLAYER, 0)
-	label_count_player.text = "Azul: %d" % player_count
-	label_count_neutral.text = "Gris: %d" % counts.get(GameManager.Faction.NEUTRAL, 0)
+	label_count_player.text = "%s: %d" % [GameManager.FACTION_NAMES[GameManager.Faction.PLAYER], player_count]
+	label_count_neutral.text = "%s: %d" % [GameManager.FACTION_NAMES[GameManager.Faction.NEUTRAL], counts.get(GameManager.Faction.NEUTRAL, 0)]
 	var enemy_parts: PackedStringArray = []
 	for f in ENEMY_FACTIONS:
 		if counts.get(f, 0) > 0 or f == GameManager.Faction.ENEMY_1:
@@ -255,7 +241,7 @@ func get_leader_faction() -> int:
 	return leader_faction
 
 func _update_coins(amount: int) -> void:
-	label_coins.text = "🪙 %d" % amount
+	label_coins.text = UIThemeHelper.coins_text(amount)
 
 func _on_battle_won(stats: Dictionary) -> void:
 	var slow_motion_on = is_instance_valid(battle_controller) and battle_controller.is_slow_motion_active
@@ -292,8 +278,6 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 	animate_stars(stats.get("stars", 1))
 
 func trigger_confetti() -> void:
-	confetti_particles.restart()
-	confetti_particles.emitting = true
 	confetti_pieces.clear()
 	var colors = [
 		Color(1.0, 0.84, 0.0),   # Oro brillante
@@ -335,7 +319,6 @@ func animate_stars(stars_count: int) -> void:
 			s.text = "★"
 			s.modulate = Color(0.4, 0.4, 0.4, 0.35)
 			s.scale = Vector2.ONE
-	victory_stars_label.text = "⭐ ".repeat(stars_count).strip_edges()
 
 	if not is_inside_tree():
 		for i in mini(stars_count, stars.size()):
@@ -378,10 +361,10 @@ func _on_back_requested() -> void:
 	elif _can_pause():
 		_on_pause_pressed()
 
+## También se llama al perder el foco la app, sin clic
 func _on_pause_pressed() -> void:
-	AudioManager.play_click()
 	_cleanup_time_scale()
-	_update_pause_sound_label(AudioManager.is_muted)
+	_refresh_audio_buttons()
 	dim_overlay.visible = true
 	UIThemeHelper.animate_modal_pop_in(pause_panel)
 	get_tree().paused = true
@@ -433,7 +416,7 @@ func _on_next_level_pressed() -> void:
 	if next_id == "":
 		_on_map_pressed()
 		return
-	GameManager.current_level_id = next_id
+	GameManager.play_level(next_id)
 	_leave_battle()
 
 func _on_map_pressed() -> void:

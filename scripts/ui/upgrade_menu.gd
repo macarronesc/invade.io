@@ -1,8 +1,6 @@
 extends Control
 class_name UpgradeMenuUI
 
-const UIThemeHelper = preload("res://scripts/ui/ui_theme_helper.gd")
-
 ## UpgradeMenuUI: Tienda táctica de mejoras permanentes con tarjetas 2.5D,
 ## barras de progresión segmentadas (10 niveles) e indicadores de economía viva.
 
@@ -13,40 +11,34 @@ const UIThemeHelper = preload("res://scripts/ui/ui_theme_helper.gd")
 @onready var stars_pill: PanelContainer = %StarsPill
 @onready var coins_pill: PanelContainer = %CoinsPill
 
-const UPGRADE_KEYS: Array[String] = ["starting_troops", "production_rate", "troop_speed", "gold_bonus"]
-
 const UPGRADE_CONFIG: Dictionary = {
 	"starting_troops": {
 		"icon": "🛡️",
 		"badge_color": Color(0.13, 0.59, 0.95), # Azul táctico
 		"title": "Guarnición Inicial",
-		"desc": "+5 tropas adicionales en tu base al iniciar la batalla",
-		"unit": "tropas iniciales",
-		"step": 5
+		"desc": "+%d tropas adicionales en tu base al iniciar la batalla",
+		"unit": "tropas iniciales"
 	},
 	"production_rate": {
 		"icon": "⚡",
 		"badge_color": Color(1.0, 0.76, 0.03), # Ámbar eléctrico
 		"title": "Velocidad de Reclutamiento",
-		"desc": "+15% velocidad de producción de tropas en todas tus bases",
-		"unit": "% producción",
-		"step": 15
+		"desc": "+%d%% velocidad de producción de tropas en todas tus bases",
+		"unit": "% producción"
 	},
 	"troop_speed": {
 		"icon": "👟",
 		"badge_color": Color(0.20, 0.80, 0.85), # Cyan veloz
 		"title": "Velocidad de Marcha",
-		"desc": "+10% velocidad de marcha de tus tropas hacia el objetivo",
-		"unit": "% velocidad",
-		"step": 10
+		"desc": "+%d%% velocidad de marcha de tus tropas hacia el objetivo",
+		"unit": "% velocidad"
 	},
 	"gold_bonus": {
 		"icon": "💰",
 		"badge_color": Color(1.0, 0.82, 0.18), # Oro botín
 		"title": "Botín de Guerra",
-		"desc": "+20% más oro por victoria conseguida en campaña",
-		"unit": "% más oro",
-		"step": 20
+		"desc": "+%d%% más oro por victoria conseguida en campaña",
+		"unit": "% más oro"
 	}
 }
 
@@ -61,49 +53,34 @@ func _ready() -> void:
 
 	btn_back.pressed.connect(_on_back_pressed)
 	EventBus.coins_updated.connect(_update_coins)
-	EventBus.upgrade_purchased.connect(_on_upgrade_purchased)
+	EventBus.upgrade_purchased.connect(_build_cards.unbind(2))
 
 	_update_coins(GameManager.coins)
 	_update_stars()
 	_build_cards()
 
 func _apply_visual_styling() -> void:
-	if btn_back:
-		UIThemeHelper.apply_stateio_button_style(btn_back, Color(0.18, 0.24, 0.32), Color.TRANSPARENT, 16, 4)
-	if stars_pill:
-		UIThemeHelper.apply_pill_style(stars_pill, UIThemeHelper.COLOR_HEADER_PILL, Color(0.35, 0.45, 0.58, 0.60), 20)
-	if coins_pill:
-		UIThemeHelper.apply_pill_style(coins_pill, UIThemeHelper.COLOR_HEADER_PILL, Color(0.35, 0.45, 0.58, 0.60), 20)
+	UIThemeHelper.apply_stateio_button_style(btn_back, UIThemeHelper.COLOR_BTN_SECONDARY, 16, 4)
+	UIThemeHelper.apply_pill_style(stars_pill)
+	UIThemeHelper.apply_pill_style(coins_pill)
 
 func _update_coins(amount: int) -> void:
-	if coins_label:
-		coins_label.text = "🪙 %d" % amount
+	coins_label.text = UIThemeHelper.coins_text(amount)
 
 func _update_stars() -> void:
-	if stars_label:
-		var total_stars = GameManager.get_total_stars()
-		var max_stars = GameManager.get_max_possible_stars()
-		stars_label.text = "⭐ %d/%d" % [total_stars, max_stars]
+	stars_label.text = UIThemeHelper.stars_text()
 
 func _build_cards() -> void:
 	for child in cards_container.get_children():
 		cards_container.remove_child(child)
 		child.queue_free()
 
-	for key in UPGRADE_KEYS:
-		var card = _create_upgrade_card(key)
-		cards_container.add_child(card)
+	for key in UPGRADE_CONFIG:
+		cards_container.add_child(_create_upgrade_card(key))
 
 func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
-	var cfg = UPGRADE_CONFIG.get(upgrade_id, {
-		"icon": "⭐",
-		"badge_color": UIThemeHelper.COLOR_PRIMARY,
-		"title": upgrade_id,
-		"desc": "",
-		"unit": "bonus",
-		"step": 1
-	})
-
+	var cfg: Dictionary = UPGRADE_CONFIG[upgrade_id]
+	var step: int = GameManager.UPGRADE_STEPS[upgrade_id]
 	var lvl = GameManager.upgrades.get(upgrade_id, 0)
 	var max_lvl = GameManager.MAX_UPGRADE_LEVEL
 	var badge_col: Color = cfg["badge_color"]
@@ -113,10 +90,10 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 	UIThemeHelper.apply_card_style(panel, UIThemeHelper.COLOR_CARD, UIThemeHelper.COLOR_CARD_BORDER, 20, 2)
 
 	var margin = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_top", 20)
-	margin.add_theme_constant_override("margin_bottom", 20)
+	for side in ["left", "right"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	for side in ["top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 20)
 	panel.add_child(margin)
 
 	var hbox = HBoxContainer.new()
@@ -129,8 +106,8 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 	icon_box.custom_minimum_size = Vector2(95, 95)
 	icon_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var icon_style = StyleBoxFlat.new()
-	icon_style.bg_color = Color(badge_col.r, badge_col.g, badge_col.b, 0.20)
-	icon_style.border_color = Color(badge_col.r, badge_col.g, badge_col.b, 0.70)
+	icon_style.bg_color = Color(badge_col, 0.20)
+	icon_style.border_color = Color(badge_col, 0.70)
 	icon_style.border_width_bottom = 3
 	icon_style.border_width_top = 2
 	icon_style.border_width_left = 2
@@ -171,15 +148,15 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 
 	# Descripción del efecto
 	var lbl_desc = Label.new()
-	lbl_desc.text = cfg["desc"]
+	lbl_desc.text = cfg["desc"] % step
 	lbl_desc.add_theme_font_size_override("font_size", 18)
 	lbl_desc.add_theme_color_override("font_color", Color(0.75, 0.80, 0.88))
 	lbl_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox_info.add_child(lbl_desc)
 
 	# Estadísticas comparativas (Actual vs Siguiente)
-	var current_bonus = lvl * cfg["step"]
-	var next_bonus = (lvl + 1) * cfg["step"]
+	var current_bonus = lvl * step
+	var next_bonus = (lvl + 1) * step
 	var lbl_stats = Label.new()
 	if lvl >= max_lvl:
 		lbl_stats.text = "Efecto Máximo: +%d %s" % [current_bonus, cfg["unit"]]
@@ -223,40 +200,35 @@ func _create_upgrade_card(upgrade_id: String) -> PanelContainer:
 	if lvl >= max_lvl:
 		btn_buy.text = "MÁXIMO"
 		btn_buy.disabled = true
-		UIThemeHelper.apply_stateio_button_style(btn_buy, Color(0.40, 0.35, 0.15, 0.8), UIThemeHelper.COLOR_ACCENT, 16, 2)
+		UIThemeHelper.apply_stateio_button_style(btn_buy, Color(0.40, 0.35, 0.15, 0.8), 16, 2, UIThemeHelper.COLOR_ACCENT)
+		# Deshabilitado pero con el aspecto dorado de "completado", no el gris genérico
+		btn_buy.add_theme_stylebox_override("disabled", btn_buy.get_theme_stylebox("normal"))
 		btn_buy.add_theme_color_override("font_disabled_color", UIThemeHelper.COLOR_ACCENT)
 	else:
-		btn_buy.text = "🪙 %d" % cost
-		var can_afford = (GameManager.coins >= cost)
-		btn_buy.disabled = not can_afford
-		if can_afford:
-			UIThemeHelper.apply_stateio_button_style(btn_buy, UIThemeHelper.COLOR_SUCCESS, Color.TRANSPARENT, 16, 6)
-		else:
-			UIThemeHelper.apply_stateio_button_style(btn_buy, Color(0.25, 0.28, 0.35, 0.70), Color.TRANSPARENT, 16, 3)
+		btn_buy.text = UIThemeHelper.coins_text(cost)
+		btn_buy.disabled = GameManager.coins < cost
+		UIThemeHelper.apply_stateio_button_style(btn_buy, UIThemeHelper.COLOR_SUCCESS, 16, 6)
 
 	btn_buy.pressed.connect(_buy_upgrade.bind(upgrade_id))
 	hbox.add_child(btn_buy)
 
 	return panel
 
+## La compra emite upgrade_purchased y coins_updated, que reconstruyen tarjetas y saldo
 func _buy_upgrade(upgrade_id: String) -> void:
 	if GameManager.buy_upgrade(upgrade_id):
 		AudioManager.play_troop_absorb(true)
 		_animate_coin_spend()
-		_build_cards()
 
 func _animate_coin_spend() -> void:
-	if not coins_label or not is_inside_tree():
+	if not is_inside_tree():
 		return
 	coins_label.pivot_offset = coins_label.size * 0.5
 	var tw = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(coins_label, "scale", Vector2(1.25, 1.25), 0.14)
 	tw.tween_property(coins_label, "scale", Vector2.ONE, 0.16)
 
-func _on_upgrade_purchased(_upgrade_id: String, _new_level: int) -> void:
-	_update_coins(GameManager.coins)
-	_build_cards()
-
+## Vuelve al menú principal si se entró desde él; si no (mapa, derrota), al mapa del mundo
 func _on_back_pressed() -> void:
-	AudioManager.play_click()
-	get_tree().change_scene_to_file("res://scenes/ui/world_map.tscn")
+	var main_menu := "res://scenes/ui/main_menu.tscn"
+	UIThemeHelper.go_to(self, main_menu if UIThemeHelper.previous_scene == main_menu else "res://scenes/ui/world_map.tscn")

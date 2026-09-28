@@ -1,8 +1,6 @@
 extends Control
 class_name AchievementsMenuUI
 
-const UIThemeHelper = preload("res://scripts/ui/ui_theme_helper.gd")
-
 ## AchievementsMenuUI: lista de logros con su progreso y el botón para reclamar la recompensa.
 ## Orden: primero los que se pueden reclamar, después los que están en curso y al final los cobrados.
 
@@ -19,9 +17,9 @@ func _notification(what: int) -> void:
 
 func _ready() -> void:
 	AudioManager.play_music("menu")
-	UIThemeHelper.apply_stateio_button_style(btn_back, Color(0.18, 0.24, 0.32), Color.TRANSPARENT, 16, 4)
-	UIThemeHelper.apply_pill_style(count_pill, UIThemeHelper.COLOR_HEADER_PILL, Color(0.35, 0.45, 0.58, 0.60), 20)
-	UIThemeHelper.apply_pill_style(coins_pill, UIThemeHelper.COLOR_HEADER_PILL, Color(0.35, 0.45, 0.58, 0.60), 20)
+	UIThemeHelper.apply_stateio_button_style(btn_back, UIThemeHelper.COLOR_BTN_SECONDARY, 16, 4)
+	UIThemeHelper.apply_pill_style(count_pill)
+	UIThemeHelper.apply_pill_style(coins_pill)
 	UIThemeHelper.apply_safe_area_top($Header)
 	btn_back.pressed.connect(_on_back_pressed)
 	EventBus.coins_updated.connect(_update_coins)
@@ -29,7 +27,7 @@ func _ready() -> void:
 	_build_cards()
 
 func _update_coins(amount: int) -> void:
-	coins_label.text = "🪙 %d" % amount
+	coins_label.text = UIThemeHelper.coins_text(amount)
 
 static func _sort_rank(a: Dictionary) -> int:
 	if GameManager.is_achievement_claimed(a["id"]):
@@ -41,11 +39,11 @@ func _build_cards() -> void:
 		cards_container.remove_child(c)
 		c.queue_free()
 	var all := AchievementDatabase.get_all()
-	var ordered := all.duplicate()
-	# sort_custom no es estable: el índice original desempata para mantener el orden de diseño
-	ordered.sort_custom(func(a, b): return _sort_rank(a) * 100 + all.find(a) < _sort_rank(b) * 100 + all.find(b))
-	for a in ordered:
-		cards_container.add_child(_build_card(a))
+	# Por grupos y, dentro de cada uno, en el orden de diseño
+	for rank in 3:
+		for a in all:
+			if _sort_rank(a) == rank:
+				cards_container.add_child(_build_card(a))
 	var unlocked := all.filter(func(a): return GameManager.is_achievement_unlocked(a["id"])).size()
 	count_label.text = "🏆 %d/%d" % [unlocked, all.size()]
 
@@ -98,12 +96,12 @@ func _build_card(a: Dictionary) -> PanelContainer:
 		btn.text = "RECLAMAR\n🪙 %d" % a["reward"]
 		btn.custom_minimum_size = Vector2(210, 100)
 		btn.add_theme_font_size_override("font_size", 24)
-		UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_SUCCESS, Color.TRANSPARENT, 16, 5)
+		UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_SUCCESS, 16, 5)
 		btn.pressed.connect(_on_claim_pressed.bind(a["id"]))
 		row.add_child(btn)
 	else:
 		var reward := Label.new()
-		reward.text = "🪙 %d" % a["reward"]
+		reward.text = UIThemeHelper.coins_text(a["reward"])
 		reward.add_theme_font_size_override("font_size", 26)
 		reward.modulate = Color(1, 1, 1, 0.55)
 		row.add_child(reward)
@@ -138,5 +136,4 @@ func _on_claim_pressed(id: String) -> void:
 	_build_cards()
 
 func _on_back_pressed() -> void:
-	AudioManager.play_click()
-	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+	UIThemeHelper.go_to(self, "res://scenes/ui/main_menu.tscn")

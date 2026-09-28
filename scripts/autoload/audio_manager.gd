@@ -19,8 +19,11 @@ const PENTATONIC_REINFORCE = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1
 const PENTATONIC_HIT = [440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50]
 const STAR_NOTES = [659.25, 783.99, 1046.50] # E5, G5, C6 brillante
 
-var is_muted: bool = false
-var music_muted: bool = false
+## Los ajustes viven en GameManager (se guardan con la partida)
+var is_muted: bool:
+	get: return GameManager.sound_muted
+var music_muted: bool:
+	get: return GameManager.music_muted
 ## Pista que debería sonar ahora ("" = ninguna), aunque esté silenciada o aún se esté sintetizando
 var current_track: String = ""
 var last_played_fanfare: String = ""
@@ -39,11 +42,11 @@ var _music_player: AudioStreamPlayer
 var _music_cache: Dictionary = {}
 var _music_tasks: Dictionary = {}
 var _music_tween: Tween
+## Pista hacia la que va el fundido en curso (null = silencio); el reproductor sólo cambia al acabar
+var _target_stream: AudioStream = null
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	is_muted = GameManager.sound_muted
-	music_muted = GameManager.music_muted
 	_music_player = AudioStreamPlayer.new()
 	_music_player.volume_db = MUSIC_SILENT_DB
 	add_child(_music_player)
@@ -64,8 +67,12 @@ func toggle_mute() -> bool:
 	set_muted(not is_muted)
 	return is_muted
 
+func _exit_tree() -> void:
+	# Las síntesis pendientes referencian este nodo: esperarlas antes de liberarlo al salir
+	for task in _music_tasks.values():
+		WorkerThreadPool.wait_for_task_completion(task)
+
 func set_muted(muted: bool) -> void:
-	is_muted = muted
 	GameManager.sound_muted = muted
 	GameManager.save_game()
 	_refresh_music()
@@ -76,7 +83,6 @@ func toggle_music() -> bool:
 	return music_muted
 
 func set_music_muted(muted: bool) -> void:
-	music_muted = muted
 	GameManager.music_muted = muted
 	GameManager.save_game()
 	_refresh_music()
@@ -87,8 +93,6 @@ func set_music_muted(muted: bool) -> void:
 
 ## Cambia a la pista indicada con un fundido (no hace nada si ya está sonando)
 func play_music(track: String) -> void:
-	if track == current_track and (_music_player.playing or not _can_play_music()):
-		return
 	current_track = track
 	_refresh_music()
 
@@ -96,23 +100,22 @@ func stop_music() -> void:
 	current_track = ""
 	_refresh_music()
 
-func is_music_playing() -> bool:
-	return _music_player.playing and current_track != ""
-
 func _can_play_music() -> bool:
 	return not is_muted and not music_muted and DisplayServer.get_name() != "headless"
 
 func _refresh_music() -> void:
 	if current_track == "" or not _can_play_music():
-		_fade_music_to(null)
+		if _target_stream != null:
+			_fade_music_to(null)
 	elif _music_cache.has(current_track):
-		if _music_player.stream != _music_cache[current_track] or not _music_player.playing:
+		if _target_stream != _music_cache[current_track]:
 			_fade_music_to(_music_cache[current_track])
 	else:
 		_request_music(current_track)
 
 ## Funde la pista actual y, si se indica, entra la nueva
 func _fade_music_to(stream: AudioStream) -> void:
+	_target_stream = stream
 	if _music_tween:
 		_music_tween.kill()
 	_music_tween = create_tween()
@@ -154,7 +157,7 @@ func play_launch() -> void:
 func play_troop_absorb(is_reinforce: bool) -> void:
 	var now = Time.get_ticks_msec()
 	# Reiniciar progresión melódica en el primer golpe o si pasaron más de 380 ms
-	if _last_absorb_msec == 0 or (now - _last_absorb_msec) > 380:
+	if now - _last_absorb_msec > 380:
 		_absorb_step = 0
 	_last_absorb_msec = now
 	var scale: Array = PENTATONIC_REINFORCE if is_reinforce else PENTATONIC_HIT
@@ -177,12 +180,11 @@ func play_capture() -> void:
 
 func play_victory() -> void:
 	last_played_fanfare = "victory"
-	# Fanfarria triunfal ascendente y resonante (C5 -> E5 -> G5 -> C6)
-	_play("victory", func(): return _render_arpeggio([523.25, 659.25, 783.99, 1046.50], 0.10, 0.26))
+	_play("victory", _render_victory)
 
 func play_continent_conquest() -> void:
 	last_played_fanfare = "continent_conquest"
-	_play("continent", func(): return _render_fanfare([523.25, 659.25, 783.99], [523.25, 659.25, 1046.50], 0.09, 0.28, 0.30))
+	_play("continent", _render_continent)
 
 func play_star_reveal(star_index: int) -> void:
 	last_star_sound_index = star_index
@@ -197,7 +199,7 @@ func play_troop_retreat() -> void:
 	_play("retreat", func(): return _render_tone(784.0, 0.08, 0.22, 392.0))
 
 func play_defeat() -> void:
-	_play("defeat", func(): return _render_tone(349.23, 0.5, 0.25, 130.81))
+	_play("defeat", _render_defeat)
 
 # =========================================================================
 # Reproducción y caché
@@ -215,9 +217,19 @@ func _get_stream(key: String, render: Callable) -> AudioStreamWAV:
 
 ## Sintetiza por adelantado los sonidos más largos para evitar tirones en mitad de la partida
 func _prewarm() -> void:
-	_get_stream("victory", func(): return _render_arpeggio([523.25, 659.25, 783.99, 1046.50], 0.10, 0.26))
-	_get_stream("continent", func(): return _render_fanfare([523.25, 659.25, 783.99], [523.25, 659.25, 1046.50], 0.09, 0.28, 0.30))
-	_get_stream("defeat", func(): return _render_tone(349.23, 0.5, 0.25, 130.81))
+	_get_stream("victory", _render_victory)
+	_get_stream("continent", _render_continent)
+	_get_stream("defeat", _render_defeat)
+
+## Fanfarria triunfal ascendente y resonante (C5 -> E5 -> G5 -> C6)
+static func _render_victory() -> PackedFloat32Array:
+	return _render_arpeggio([523.25, 659.25, 783.99, 1046.50], 0.10, 0.26)
+
+static func _render_continent() -> PackedFloat32Array:
+	return _render_fanfare([523.25, 659.25, 783.99], [523.25, 659.25, 1046.50], 0.09, 0.28, 0.30)
+
+static func _render_defeat() -> PackedFloat32Array:
+	return _render_tone(349.23, 0.5, 0.25, 130.81)
 
 # =========================================================================
 # Síntesis

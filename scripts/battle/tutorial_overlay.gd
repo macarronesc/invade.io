@@ -44,8 +44,6 @@ var _hint: String = ""
 var _hint_timer: float = 0.0
 var _step_time: float = 0.0
 var _hand_path: PackedVector2Array = PackedVector2Array()
-var _is_swipe: bool = false
-var _chain_dispatches: int = 0
 var _banner_style: StyleBoxFlat
 
 static func _pending_cards(level_data: Dictionary) -> Array:
@@ -79,6 +77,7 @@ func setup(p_battle: BattleController) -> void:
 		_queue.append("card_%d" % type_id)
 	_queue.append_array(_pending_gestures(battle.level_id))
 	EventBus.troops_dispatched.connect(_on_troops_dispatched)
+	EventBus.player_assault.connect(_on_player_assault)
 	EventBus.troops_retreated.connect(_on_troops_retreated)
 	EventBus.battle_won.connect(_finish_all.unbind(1))
 	EventBus.battle_lost.connect(_finish_all)
@@ -90,20 +89,14 @@ func _next_step() -> void:
 	_hand_path.clear()
 	if _current.begins_with("card_"):
 		var card: Dictionary = TIP_CARDS[int(_current.substr(5))]
-		var hud = battle.get_node_or_null("BattleHUD")
 		GameManager.mark_tip_seen(card["id"])
-		if hud and hud.has_method("show_tip_card"):
-			hud.show_tip_card(card["title"], card["body"], _next_step)
-		else:
-			_next_step()
+		battle.get_node("BattleHUD").show_tip_card(card["title"], card["body"], _next_step)
 	elif _current == "drag":
 		battle.set_simulation_paused(true)
 		_show_hint(HINTS["drag"], INF)
 	queue_redraw()
 
 func _complete_current() -> void:
-	if _current == "":
-		return
 	GameManager.mark_tip_seen(_current)
 	if _current == "drag":
 		battle.set_simulation_paused(false)
@@ -127,33 +120,30 @@ func _show_hint(text: String, duration: float) -> void:
 	_hint = text
 	_hint_timer = duration
 
-func _on_troops_dispatched(from_base, _to_base, _count, faction) -> void:
-	if faction != GameManager.Faction.PLAYER or not is_instance_valid(from_base):
-		return
-	if _current == "drag":
+func _on_troops_dispatched(_from_base, _to_base, _count, faction) -> void:
+	if faction == GameManager.Faction.PLAYER and _current == "drag":
 		_complete_current()
-	elif _current == "chain" and not _hand_path.is_empty():
-		# Un trazo encadenado despacha desde varias bases en el mismo instante
-		_chain_dispatches += 1
-		if _chain_dispatches >= 2:
-			_complete_current()
-		else:
-			get_tree().create_timer(0.1).timeout.connect(func(): _chain_dispatches = 0)
+
+func _on_player_assault(source_count: int) -> void:
+	if _current == "chain" and not _hand_path.is_empty() and source_count >= 2:
+		_complete_current()
 
 func _on_troops_retreated(faction: int) -> void:
 	if faction == GameManager.Faction.PLAYER and _current == "slice":
 		_complete_current()
 
 func _process(delta: float) -> void:
-	if not is_instance_valid(battle):
+	# Tutorial terminado y último aviso retirado: ya no hay nada que dibujar
+	if _current == "" and _hint == "":
+		queue_free()
 		return
 	var real_delta = delta / maxf(Engine.time_scale, 0.01)
 	_step_time += real_delta
-	if _hint_timer != INF and _hint_timer > 0.0:
+	if _hint_timer > 0.0:
 		_hint_timer -= real_delta
 		if _hint_timer <= 0.0:
 			_hint = ""
-	
+
 	match _current:
 		"drag":
 			if _hand_path.is_empty():
@@ -171,27 +161,31 @@ func _process(delta: float) -> void:
 				_hand_path = _build_slice_path()
 				if not _hand_path.is_empty():
 					_step_time = 0.0
-					battle.base_time_scale = SLICE_TIME_SCALE
 					_show_hint(HINTS["slice"], INF)
 			elif _step_time > SLICE_TIMEOUT:
 				_complete_current()
+			else:
+				# Cada fotograma: la pausa del HUD restablece la escala de tiempo al reanudar
+				battle.base_time_scale = SLICE_TIME_SCALE
 	queue_redraw()
 
 func _player_bases() -> Array[BaseNode]:
 	var result: Array[BaseNode] = []
 	for b in battle.bases:
-		if is_instance_valid(b) and b.faction == GameManager.Faction.PLAYER:
+		if b.faction == GameManager.Faction.PLAYER:
 			result.append(b)
 	return result
 
 func _nearest_non_player(from: Vector2) -> BaseNode:
 	var best: BaseNode = null
+	var best_d := INF
 	for b in battle.bases:
-		if is_instance_valid(b) and b.faction != GameManager.Faction.PLAYER:
+		if b.faction != GameManager.Faction.PLAYER:
 			# Preferir neutrales: son el objetivo natural de un jugador que empieza
 			var d = from.distance_to(b.position) + (0.0 if b.faction == GameManager.Faction.NEUTRAL else 400.0)
-			if best == null or d < from.distance_to(best.position) + (0.0 if best.faction == GameManager.Faction.NEUTRAL else 400.0):
+			if d < best_d:
 				best = b
+				best_d = d
 	return best
 
 func _build_drag_path() -> PackedVector2Array:
@@ -199,7 +193,6 @@ func _build_drag_path() -> PackedVector2Array:
 	if mine.is_empty():
 		return PackedVector2Array()
 	var target = _nearest_non_player(mine[0].position)
-	_is_swipe = false
 	return PackedVector2Array([mine[0].position, target.position]) if target else PackedVector2Array()
 
 func _build_chain_path() -> PackedVector2Array:
@@ -209,7 +202,6 @@ func _build_chain_path() -> PackedVector2Array:
 	var target = _nearest_non_player(mine[1].position)
 	if not target:
 		return PackedVector2Array()
-	_is_swipe = false
 	return PackedVector2Array([mine[0].position, mine[1].position, target.position])
 
 func _build_slice_path() -> PackedVector2Array:
@@ -220,7 +212,6 @@ func _build_slice_path() -> PackedVector2Array:
 				continue
 			var mid = battle.to_local(t.bead_position(f)) - t.move_dir * 30.0
 			var n = Vector2(-t.move_dir.y, t.move_dir.x) * 110.0
-			_is_swipe = true
 			return PackedVector2Array([mid - n, mid + n])
 	return PackedVector2Array()
 
@@ -249,19 +240,19 @@ func _draw_hand() -> void:
 	var alpha = clampf(cycle / 0.1, 0.0, 1.0) * (1.0 - smoothstep(0.85, 1.0, cycle))
 	var pos = _point_on_path(_hand_path, move_t)
 	var accent = Color(1.0, 0.82, 0.18)
-	
+
 	# Estela del gesto
 	var trail := PackedVector2Array()
 	for k in 17:
 		trail.append(_point_on_path(_hand_path, move_t * k / 16.0))
 	if move_t > 0.01:
-		draw_polyline(trail, Color(accent, 0.55 * alpha), 10.0 if _is_swipe else 7.0, true)
-	
+		draw_polyline(trail, Color(accent, 0.55 * alpha), 10.0 if _current == "slice" else 7.0, true)
+
 	# Pulsación en el punto de contacto
 	var press = 1.0 - smoothstep(0.0, 0.15, cycle)
 	draw_arc(pos, 26.0 + press * 18.0, 0, TAU, 32, Color(1, 1, 1, 0.8 * alpha), 4.0, true)
 	draw_circle(pos, 12.0, Color(accent, 0.8 * alpha))
-	
+
 	# Mano (el dedo apunta al punto de contacto)
 	var font = ThemeDB.fallback_font
 	draw_string(font, pos + Vector2(-38, 72), "👆", HORIZONTAL_ALIGNMENT_LEFT, -1, 72, Color(1, 1, 1, alpha))

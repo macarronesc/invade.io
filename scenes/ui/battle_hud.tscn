@@ -2,10 +2,6 @@
 
 [ext_resource type="Script" path="res://scripts/ui/battle_hud.gd" id="1_hud_script"]
 
-[sub_resource type="Gradient" id="Gradient_confetti"]
-offsets = PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8, 1)
-colors = PackedColorArray(1, 0.84, 0, 1, 0.13, 0.59, 0.95, 1, 0.96, 0.26, 0.21, 1, 0.3, 0.69, 0.31, 1, 1, 0.4, 0.8, 1, 1, 1, 1, 1)
-
 [node name="BattleHUD" type="CanvasLayer"]
 process_mode = 3
 script = ExtResource("1_hud_script")
@@ -177,27 +173,6 @@ offset_bottom = 370.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="ConfettiParticles" type="CPUParticles2D" parent="VictoryPanel"]
-unique_name_in_owner = true
-position = Vector2(440, 250)
-emitting = false
-amount = 80
-lifetime = 2.5
-one_shot = true
-explosiveness = 0.85
-emission_shape = 3
-emission_rect_extents = Vector2(400, 20)
-direction = Vector2(0, -1)
-spread = 70.0
-gravity = Vector2(0, 650)
-initial_velocity_min = 280.0
-initial_velocity_max = 620.0
-angular_velocity_min = -180.0
-angular_velocity_max = 180.0
-scale_amount_min = 6.0
-scale_amount_max = 14.0
-color_initial_ramp = SubResource("Gradient_confetti")
-
 [node name="ConfettiOverlay" type="Control" parent="VictoryPanel"]
 unique_name_in_owner = true
 layout_mode = 1
@@ -267,14 +242,6 @@ theme_override_font_sizes/font_size = 54
 text = "⭐"
 horizontal_alignment = 1
 vertical_alignment = 1
-
-[node name="VictoryStarsLabel" type="Label" parent="VictoryPanel/VBox"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 48
-text = "⭐ ⭐ ⭐"
-horizontal_alignment = 1
 
 [node name="VictoryRewardLabel" type="Label" parent="VictoryPanel/VBox"]
 unique_name_in_owner = true

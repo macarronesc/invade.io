@@ -3,17 +3,33 @@ class_name LevelDatabase
 
 ## Base de datos con los niveles de campaña organizados por continentes
 
-static func get_continents() -> Array[Dictionary]:
-	return [
-		{"id": "europe", "name": "Europa", "color": Color(0.2, 0.6, 0.86), "total_levels": 5},
-		{"id": "north_america", "name": "América del Norte", "color": Color(0.9, 0.4, 0.3), "total_levels": 5},
-		{"id": "south_america", "name": "América del Sur", "color": Color(0.3, 0.75, 0.4), "total_levels": 5},
-		{"id": "africa", "name": "África", "color": Color(0.95, 0.7, 0.2), "total_levels": 5},
-		{"id": "asia", "name": "Asia", "color": Color(0.8, 0.3, 0.7), "total_levels": 5},
-		{"id": "oceania", "name": "Oceanía", "color": Color(0.1, 0.7, 0.7), "total_levels": 5}
-	]
+const LEVELS_PER_CONTINENT := 5
 
-const CONTINENT_ORDER = ["europe", "north_america", "south_america", "africa", "asia", "oceania"]
+## Continentes en orden de campaña; sus niveles son "<id>_1" .. "<id>_5"
+const CONTINENTS: Array[Dictionary] = [
+	{"id": "europe", "name": "Europa", "color": Color(0.2, 0.6, 0.86)},
+	{"id": "north_america", "name": "América del Norte", "color": Color(0.9, 0.4, 0.3)},
+	{"id": "south_america", "name": "América del Sur", "color": Color(0.3, 0.75, 0.4)},
+	{"id": "africa", "name": "África", "color": Color(0.95, 0.7, 0.2)},
+	{"id": "asia", "name": "Asia", "color": Color(0.8, 0.3, 0.7)},
+	{"id": "oceania", "name": "Oceanía", "color": Color(0.1, 0.7, 0.7)},
+]
+
+static func get_continents() -> Array[Dictionary]:
+	return CONTINENTS
+
+static func get_continent_level_ids(continent_id: String) -> Array[String]:
+	var ids: Array[String] = []
+	for i in range(1, LEVELS_PER_CONTINENT + 1):
+		ids.append("%s_%d" % [continent_id, i])
+	return ids
+
+static func get_continent_of(level_id: String) -> String:
+	return level_id.substr(0, level_id.rfind("_"))
+
+## Posición del nivel dentro de su continente (1..LEVELS_PER_CONTINENT)
+static func get_level_number(level_id: String) -> int:
+	return int(level_id.substr(level_id.rfind("_") + 1))
 
 static var _definitions: Dictionary = {}
 static var _built: Dictionary = {}
@@ -25,7 +41,7 @@ static func get_level_data(level_id: String) -> Dictionary:
 	if not _built.has(level_id):
 		var def := get_level_definition(level_id)
 		if def.is_empty():
-			return get_level_data("europe_1")
+			return get_level_data(GameManager.FIRST_LEVEL_ID)
 		_built[level_id] = LevelGenerator.build(def, get_difficulty(level_id))
 	return _built[level_id]
 
@@ -35,6 +51,7 @@ static func get_level_definition(level_id: String) -> Dictionary:
 		return LevelGenerator.daily_challenge_definition(DailyRewards.challenge_day(level_id))
 	return _get_definitions().get(level_id, {})
 
+## Ids de la campaña en orden de juego
 static func get_level_ids() -> Array:
 	return _get_definitions().keys()
 
@@ -47,15 +64,8 @@ static func _get_definitions() -> Dictionary:
 static func get_difficulty(level_id: String) -> float:
 	if DailyRewards.is_challenge(level_id):
 		return DailyRewards.CHALLENGE_DIFFICULTY
-	var sep = level_id.rfind("_")
-	if sep == -1:
-		return 0.0
-	var c_idx = CONTINENT_ORDER.find(level_id.substr(0, sep))
-	var lvl = int(level_id.substr(sep + 1)) - 1
-	if c_idx < 0:
-		return 0.0
-	var total = CONTINENT_ORDER.size() * 5 - 1
-	return clampf(float(c_idx * 5 + lvl) / float(total), 0.0, 1.0)
+	var ids := get_level_ids()
+	return maxf(0.0, ids.find(level_id)) / float(ids.size() - 1)
 
 ## Coordenadas de las ciudades de un nivel (sin construirlo), para situarlo en el mapa del mundo
 static func get_level_lonlats(level_id: String) -> Array[Vector2]:
@@ -81,7 +91,6 @@ static func _build_levels() -> Dictionary:
 		"europe_1": {
 			"id": "europe_1",
 			"name": "Nivel 1: Península Ibérica y Galia",
-			"continent": "europe",
 			"description": "Aprende los conceptos básicos: captura las bases neutrales y vence al enemigo rojo.",
 			"target_time": 40,
 			"bases": [
@@ -94,7 +103,6 @@ static func _build_levels() -> Dictionary:
 		"europe_2": {
 			"id": "europe_2",
 			"name": "Nivel 2: Europa Central",
-			"continent": "europe",
 			"description": "Una red más densa de bases neutrales separa tu avance de Berlín y Roma.",
 			"target_time": 50,
 			"bases": [
@@ -108,7 +116,6 @@ static func _build_levels() -> Dictionary:
 		"europe_3": {
 			"id": "europe_3",
 			"name": "Nivel 3: Países Nórdicos",
-			"continent": "europe",
 			"description": "Bases costeras con conexiones estratégicas.",
 			"target_time": 55,
 			"bases": [
@@ -122,7 +129,6 @@ static func _build_levels() -> Dictionary:
 		"europe_4": {
 			"id": "europe_4",
 			"name": "Nivel 4: Balcanes y Mediterráneo",
-			"continent": "europe",
 			"description": "Dos frentes hostiles: Facciones Roja y Amarilla te rodean.",
 			"target_time": 65,
 			"bases": [
@@ -136,13 +142,8 @@ static func _build_levels() -> Dictionary:
 		"europe_5": {
 			"id": "europe_5",
 			"name": "Nivel 5: Capital Continental",
-			"continent": "europe",
 			"description": "La gran batalla por el control absoluto de Europa.",
 			"target_time": 75,
-			"ai_archetypes": {
-				GameManager.Faction.ENEMY_1: "aggressive",
-				GameManager.Faction.ENEMY_2: "expansive"
-			},
 			"bases": [
 				{"id": "b1", "city": "madrid", "faction": GameManager.Faction.PLAYER, "troops": 40, "tier": 3},
 				{"id": "b2", "city": "berlin", "faction": GameManager.Faction.NEUTRAL, "troops": 30, "tier": 3, "type": "fortress"},
@@ -157,7 +158,6 @@ static func _build_levels() -> Dictionary:
 		"north_america_1": {
 			"id": "north_america_1",
 			"name": "Nivel 1: Costa Este",
-			"continent": "north_america",
 			"description": "Inicia la campaña americana asegurando Nueva York y Boston.",
 			"target_time": 50,
 			"bases": [
@@ -169,7 +169,6 @@ static func _build_levels() -> Dictionary:
 		"north_america_2": {
 			"id": "north_america_2",
 			"name": "Nivel 2: Grandes Llanuras",
-			"continent": "north_america",
 			"description": "Territorios amplios donde la velocidad de marcha es vital.",
 			"target_time": 55,
 			"bases": [
@@ -182,7 +181,6 @@ static func _build_levels() -> Dictionary:
 		"north_america_3": {
 			"id": "north_america_3",
 			"name": "Nivel 3: Costa Oeste",
-			"continent": "north_america",
 			"description": "Batalla a tres facciones entre California y el Pacífico.",
 			"target_time": 60,
 			"bases": [
@@ -196,7 +194,6 @@ static func _build_levels() -> Dictionary:
 		"north_america_4": {
 			"id": "north_america_4",
 			"name": "Nivel 4: Gran Norte (Canadá)",
-			"continent": "north_america",
 			"description": "Grandes distancias y bases de alto nivel.",
 			"target_time": 70,
 			"bases": [
@@ -209,14 +206,8 @@ static func _build_levels() -> Dictionary:
 		"north_america_5": {
 			"id": "north_america_5",
 			"name": "Nivel 5: Megalópolis Continental",
-			"continent": "north_america",
 			"description": "Conquista final de Norteamérica frente a tres ejércitos simultáneos.",
 			"target_time": 80,
-			"ai_archetypes": {
-				GameManager.Faction.ENEMY_1: "aggressive",
-				GameManager.Faction.ENEMY_2: "expansive",
-				GameManager.Faction.ENEMY_3: "opportunist"
-			},
 			"bases": [
 				{"id": "b1", "city": "mexico_city", "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
 				{"id": "b2", "city": "denver", "faction": GameManager.Faction.NEUTRAL, "troops": 25, "tier": 3, "type": "fortress"},
@@ -230,7 +221,6 @@ static func _build_levels() -> Dictionary:
 		"south_america_1": {
 			"id": "south_america_1",
 			"name": "Nivel 1: Cono Sur",
-			"continent": "south_america",
 			"description": "Incursión en Sudamérica comenzando en Buenos Aires y Santiago.",
 			"target_time": 45,
 			"bases": [
@@ -242,7 +232,6 @@ static func _build_levels() -> Dictionary:
 		"south_america_2": {
 			"id": "south_america_2",
 			"name": "Nivel 2: Cordillera de los Andes",
-			"continent": "south_america",
 			"description": "Avance montañoso a través de bases estratégicas de altura.",
 			"target_time": 50,
 			"bases": [
@@ -256,7 +245,6 @@ static func _build_levels() -> Dictionary:
 		"south_america_3": {
 			"id": "south_america_3",
 			"name": "Nivel 3: Cuenca del Amazonas",
-			"continent": "south_america",
 			"description": "Dos frentes rivales convergen hacia el control del gran río.",
 			"target_time": 60,
 			"bases": [
@@ -270,7 +258,6 @@ static func _build_levels() -> Dictionary:
 		"south_america_4": {
 			"id": "south_america_4",
 			"name": "Nivel 4: Frentes Cruzados",
-			"continent": "south_america",
 			"description": "Batalla intensa a tres ejércitos por la costa atlántica.",
 			"target_time": 65,
 			"bases": [
@@ -284,7 +271,6 @@ static func _build_levels() -> Dictionary:
 		"south_america_5": {
 			"id": "south_america_5",
 			"name": "Nivel 5: Dominio Continental",
-			"continent": "south_america",
 			"description": "Gran batalla final por el control de toda América del Sur frente a 3 facciones.",
 			"target_time": 80,
 			"bases": [
@@ -301,7 +287,6 @@ static func _build_levels() -> Dictionary:
 		"africa_1": {
 			"id": "africa_1",
 			"name": "Nivel 1: Delta del Nilo",
-			"continent": "africa",
 			"description": "Desierto del Sáhara y el valle del Nilo.",
 			"target_time": 45,
 			"bases": [
@@ -313,7 +298,6 @@ static func _build_levels() -> Dictionary:
 		"africa_2": {
 			"id": "africa_2",
 			"name": "Nivel 2: Magreb y Desierto",
-			"continent": "africa",
 			"description": "Bases costeras del norte de África y pasos caravaneros.",
 			"target_time": 50,
 			"bases": [
@@ -327,7 +311,6 @@ static func _build_levels() -> Dictionary:
 		"africa_3": {
 			"id": "africa_3",
 			"name": "Nivel 3: Golfo de Guinea",
-			"continent": "africa",
 			"description": "Alta densidad de bases y frentes convergentes en África Occidental.",
 			"target_time": 60,
 			"bases": [
@@ -341,7 +324,6 @@ static func _build_levels() -> Dictionary:
 		"africa_4": {
 			"id": "africa_4",
 			"name": "Nivel 4: Valle del Rift y Cuerno",
-			"continent": "africa",
 			"description": "Lucha por los Grandes Lagos y el este del continente.",
 			"target_time": 65,
 			"bases": [
@@ -355,7 +337,6 @@ static func _build_levels() -> Dictionary:
 		"africa_5": {
 			"id": "africa_5",
 			"name": "Nivel 5: Unión Panafricana",
-			"continent": "africa",
 			"description": "Asedio total a cuatro frentes desde el Cabo hasta el Mediterráneo.",
 			"target_time": 85,
 			"bases": [
@@ -372,7 +353,6 @@ static func _build_levels() -> Dictionary:
 		"asia_1": {
 			"id": "asia_1",
 			"name": "Nivel 1: Ruta de la Seda",
-			"continent": "asia",
 			"description": "Un vasto continente con alta densidad militar.",
 			"target_time": 50,
 			"bases": [
@@ -384,7 +364,6 @@ static func _build_levels() -> Dictionary:
 		"asia_2": {
 			"id": "asia_2",
 			"name": "Nivel 2: Subcontinente Indio",
-			"continent": "asia",
 			"description": "Rápida expansión en una península populosa y disputada.",
 			"target_time": 55,
 			"bases": [
@@ -398,7 +377,6 @@ static func _build_levels() -> Dictionary:
 		"asia_3": {
 			"id": "asia_3",
 			"name": "Nivel 3: Oriente Medio",
-			"continent": "asia",
 			"description": "Encrucijada petrolífera y fortalezas desérticas.",
 			"target_time": 60,
 			"bases": [
@@ -412,7 +390,6 @@ static func _build_levels() -> Dictionary:
 		"asia_4": {
 			"id": "asia_4",
 			"name": "Nivel 4: Dragones de Asia",
-			"continent": "asia",
 			"description": "Guerra insular y costera de alta velocidad de marcha.",
 			"target_time": 70,
 			"bases": [
@@ -426,14 +403,8 @@ static func _build_levels() -> Dictionary:
 		"asia_5": {
 			"id": "asia_5",
 			"name": "Nivel 5: Emperadores de Oriente",
-			"continent": "asia",
 			"description": "El mayor enfrentamiento táctico del planeta: megabases imperiales.",
 			"target_time": 90,
-			"ai_archetypes": {
-				GameManager.Faction.ENEMY_1: "aggressive",
-				GameManager.Faction.ENEMY_2: "expansive",
-				GameManager.Faction.ENEMY_3: "opportunist"
-			},
 			"bases": [
 				{"id": "b1", "city": "kolkata", "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
 				{"id": "b2", "city": "chengdu", "faction": GameManager.Faction.NEUTRAL, "troops": 35, "tier": 3, "type": "fortress"},
@@ -448,7 +419,6 @@ static func _build_levels() -> Dictionary:
 		"oceania_1": {
 			"id": "oceania_1",
 			"name": "Nivel 1: Arrecife de Coral",
-			"continent": "oceania",
 			"description": "Bases insulares en el Pacífico.",
 			"target_time": 45,
 			"bases": [
@@ -460,7 +430,6 @@ static func _build_levels() -> Dictionary:
 		"oceania_2": {
 			"id": "oceania_2",
 			"name": "Nivel 2: Outback Australiano",
-			"continent": "oceania",
 			"description": "Inmensas extensiones desérticas donde cada movimiento cuenta.",
 			"target_time": 50,
 			"bases": [
@@ -473,7 +442,6 @@ static func _build_levels() -> Dictionary:
 		"oceania_3": {
 			"id": "oceania_3",
 			"name": "Nivel 3: Polinesia y Mares del Sur",
-			"continent": "oceania",
 			"description": "Guerra de islas que requiere coordinación de múltiples orígenes.",
 			"target_time": 60,
 			"bases": [
@@ -487,7 +455,6 @@ static func _build_levels() -> Dictionary:
 		"oceania_4": {
 			"id": "oceania_4",
 			"name": "Nivel 4: Archipiélago Austral",
-			"continent": "oceania",
 			"description": "Doble frente agresivo en las grandes costas oceánicas.",
 			"target_time": 65,
 			"bases": [
@@ -501,7 +468,6 @@ static func _build_levels() -> Dictionary:
 		"oceania_5": {
 			"id": "oceania_5",
 			"name": "Nivel 5: Soberanía del Pacífico",
-			"continent": "oceania",
 			"description": "La culminación de la campaña mundial: vence a tres imperios insulares.",
 			"target_time": 85,
 			"bases": [

@@ -98,6 +98,7 @@ func run_all_tests() -> void:
 	test_daily_rewards_and_streaks()
 	test_achievements_system()
 	test_daily_challenge_levels()
+	test_cleanup_regressions()
 
 func test_base_production_mechanics() -> void:
 	print("-> Test: Producción de Tropas y Límites de Capacidad")
@@ -152,8 +153,8 @@ func test_troop_dispatch_and_deduction() -> void:
 
 	# Llamada explícita pasando parámetro (debe aplicar el 100% constante)
 	base.troops = 15
-	var sent_param = base.send_troops(0.5)
-	assert_equals(sent_param, 14, "Llamada con parámetro aplica modo asalto al 100% (15 - 1 = 14)")
+	var sent_param = base.send_troops()
+	assert_equals(sent_param, 14, "El asalto envía siempre el 100% menos el centinela (15 - 1 = 14)")
 	assert_equals(base.troops, 1, "Guarnición restante retenida es 1")
 
 	base.free()
@@ -806,7 +807,7 @@ func test_territory_map_generation_and_coverage() -> void:
 
 	# Verificar búsqueda de territorio por coordenada (Point in polygon)
 	var cell_madrid = map.get_cell_at_point(Vector2(320, 1400))
-	assert_true(cell_madrid != null and cell_madrid.base_id == "madrid", "get_cell_at_point localiza el territorio de Madrid")
+	assert_true(cell_madrid != null and cell_madrid.base_node == b1, "get_cell_at_point localiza el territorio de Madrid")
 
 	b1.free()
 	b2.free()
@@ -1004,8 +1005,8 @@ func test_fortress_defense_absorption_and_production() -> void:
 	assert_equals(f2.base_type, BaseNodeScript.BaseType.FORTRESS, "setup() configura correctamente base_type = FORTRESS desde string 'fortress'")
 	f2.set_base_type("standard")
 	assert_equals(f2.base_type, BaseNodeScript.BaseType.STANDARD, "set_base_type('standard') actualiza base_type")
-	f2.set_base_type("fortaleza")
-	assert_equals(f2.base_type, BaseNodeScript.BaseType.FORTRESS, "set_base_type('fortaleza') acepta el nombre en español")
+	f2.set_base_type(BaseNodeScript.BaseType.FORTRESS)
+	assert_equals(f2.base_type, BaseNodeScript.BaseType.FORTRESS, "set_base_type acepta el valor del enum")
 	f2.free()
 
 	# 3. Ataque enemigo inferior a la absorción (10 defensores absorben hasta 20 atacantes)
@@ -1221,40 +1222,12 @@ func test_ai_archetypes_decision_making() -> void:
 	assert_true(opp_util_fortress_allied > 100.0, "IA Oportunista valora altamente atrincherarse y reforzar fortalezas aliadas")
 
 	# 5. Configuración manual de arquetipo
-	ai_red.set_archetype("expansive")
-	assert_equals(ai_red.archetype, AIControllerScript.AIArchetype.EXPANSIVE, "set_archetype('expansive') conmuta dinámicamente el arquetipo")
+	ai_red.set_archetype(AIControllerScript.AIArchetype.EXPANSIVE)
+	assert_equals(ai_red.archetype, AIControllerScript.AIArchetype.EXPANSIVE, "set_archetype conmuta dinámicamente el arquetipo")
 
 	# 6. Caso límite: evaluación hacia la misma base origen (debe ser inválida / -9999.0)
 	var self_util = ai_red.evaluate_target_utility(src_base, src_base)
 	assert_equals(self_util, -9999.0, "evaluate_target_utility descarta el nodo propio retornando -9999.0")
-
-	# 7. Configuración por sobrescritura desde level_data
-	battle.level_data = {
-		"ai_archetypes": {
-			GameManager.Faction.ENEMY_1: AIControllerScript.AIArchetype.OPPORTUNIST
-		}
-	}
-	var ai_override = AIControllerScript.new()
-	ai_override.setup(battle, GameManager.Faction.ENEMY_1)
-	assert_equals(ai_override.archetype, AIControllerScript.AIArchetype.OPPORTUNIST, "Configuración en level_data sobrescribe el arquetipo por defecto de la facción")
-	ai_override.free()
-
-	# 8. Configuración con claves string en level_data ('enemy_1', 'enemy2')
-	battle.level_data = {
-		"ai_archetypes": {
-			"enemy_1": "opportunist",
-			"enemy2": "aggressive"
-		}
-	}
-	var ai_str1 = AIControllerScript.new()
-	ai_str1.setup(battle, GameManager.Faction.ENEMY_1)
-	assert_equals(ai_str1.archetype, AIControllerScript.AIArchetype.OPPORTUNIST, "Clave string 'enemy_1' configura arquetipo OPPORTUNIST correctamente")
-	ai_str1.free()
-
-	var ai_str2 = AIControllerScript.new()
-	ai_str2.setup(battle, GameManager.Faction.ENEMY_2)
-	assert_equals(ai_str2.archetype, AIControllerScript.AIArchetype.AGGRESSIVE, "Clave string 'enemy2' configura arquetipo AGGRESSIVE correctamente")
-	ai_str2.free()
 
 	# 9. IA Agresiva evita suicidios fútiles contra fortalezas inexpugnables
 	var heavy_player_fortress = BaseNodeScript.new()
@@ -1431,16 +1404,8 @@ func test_confetti_and_star_revelation() -> void:
 	var hud = BattleHUDScene.instantiate()
 	add_child(hud)
 
-	# 1. Verificar existencia y configuración de ConfettiParticles (CPUParticles2D)
-	var confetti = hud.get_node_or_null("%ConfettiParticles")
-	assert_true(confetti != null, "Nodo ConfettiParticles (CPUParticles2D) existe en la escena BattleHUD")
-	assert_true(confetti is CPUParticles2D, "ConfettiParticles es de tipo CPUParticles2D")
-	assert_true(confetti.amount >= 50, "Cantidad de partículas festivas configurada adecuadamente (>= 50)")
-	assert_true(confetti.one_shot, "ConfettiParticles configurado como one_shot")
-
 	# 2. Verificar disparador de confeti, partículas y simulación procedural
 	hud.trigger_confetti()
-	assert_true(confetti.emitting, "trigger_confetti() activa emisión en CPUParticles2D")
 	assert_true(hud.confetti_pieces.size() >= 50, "trigger_confetti() genera piezas de confeti multicolor")
 	var first_piece = hud.confetti_pieces[0]
 	assert_true(first_piece.has("pos") and first_piece.has("vel") and first_piece.has("color"), "Piezas de confeti poseen parámetros físicos")
@@ -2219,7 +2184,6 @@ func test_cartographic_background_and_theme_helper() -> void:
 	assert_equals(bg.ambient_nodes.size(), 8, "_setup_ambient_nodes inicializa 8 nodos tácticos")
 	var n0 = bg.ambient_nodes[0]
 	assert_true(n0.radius >= 22.0 and n0.radius <= 32.0, "Radio de nodo ambiental dentro del rango esperado")
-	assert_true(n0.troops >= 8 and n0.troops <= 35, "Guarnición de nodo ambiental generada dentro del rango")
 
 	# Generación y poda de tropas ambientales: agrupar todos los nodos para asegurar distancia < 420
 	for i in range(bg.ambient_nodes.size()):
@@ -2251,9 +2215,9 @@ func test_cartographic_background_and_theme_helper() -> void:
 
 	# 2. Probar UIThemeHelper - Botones táctiles 2.5D
 	var btn = Button.new()
-	UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_PRIMARY, Color.TRANSPARENT, 18, 5)
+	UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_PRIMARY, 18, 5)
 	# Aplicar segunda vez para probar idempotencia
-	UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_PRIMARY, Color.TRANSPARENT, 18, 5)
+	UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_PRIMARY, 18, 5)
 	assert_true(btn.has_meta("_bounce_setup"), "Configuración de bounce es idempotente sin duplicar señales")
 	assert_true(btn.has_theme_stylebox_override("normal"), "Estilo 'normal' aplicado al botón")
 	assert_true(btn.has_theme_stylebox_override("hover"), "Estilo 'hover' aplicado al botón")
@@ -2364,6 +2328,24 @@ func test_save_robustness_and_replay_rewards() -> void:
 	f.close()
 	GameManager.load_game()
 	assert_equals(GameManager.coins, 321, "Un guardado corrupto se ignora sin perder el estado en memoria")
+	assert_true(FileAccess.file_exists(TEST_SAVE_PATH + ".corrupt") and not FileAccess.file_exists(TEST_SAVE_PATH),
+		"El guardado ilegible se aparta en lugar de sobrescribirse")
+	DirAccess.remove_absolute(TEST_SAVE_PATH + ".corrupt")
+
+	# 2b. Tipos inesperados y datos imposibles: cada campo vuelve a un valor válido
+	f = FileAccess.open(TEST_SAVE_PATH, FileAccess.WRITE)
+	f.store_string(JSON.stringify({"coins": {}, "upgrades": {"hack": 10, "troop_speed": "x"},
+		"completed_levels": {"europe_1": 0, "europe_2": 7, "mars_1": 3}, "unlocked_levels": "abc",
+		"current_level_id": "mars_9", "current_continent": 5, "sound_muted": "yes"}))
+	f.close()
+	GameManager.load_game()
+	assert_equals(GameManager.coins, GameManager.DEFAULT_COINS, "Monedas con tipo inválido vuelven al valor inicial")
+	assert_true(not GameManager.upgrades.has("hack") and GameManager.upgrades["troop_speed"] == 0, "Se descartan mejoras desconocidas o con tipo inválido")
+	assert_equals(GameManager.completed_levels, {"europe_2": 3}, "Sólo cuentan niveles reales con 1-3 estrellas")
+	assert_equals(GameManager.unlocked_levels, [GameManager.FIRST_LEVEL_ID] as Array[String], "Una lista de niveles corrupta deja jugable el primero")
+	assert_equals(GameManager.current_level_id, GameManager.FIRST_LEVEL_ID, "Un nivel actual inexistente vuelve al primero")
+	assert_equals(GameManager.current_continent, "europe", "Un continente inválido se deduce del nivel actual")
+	assert_true(not GameManager.sound_muted, "Un ajuste con tipo inválido toma su valor por defecto")
 
 	# 3. Recompensas: completa la primera vez, reducida al repetir, media al mejorar estrellas
 	GameManager.reset_save()
@@ -2596,6 +2578,7 @@ func test_daily_rewards_and_streaks() -> void:
 	assert_equals(DailyRewards.evaluate(100, 1, 101)["streak"], 2, "Volver al día siguiente suma racha")
 	assert_equals(DailyRewards.evaluate(100, 5, 103)["streak"], 1, "Saltarse un día reinicia la racha")
 	assert_true(not DailyRewards.evaluate(100, 1, 100)["can_claim"], "No se cobra dos veces el mismo día")
+	assert_true(not DailyRewards.evaluate(100, 3, 95)["can_claim"], "Atrasar el reloj no permite cobrar otra vez")
 	assert_equals(DailyRewards.reward_for_streak(7), DailyRewards.STREAK_REWARDS[-1], "El día 7 da el premio gordo")
 	assert_equals(DailyRewards.reward_for_streak(8), DailyRewards.STREAK_REWARDS[0], "El día 8 vuelve a empezar el ciclo")
 	assert_true(DailyRewards.today() > 19000, "El día local actual es coherente (días desde 1970)")
@@ -2779,3 +2762,51 @@ func test_daily_challenge_levels() -> void:
 	assert_equals(GameManager.get_total_stars(), 0, "Los desafíos no suman estrellas de campaña")
 	assert_true(not GameManager.completed_levels.has(id), "Los desafíos no se guardan como niveles de campaña")
 	GameManager.reset_save()
+
+func test_cleanup_regressions() -> void:
+	print("\n-> Test: Regresiones de la Limpieza (IDs de Campaña, IA Conjunta y Arrastre)")
+	# 1. Ids de campaña en un único sitio
+	assert_equals(LevelDatabase.get_continent_level_ids("asia").size(), LevelDatabase.LEVELS_PER_CONTINENT, "Cada continente tiene LEVELS_PER_CONTINENT niveles")
+	assert_equals(LevelDatabase.get_continent_of("north_america_3"), "north_america", "Continente deducido del id")
+	assert_equals(LevelDatabase.get_level_number("north_america_3"), 3, "Número de nivel deducido del id")
+	assert_equals(GameManager.get_next_level("europe_5"), "north_america_1", "Tras el último nivel de un continente llega el siguiente")
+	assert_equals(GameManager.get_next_level("oceania_5"), "", "El último nivel de la campaña no tiene siguiente")
+	assert_equals(GameManager.get_next_level(DailyRewards.challenge_id(1)), "", "Un desafío diario no tiene siguiente nivel")
+	assert_equals(LevelDatabase.get_difficulty("oceania_5"), 1.0, "El último nivel tiene dificultad máxima")
+
+	# 2. Ataque conjunto: la IA puntúa y envía con las mismas 3 bases más cercanas
+	var battle = load("res://scripts/battle/battle_controller.gd").new()
+	var target = _make_base(Vector2(500, 500), GameManager.Faction.NEUTRAL, 40)
+	var sources: Array[BaseNode] = []
+	for i in 5:
+		sources.append(_make_base(Vector2(500 + 120 * (i + 1), 500), GameManager.Faction.ENEMY_1, 30))
+	battle.bases.append(target)
+	battle.bases.append_array(sources)
+	var ai = AIController.new()
+	ai.setup(battle, GameManager.Faction.ENEMY_1)
+	var joint = ai._joint_sources(sources, target)
+	assert_equals(joint.size(), AIController.MAX_JOINT_SOURCES, "El ataque conjunto usa como mucho 3 bases")
+	assert_true(joint.has(sources[0]) and joint.has(sources[2]) and not joint.has(sources[4]), "Participan las bases más cercanas al objetivo")
+
+	# 3. Soltar el arrastre sólo lanza desde bases que siguen siendo del jugador
+	var mine = _make_base(Vector2(100, 1000), GameManager.Faction.PLAYER, 20)
+	var lost = _make_base(Vector2(300, 1000), GameManager.Faction.PLAYER, 20)
+	var goal = _make_base(Vector2(700, 1000), GameManager.Faction.NEUTRAL, 5)
+	battle.bases.append_array([mine, lost, goal])
+	var assaults: Array[int] = []
+	var on_assault = func(n): assaults.append(n)
+	EventBus.player_assault.connect(on_assault)
+	battle._handle_press(mine.position)
+	battle._add_selected_source(lost)
+	lost.faction = GameManager.Faction.ENEMY_1
+	assert_equals(battle.get_pending_attack_count(), 19, "La vista previa ignora las bases perdidas durante el arrastre")
+	battle._handle_release(goal.position)
+	assert_equals(lost.troops, 20, "Una base capturada durante el arrastre no lanza tropas")
+	assert_equals(assaults, [1] as Array[int], "El asalto cuenta sólo las bases que han lanzado tropas")
+	assert_true(not battle.dispatch_troops(mine, goal), "dispatch_troops devuelve false si no queda nadie a quien enviar")
+	EventBus.player_assault.disconnect(on_assault)
+
+	for t in battle.active_troops:
+		t.free()
+	for n in battle.bases + [ai, battle]:
+		n.free()

@@ -33,19 +33,28 @@ const UPGRADE_BASE_COSTS = {
 	"gold_bonus": 100
 }
 
+## Mejora por nivel de cada tipo: tropas iniciales o puntos porcentuales
+const UPGRADE_STEPS = {
+	"starting_troops": 5,
+	"production_rate": 15,
+	"troop_speed": 10,
+	"gold_bonus": 20
+}
+
 const MAX_UPGRADE_LEVEL = 10
 const DEFAULT_COINS = 150
+const FIRST_LEVEL_ID := "europe_1"
 const SAVE_VERSION = 2
 
 ## Fracción de oro que se concede al repetir un nivel ya superado sin mejorar estrellas
 const REPLAY_GOLD_FACTOR = 0.25
 
 var coins: int = DEFAULT_COINS
-var upgrades: Dictionary = _default_upgrades()
-var current_continent: String = "europe"
-var current_level_id: String = "europe_1"
+var upgrades: Dictionary = {}
+var current_continent: String = LevelDatabase.get_continent_of(FIRST_LEVEL_ID)
+var current_level_id: String = FIRST_LEVEL_ID
 var completed_levels: Dictionary = {} # level_id: stars (1-3)
-var unlocked_levels: Array[String] = ["europe_1"]
+var unlocked_levels: Array[String] = [FIRST_LEVEL_ID]
 var sound_muted: bool = false
 var music_muted: bool = false
 var seen_tips: Array[String] = []
@@ -54,7 +63,7 @@ var stats: Dictionary = {}
 ## Estado de cada logro: ACHIEVEMENT_UNLOCKED (recompensa pendiente) o ACHIEVEMENT_CLAIMED
 var achievements: Dictionary = {}
 ## Recompensa diaria y desafío del día (días locales, ver DailyRewards.today)
-var daily: Dictionary = _default_daily()
+var daily: Dictionary = {}
 ## Desafío diario en juego; vacío = se juega current_level_id de la campaña
 var challenge_level_id: String = ""
 
@@ -66,19 +75,11 @@ var enemy_production_multiplier: float = 1.0
 
 var save_path: String = "user://invade_save.json"
 
+func _init() -> void:
+	_apply_save({})
+
 func _ready() -> void:
 	load_game()
-
-static func _default_daily() -> Dictionary:
-	return {"last_claim_day": -1, "streak": 0, "challenge_day": -1}
-
-static func _default_upgrades() -> Dictionary:
-	return {
-		"starting_troops": 0,
-		"production_rate": 0,
-		"troop_speed": 0,
-		"gold_bonus": 0
-	}
 
 func get_total_stars() -> int:
 	var total := 0
@@ -89,17 +90,21 @@ func get_total_stars() -> int:
 func get_max_possible_stars() -> int:
 	return LevelDatabase.get_level_ids().size() * 3
 
+## Bonificación total de una mejora con su nivel actual (tropas o puntos porcentuales)
+func get_upgrade_bonus(upgrade_id: String) -> int:
+	return upgrades.get(upgrade_id, 0) * UPGRADE_STEPS[upgrade_id]
+
 func get_starting_troops_bonus() -> int:
-	return upgrades.get("starting_troops", 0) * 5
+	return get_upgrade_bonus("starting_troops")
 
 func get_production_multiplier() -> float:
-	return 1.0 + (upgrades.get("production_rate", 0) * 0.15)
+	return 1.0 + get_upgrade_bonus("production_rate") / 100.0
 
 func get_troop_speed_multiplier() -> float:
-	return 1.0 + (upgrades.get("troop_speed", 0) * 0.10)
+	return 1.0 + get_upgrade_bonus("troop_speed") / 100.0
 
 func get_gold_multiplier() -> float:
-	return 1.0 + (upgrades.get("gold_bonus", 0) * 0.20)
+	return 1.0 + get_upgrade_bonus("gold_bonus") / 100.0
 
 ## Multiplicador de producción aplicable a una facción en la batalla actual
 func get_faction_production_multiplier(faction: int) -> float:
@@ -117,18 +122,15 @@ func get_upgrade_cost(upgrade_id: String) -> int:
 	return int(round(base_cost * pow(1.8, lvl)))
 
 func buy_upgrade(upgrade_id: String) -> bool:
-	var lvl: int = upgrades.get(upgrade_id, 0)
-	if lvl >= MAX_UPGRADE_LEVEL:
+	var cost := get_upgrade_cost(upgrade_id)
+	if cost < 0 or coins < cost:
 		return false
-	var cost = get_upgrade_cost(upgrade_id)
-	if coins >= cost and cost > 0:
-		coins -= cost
-		upgrades[upgrade_id] = lvl + 1
-		save_game()
-		EventBus.coins_updated.emit(coins)
-		EventBus.upgrade_purchased.emit(upgrade_id, upgrades[upgrade_id])
-		return true
-	return false
+	coins -= cost
+	upgrades[upgrade_id] = upgrades.get(upgrade_id, 0) + 1
+	save_game()
+	EventBus.coins_updated.emit(coins)
+	EventBus.upgrade_purchased.emit(upgrade_id, upgrades[upgrade_id])
+	return true
 
 func add_coins(amount: int) -> void:
 	coins += amount
@@ -155,29 +157,18 @@ func complete_level(level_id: String, stars: int) -> void:
 		if not unlocked_levels.has(next_id):
 			unlocked_levels.append(next_id)
 		current_level_id = next_id
-		var next_cont = next_id.substr(0, next_id.rfind("_"))
-		if next_cont != "":
-			current_continent = next_cont
+		current_continent = LevelDatabase.get_continent_of(next_id)
 
 	save_game()
 
 func is_level_unlocked(level_id: String) -> bool:
 	return unlocked_levels.has(level_id)
 
+## Siguiente nivel de la campaña ("" tras el último o si no es de campaña)
 func get_next_level(level_id: String) -> String:
-	var last_underscore = level_id.rfind("_")
-	if last_underscore != -1:
-		var continent = level_id.substr(0, last_underscore)
-		var index = int(level_id.substr(last_underscore + 1))
-		if index < 5:
-			return "%s_%d" % [continent, index + 1]
-		else:
-			# Desbloquear primer nivel del siguiente continente
-			var continent_order = LevelDatabase.CONTINENT_ORDER
-			var c_idx = continent_order.find(continent)
-			if c_idx >= 0 and c_idx + 1 < continent_order.size():
-				return "%s_1" % continent_order[c_idx + 1]
-	return ""
+	var ids := LevelDatabase.get_level_ids()
+	var i := ids.find(level_id)
+	return ids[i + 1] if i >= 0 and i + 1 < ids.size() else ""
 
 ## Nivel que carga la batalla: el desafío diario si hay uno en juego, si no el de la campaña
 func get_battle_level_id() -> String:
@@ -226,7 +217,6 @@ func claim_achievement(id: String) -> int:
 	achievements[id] = ACHIEVEMENT_CLAIMED
 	var reward: int = AchievementDatabase.get_by_id(id).get("reward", 0)
 	add_coins(reward)
-	EventBus.achievement_claimed.emit(id, reward)
 	return reward
 
 func get_claimable_achievement_count() -> int:
@@ -257,10 +247,11 @@ func is_daily_challenge_done(day: int = DailyRewards.today()) -> bool:
 ## Registra la victoria en un desafío diario; devuelve el oro (completo sólo la primera vez del día)
 func complete_daily_challenge(level_id: String) -> int:
 	var day := DailyRewards.challenge_day(level_id)
-	var factor := REPLAY_GOLD_FACTOR if is_daily_challenge_done(day) else 1.0
-	if not is_daily_challenge_done(day):
+	var is_replay := is_daily_challenge_done(day)
+	if not is_replay:
 		daily["challenge_day"] = day
 		add_stat("daily_challenges")
+	var factor := REPLAY_GOLD_FACTOR if is_replay else 1.0
 	return int(round(DailyRewards.DAILY_CHALLENGE_GOLD * factor * get_gold_multiplier()))
 
 func has_seen_tip(tip_id: String) -> bool:
@@ -305,61 +296,73 @@ func load_game() -> void:
 	if not FileAccess.file_exists(save_path):
 		return
 	var json = JSON.new()
-	if json.parse(FileAccess.get_file_as_string(save_path)) != OK or typeof(json.data) != TYPE_DICTIONARY:
+	if json.parse(FileAccess.get_file_as_string(save_path)) != OK or not json.data is Dictionary:
+		# Se aparta la partida ilegible para no sobrescribirla en el próximo guardado
+		DirAccess.rename_absolute(save_path, save_path + ".corrupt")
 		return
-	var data: Dictionary = json.data
-	# JSON devuelve los números como float: convertir explícitamente a int
-	coins = int(data.get("coins", DEFAULT_COINS))
-	upgrades = _default_upgrades()
-	var saved_upgrades = data.get("upgrades", {})
-	if saved_upgrades is Dictionary:
-		for key in saved_upgrades:
-			upgrades[key] = clampi(int(saved_upgrades[key]), 0, MAX_UPGRADE_LEVEL)
-	completed_levels.clear()
-	var saved_levels = data.get("completed_levels", {})
-	if saved_levels is Dictionary:
-		for key in saved_levels:
-			completed_levels[str(key)] = clampi(int(saved_levels[key]), 0, 3)
-	unlocked_levels.clear()
-	for l in data.get("unlocked_levels", ["europe_1"]):
-		unlocked_levels.append(str(l))
-	if unlocked_levels.is_empty():
-		unlocked_levels.append("europe_1")
-	seen_tips.clear()
-	for t in data.get("seen_tips", []):
-		seen_tips.append(str(t))
-	current_continent = str(data.get("current_continent", current_continent))
-	current_level_id = str(data.get("current_level_id", current_level_id))
-	sound_muted = bool(data.get("sound_muted", false))
-	music_muted = bool(data.get("music_muted", false))
-	stats.clear()
-	var saved_stats = data.get("stats", {})
-	if saved_stats is Dictionary:
-		for key in saved_stats:
-			stats[str(key)] = maxi(0, int(saved_stats[key]))
-	achievements.clear()
-	var saved_achievements = data.get("achievements", {})
-	if saved_achievements is Dictionary:
-		for key in saved_achievements:
-			var state = str(saved_achievements[key])
-			if state == ACHIEVEMENT_UNLOCKED or state == ACHIEVEMENT_CLAIMED:
-				achievements[str(key)] = state
-	daily = _default_daily()
-	var saved_daily = data.get("daily", {})
-	if saved_daily is Dictionary:
-		for key in daily:
-			daily[key] = int(saved_daily.get(key, daily[key]))
+	_apply_save(json.data)
 
 func reset_save() -> void:
-	coins = DEFAULT_COINS
-	upgrades = _default_upgrades()
-	completed_levels = {}
-	unlocked_levels = ["europe_1"]
-	current_continent = "europe"
-	current_level_id = "europe_1"
-	seen_tips.clear()
-	stats.clear()
-	achievements.clear()
-	daily = _default_daily()
+	_apply_save({})
 	challenge_level_id = ""
 	save_game()
+
+## Aplica un guardado validando cada campo: lo que falta o no es válido toma su valor inicial.
+## Con un diccionario vacío deja la partida nueva.
+func _apply_save(data: Dictionary) -> void:
+	coins = maxi(0, _as_int(data.get("coins"), DEFAULT_COINS))
+	var saved_upgrades := _as_dict(data.get("upgrades"))
+	upgrades = {}
+	for key in UPGRADE_BASE_COSTS:
+		upgrades[key] = clampi(_as_int(saved_upgrades.get(key), 0), 0, MAX_UPGRADE_LEVEL)
+	completed_levels = {}
+	var saved_levels := _as_dict(data.get("completed_levels"))
+	for key in saved_levels:
+		var stars := _as_int(saved_levels[key], 0)
+		if stars > 0 and _is_campaign_level(key):
+			completed_levels[key] = mini(stars, 3)
+	unlocked_levels = [FIRST_LEVEL_ID]
+	for l in _as_array(data.get("unlocked_levels")):
+		if _is_campaign_level(l) and not unlocked_levels.has(l):
+			unlocked_levels.append(l)
+	seen_tips.clear()
+	for t in _as_array(data.get("seen_tips")):
+		seen_tips.append(str(t))
+	current_level_id = str(data.get("current_level_id", ""))
+	if not _is_campaign_level(current_level_id):
+		current_level_id = FIRST_LEVEL_ID
+	current_continent = str(data.get("current_continent", ""))
+	if not LevelDatabase.get_continents().any(func(c): return c["id"] == current_continent):
+		current_continent = LevelDatabase.get_continent_of(current_level_id)
+	sound_muted = _as_bool(data.get("sound_muted"))
+	music_muted = _as_bool(data.get("music_muted"))
+	stats = {}
+	var saved_stats := _as_dict(data.get("stats"))
+	for key in saved_stats:
+		stats[key] = maxi(0, _as_int(saved_stats[key], 0))
+	achievements = {}
+	var saved_achievements := _as_dict(data.get("achievements"))
+	for key in saved_achievements:
+		if saved_achievements[key] in [ACHIEVEMENT_UNLOCKED, ACHIEVEMENT_CLAIMED]:
+			achievements[key] = saved_achievements[key]
+	var saved_daily := _as_dict(data.get("daily"))
+	daily = {"last_claim_day": -1, "streak": 0, "challenge_day": -1}
+	for key in daily:
+		daily[key] = _as_int(saved_daily.get(key), daily[key])
+
+static func _is_campaign_level(level_id: Variant) -> bool:
+	return level_id is String and not DailyRewards.is_challenge(level_id) \
+		and not LevelDatabase.get_level_definition(level_id).is_empty()
+
+## JSON devuelve los números como float y un guardado dañado puede traer cualquier tipo
+static func _as_int(value: Variant, default: int) -> int:
+	return int(value) if value is int or value is float else default
+
+static func _as_bool(value: Variant) -> bool:
+	return value is bool and value
+
+static func _as_dict(value: Variant) -> Dictionary:
+	return value if value is Dictionary else {}
+
+static func _as_array(value: Variant) -> Array:
+	return value if value is Array else []

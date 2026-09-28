@@ -59,8 +59,7 @@ static func build(def: Dictionary, difficulty: float) -> Dictionary:
 		base["pos"] = proj.project(base["lonlat"])
 	relax_positions(bases)
 
-	var extra_count: int = def.get("extra_neutrals", roundi(difficulty * MAX_EXTRA_NEUTRALS))
-	var extras := _pick_extra_neutrals(proj, bases, extra_count, difficulty, rng)
+	var extras := _pick_extra_neutrals(proj, bases, roundi(difficulty * MAX_EXTRA_NEUTRALS), difficulty, rng)
 	bases.append_array(extras)
 
 	var level: Dictionary = def.duplicate()
@@ -84,6 +83,8 @@ static func daily_challenge_definition(day: int) -> Dictionary:
 		near = _spread_neighbors(center, cities, max_deg)
 		if near.size() >= DAILY_ANCHORS - 1:
 			break
+	if near.is_empty():
+		near = _spread_neighbors(center, cities, 360.0)
 
 	# Rival principal: la vecina más lejana. A veces, un segundo rival lejos de ambos.
 	near.sort_custom(func(a, b): return _geo_distance(center, a) > _geo_distance(center, b))
@@ -101,7 +102,6 @@ static func daily_challenge_definition(day: int) -> Dictionary:
 	return {
 		"id": DailyRewards.challenge_id(day),
 		"name": "Desafío diario: %s" % center["name_es"],
-		"continent": "daily",
 		"description": "Un frente nuevo cada día. Conquista la región de %s antes de medianoche." % center["name_es"],
 		"target_time": DAILY_TARGET_TIME,
 		"bases": bases,
@@ -239,12 +239,6 @@ static func _mercator_rect(proj: MapProjection, screen: Rect2) -> Rect2:
 static func _rect_polygon(r: Rect2) -> PackedVector2Array:
 	return PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
 
-static func _screen_bounds(pts: PackedVector2Array) -> Rect2:
-	var r := Rect2(pts[0], Vector2.ZERO)
-	for p in pts:
-		r = r.expand(p)
-	return r
-
 ## Proyecta las formas que caen en `clip_rect` y recorta las que lo atraviesan
 static func _clip_shapes(proj: MapProjection, shapes: Array[PackedVector2Array], bounds: Array[Rect2], closed: bool, clip_rect: Rect2) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
@@ -255,7 +249,7 @@ static func _clip_shapes(proj: MapProjection, shapes: Array[PackedVector2Array],
 		if not proj.may_overlap(bounds[i], view):
 			continue
 		var pts := proj.project_points(shapes[i])
-		var sb := _screen_bounds(pts)
+		var sb := GeoDatabase.bounds_of(pts)
 		if not sb.intersects(clip_rect):
 			continue
 		if clip_rect.encloses(sb):
