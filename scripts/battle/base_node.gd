@@ -24,6 +24,9 @@ const DEFAULT_TIER_PARAMS = {"radius": 60.0, "capacity": 70, "rate": 1.0}
 @export var base_type: BaseType = BaseType.STANDARD
 ## Clave de la ciudad real (para el atlas); "" en bases sin ciudad
 var city_key: String = ""
+var production_bonus: float = 1.0
+var is_capital: bool = false
+var is_boss: bool = false
 
 var fortress_absorbed_damage: int = 0
 var factory_gear_angle: float = 0.0
@@ -90,7 +93,7 @@ func get_defense_multiplier() -> float:
 ## Tropas generadas por segundo con los modificadores de nivel, tipo y facción
 func get_production_rate() -> float:
 	var rate: float = TIER_PARAMS.get(tier, DEFAULT_TIER_PARAMS)["rate"]
-	return rate * get_type_production_multiplier() * GameManager.get_faction_production_multiplier(faction)
+	return rate * production_bonus * get_type_production_multiplier() * GameManager.get_faction_production_multiplier(faction)
 
 ## Puntos de defensa restantes (fortaleza absorbe 2 impactos por tropa, fábrica 0.5)
 func get_defense_power() -> float:
@@ -132,6 +135,9 @@ func setup(data: Dictionary) -> void:
 	base_id = data.get("id", base_id)
 	base_name = data.get("name", base_name)
 	city_key = data.get("city", city_key)
+	production_bonus = data.get("production_bonus", 1.0)
+	is_capital = data.get("capital", false)
+	is_boss = data.get("boss", false)
 	faction = data.get("faction", faction)
 	troops = data.get("troops", troops)
 	tier = data.get("tier", tier)
@@ -232,7 +238,7 @@ func _trigger_conquest_shockwave(new_faction: int) -> void:
 	shake_intensity = 6.0
 	shockwave_radius = radius * 0.7
 	shockwave_alpha = 0.95
-	shockwave_color = GameManager.FACTION_COLORS.get(new_faction, Color.WHITE)
+	shockwave_color = GameManager.faction_color(new_faction)
 
 func set_selected(selected: bool) -> void:
 	if is_selected != selected:
@@ -309,6 +315,9 @@ func _update_label() -> void:
 func _draw() -> void:
 	var color = GameManager.faction_color(faction)
 	var current_radius = radius * pulse_scale
+	if is_capital or is_boss:
+		var marker := "♛" if is_boss else "★"
+		draw_string(ThemeDB.fallback_font, Vector2(-20, -current_radius - 34), marker, HORIZONTAL_ALIGNMENT_CENTER, 40, 34, Color("ffe483"))
 
 	# 1. Onda expansiva de impacto y conquista
 	if shockwave_alpha > 0.0:

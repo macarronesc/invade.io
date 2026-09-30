@@ -1,6 +1,6 @@
 extends Node
 
-## AchievementManager: convierte los eventos del juego en estadísticas y desbloquea logros.
+## AchievementManager: convierte eventos en estadísticas, misiones, XP y logros.
 ## Sólo lógica: el estado se guarda en GameManager y los avisos los muestra Toasts.
 ## Los logros se comprueban en cuanto cambia una estadística (el aviso sale en plena batalla),
 ## pero las estadísticas sólo se escriben en disco al terminar la batalla o al desbloquear.
@@ -11,7 +11,7 @@ func _ready() -> void:
 	EventBus.battle_started.connect(_on_battle_started)
 	EventBus.base_captured.connect(_on_base_captured)
 	EventBus.battle_won.connect(_on_battle_won)
-	EventBus.battle_lost.connect(GameManager.save_game)
+	EventBus.battle_lost.connect(_on_battle_lost)
 	EventBus.troops_dispatched.connect(_on_troops_dispatched)
 	EventBus.troops_retreated.connect(_on_troops_retreated)
 	EventBus.player_assault.connect(_on_player_assault)
@@ -55,17 +55,23 @@ func _on_battle_started(_level_id: String) -> void:
 func _on_base_captured(_base: Node, previous_faction: int, new_faction: int) -> void:
 	if new_faction == GameManager.Faction.PLAYER:
 		GameManager.add_stat("bases_captured")
+		GameManager.advance_mission("captures")
 		check_all()
 	elif previous_faction == GameManager.Faction.PLAYER:
 		_lost_base_this_battle = true
 
 func _on_battle_won(battle_stats: Dictionary) -> void:
+	GameManager.record_battle_result(battle_stats, not _lost_base_this_battle)
 	GameManager.add_stat("victories")
 	if battle_stats.get("time", INF) < AchievementDatabase.BLITZ_SECONDS:
 		GameManager.add_stat("fast_victories")
 	if not _lost_base_this_battle:
 		GameManager.add_stat("flawless_victories")
 	check_all()
+	GameManager.save_game()
+
+func _on_battle_lost() -> void:
+	GameManager.experience += 10
 	GameManager.save_game()
 
 func _on_troops_dispatched(_from: Node, _to: Node, count: int, faction: int) -> void:

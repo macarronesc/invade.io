@@ -84,7 +84,7 @@ func get_projected_defense(src: BaseNode, dst: BaseNode) -> float:
 	var def := float(dst.get_effective_defense())
 	var m := dst.get_defense_multiplier()
 	if dst.faction != GameManager.Faction.NEUTRAL and dst.faction != faction:
-		var travel_time := src.global_position.distance_to(dst.global_position) / Troop.BASE_SPEED
+		var travel_time := src.global_position.distance_to(dst.global_position) / (Troop.BASE_SPEED * float(battle_controller.level_data.get("travel_multiplier", 1.0)))
 		def += dst.get_production_rate() * travel_time * m
 	var per_faction: Dictionary = _incoming.get(dst, {})
 	for f in per_faction:
@@ -93,6 +93,8 @@ func get_projected_defense(src: BaseNode, dst: BaseNode) -> float:
 
 func evaluate_target_utility(src: BaseNode, dst: BaseNode) -> float:
 	if not is_instance_valid(src) or not is_instance_valid(dst) or src == dst:
+		return -9999.0
+	if not battle_controller.can_dispatch(src, dst):
 		return -9999.0
 
 	var dist = src.global_position.distance_to(dst.global_position)
@@ -321,7 +323,7 @@ func _evaluate_and_execute() -> void:
 func _joint_sources(my_bases: Array[BaseNode], dst: BaseNode) -> Array[BaseNode]:
 	var sources: Array[BaseNode] = []
 	sources.assign(my_bases.filter(func(src):
-		return src.troops > 2 and src.global_position.distance_to(dst.global_position) < JOINT_ATTACK_RANGE))
+		return src.troops > 2 and battle_controller.can_dispatch(src, dst) and src.global_position.distance_to(dst.global_position) < JOINT_ATTACK_RANGE))
 	sources.sort_custom(func(a, b):
 		return a.global_position.distance_squared_to(dst.global_position) < b.global_position.distance_squared_to(dst.global_position))
 	sources.resize(mini(sources.size(), MAX_JOINT_SOURCES))

@@ -54,6 +54,7 @@ static func get_level_data(level_id: String) -> Dictionary:
 			return get_level_data(GameManager.FIRST_LEVEL_ID)
 		var built: Dictionary = LevelGenerator.build(def, get_difficulty(level_id))
 		_localize(built, def)
+		CampaignRules.apply(built)
 		if _built.size() >= MAX_CACHED_LEVELS:
 			_built.erase(_built.keys()[0])
 		_built[cache_key] = built

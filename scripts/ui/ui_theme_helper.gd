@@ -4,9 +4,9 @@ class_name UIThemeHelper
 ## UIThemeHelper: Utilidad central de diseño y estilos visuales State.io 2.5D
 ## Proporciona temas, botones táctiles con relieve, feedback elástico (tween bounce) y tarjetas de interfaz.
 
-const COLOR_BG: Color = Color(0.13, 0.16, 0.22)
-const COLOR_CARD: Color = Color(0.19, 0.23, 0.30, 0.96)
-const COLOR_CARD_BORDER: Color = Color(0.36, 0.46, 0.58, 0.80)
+const COLOR_BG: Color = Color("16263c")
+const COLOR_CARD: Color = Color("243b56")
+const COLOR_CARD_BORDER: Color = Color("56738e")
 const COLOR_PRIMARY: Color = Color(0.15, 0.65, 1.0)       # Azul vivo minimalista
 const COLOR_ACCENT: Color = Color(1.0, 0.82, 0.18)        # Oro brillante
 const COLOR_SUCCESS: Color = Color(0.22, 0.75, 0.38)       # Verde esmeralda
@@ -133,10 +133,16 @@ static func apply_stateio_button_style(
 		pressed_depth, Color(0, 0, 0, 0.20), 2, 1.0, 13.0))
 	btn.add_theme_stylebox_override("disabled", _button_box(Color(0.20, 0.23, 0.28, 0.70), Color(0.15, 0.18, 0.22, 0.60),
 		corner_radius, 2, Color.TRANSPARENT, 0, 0.0, 10.0))
-	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	btn.add_theme_color_override("font_color", Color.WHITE)
-	btn.add_theme_color_override("font_hover_color", Color.WHITE)
-	btn.add_theme_color_override("font_pressed_color", Color(0.92, 0.92, 0.92))
+	var focus := StyleBoxFlat.new()
+	focus.bg_color = Color.TRANSPARENT
+	focus.set_border_width_all(3)
+	focus.border_color = Color.WHITE
+	focus.set_corner_radius_all(corner_radius)
+	btn.add_theme_stylebox_override("focus", focus)
+	var ink := Color("102137") if bg_color.get_luminance() > 0.45 else Color.WHITE
+	btn.add_theme_color_override("font_color", ink)
+	btn.add_theme_color_override("font_hover_color", ink)
+	btn.add_theme_color_override("font_pressed_color", ink)
 	btn.add_theme_color_override("font_disabled_color", Color(0.55, 0.58, 0.62))
 	setup_button_bounce(btn)
 
@@ -155,6 +161,52 @@ static func _button_box(bg: Color, border: Color, radius: int, depth: int, shado
 	box.content_margin_left = 18.0
 	box.content_margin_right = 18.0
 	return box
+
+## Paneles de misiones y ajustes comparten disposición, no lógica de negocio.
+static func overlay_page(root: Control, title: String, close: Callable) -> VBoxContainer:
+	root.theme = Theme.new()
+	root.theme.default_base_scale = 2.0
+	root.theme.default_font_size = 28
+	root.process_mode = Node.PROCESS_MODE_ALWAYS
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var background := ColorRect.new()
+	background.color = COLOR_BG
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_child(background)
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 48)
+	root.add_child(margin)
+	apply_safe_area_top(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 28)
+	margin.add_child(column)
+	var back := Button.new()
+	back.text = LocaleStrings.text("back")
+	back.custom_minimum_size.y = 80
+	back.add_theme_font_size_override("font_size", 28)
+	apply_stateio_button_style(back, COLOR_BTN_SECONDARY)
+	back.pressed.connect(close)
+	column.add_child(back)
+	var heading := Label.new()
+	heading.text = title
+	heading.add_theme_font_size_override("font_size", 46)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(heading)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(scroll)
+	var content := VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 24)
+	scroll.add_child(content)
+	return content
+
+static func xp_text() -> String:
+	var level := DailyMissions.player_level(GameManager.experience)
+	return LocaleStrings.text("player_xp") % [level, GameManager.experience - DailyMissions.level_start(level), DailyMissions.level_start(level + 1) - DailyMissions.level_start(level)]
 
 ## Animación táctil de escala al pasar por encima, pulsar y soltar (una sola vez por botón)
 static func setup_button_bounce(btn: Button) -> void:

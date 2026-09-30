@@ -61,6 +61,10 @@ var _tip_panel: Control = null
 var _tip_on_close: Callable = Callable()
 ## Sólo actualiza la etiqueta cuando cambia el segundo mostrado.
 var _last_shown_second: int = -999
+var _utility_panel: Control = null
+var _share_result: Dictionary = {}
+var _rule_label: Label
+var _btn_share: Button
 
 func _notification(what: int) -> void:
 	match what:
@@ -107,6 +111,69 @@ func _ready() -> void:
 	btn_retry.pressed.connect(_on_retry_pressed)
 	btn_defeat_upgrade.pressed.connect(_on_upgrade_pressed)
 	btn_defeat_map.pressed.connect(_on_map_pressed)
+	EventBus.settings_changed.connect(_refresh_palette)
+	var settings_button := Button.new()
+	settings_button.name = "BtnSettings"
+	settings_button.text = LocaleStrings.text("settings")
+	settings_button.custom_minimum_size.y = 68
+	settings_button.add_theme_font_size_override("font_size", 26)
+	UIThemeHelper.apply_stateio_button_style(settings_button, UIThemeHelper.COLOR_BTN_SECONDARY)
+	settings_button.pressed.connect(_open_settings)
+	pause_panel.get_node("VBox").add_child(settings_button)
+	_btn_share = Button.new()
+	_btn_share.name = "BtnShare"
+	_btn_share.text = LocaleStrings.text("share")
+	_btn_share.visible = false
+	_btn_share.custom_minimum_size.y = 70
+	_btn_share.add_theme_font_size_override("font_size", 28)
+	UIThemeHelper.apply_stateio_button_style(_btn_share, UIThemeHelper.COLOR_BTN_SECONDARY)
+	_btn_share.pressed.connect(_open_share)
+	victory_panel.get_node("VBox").add_child(_btn_share)
+	_rule_label = Label.new()
+	_rule_label.position = Vector2(100, 225)
+	_rule_label.size = Vector2(880, 80)
+	_rule_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_rule_label.add_theme_font_size_override("font_size", 22)
+	_rule_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top_bar.add_child(_rule_label)
+
+func _refresh_palette() -> void:
+	for faction in _faction_bars:
+		_faction_bars[faction].color = GameManager.faction_color(faction)
+
+func _open_settings() -> void:
+	if is_instance_valid(_utility_panel):
+		return
+	_utility_panel = load("res://scripts/ui/settings_panel.gd").new()
+	_utility_panel.allow_backups = false # No reemplazar una partida mientras su batalla vive.
+	_utility_panel.closed.connect(func():
+		_apply_texts()
+		_refresh_audio_buttons()
+		pause_panel.get_node("VBox/BtnSettings").text = LocaleStrings.text("settings")
+		if is_instance_valid(battle_controller):
+			_on_battle_started(battle_controller.level_id)
+			for base in battle_controller.bases:
+				if base.label_name:
+					base.label_name.text = GeoDatabase.city_name(GeoDatabase.get_city(base.city_key)))
+	add_child(_utility_panel)
+
+func _open_share() -> void:
+	if is_instance_valid(_utility_panel):
+		return
+	var text := DailyShare.text(_share_result)
+	_utility_panel = UIThemeHelper.create_modal_card("invade.io", text, LocaleStrings.text("copy"), func():
+		DisplayServer.clipboard_set(text)
+		Toasts.show_toast("✓", "invade.io", LocaleStrings.text("copied")), true)
+	_utility_panel.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(_utility_panel)
+	var confirm: Button = _utility_panel.find_child("BtnConfirm", true, false)
+	var back := Button.new()
+	back.text = LocaleStrings.text("back")
+	back.custom_minimum_size.y = 80
+	back.add_theme_font_size_override("font_size", 28)
+	UIThemeHelper.apply_stateio_button_style(back, UIThemeHelper.COLOR_BTN_SECONDARY)
+	back.pressed.connect(_utility_panel.queue_free)
+	confirm.get_parent().add_child(back)
 
 func _apply_visual_styling() -> void:
 	UIThemeHelper.apply_stateio_button_style(btn_pause, UIThemeHelper.COLOR_BTN_SECONDARY, 14, 4)
@@ -126,6 +193,8 @@ func _apply_visual_styling() -> void:
 
 ## Textos estáticos de modales y botones en el idioma actual
 func _apply_texts() -> void:
+	if is_instance_valid(_btn_share):
+		_btn_share.text = LocaleStrings.text("share")
 	btn_next_level.text = LocaleStrings.text("next_level")
 	btn_victory_map.text = LocaleStrings.text("to_map")
 	defeat_panel.get_node("VBox/Title").text = LocaleStrings.text("defeat_title")
@@ -170,7 +239,9 @@ func _on_pause_sound_pressed() -> void:
 	_refresh_audio_buttons()
 
 func _on_battle_started(level_id: String) -> void:
-	label_level_name.text = LevelDatabase.get_level_data(level_id)["name"]
+	var data := LevelDatabase.get_level_data(level_id)
+	label_level_name.text = data["name"]
+	_rule_label.text = CampaignRules.description(data)
 	_last_shown_second = -999
 	_update_target_time()
 
@@ -294,6 +365,10 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 	_cleanup_time_scale()
 	dim_overlay.visible = true
 	UIThemeHelper.animate_modal_pop_in(victory_panel)
+	_btn_share.visible = stats.get("is_daily_challenge", false)
+	if _btn_share.visible:
+		_share_result = {"day": DailyRewards.challenge_day(str(stats.get("level_id", GameManager.get_battle_level_id()))),
+			"stars": stats.get("stars", 1), "time": stats.get("time", 0.0), "speed": stats.get("speed", 1.0)}
 
 	btn_next_level.visible = not stats.get("is_daily_challenge", false)
 	if stats.get("is_daily_challenge", false):
@@ -312,6 +387,7 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 	var reward_text = LocaleStrings.text("reward_coins") % stats.get("gold_earned", 0)
 	if stats.get("is_replay", false):
 		reward_text += "\n" + LocaleStrings.text("replay_note")
+	reward_text += "\n" + UIThemeHelper.xp_text()
 	victory_reward_label.text = reward_text
 
 	trigger_confetti()
@@ -392,7 +468,12 @@ func _can_pause() -> bool:
 		and not (is_instance_valid(battle_controller) and battle_controller.is_game_over)
 
 func _on_back_requested() -> void:
-	if is_instance_valid(_tip_panel):
+	if is_instance_valid(_utility_panel):
+		if _utility_panel.has_method("_close"):
+			_utility_panel._close()
+		else:
+			_utility_panel.queue_free()
+	elif is_instance_valid(_tip_panel):
 		_close_tip_card()
 	elif pause_panel.visible:
 		_on_resume_pressed()

@@ -52,7 +52,10 @@ const UPGRADE_STEPS = {
 const MAX_UPGRADE_LEVEL = 10
 const DEFAULT_COINS = 150
 const FIRST_LEVEL_ID := "europe_1"
-const SAVE_VERSION = 3
+const SAVE_VERSION = 4
+const DEFAULT_SETTINGS := {"volume": 0.8, "music_volume": 0.8, "vibration": true, "speed": 1.0, "colorblind": false}
+const GAME_SPEEDS := [0.75, 1.0, 1.5, 2.0]
+const ACCESSIBLE_FACTION_COLORS := [Color("8796a5"), Color("0072b2"), Color("d55e00"), Color("f0e442"), Color("cc79a7")]
 const SUPPORTED_LANGUAGES := ["es", "en"]
 ## Cosméticos iniciales: uno gratis por categoría
 const DEFAULT_COSMETICS_EQUIPPED := {"army_color": "color_blue", "troop_style": "troop_classic", "base_shape": "base_round", "map_theme": "theme_midnight"}
@@ -92,6 +95,10 @@ var conquered_cities: Array[String] = []
 ## Estética desbloqueada y equipada (ver CosmeticsDatabase)
 var cosmetics_owned: Array[String] = []
 var cosmetics_equipped: Dictionary = {}
+var settings: Dictionary = {}
+var experience: int = 0
+var missions: Dictionary = {}
+var daily_best: Dictionary = {}
 
 const ACHIEVEMENT_UNLOCKED := "unlocked"
 const ACHIEVEMENT_CLAIMED := "claimed"
@@ -218,6 +225,8 @@ func faction_name(faction: int) -> String:
 
 ## Color real de una facción en batalla (el jugador usa su color de la tienda)
 func faction_color(faction: int) -> Color:
+	if settings.get("colorblind", false):
+		return ACCESSIBLE_FACTION_COLORS[clampi(faction, 0, 4)]
 	if faction == Faction.PLAYER:
 		return player_color()
 	return FACTION_COLORS.get(faction, Color.GRAY)
@@ -371,11 +380,72 @@ func equip_cosmetic(id: String) -> bool:
 
 ## Vibración háptica breve en dispositivos móviles (no hace nada en escritorio)
 func haptic(duration_ms: int) -> void:
-	if OS.has_feature("mobile"):
+	if settings["vibration"] and OS.has_feature("mobile"):
 		Input.vibrate_handheld(duration_ms)
 
-func save_game() -> void:
-	var data = {
+func set_setting(key: String, value: Variant) -> void:
+	if not DEFAULT_SETTINGS.has(key):
+		return
+	if DEFAULT_SETTINGS[key] is bool:
+		settings[key] = _as_bool(value)
+	else:
+		settings[key] = _setting_number(key, value)
+	AudioManager.apply_volumes()
+	save_game()
+	EventBus.settings_changed.emit()
+
+static func _setting_number(key: String, value: Variant) -> float:
+	var number := float(value) if (value is int or value is float) else float(DEFAULT_SETTINGS[key])
+	if not is_finite(number):
+		number = float(DEFAULT_SETTINGS[key])
+	if key == "speed":
+		number = clampf(number, GAME_SPEEDS[0], GAME_SPEEDS[-1])
+		var closest: float = GAME_SPEEDS[0]
+		for speed in GAME_SPEEDS:
+			if absf(speed - number) < absf(closest - number):
+				closest = speed
+		return closest
+	return clampf(number, 0.0, 1.0)
+
+func ensure_missions(day: int = DailyRewards.today()) -> void:
+	# Un reloj atrasado no permite volver a cobrar los objetivos de ayer.
+	if day > int(missions.get("day", -1)):
+		missions = {"day": day, "progress": {}, "claimed": []}
+
+func advance_mission(id: String, amount: int = 1, day: int = DailyRewards.today()) -> void:
+	ensure_missions(day)
+	for mission in DailyMissions.for_day(int(missions["day"])):
+		if mission["id"] == id:
+			missions["progress"][id] = clampi(int(missions["progress"].get(id, 0)) + maxi(0, amount), 0, int(mission["goal"]))
+
+func claim_mission(id: String, day: int = DailyRewards.today()) -> bool:
+	ensure_missions(day)
+	for mission in DailyMissions.for_day(int(missions["day"])):
+		if mission["id"] != id or missions["claimed"].has(id) or int(missions["progress"].get(id, 0)) < int(mission["goal"]):
+			continue
+		missions["claimed"].append(id)
+		experience += int(mission["xp"])
+		add_coins(int(mission["gold"]))
+		return true
+	return false
+
+func record_battle_result(result: Dictionary, flawless: bool) -> void:
+	var stars: int = clampi(int(result.get("stars", 1)), 1, 3)
+	experience += 10 if result.get("is_replay", false) else 30 + stars * 10
+	advance_mission("wins")
+	advance_mission("stars", stars)
+	if flawless:
+		advance_mission("flawless")
+	if result.get("is_daily_challenge", false):
+		advance_mission("daily")
+		var day := DailyRewards.challenge_day(str(result["level_id"]))
+		var seconds := float(result.get("time", 0.0))
+		if day > int(daily_best.get("day", -1)) or (day == int(daily_best.get("day", -1)) and (stars > int(daily_best["stars"]) or (stars == int(daily_best["stars"]) and seconds < float(daily_best["time"])))):
+			daily_best = {"day": day, "stars": stars, "time": seconds, "speed": result.get("speed", 1.0)}
+	save_game()
+
+func save_data() -> Dictionary:
+	return {
 		"version": SAVE_VERSION,
 		"coins": coins,
 		"upgrades": upgrades,
@@ -394,16 +464,52 @@ func save_game() -> void:
 		"conquest_next": conquest_next,
 		"conquered_cities": conquered_cities,
 		"cosmetics_owned": cosmetics_owned,
-		"cosmetics_equipped": cosmetics_equipped
+		"cosmetics_equipped": cosmetics_equipped,
+		"settings": settings, "experience": experience, "missions": missions, "daily_best": daily_best
 	}
+
+func save_game() -> void:
+	write_save(save_path, save_data())
+
+## También utilizado por la copia manual; nunca truncar el archivo de destino.
+func write_save(path: String, data: Dictionary) -> Error:
 	# Escritura atómica: un cierre inesperado a mitad de escritura no corrompe la partida
-	var tmp_path = save_path + ".tmp"
+	var tmp_path = path + ".tmp"
 	var file = FileAccess.open(tmp_path, FileAccess.WRITE)
 	if not file:
-		return
+		return FileAccess.get_open_error()
 	file.store_string(JSON.stringify(data))
+	file.flush()
+	var error := file.get_error()
 	file.close()
-	DirAccess.rename_absolute(tmp_path, save_path)
+	if error != OK:
+		return error
+	return DirAccess.rename_absolute(tmp_path, path)
+
+func import_save(path: String) -> Error:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if not file:
+		return ERR_INVALID_DATA
+	if file.get_length() > 2_000_000:
+		file.close()
+		return ERR_INVALID_DATA
+	var text := file.get_as_text()
+	file.close()
+	var json := JSON.new()
+	if json.parse(text) != OK or not json.data is Dictionary:
+		return ERR_PARSE_ERROR
+	var data: Dictionary = json.data
+	if not data.get("upgrades") is Dictionary or not data.get("completed_levels") is Dictionary or _as_int(data.get("version"), 0) > SAVE_VERSION:
+		return ERR_INVALID_DATA
+	var error := write_save(save_path + ".backup", save_data())
+	if error != OK:
+		return error
+	var previous := save_data().duplicate(true)
+	_apply_save(data)
+	error = write_save(save_path, save_data())
+	if error != OK:
+		_apply_save(previous)
+	return error
 
 func load_game() -> void:
 	if not FileAccess.file_exists(save_path):
@@ -419,10 +525,34 @@ func reset_save() -> void:
 	_apply_save({})
 	special_level_id = ""
 	save_game()
+	EventBus.coins_updated.emit(coins)
 
 ## Aplica un guardado validando cada campo: lo que falta o no es válido toma su valor inicial.
 ## Con un diccionario vacío deja la partida nueva.
 func _apply_save(data: Dictionary) -> void:
+	settings = DEFAULT_SETTINGS.duplicate()
+	var saved_settings := _as_dict(data.get("settings"))
+	for key in settings:
+		if saved_settings.has(key):
+			if settings[key] is bool:
+				settings[key] = _as_bool(saved_settings[key])
+			else:
+				settings[key] = _setting_number(key, saved_settings[key])
+	experience = maxi(0, _as_int(data.get("experience"), 0))
+	var saved_missions := _as_dict(data.get("missions"))
+	missions = {"day": _as_int(saved_missions.get("day"), -1), "progress": {}, "claimed": []}
+	var progress := _as_dict(saved_missions.get("progress"))
+	for mission in DailyMissions.for_day(int(missions["day"])):
+		var id: String = mission["id"]
+		missions["progress"][id] = clampi(_as_int(progress.get(id), 0), 0, int(mission["goal"]))
+		if _as_array(saved_missions.get("claimed")).has(id):
+			missions["claimed"].append(id)
+	daily_best = {}
+	var best := _as_dict(data.get("daily_best"))
+	if best.get("time") is float or best.get("time") is int:
+		var seconds := float(best["time"])
+		if is_finite(seconds) and seconds >= 0 and _as_int(best.get("day"), -1) >= 0:
+			daily_best = {"day": int(best["day"]), "stars": clampi(_as_int(best.get("stars"), 1), 1, 3), "time": seconds, "speed": _setting_number("speed", best.get("speed", 1.0))}
 	coins = maxi(0, _as_int(data.get("coins"), DEFAULT_COINS))
 	var saved_upgrades := _as_dict(data.get("upgrades"))
 	upgrades = {}
@@ -492,7 +622,7 @@ static func _is_campaign_level(level_id: Variant) -> bool:
 
 ## JSON devuelve los números como float y un guardado dañado puede traer cualquier tipo
 static func _as_int(value: Variant, default: int) -> int:
-	return int(value) if value is int or value is float else default
+	return int(value) if (value is int or value is float) and is_finite(float(value)) else default
 
 static func _as_bool(value: Variant) -> bool:
 	return value is bool and value

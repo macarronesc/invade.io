@@ -114,6 +114,9 @@ func run_all_tests() -> void:
 	test_atlas_and_first_levels()
 	test_cosmetics_shop()
 	test_review_regressions()
+	test_daily_missions_xp_and_share()
+	test_settings_and_backups()
+	test_continent_mechanics()
 	test_cleanup_regressions()
 
 func test_base_production_mechanics() -> void:
@@ -1508,6 +1511,7 @@ func test_audio_fanfares_and_continental_conquest() -> void:
 	assert_equals(AudioManager.last_played_fanfare, "continent_conquest", "Nivel europe_5 (fin de continente) dispara automáticamente fanfarria de conquista continental")
 
 	battle.level_id = "europe_3"
+	battle.is_game_over = false # Nueva batalla, no repetir la señal de victoria anterior.
 	battle._trigger_victory()
 	assert_equals(AudioManager.last_played_fanfare, "victory", "Nivel europe_3 (nivel regular) dispara fanfarria de victoria estándar")
 
@@ -1922,10 +1926,10 @@ func test_main_menu_ui_and_ambient_system() -> void:
 	assert_true(menu.btn_play != null, "Botón central de juego existe")
 	assert_true(menu.btn_world_map != null, "Botón de mapa mundial existe")
 	assert_true(menu.btn_upgrades != null, "Botón de tienda de mejoras existe")
-	assert_true(menu.btn_reset != null, "Botón de reiniciar progreso existe")
+	assert_true(menu.btn_settings != null, "Ajustes centralizados accesibles")
 	assert_true(menu.coins_label != null, "Etiqueta de monedas de oro existe")
 	assert_true(menu.stars_label != null, "Etiqueta de estrellas de campaña existe")
-	assert_true(menu.btn_sound != null, "Botón de conmutación de sonido existe")
+	assert_true(menu.btn_missions != null, "Misiones diarias accesibles")
 	assert_true(menu.stars_pill != null, "Píldora visual de estrellas existe")
 	assert_true(menu.coins_pill != null, "Píldora visual de monedas existe")
 
@@ -1954,23 +1958,18 @@ func test_main_menu_ui_and_ambient_system() -> void:
 	var max_stars = GameManager.get_max_possible_stars()
 	assert_true(menu.stars_label.text.contains("%d/%d" % [total_stars, max_stars]), "Etiqueta de estrellas refleja estrellas totales de campaña")
 
-	# 4. Alternancia de sonido
-	var initial_muted = AudioManager.is_muted
-	menu._on_sound_toggle_pressed()
-	assert_equals(AudioManager.is_muted, not initial_muted, "Pulsar botón de sonido alterna el estado de AudioManager")
-	assert_equals(menu.btn_sound.text, "🔇" if not initial_muted else "🔊", "Texto de icono del botón refleja el estado silenciado")
-	menu._on_sound_toggle_pressed()
-	assert_equals(AudioManager.is_muted, initial_muted, "Pulsar nuevamente restaura el estado de sonido")
-
-	# 5. Reinicio de progreso (requiere confirmación con un segundo toque)
+	# 4. Reinicio agrupado en ajustes, con confirmación nativa explícita.
 	GameManager.coins = 999
-	menu._on_reset_pressed()
+	menu._open_settings()
+	menu._utility_panel._confirm_reset()
 	assert_equals(GameManager.coins, 999, "El primer toque en reiniciar sólo pide confirmación")
-	assert_true(menu.btn_reset.text.contains("SEGURO"), "El botón muestra el aviso de confirmación")
-	menu._on_reset_pressed()
+	var confirmation: ConfirmationDialog = menu._utility_panel.get_children().filter(func(c): return c is ConfirmationDialog)[0]
+	assert_true(confirmation.dialog_text.contains("progreso"), "El diálogo advierte antes de borrar")
+	confirmation.confirmed.emit()
 	assert_equals(GameManager.coins, 150, "Reiniciar progreso restaura monedas iniciales a 150")
 	assert_equals(GameManager.get_total_stars(), 0, "Reiniciar progreso resetea estrellas completadas a 0")
 	assert_true(menu.coins_label.text.contains("150"), "Etiqueta de monedas se actualiza tras reseteo")
+	menu._update_stars()
 	assert_true(menu.stars_label.text.contains("0/90"), "Etiqueta de estrellas se actualiza a 0/90 tras reseteo")
 
 	remove_child(menu)
@@ -2245,7 +2244,9 @@ func test_cartographic_background_and_theme_helper() -> void:
 	var sb_norm = btn.get_theme_stylebox("normal") as StyleBoxFlat
 	assert_equals(sb_norm.border_width_bottom, 5, "Profundidad 2.5D de borde inferior igual a 5")
 	assert_equals(sb_norm.corner_radius_top_left, 18, "Radio de esquina del botón igual a 18")
-	assert_equals(btn.get_theme_color("font_color"), Color.WHITE, "Color de fuente blanco aplicado")
+	var ink: float = btn.get_theme_color("font_color").srgb_to_linear().get_luminance()
+	var background: float = sb_norm.bg_color.srgb_to_linear().get_luminance()
+	assert_true((maxf(ink, background) + 0.05) / (minf(ink, background) + 0.05) >= 4.5, "El texto del botón tiene contraste accesible")
 	btn.free()
 
 	# 3. Probar UIThemeHelper - Tarjetas y Píldoras
@@ -2436,7 +2437,7 @@ func test_tutorial_steps_and_tips() -> void:
 	GameManager.reset_save()
 	assert_true(Tutorial.has_pending_steps("europe_1", LevelDatabase.get_level_data("europe_1")), "europe_1 tiene tutorial de arrastre pendiente")
 	assert_true(Tutorial.has_pending_steps("europe_4", LevelDatabase.get_level_data("europe_4")), "europe_4 presenta fortaleza y fábrica")
-	assert_true(not Tutorial.has_pending_steps("north_america_1", LevelDatabase.get_level_data("north_america_1")), "Niveles sin novedades no muestran tutorial")
+	assert_true(Tutorial.has_pending_steps("north_america_1", LevelDatabase.get_level_data("north_america_1")), "La industria introduce una fábrica con su tutorial")
 
 	# Integración: el primer nivel espera al primer envío del jugador
 	GameManager.current_level_id = "europe_1"
@@ -2884,7 +2885,7 @@ func test_conquest_mode() -> void:
 	var MainMenuScene = load("res://scenes/ui/main_menu.tscn")
 	var menu = MainMenuScene.instantiate()
 	add_child(menu)
-	assert_true(menu.btn_conquest != null and menu.btn_atlas != null and menu.btn_lang != null, "Botones de conquista, atlas e idioma existen")
+	assert_true(menu.btn_conquest != null and menu.btn_atlas != null and menu.btn_settings != null, "Conquista, atlas y ajustes existen")
 	remove_child(menu)
 	menu.free()
 	# Victoria completa en una región: oro, avance y atlas sin tocar la campaña
@@ -2980,6 +2981,179 @@ func test_cosmetics_shop() -> void:
 	GameManager.load_game()
 	assert_true(GameManager.is_cosmetic_owned("color_cyan"), "Los cosméticos persisten")
 	assert_equals(GameManager.cosmetics_equipped["army_color"], "color_blue", "Lo equipado persiste")
+	GameManager.reset_save()
+
+func test_daily_missions_xp_and_share() -> void:
+	print("\n-> Test: Misiones, XP y Tarjeta Diaria")
+	GameManager.reset_save()
+	var day := DailyRewards.today()
+	var selected := DailyMissions.for_day(day)
+	assert_equals(selected.size(), 3, "Tres misiones al día")
+	assert_equals(selected, DailyMissions.for_day(day), "Misiones deterministas")
+	var ids := {}
+	for mission in selected: ids[mission["id"]] = true
+	assert_equals(ids.size(), 3, "Tres objetivos distintos")
+	GameManager.ensure_missions(day)
+	var mission: Dictionary = selected[0]
+	assert_true(not GameManager.claim_mission(mission["id"], day), "No cobrar una misión incompleta")
+	GameManager.advance_mission(mission["id"], int(mission["goal"]) + 5, day)
+	assert_equals(GameManager.missions["progress"][mission["id"]], mission["goal"], "Progreso limitado al objetivo")
+	var coins := GameManager.coins
+	assert_true(GameManager.claim_mission(mission["id"], day), "Cobrar misión completada")
+	assert_equals(GameManager.coins, coins + int(mission["gold"]), "Oro exacto por misión")
+	assert_equals(GameManager.experience, mission["xp"], "XP exacta por misión")
+	assert_true(not GameManager.claim_mission(mission["id"], day), "No cobrar dos veces")
+	GameManager.save_game()
+	GameManager._apply_save({})
+	GameManager.load_game()
+	assert_true(GameManager.missions["claimed"].has(mission["id"]), "Cobro persiste")
+	GameManager.ensure_missions(day - 1)
+	assert_equals(GameManager.missions["day"], day, "Reloj atrasado no reinicia objetivos")
+	GameManager.ensure_missions(day + 1)
+	assert_true(GameManager.missions["claimed"].is_empty() and GameManager.missions["progress"].is_empty(), "Medianoche limpia progreso y cobros")
+	assert_equals(DailyMissions.player_level(99), 1, "Primer nivel hasta 99 XP")
+	assert_equals(DailyMissions.player_level(100), 2, "Nivel 2 a 100 XP")
+	assert_equals(DailyMissions.player_level(400), 3, "Nivel 3 a 400 XP")
+	GameManager.reset_save()
+	var result := {"level_id": DailyRewards.challenge_id(day), "stars": 3, "time": 34.2, "speed": 1.5, "is_daily_challenge": true}
+	GameManager.record_battle_result(result, true)
+	assert_equals(GameManager.experience, 60, "XP de victoria con tres estrellas")
+	result["time"] = 45.0
+	result["is_replay"] = true
+	GameManager.record_battle_result(result, false)
+	assert_equals(GameManager.experience, 70, "Repetición da menos XP")
+	assert_equals(GameManager.daily_best["time"], 34.2, "Resultado peor no reemplaza récord")
+	var text := DailyShare.text(GameManager.daily_best)
+	assert_true(text.contains("35s") and text.contains("×1.5") and text.contains("⭐⭐⭐"), "Tarjeta con estrellas, tiempo y velocidad")
+	GameManager.set_language("en")
+	assert_true(DailyShare.text(GameManager.daily_best).contains("Daily challenge"), "Tarjeta traducida")
+	GameManager.save_game()
+	GameManager.daily_best.clear()
+	GameManager.load_game()
+	assert_equals(GameManager.daily_best["stars"], 3, "Récord diario persiste")
+	GameManager.reset_save()
+	var panel = load("res://scripts/ui/missions_panel.gd").new()
+	add_child(panel)
+	assert_equals(panel.find_children("Claim_*", "Button", true, false).size(), 3, "Panel ofrece tres recompensas")
+	remove_child(panel)
+	panel.free()
+	GameManager.reset_save()
+	var battle := BattleController.new()
+	battle.load_level("europe_1")
+	for base in battle.bases: base.faction = GameManager.Faction.PLAYER
+	battle._trigger_victory()
+	var xp := GameManager.experience
+	var gold := GameManager.coins
+	battle._trigger_victory()
+	assert_equals(GameManager.experience, xp, "Una victoria sólo concede XP una vez")
+	assert_equals(GameManager.coins, gold, "Una victoria sólo concede oro una vez")
+	battle.free()
+	GameManager.reset_save()
+
+func test_settings_and_backups() -> void:
+	print("\n-> Test: Ajustes y Copias Seguras")
+	GameManager.reset_save()
+	GameManager.set_setting("speed", 99.0)
+	assert_equals(GameManager.settings["speed"], 2.0, "Velocidad máxima validada")
+	GameManager.set_setting("speed", 1.2)
+	assert_equals(GameManager.settings["speed"], 1.0, "Importación y selector utilizan las mismas velocidades")
+	GameManager.set_setting("volume", -1.0)
+	assert_equals(GameManager.settings["volume"], 0.0, "Volumen no puede ser negativo")
+	GameManager.set_setting("vibration", false)
+	GameManager.set_setting("colorblind", true)
+	assert_true(GameManager.faction_color(1) != GameManager.faction_color(2), "Paleta accesible distingue rivales")
+	GameManager.load_game()
+	assert_true(not GameManager.settings["vibration"] and GameManager.settings["colorblind"], "Ajustes persisten")
+	var original_path := GameManager.save_path
+	var export_path := "user://test_export.json"
+	var import_path := "user://test_import.json"
+	GameManager.coins = 456
+	assert_equals(GameManager.write_save(export_path, GameManager.save_data()), OK, "Exportar copia")
+	GameManager.coins = 12
+	GameManager.save_game()
+	assert_equals(GameManager.import_save(export_path), OK, "Restaurar copia")
+	assert_equals(GameManager.coins, 456, "Restauración conserva economía")
+	var backup = JSON.parse_string(FileAccess.get_file_as_string(original_path + ".backup"))
+	assert_equals(int(backup["coins"]), 12, "Se conserva copia de la partida reemplazada")
+	GameManager.write_save(import_path, {"version": GameManager.SAVE_VERSION + 1, "upgrades": {}, "completed_levels": {}})
+	assert_equals(GameManager.import_save(import_path), ERR_INVALID_DATA, "Rechazar versiones futuras")
+	assert_equals(GameManager.coins, 456, "Importación inválida no altera progreso")
+	GameManager.write_save(import_path, {"coins": 0})
+	assert_equals(GameManager.import_save(import_path), ERR_INVALID_DATA, "Rechazar JSON ajeno al juego")
+	assert_equals(GameManager.import_save("user://does_not_exist.json"), ERR_INVALID_DATA, "Archivo inexistente no altera partida")
+	for path in [export_path, import_path, original_path + ".backup"]:
+		DirAccess.remove_absolute(path)
+	GameManager._apply_save({"settings": {"volume": "no", "music_volume": INF, "speed": -4, "vibration": "sí"}})
+	assert_equals(GameManager.settings["music_volume"], 0.8, "Ajuste no finito usa valor inicial")
+	assert_equals(GameManager.settings["speed"], 0.75, "Velocidad mínima validada")
+	var panel = load("res://scripts/ui/settings_panel.gd").new()
+	add_child(panel)
+	assert_equals(panel.find_children("*", "HSlider", true, false).size(), 2, "Dos controles nativos de volumen")
+	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 4, "Sonido, música, vibración y paleta")
+	remove_child(panel)
+	panel.free()
+	GameManager.reset_save()
+	AudioManager.apply_volumes()
+
+func test_continent_mechanics() -> void:
+	print("\n-> Test: Reglas de Continente, Rutas y Jefes")
+	GameManager.reset_save()
+	for id in ["europe_1", "europe_2", "europe_3"]:
+		assert_true(not LevelDatabase.get_level_data(id).has("rule_key"), "Tutorial %s sin reglas adicionales" % id)
+	for continent in LevelDatabase.get_continents():
+		var final_level := LevelDatabase.get_level_data(continent["id"] + "_5")
+		assert_true(final_level.has("rule_key"), "Regla de %s" % continent["id"])
+		assert_equals(final_level["bases"].filter(func(b): return b.get("boss", false)).size(), 1, "Un jefe en %s" % continent["id"])
+	var capital = LevelDatabase.get_level_data("europe_4")["bases"].filter(func(b): return b.get("capital", false))[0]
+	var base := BaseNode.new()
+	base.setup(capital)
+	base.faction = GameManager.Faction.PLAYER
+	var rate := base.get_production_rate()
+	base.production_bonus = 1.0
+	assert_true(is_equal_approx(rate, base.get_production_rate() * 1.5), "Capital da producción al propietario actual")
+	base.free()
+	assert_true(LevelDatabase.get_level_data("north_america_1")["bases"].any(func(b): return b.get("type") == "factory"), "Industria añade fábrica")
+	assert_true(LevelDatabase.get_level_data("asia_1")["bases"].any(func(b): return b.get("type") == "fortress"), "Asia añade bastión")
+	var battle := BattleController.new()
+	battle.load_level("oceania_1")
+	var routes: Array = battle.level_data["sea_lanes"]
+	assert_equals(routes.size(), battle.bases.size() - 1, "Rutas mínimas para conectar todas las islas")
+	var reached := [0]
+	for i in battle.bases.size():
+		for route in routes:
+			if reached.has(route.x) and not reached.has(route.y): reached.append(route.y)
+			if reached.has(route.y) and not reached.has(route.x): reached.append(route.x)
+	assert_equals(reached.size(), battle.bases.size(), "Toda isla es alcanzable")
+	var route: Vector2i = routes[0]
+	assert_true(battle.can_dispatch(battle.bases[route.x], battle.bases[route.y]) and battle.can_dispatch(battle.bases[route.y], battle.bases[route.x]), "Rutas bidireccionales")
+	var blocked := false
+	for a in battle.bases:
+		for b in battle.bases:
+			if a == b or battle.can_dispatch(a, b): continue
+			var troops := a.troops
+			assert_true(not battle.dispatch_troops(a, b), "Jugador e IA no atraviesan rutas inexistentes")
+			assert_equals(a.troops, troops, "Ruta inválida no consume tropas")
+			blocked = true
+			break
+		if blocked: break
+	assert_true(blocked, "Hay decisiones de ruta reales")
+	battle.free()
+	battle = BattleController.new()
+	battle.load_level("south_america_1")
+	battle.bases[0].troops = 30
+	battle.dispatch_troops(battle.bases[0], battle.bases[1])
+	assert_true(is_equal_approx(battle.active_troops[0].speed, Troop.BASE_SPEED * 0.8), "Selva modifica velocidad real de tropas")
+	battle.free()
+	battle = BattleController.new()
+	battle.load_level("africa_5")
+	var boss: BaseNode = battle.bases.filter(func(b): return b.is_boss)[0]
+	boss.troops = 20
+	battle._process_boss(18.0)
+	assert_equals(boss.troops, 30, "El jefe recibe refuerzos periódicos")
+	boss.faction = GameManager.Faction.PLAYER
+	battle._process_boss(18.0)
+	assert_equals(boss.troops, 30, "Jefe conquistado deja de recibir refuerzos")
+	battle.free()
 	GameManager.reset_save()
 
 func test_review_regressions() -> void:

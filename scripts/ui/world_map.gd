@@ -220,6 +220,9 @@ func _update_briefing_card() -> void:
 
 	briefing_title.text = level_data["name"]
 	briefing_desc.text = level_data["description"]
+	var rule := CampaignRules.description(level_data)
+	if rule != "":
+		briefing_desc.text += "\n" + rule
 	briefing_stars.text = UIThemeHelper.star_rating(stars)
 
 	var bases: Array = level_data.get("bases", [])

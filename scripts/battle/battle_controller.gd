@@ -47,6 +47,8 @@ var base_time_scale: float = 1.0
 var _overlay_was_active: bool = false
 var _shake: float = 0.0
 var _tutorial: Node = null
+var _boss_timer: float = 18.0
+var _max_speed: float = 1.0
 
 @onready var bases_container: Node2D = get_node_or_null("BasesContainer")
 @onready var troops_container: Node2D = get_node_or_null("TroopsContainer")
@@ -57,6 +59,7 @@ var _tutorial: Node = null
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		_cancel_gesture()
+		GameManager.save_game()
 
 func _exit_tree() -> void:
 	reset_time_scale()
@@ -66,6 +69,7 @@ func _ready() -> void:
 	AudioManager.play_music("battle")
 	EventBus.base_captured.connect(_on_base_captured)
 	EventBus.troop_arrived.connect(_on_troop_arrived)
+	EventBus.settings_changed.connect(_refresh_colors)
 	if arrow_overlay:
 		arrow_overlay.draw.connect(_draw_drag_overlay)
 
@@ -89,6 +93,7 @@ func set_simulation_paused(paused: bool) -> void:
 func load_level(p_level_id: String) -> void:
 	reset_time_scale()
 	level_id = p_level_id
+	_max_speed = float(GameManager.settings["speed"])
 	level_data = LevelDatabase.get_level_data(level_id)
 	target_time = level_data.get("target_time", 45.0)
 
@@ -140,9 +145,11 @@ func _apply_map_theme() -> void:
 
 func _process(delta: float) -> void:
 	if not is_game_over:
+		_max_speed = maxf(_max_speed, float(GameManager.settings["speed"]))
 		# El reloj (estrellas y periodo de gracia de la IA) no corre mientras el tutorial espera
 		if not simulation_paused:
 			battle_time += delta
+			_process_boss(delta)
 		_check_decisive_assault()
 		_process_troop_collisions()
 		_update_siege_alerts()
@@ -152,8 +159,8 @@ func _process(delta: float) -> void:
 	var unscaled_dt = delta / maxf(Engine.time_scale, 0.01)
 	if is_slow_motion_active:
 		Engine.time_scale = move_toward(Engine.time_scale, SLOW_MOTION_TARGET, unscaled_dt * SLOW_MOTION_SPEED)
-	elif not is_game_over and Engine.time_scale != base_time_scale:
-		Engine.time_scale = move_toward(Engine.time_scale, base_time_scale, unscaled_dt * SLOW_MOTION_SPEED)
+	elif not is_game_over:
+		Engine.time_scale = move_toward(Engine.time_scale, base_time_scale * float(GameManager.settings["speed"]), unscaled_dt * SLOW_MOTION_SPEED)
 
 	# Temblor de cámara tras conquistas importantes
 	if camera:
@@ -188,6 +195,39 @@ func _process(delta: float) -> void:
 
 func shake_camera(amount: float) -> void:
 	_shake = maxf(_shake, amount)
+
+func _refresh_colors() -> void:
+	for base in bases:
+		base.queue_redraw()
+	for troop in active_troops:
+		if is_instance_valid(troop):
+			troop.queue_redraw()
+	if territory_map:
+		for cell in territory_map.cells:
+			cell.current_color = territory_map.get_faction_territory_color(cell.base_node.faction)
+			cell.target_color = cell.current_color
+			cell.start_color = cell.current_color
+		territory_map.queue_redraw()
+
+func _process_boss(delta: float) -> void:
+	_boss_timer -= delta
+	if _boss_timer > 0:
+		return
+	_boss_timer += 18.0
+	for base in bases:
+		if base.is_boss and base.faction == GameManager.Faction.ENEMY_1 and base.troops < base.max_capacity:
+			base.troops = mini(base.max_capacity, base.troops + 10)
+			base._update_label()
+			base.queue_redraw()
+
+func can_dispatch(from_base: BaseNode, to_base: BaseNode) -> bool:
+	if from_base == to_base:
+		return false
+	if not level_data.has("sea_lanes"):
+		return true
+	var a := bases.find(from_base)
+	var b := bases.find(to_base)
+	return level_data["sea_lanes"].has(Vector2i(a, b)) or level_data["sea_lanes"].has(Vector2i(b, a))
 
 func _update_siege_alerts() -> void:
 	for b in bases:
@@ -470,7 +510,7 @@ func _get_base_at(pos: Vector2) -> BaseNode:
 
 ## Lanza todas las tropas de `from_base` (menos una) hacia `to_base`; false si no había a quién enviar
 func dispatch_troops(from_base: BaseNode, to_base: BaseNode) -> bool:
-	if from_base == to_base:
+	if not can_dispatch(from_base, to_base):
 		return false
 	var count = from_base.send_troops()
 	if count <= 0:
@@ -478,6 +518,7 @@ func dispatch_troops(from_base: BaseNode, to_base: BaseNode) -> bool:
 	var troop: Troop = TroopScene.instantiate()
 	(troops_container if troops_container else self).add_child(troop)
 	troop.setup(from_base, to_base, count, from_base.faction)
+	troop.speed *= float(level_data.get("travel_multiplier", 1.0))
 	active_troops.append(troop)
 
 	if from_base.faction == GameManager.Faction.PLAYER:
@@ -522,6 +563,8 @@ func _check_game_over_conditions() -> void:
 		_trigger_defeat()
 
 func _trigger_victory() -> void:
+	if is_game_over:
+		return
 	is_game_over = true
 	start_slow_motion()
 
@@ -570,6 +613,7 @@ func _trigger_victory() -> void:
 		"level_id": level_id,
 		"stars": stars,
 		"time": battle_time,
+		"speed": _max_speed,
 		"gold_earned": total_gold,
 		"bases_conquered": player_bases_count,
 		"is_continent_conquest": is_continent_conquest,
@@ -579,6 +623,8 @@ func _trigger_victory() -> void:
 	})
 
 func _trigger_defeat() -> void:
+	if is_game_over:
+		return
 	reset_time_scale()
 	is_game_over = true
 	AudioManager.stop_music()
@@ -635,10 +681,10 @@ func sample_bezier_points(p0: Vector2, p1: Vector2, p2: Vector2, segments: int =
 	return pts
 
 ## Tropas que se lanzarían al soltar ahora mismo desde las bases seleccionadas que siguen siendo nuestras
-func get_pending_attack_count() -> int:
+func get_pending_attack_count(target: BaseNode = null) -> int:
 	var total := 0
 	for src in selected_sources:
-		if src.faction == GameManager.Faction.PLAYER:
+		if src.faction == GameManager.Faction.PLAYER and (target == null or can_dispatch(src, target)):
 			total += maxi(0, src.troops - 1)
 	return total
 
@@ -677,6 +723,8 @@ func _draw_drag_overlay() -> void:
 	var end_pt = canvas.to_local(end_global)
 
 	for src in selected_sources:
+		if hovered_target and not can_dispatch(src, hovered_target):
+			continue
 		_draw_arrow(canvas, canvas.to_local(src.global_position), end_pt, player_color)
 
 	if hovered_target:
@@ -738,10 +786,13 @@ func _draw_arrow(canvas: CanvasItem, start_pt: Vector2, end_pt: Vector2, player_
 func _draw_target_preview(canvas: CanvasItem, target: BaseNode) -> void:
 	var h_pos = canvas.to_local(target.global_position)
 	var ring_r = (target.radius + 16.0) * (1.0 + sin(marching_dots_phase * TAU * 2.0) * 0.04)
-	var attack := get_pending_attack_count()
+	var attack := get_pending_attack_count(target)
 	var ring_color: Color
 	var text: String
-	if target.faction == GameManager.Faction.PLAYER:
+	if not selected_sources.any(func(source): return can_dispatch(source, target)):
+		ring_color = UIThemeHelper.COLOR_NEUTRAL
+		text = "×"
+	elif target.faction == GameManager.Faction.PLAYER:
 		ring_color = Color(0.55, 0.85, 1.0)
 		text = "+%d" % attack
 	else:
@@ -759,6 +810,10 @@ func _draw_target_preview(canvas: CanvasItem, target: BaseNode) -> void:
 	canvas.draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_CENTER, 160.0, 34, ring_color)
 
 func _draw_cartographic_grid() -> void:
+	if level_data.has("sea_lanes"):
+		for route in level_data["sea_lanes"]:
+			draw_dashed_line(bases[route.x].position, bases[route.y].position, Color("62cbf2"), 3.0, 12.0, true)
+		return
 	# Retícula cartográfica de fondo
 	var grid_color = Color(1.0, 1.0, 1.0, 0.04)
 	for x in range(120, 1080, 160):

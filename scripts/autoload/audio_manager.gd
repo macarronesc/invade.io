@@ -48,6 +48,10 @@ var _target_stream: AudioStream = null
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_music_player = AudioStreamPlayer.new()
+	if AudioServer.get_bus_index("Music") == -1:
+		AudioServer.add_bus()
+		AudioServer.set_bus_name(AudioServer.bus_count - 1, "Music")
+	_music_player.bus = "Music"
 	_music_player.volume_db = MUSIC_SILENT_DB
 	add_child(_music_player)
 	var poly := AudioStreamPolyphonic.new()
@@ -56,6 +60,7 @@ func _ready() -> void:
 	_player.stream = poly
 	_player.volume_db = -2.0
 	add_child(_player)
+	apply_volumes()
 	if DisplayServer.get_name() != "headless":
 		_player.play()
 		_playback = _player.get_stream_playback()
@@ -66,6 +71,12 @@ func _ready() -> void:
 func toggle_mute() -> bool:
 	set_muted(not is_muted)
 	return is_muted
+
+func apply_volumes() -> void:
+	AudioServer.set_bus_volume_db(0, linear_to_db(float(GameManager.settings["volume"])))
+	var music_bus := AudioServer.get_bus_index("Music")
+	if music_bus >= 0:
+		AudioServer.set_bus_volume_db(music_bus, linear_to_db(float(GameManager.settings["music_volume"])))
 
 func _exit_tree() -> void:
 	# Las síntesis pendientes referencian este nodo: esperarlas antes de liberarlo al salir

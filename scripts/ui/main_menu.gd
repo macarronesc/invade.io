@@ -9,31 +9,28 @@ const BATTLE_SCENE := "res://scenes/battle/battle_field.tscn"
 @onready var btn_play: Button = %BtnPlay
 @onready var btn_world_map: Button = %BtnWorldMap
 @onready var btn_upgrades: Button = %BtnUpgrades
-@onready var btn_reset: Button = %BtnReset
 @onready var btn_daily: Button = %BtnDaily
 @onready var btn_achievements: Button = %BtnAchievements
 @onready var btn_conquest: Button = %BtnConquest
 @onready var btn_atlas: Button = %BtnAtlas
-@onready var btn_lang: Button = %BtnLang
 @onready var title_badge: Label = $HeaderBox/TitleBadge
 @onready var subtitle_label: Label = $HeaderBox/Subtitle
 @onready var coins_label: Label = %CoinsLabel
 @onready var stars_label: Label = %StarsLabel
-@onready var btn_sound: Button = %BtnSound
-@onready var btn_music: Button = %BtnMusic
 @onready var stars_pill: PanelContainer = %StarsPill
 @onready var coins_pill: PanelContainer = %CoinsPill
-
-const RESET_CONFIRM_WINDOW := 3.0
+@onready var btn_settings: Button = %BtnSettings
+@onready var btn_missions: Button = %BtnMissions
+@onready var xp_label: Label = %XPLabel
 
 var _play_pulse_tween: Tween = null
-var _reset_armed: bool = false
-## Cada armado del reinicio tiene su id: un temporizador antiguo no desarma uno nuevo
-var _reset_arm_id: int = 0
 var _daily_card: Control = null
+var _utility_panel: Control = null
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		if is_instance_valid(_utility_panel):
+			return # El panel maneja su propio botón atrás.
 		if is_instance_valid(_daily_card):
 			_on_daily_reward_claimed()
 		else:
@@ -59,20 +56,16 @@ func _ready() -> void:
 	btn_achievements.pressed.connect(UIThemeHelper.go_to.bind(self, "res://scenes/ui/achievements_menu.tscn"))
 	btn_conquest.pressed.connect(_on_conquest_pressed)
 	btn_atlas.pressed.connect(UIThemeHelper.go_to.bind(self, "res://scenes/ui/atlas_menu.tscn"))
-	btn_lang.pressed.connect(_on_lang_pressed)
-	btn_reset.pressed.connect(_on_reset_pressed)
 	btn_daily.pressed.connect(_on_daily_pressed)
-	btn_music.pressed.connect(_on_music_toggle_pressed)
-	btn_sound.pressed.connect(_on_sound_toggle_pressed)
+	btn_settings.pressed.connect(_open_settings)
+	btn_missions.pressed.connect(_open_missions)
 	EventBus.achievement_unlocked.connect(_update_secondary_buttons.unbind(1))
-	EventBus.sound_toggled.connect(_update_sound_icon)
 	EventBus.coins_updated.connect(_update_coins)
 
 	AudioManager.play_music("menu")
-	UIThemeHelper.update_music_button(btn_music, AudioManager.music_muted)
-	_update_sound_icon(AudioManager.is_muted)
 	_update_coins(GameManager.coins)
 	_update_stars()
+	xp_label.text = UIThemeHelper.xp_text()
 	_start_play_pulse()
 
 	# Logros cumplidos con progreso anterior y recompensa diaria pendiente
@@ -86,21 +79,20 @@ func _apply_texts() -> void:
 	btn_play.text = LocaleStrings.text("play")
 	btn_world_map.text = LocaleStrings.text("world_map")
 	btn_upgrades.text = LocaleStrings.text("upgrades")
-	btn_reset.text = LocaleStrings.text("reset")
-	btn_lang.text = "🌐 EN" if GameManager.language == "es" else "🌐 ES"
+	btn_settings.text = "⚙"
+	btn_settings.tooltip_text = LocaleStrings.text("settings")
+	btn_missions.text = "☑ " + LocaleStrings.text("missions")
 
 func _apply_visual_styling() -> void:
 	UIThemeHelper.apply_stateio_button_style(btn_play, UIThemeHelper.COLOR_PRIMARY, 22, 7)
-	UIThemeHelper.apply_stateio_button_style(btn_world_map, Color(0.18, 0.44, 0.65), 18, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_upgrades, Color(0.16, 0.50, 0.42), 18, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_reset, Color(0.38, 0.22, 0.24, 0.85), 14, 3)
-	UIThemeHelper.apply_stateio_button_style(btn_sound, UIThemeHelper.COLOR_BTN_SECONDARY, 16, 4)
-	UIThemeHelper.apply_stateio_button_style(btn_music, UIThemeHelper.COLOR_BTN_SECONDARY, 16, 4)
-	UIThemeHelper.apply_stateio_button_style(btn_daily, Color(0.55, 0.36, 0.10), 18, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_achievements, Color(0.42, 0.26, 0.58), 18, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_conquest, Color(0.12, 0.45, 0.50), 18, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_atlas, Color(0.30, 0.38, 0.55), 18, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_lang, UIThemeHelper.COLOR_BTN_SECONDARY, 16, 4)
+	UIThemeHelper.apply_stateio_button_style(btn_world_map, Color("2574b2"), 18, 5)
+	UIThemeHelper.apply_stateio_button_style(btn_upgrades, Color("167862"), 18, 5)
+	UIThemeHelper.apply_stateio_button_style(btn_daily, Color("996300"), 18, 5)
+	UIThemeHelper.apply_stateio_button_style(btn_achievements, Color("7953bb"), 18, 5)
+	UIThemeHelper.apply_stateio_button_style(btn_conquest, Color("087d92"), 18, 5)
+	UIThemeHelper.apply_stateio_button_style(btn_atlas, Color("446cc1"), 18, 5)
+	UIThemeHelper.apply_stateio_button_style(btn_settings, UIThemeHelper.COLOR_BTN_SECONDARY, 16, 4)
+	UIThemeHelper.apply_stateio_button_style(btn_missions, UIThemeHelper.COLOR_BTN_SECONDARY, 18, 4)
 	UIThemeHelper.apply_pill_style(stars_pill)
 	UIThemeHelper.apply_pill_style(coins_pill)
 
@@ -121,17 +113,6 @@ func _update_coins(amount: int) -> void:
 func _update_stars() -> void:
 	stars_label.text = UIThemeHelper.stars_text()
 
-func _update_sound_icon(muted: bool) -> void:
-	btn_sound.text = "🔇" if muted else "🔊"
-
-func _on_music_toggle_pressed() -> void:
-	AudioManager.play_click()
-	UIThemeHelper.update_music_button(btn_music, AudioManager.toggle_music())
-
-func _on_sound_toggle_pressed() -> void:
-	if not AudioManager.toggle_mute():
-		AudioManager.play_click()
-
 func _on_play_pressed() -> void:
 	# Continuar con el nivel actual de la campaña
 	GameManager.play_level(GameManager.current_level_id)
@@ -151,9 +132,20 @@ func _on_conquest_pressed() -> void:
 	GameManager.play_conquest(GameManager.conquest_next)
 	UIThemeHelper.go_to(self, BATTLE_SCENE)
 
-func _on_lang_pressed() -> void:
-	GameManager.set_language("en" if GameManager.language == "es" else "es")
-	get_tree().reload_current_scene()
+func _open_settings() -> void:
+	if is_instance_valid(_utility_panel):
+		return
+	_utility_panel = load("res://scripts/ui/settings_panel.gd").new()
+	_utility_panel.closed.connect(func(): get_tree().reload_current_scene())
+	add_child(_utility_panel)
+
+func _open_missions() -> void:
+	if is_instance_valid(_utility_panel):
+		return
+	_utility_panel = load("res://scripts/ui/missions_panel.gd").new()
+	_utility_panel.tree_exited.connect(func():
+		if is_instance_valid(xp_label): xp_label.text = UIThemeHelper.xp_text())
+	add_child(_utility_panel)
 
 func _on_daily_pressed() -> void:
 	GameManager.play_level(DailyRewards.challenge_id(DailyRewards.today()))
@@ -175,29 +167,3 @@ func _on_daily_reward_claimed() -> void:
 	if is_instance_valid(_daily_card):
 		_daily_card.queue_free()
 	_daily_card = null
-
-## Reinicio en dos pasos: el primer toque pide confirmación durante unos segundos
-func _on_reset_pressed() -> void:
-	AudioManager.play_click()
-	if not _reset_armed:
-		_reset_armed = true
-		_reset_arm_id += 1
-		btn_reset.text = LocaleStrings.text("reset_confirm")
-		get_tree().create_timer(RESET_CONFIRM_WINDOW).timeout.connect(_on_reset_window_expired.bind(_reset_arm_id))
-		return
-	_disarm_reset()
-	GameManager.reset_save()
-	_apply_texts()
-	_update_coins(GameManager.coins)
-	_update_stars()
-	_update_secondary_buttons()
-	_show_daily_reward_card()
-
-func _on_reset_window_expired(arm_id: int) -> void:
-	if arm_id == _reset_arm_id:
-		_disarm_reset()
-
-func _disarm_reset() -> void:
-	_reset_armed = false
-	_reset_arm_id += 1
-	btn_reset.text = LocaleStrings.text("reset")
