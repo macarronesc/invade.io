@@ -37,6 +37,9 @@ func setup(p_battle_controller: BattleController, p_faction: int) -> void:
 	think_scale = lerpf(1.25, 0.7, difficulty)
 	# Segundos iniciales sin atacar al jugador: 12 s en el primer nivel, 0 en el último
 	_grace_period = lerpf(12.0, 0.0, difficulty)
+	# Los 3 primeros niveles son casi imposibles de perder: la IA espera aún más
+	if battle_controller.level_id in ["europe_1", "europe_2", "europe_3"]:
+		_grace_period = maxf(_grace_period, 25.0)
 	set_archetype(FACTION_ARCHETYPES.get(faction, AIArchetype.AGGRESSIVE))
 
 func set_archetype(p_archetype: AIArchetype) -> void:

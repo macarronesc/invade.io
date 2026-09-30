@@ -18,7 +18,7 @@ func _ready() -> void:
 
 func _on_achievement_unlocked(id: String) -> void:
 	var a := AchievementDatabase.get_by_id(id)
-	show_toast(a.get("icon", "🏆"), "¡Logro desbloqueado!", a.get("title", id))
+	show_toast(a.get("icon", "🏆"), LocaleStrings.text("toast_achievement"), AchievementDatabase.achievement_title(a))
 
 func show_toast(icon: String, title: String, body: String) -> void:
 	_queue.append({"icon": icon, "title": title, "body": body})

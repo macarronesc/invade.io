@@ -11,6 +11,7 @@ const ENEMY_FACTIONS = [GameManager.Faction.ENEMY_1, GameManager.Faction.ENEMY_2
 
 @onready var top_bar: Control = $TopBar
 @onready var label_level_name: Label = %LevelNameLabel
+@onready var label_target_time: Label = %TargetTimeLabel
 @onready var label_coins: Label = %CoinsLabel
 @onready var bar_player: ColorRect = %BarPlayer
 @onready var bar_enemy: ColorRect = %BarEnemy
@@ -58,6 +59,8 @@ var _faction_bars: Dictionary = {}
 var _dominance_timer: float = 0.0
 var _tip_panel: Control = null
 var _tip_on_close: Callable = Callable()
+## Sólo actualiza la etiqueta cuando cambia el segundo mostrado.
+var _last_shown_second: int = -999
 
 func _notification(what: int) -> void:
 	match what:
@@ -78,6 +81,7 @@ func _cleanup_time_scale() -> void:
 
 func _ready() -> void:
 	_apply_visual_styling()
+	_apply_texts()
 	top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	UIThemeHelper.apply_safe_area_top(top_bar)
 	confetti_overlay.draw.connect(_draw_confetti)
@@ -120,6 +124,20 @@ func _apply_visual_styling() -> void:
 	UIThemeHelper.apply_stateio_button_style(btn_pause_retry, Color(0.22, 0.30, 0.40), 16, 4)
 	UIThemeHelper.apply_stateio_button_style(btn_pause_map, Color(0.20, 0.26, 0.35), 16, 4)
 
+## Textos estáticos de modales y botones en el idioma actual
+func _apply_texts() -> void:
+	btn_next_level.text = LocaleStrings.text("next_level")
+	btn_victory_map.text = LocaleStrings.text("to_map")
+	defeat_panel.get_node("VBox/Title").text = LocaleStrings.text("defeat_title")
+	defeat_panel.get_node("VBox/Subtitle").text = LocaleStrings.text("defeat_sub")
+	btn_retry.text = LocaleStrings.text("retry")
+	btn_defeat_upgrade.text = LocaleStrings.text("improve")
+	btn_defeat_map.text = LocaleStrings.text("exit_map")
+	pause_panel.get_node("VBox/Title").text = LocaleStrings.text("pause")
+	btn_resume.text = LocaleStrings.text("resume")
+	btn_pause_retry.text = LocaleStrings.text("restart_battle")
+	btn_pause_map.text = LocaleStrings.text("exit_map")
+
 ## Un segmento de la barra de dominancia por facción (las enemigas 2 y 3 se crean aquí)
 func _build_faction_bars() -> void:
 	_faction_bars = {
@@ -134,12 +152,12 @@ func _build_faction_bars() -> void:
 		bar_enemy.get_parent().add_child(bar)
 		_faction_bars[f] = bar
 	for f in _faction_bars:
-		_faction_bars[f].color = GameManager.FACTION_COLORS[f]
+		_faction_bars[f].color = GameManager.faction_color(f)
 		_faction_bars[f].custom_minimum_size.y = bar_player.custom_minimum_size.y
 
 func _refresh_audio_buttons() -> void:
-	btn_pause_sound.text = "🔇 SONIDO: SILENCIADO" if AudioManager.is_muted else "🔊 SONIDO: ACTIVADO"
-	btn_pause_music.text = "🎵 MÚSICA: DESACTIVADA" if AudioManager.music_muted else "🎵 MÚSICA: ACTIVADA"
+	btn_pause_sound.text = LocaleStrings.text("sound_off") if AudioManager.is_muted else LocaleStrings.text("sound_on")
+	btn_pause_music.text = LocaleStrings.text("music_off") if AudioManager.music_muted else LocaleStrings.text("music_on")
 
 func _on_pause_music_pressed() -> void:
 	AudioManager.play_click()
@@ -153,6 +171,8 @@ func _on_pause_sound_pressed() -> void:
 
 func _on_battle_started(level_id: String) -> void:
 	label_level_name.text = LevelDatabase.get_level_data(level_id)["name"]
+	_last_shown_second = -999
+	_update_target_time()
 
 func _process(delta: float) -> void:
 	crown_bob_time += delta
@@ -162,7 +182,24 @@ func _process(delta: float) -> void:
 			_dominance_timer = DOMINANCE_UPDATE_INTERVAL
 			_update_dominance_bar()
 		_animate_leader_crown()
+		if not battle_controller.is_game_over:
+			_update_target_time()
 	_update_confetti(delta)
+
+## Cuenta atrás del tiempo para 3 estrellas (punto 2: visible en pantalla)
+func _update_target_time() -> void:
+	if not is_instance_valid(battle_controller):
+		return
+	var remaining := roundi(battle_controller.target_time - battle_controller.battle_time)
+	if remaining == _last_shown_second:
+		return
+	_last_shown_second = remaining
+	if remaining >= 0:
+		label_target_time.text = "⭐ %ds" % remaining
+		label_target_time.add_theme_color_override("font_color", UIThemeHelper.COLOR_ACCENT)
+	else:
+		label_target_time.text = "⭐ +%ds" % (-remaining)
+		label_target_time.add_theme_color_override("font_color", Color(0.55, 0.58, 0.62))
 
 func _update_confetti(delta: float) -> void:
 	if confetti_pieces.is_empty():
@@ -199,12 +236,12 @@ func _update_dominance_bar() -> void:
 
 	# Etiquetas numéricas con el conteo vivo de tropas por facción
 	var player_count: int = counts.get(GameManager.Faction.PLAYER, 0)
-	label_count_player.text = "%s: %d" % [GameManager.FACTION_NAMES[GameManager.Faction.PLAYER], player_count]
-	label_count_neutral.text = "%s: %d" % [GameManager.FACTION_NAMES[GameManager.Faction.NEUTRAL], counts.get(GameManager.Faction.NEUTRAL, 0)]
+	label_count_player.text = "%s: %d" % [GameManager.faction_name(GameManager.Faction.PLAYER), player_count]
+	label_count_neutral.text = "%s: %d" % [GameManager.faction_name(GameManager.Faction.NEUTRAL), counts.get(GameManager.Faction.NEUTRAL, 0)]
 	var enemy_parts: PackedStringArray = []
 	for f in ENEMY_FACTIONS:
 		if counts.get(f, 0) > 0 or f == GameManager.Faction.ENEMY_1:
-			enemy_parts.append("%s: %d" % [GameManager.FACTION_NAMES[f], counts.get(f, 0)])
+			enemy_parts.append("%s: %d" % [GameManager.faction_name(f), counts.get(f, 0)])
 	label_count_enemy.text = "  ".join(enemy_parts)
 
 	# Facción líder (jugador gana los empates)
@@ -260,18 +297,21 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 
 	btn_next_level.visible = not stats.get("is_daily_challenge", false)
 	if stats.get("is_daily_challenge", false):
-		victory_title.text = "¡DESAFÍO SUPERADO!"
+		victory_title.text = LocaleStrings.text("daily_done")
 		victory_title.add_theme_color_override("font_color", UIThemeHelper.COLOR_ACCENT)
+	elif stats.get("is_conquest", false):
+		victory_title.text = LocaleStrings.text("conquest_done")
+		victory_title.add_theme_color_override("font_color", Color(0.35, 0.85, 0.90))
 	elif stats.get("is_continent_conquest", false):
-		victory_title.text = "¡CONTINENTE CONQUISTADO!"
+		victory_title.text = LocaleStrings.text("continent_conquest")
 		victory_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	else:
-		victory_title.text = "¡VICTORIA!"
+		victory_title.text = LocaleStrings.text("victory")
 		victory_title.add_theme_color_override("font_color", Color(0.2, 0.9, 0.3))
 
-	var reward_text = "+%d Monedas de Oro" % stats.get("gold_earned", 0)
+	var reward_text = LocaleStrings.text("reward_coins") % stats.get("gold_earned", 0)
 	if stats.get("is_replay", false):
-		reward_text += "\n(recompensa reducida al repetir)"
+		reward_text += "\n" + LocaleStrings.text("replay_note")
 	victory_reward_label.text = reward_text
 
 	trigger_confetti()
@@ -382,7 +422,7 @@ func show_tip_card(title: String, body: String, on_close: Callable = Callable())
 	if is_instance_valid(_tip_panel):
 		_tip_panel.queue_free()
 	_tip_on_close = on_close
-	_tip_panel = UIThemeHelper.create_modal_card(title, body, "¡ENTENDIDO!", _close_tip_card)
+	_tip_panel = UIThemeHelper.create_modal_card(title, body, LocaleStrings.text("tip_ok"), _close_tip_card)
 	add_child(_tip_panel)
 	dim_overlay.visible = true
 	get_tree().paused = true
@@ -412,6 +452,10 @@ func _on_retry_pressed() -> void:
 	_leave_battle()
 
 func _on_next_level_pressed() -> void:
+	if LevelGenerator.is_conquest(battle_controller.level_id):
+		GameManager.play_conquest(LevelGenerator.conquest_index(battle_controller.level_id) + 1)
+		_leave_battle()
+		return
 	var next_id = GameManager.get_next_level(battle_controller.level_id)
 	if next_id == "":
 		_on_map_pressed()

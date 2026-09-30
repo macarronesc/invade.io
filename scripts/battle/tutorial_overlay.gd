@@ -12,23 +12,16 @@ const GESTURE_STEPS = {
 	"europe_3": ["slice"],
 }
 
-const HINTS = {
-	"drag": "Arrastra desde tu base azul hasta una base gris para conquistarla",
-	"chain": "Pasa por varias bases azules en un solo trazo para sumar sus tropas",
-	"slice": "Traza una línea sobre tus tropas en marcha para que vuelvan a casa",
-	"goal": "¡Bien! Conquista todas las bases enemigas para ganar",
-}
-
 const TIP_CARDS = {
 	BaseNode.BaseType.FORTRESS: {
 		"id": "fortress",
-		"title": "🛡️ Fortaleza",
-		"body": "Cada defensor aguanta 2 ataques, pero produce tropas muy despacio.\nIdeal para resistir en primera línea."
+		"title_key": "card_fortress_t",
+		"body_key": "card_fortress_b"
 	},
 	BaseNode.BaseType.FACTORY: {
 		"id": "factory",
-		"title": "🏭 Fábrica",
-		"body": "Produce tropas 2,5 veces más rápido, pero cada atacante elimina 2 defensores.\n¡Protégela bien!"
+		"title_key": "card_factory_t",
+		"body_key": "card_factory_b"
 	},
 }
 
@@ -90,17 +83,17 @@ func _next_step() -> void:
 	if _current.begins_with("card_"):
 		var card: Dictionary = TIP_CARDS[int(_current.substr(5))]
 		GameManager.mark_tip_seen(card["id"])
-		battle.get_node("BattleHUD").show_tip_card(card["title"], card["body"], _next_step)
+		battle.get_node("BattleHUD").show_tip_card(LocaleStrings.text(card["title_key"]), LocaleStrings.text(card["body_key"]), _next_step)
 	elif _current == "drag":
 		battle.set_simulation_paused(true)
-		_show_hint(HINTS["drag"], INF)
+		_show_hint(LocaleStrings.text("hint_drag"), INF)
 	queue_redraw()
 
 func _complete_current() -> void:
 	GameManager.mark_tip_seen(_current)
 	if _current == "drag":
 		battle.set_simulation_paused(false)
-		_show_hint(HINTS["goal"], 3.5)
+		_show_hint(LocaleStrings.text("hint_goal"), 3.5)
 	else:
 		_show_hint("", 0.0)
 	if _current == "slice":
@@ -153,7 +146,7 @@ func _process(delta: float) -> void:
 				_hand_path = _build_chain_path()
 				if not _hand_path.is_empty():
 					_step_time = 0.0
-					_show_hint(HINTS["chain"], INF)
+					_show_hint(LocaleStrings.text("hint_chain"), INF)
 			elif _step_time > CHAIN_TIMEOUT:
 				_complete_current()
 		"slice":
@@ -161,7 +154,7 @@ func _process(delta: float) -> void:
 				_hand_path = _build_slice_path()
 				if not _hand_path.is_empty():
 					_step_time = 0.0
-					_show_hint(HINTS["slice"], INF)
+					_show_hint(LocaleStrings.text("hint_slice"), INF)
 			elif _step_time > SLICE_TIMEOUT:
 				_complete_current()
 			else:

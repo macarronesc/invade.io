@@ -52,6 +52,10 @@ func _ready() -> void:
 	_apply_visual_styling()
 	UIThemeHelper.apply_safe_area_top($Header)
 
+	btn_back.text = LocaleStrings.text("menu")
+	btn_upgrades.text = LocaleStrings.text("upgrades")
+	$Header/Title.text = LocaleStrings.text("to_map")
+
 	continents = LevelDatabase.get_continents()
 	for i in range(continents.size()):
 		if continents[i]["id"] == GameManager.current_continent:
@@ -110,7 +114,7 @@ func _refresh_display() -> void:
 	for lid in level_ids:
 		earned_stars += GameManager.completed_levels.get(lid, 0)
 
-	continent_title.text = "%s  (%d/%d ⭐)" % [cont["name"], earned_stars, level_ids.size() * 3]
+	continent_title.text = "%s  (%d/%d ⭐)" % [LevelDatabase.continent_name(cont["id"]), earned_stars, level_ids.size() * 3]
 	continent_title.add_theme_color_override("font_color", cont_color.lightened(0.20))
 	_apply_continent_layout(cont["id"], cont_color)
 
@@ -171,7 +175,7 @@ func _refresh_display() -> void:
 			star_lbl.text = UIThemeHelper.star_rating(stars)
 			star_lbl.add_theme_color_override("font_color", UIThemeHelper.COLOR_ACCENT if stars > 0 else Color(0.5, 0.5, 0.5))
 		else:
-			star_lbl.text = "Bloqueado"
+			star_lbl.text = LocaleStrings.text("blocked")
 			star_lbl.add_theme_color_override("font_color", Color(0.45, 0.48, 0.52))
 		node_holder.add_child(star_lbl)
 
@@ -219,22 +223,22 @@ func _update_briefing_card() -> void:
 	briefing_stars.text = UIThemeHelper.star_rating(stars)
 
 	var bases: Array = level_data.get("bases", [])
-	stat_bases.text = "🏰 %d Bases" % bases.size()
+	stat_bases.text = LocaleStrings.text("bases") % bases.size()
 
 	var enemy_factions := {}
 	for b in bases:
 		if b["faction"] != GameManager.Faction.PLAYER and b["faction"] != GameManager.Faction.NEUTRAL:
 			enemy_factions[b["faction"]] = true
 	var enemy_count := enemy_factions.size()
-	stat_enemy.text = "⚔️ %d %s" % [enemy_count, "Rival" if enemy_count == 1 else "Rivales"]
-	stat_target_time.text = "⏱️ Tiempo 3⭐: < %ds" % level_data.get("target_time", 45)
+	stat_enemy.text = LocaleStrings.text("rival" if enemy_count == 1 else "rivals") % enemy_count
+	stat_target_time.text = LocaleStrings.text("target_time") % level_data.get("target_time", 45)
 
 	btn_start_level.disabled = not is_unlocked
 	if is_unlocked:
-		btn_start_level.text = "⚔️ INICIAR ASALTO"
+		btn_start_level.text = LocaleStrings.text("start_assault")
 		UIThemeHelper.apply_stateio_button_style(btn_start_level, UIThemeHelper.COLOR_PRIMARY, 18, 6)
 	else:
-		btn_start_level.text = "🔒 NIVEL BLOQUEADO"
+		btn_start_level.text = LocaleStrings.text("level_locked")
 		UIThemeHelper.apply_stateio_button_style(btn_start_level, Color(0.25, 0.28, 0.34), 18, 3)
 
 func _draw_route() -> void:

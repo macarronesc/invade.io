@@ -175,7 +175,7 @@ func get_cells() -> Array[TerritoryCell]:
 	return cells
 
 func get_faction_territory_color(faction: int) -> Color:
-	var base_col = GameManager.FACTION_COLORS.get(faction, Color(0.47, 0.56, 0.61))
+	var base_col = GameManager.faction_color(faction)
 	var alpha = neutral_alpha if faction == GameManager.Faction.NEUTRAL else territory_alpha
 	return Color(base_col, alpha)
 

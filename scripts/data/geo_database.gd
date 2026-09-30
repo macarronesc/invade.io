@@ -60,6 +60,15 @@ static func get_city(key: String) -> Dictionary:
 	_ensure_loaded()
 	return _cities.get(key, {})
 
+## Nombre de la ciudad en el idioma actual
+static func city_name(city: Dictionary) -> String:
+	return city.get("name_en", "?") if LocaleStrings.lang == "en" else city.get("name_es", "?")
+
+## Número total de ciudades coleccionables en el atlas
+static func city_count() -> int:
+	_ensure_loaded()
+	return _cities_by_pop.size()
+
 ## Ciudades ordenadas de mayor a menor población
 static func get_cities() -> Array[Dictionary]:
 	_ensure_loaded()

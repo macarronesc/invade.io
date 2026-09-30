@@ -10,6 +10,8 @@ class_name AchievementsMenuUI
 @onready var btn_back: Button = %BtnBack
 @onready var count_pill: PanelContainer = %CountPill
 @onready var coins_pill: PanelContainer = %CoinsPill
+@onready var title_label: Label = $Header/Title
+@onready var subtitle_label: Label = $Subtitle
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
@@ -21,6 +23,9 @@ func _ready() -> void:
 	UIThemeHelper.apply_pill_style(count_pill)
 	UIThemeHelper.apply_pill_style(coins_pill)
 	UIThemeHelper.apply_safe_area_top($Header)
+	btn_back.text = LocaleStrings.text("back")
+	title_label.text = LocaleStrings.text("ach_title")
+	subtitle_label.text = LocaleStrings.text("ach_sub")
 	btn_back.pressed.connect(_on_back_pressed)
 	EventBus.coins_updated.connect(_update_coins)
 	_update_coins(GameManager.coins)
@@ -73,11 +78,11 @@ func _build_card(a: Dictionary) -> PanelContainer:
 	texts.add_theme_constant_override("separation", 6)
 	row.add_child(texts)
 	var title := Label.new()
-	title.text = a["title"]
+	title.text = AchievementDatabase.achievement_title(a)
 	title.add_theme_font_size_override("font_size", 30)
 	texts.add_child(title)
 	var desc := Label.new()
-	desc.text = a["desc"]
+	desc.text = AchievementDatabase.achievement_desc(a)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.add_theme_font_size_override("font_size", 22)
 	desc.add_theme_color_override("font_color", Color(0.72, 0.78, 0.86))
@@ -93,7 +98,7 @@ func _build_card(a: Dictionary) -> PanelContainer:
 	elif unlocked:
 		var btn := Button.new()
 		btn.name = "BtnClaim"
-		btn.text = "RECLAMAR\n🪙 %d" % a["reward"]
+		btn.text = LocaleStrings.text("claim") % a["reward"]
 		btn.custom_minimum_size = Vector2(210, 100)
 		btn.add_theme_font_size_override("font_size", 24)
 		UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_SUCCESS, 16, 5)

@@ -189,7 +189,8 @@ func _draw() -> void:
 	var f := front_index()
 	if f < 0:
 		return
-	var color: Color = GameManager.FACTION_COLORS.get(faction, Color.GRAY)
+	var color: Color = GameManager.faction_color(faction)
+	var style := GameManager.troop_style()
 	var origin_local := to_local(start_pos)
 	for i in range(f, bead_values.size()):
 		var v := bead_values[i]
@@ -207,9 +208,13 @@ func _draw() -> void:
 			cur_scale = clampf((arrival_dist - dist) / 15.0, 0.2, 1.0)
 		# Las perlas que agrupan varias unidades son ligeramente más grandes
 		var r := BEAD_RADIUS * (1.0 + 0.1 * mini(v - 1, 5)) * cur_scale
-		_draw_single_bead(origin_local + move_dir * dist, r, color)
+		_draw_single_bead(origin_local + move_dir * dist, r, color, style)
 
-func _draw_single_bead(pos: Vector2, r: float, color: Color) -> void:
+func _draw_single_bead(pos: Vector2, r: float, color: Color, style: String) -> void:
+	if style == "troop_big":
+		r *= 1.35
+	if style == "troop_halo":
+		draw_circle(pos, r + 5.0, Color(1, 1, 1, 0.30))
 	# Sombra 2.5D difusa debajo de la perla
 	draw_circle(pos + Vector2(0, 3.0), r * 0.95, Color(0, 0, 0, 0.28))
 	# Borde exterior blanco puro

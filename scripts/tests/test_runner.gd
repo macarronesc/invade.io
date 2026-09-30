@@ -5,6 +5,7 @@ extends Node
 var total_tests: int = 0
 var passed_tests: int = 0
 var failed_tests: int = 0
+var failed_names: Array[String] = []
 
 const TEST_SAVE_PATH = "user://test_save.json"
 
@@ -22,6 +23,14 @@ func _ready() -> void:
 	print("RESULTADOS: %d Pasadas, %d Falladas (Total: %d)" % [passed_tests, failed_tests, total_tests])
 	print("=======================================================\n")
 
+	# Volcado para CI y para capturar el resultado aunque el proceso termine
+	var results = FileAccess.open("user://test_results.txt", FileAccess.WRITE)
+	if results:
+		results.store_string("passed=%d\nfailed=%d\ntotal=%d\n" % [passed_tests, failed_tests, total_tests])
+		for n in failed_names:
+			results.store_string("FAIL: %s\n" % n)
+		results.close()
+
 	if failed_tests > 0:
 		print("❌ ERROR: Al menos una prueba ha fallado.")
 		get_tree().quit(1)
@@ -36,6 +45,7 @@ func assert_true(condition: bool, test_name: String) -> void:
 		print("  [PASS] %s" % test_name)
 	else:
 		failed_tests += 1
+		failed_names.append(test_name)
 		printerr("  [FAIL] %s" % test_name)
 
 func assert_equals(val1, val2, test_name: String) -> void:
@@ -45,6 +55,7 @@ func assert_equals(val1, val2, test_name: String) -> void:
 		print("  [PASS] %s (Valor: %s)" % [test_name, str(val1)])
 	else:
 		failed_tests += 1
+		failed_names.append(test_name)
 		printerr("  [FAIL] %s (Esperado: %s, Obtenido: %s)" % [test_name, str(val2), str(val1)])
 
 func run_all_tests() -> void:
@@ -98,6 +109,11 @@ func run_all_tests() -> void:
 	test_daily_rewards_and_streaks()
 	test_achievements_system()
 	test_daily_challenge_levels()
+	test_language_system()
+	test_conquest_mode()
+	test_atlas_and_first_levels()
+	test_cosmetics_shop()
+	test_review_regressions()
 	test_cleanup_regressions()
 
 func test_base_production_mechanics() -> void:
@@ -2049,9 +2065,11 @@ func test_upgrade_menu_cards_and_pips() -> void:
 	assert_true(upgrade_menu.stars_label != null, "StarsLabel existe en UpgradeMenu")
 	assert_true(upgrade_menu.btn_back != null, "BtnBack existe en UpgradeMenu")
 
-	# 2. Verificar las 4 tarjetas de mejoras tácticas
-	assert_equals(upgrade_menu.cards_container.get_child_count(), 4, "Existen exactamente 4 tarjetas de mejoras tácticas activas")
-	var active_cards = upgrade_menu.cards_container.get_children()
+	# 2. Verificar las 4 tarjetas de mejoras tácticas (más la sección de estética)
+	var upgrade_cards = upgrade_menu.cards_container.get_children().filter(func(c): return c.name.begins_with("UpgradeCard_"))
+	assert_equals(upgrade_cards.size(), 4, "Existen exactamente 4 tarjetas de mejoras tácticas activas")
+	assert_true(upgrade_menu.cards_container.has_node("CosmeticRow_color_cyan"), "La tienda de estética ofrece colores")
+	var active_cards = upgrade_cards
 
 	# 3. Verificar barra segmentada de 10 pips en la primera tarjeta
 	var card0 = active_cards[0] as PanelContainer
@@ -2083,8 +2101,8 @@ func test_upgrade_menu_cards_and_pips() -> void:
 	# 5. Tarjeta en nivel máximo (MÁXIMO y deshabilitado)
 	GameManager.upgrades["starting_troops"] = 10
 	upgrade_menu._build_cards()
-	assert_equals(upgrade_menu.cards_container.get_child_count(), 4, "CardsContainer conserva exactamente 4 tarjetas tras reconstrucción")
-	var updated_cards = upgrade_menu.cards_container.get_children()
+	var updated_cards = upgrade_menu.cards_container.get_children().filter(func(c): return c.name.begins_with("UpgradeCard_"))
+	assert_equals(updated_cards.size(), 4, "CardsContainer conserva exactamente 4 tarjetas tras reconstrucción")
 	var card_max = updated_cards[0]
 	var buy_btn: Button = null
 	for b in card_max.find_children("", "Button", true, false):
@@ -2810,3 +2828,212 @@ func test_cleanup_regressions() -> void:
 		t.free()
 	for n in battle.bases + [ai, battle]:
 		n.free()
+
+func test_language_system() -> void:
+	print("\n-> Test: Traducciones ES/EN y Nombres Localizados")
+	GameManager.reset_save()
+	assert_equals(GameManager.language, "es", "Idioma por defecto español")
+	assert_equals(LocaleStrings.text("play"), "⚔️ ¡JUGAR!", "Clave del menú en español")
+	GameManager.set_language("en")
+	assert_equals(GameManager.language, "en", "Cambio a inglés")
+	assert_equals(LocaleStrings.text("play"), "⚔️ PLAY!", "Clave del menú en inglés")
+	assert_equals(GameManager.faction_name(GameManager.Faction.PLAYER), "Blue", "Facción en inglés")
+	assert_equals(LevelDatabase.continent_name("europe"), "Europe", "Continente en inglés")
+	assert_true(str(LevelDatabase.get_level_data("europe_1")["name"]).begins_with("Level 1:"), "Nivel de campaña con nombre inglés")
+	GameManager.set_language("fr")
+	assert_equals(GameManager.language, "en", "Idioma no soportado se ignora")
+	GameManager.set_language("es")
+	assert_equals(LevelDatabase.get_level_data("europe_1")["name"], "Nivel 1: Península Ibérica y Galia", "Vuelve al español")
+	GameManager.set_language("en")
+	assert_equals(AchievementDatabase.achievement_title(AchievementDatabase.get_by_id("blitz")), "Blitzkrieg", "Logro en inglés")
+	GameManager.language = "es"
+	GameManager.load_game()
+	assert_equals(GameManager.language, "en", "El idioma se guarda entre sesiones")
+	GameManager.reset_save()
+	assert_equals(GameManager.language, "es", "Reiniciar restaura el idioma inicial")
+
+func test_conquest_mode() -> void:
+	print("\n-> Test: Conquista Libre Infinita (Generación, Dificultad y Oro)")
+	assert_true(LevelGenerator.is_conquest("conquest_7") and not LevelGenerator.is_conquest("europe_1"), "Se reconocen los ids de conquista")
+	assert_equals(LevelGenerator.conquest_index("conquest_12"), 12, "El id guarda la región")
+	assert_true(LevelGenerator.conquest_difficulty(1) > LevelGenerator.conquest_difficulty(0), "La dificultad crece con la región")
+	assert_equals(LevelGenerator.conquest_difficulty(99), 1.0, "La dificultad tiene techo en 1.0")
+	assert_equals(str(LevelGenerator.conquest_definition(3)), str(LevelGenerator.conquest_definition(3)), "La región es la misma para todos")
+	var problems := 0
+	for i in [0, 1, 2, 5, 6, 11]:
+		var def = LevelGenerator.conquest_definition(i)
+		var factions = def["bases"].map(func(b): return b["faction"])
+		if def["bases"].size() < 3 or not factions.has(GameManager.Faction.PLAYER) or not factions.has(GameManager.Faction.ENEMY_1):
+			problems += 1
+		if not def["bases"].all(func(b): return GeoDatabase.has_city(b["city"])):
+			problems += 1
+	assert_equals(problems, 0, "Las regiones 0-11 son jugables con ciudades reales")
+	assert_true(LevelDatabase.get_difficulty("conquest_4") > LevelDatabase.get_difficulty("conquest_0"), "Dificultad vía LevelDatabase")
+	GameManager.reset_save()
+	GameManager.play_conquest(2)
+	assert_equals(GameManager.get_battle_level_id(), "conquest_2", "La batalla carga la región")
+	var gold = GameManager.complete_conquest(2)
+	assert_equals(GameManager.conquest_next, 3, "La victoria avanza a la siguiente región")
+	assert_true(gold > 0, "La conquista da oro")
+	assert_true(GameManager.complete_conquest(5) > gold, "Las regiones altas pagan más oro")
+	GameManager.play_level("europe_1")
+	assert_equals(GameManager.get_battle_level_id(), "europe_1", "Jugar campaña sale de la conquista")
+	assert_true(not GameManager.completed_levels.has("conquest_2"), "La conquista no toca las estrellas")
+	assert_equals(GameManager.get_next_level("conquest_3"), "", "La conquista no tiene siguiente de campaña")
+	# El menú principal ofrece conquista, atlas e idioma
+	var MainMenuScene = load("res://scenes/ui/main_menu.tscn")
+	var menu = MainMenuScene.instantiate()
+	add_child(menu)
+	assert_true(menu.btn_conquest != null and menu.btn_atlas != null and menu.btn_lang != null, "Botones de conquista, atlas e idioma existen")
+	remove_child(menu)
+	menu.free()
+	# Victoria completa en una región: oro, avance y atlas sin tocar la campaña
+	GameManager.reset_save()
+	GameManager.play_conquest(0)
+	var cbattle = load("res://scripts/battle/battle_controller.gd").new()
+	cbattle.load_level(GameManager.get_battle_level_id())
+	for b in cbattle.bases:
+		b.faction = GameManager.Faction.PLAYER
+	var cities_before = GameManager.atlas_conquered_count()
+	cbattle._trigger_victory()
+	assert_true(cbattle.is_game_over, "La conquista termina en victoria")
+	assert_equals(GameManager.conquest_next, 1, "La victoria avanza a la siguiente región")
+	assert_true(GameManager.atlas_conquered_count() > cities_before, "La victoria registra ciudades en el atlas")
+	assert_true(GameManager.completed_levels.is_empty(), "La campaña sigue intacta")
+	cbattle.free()
+	# El modal celebra la región y ofrece seguir la cadena
+	var HudScene = load("res://scenes/ui/battle_hud.tscn")
+	var hud = HudScene.instantiate()
+	add_child(hud)
+	hud.deploy_victory_modal({"stars": 2, "gold_earned": 120, "is_conquest": true})
+	assert_equals(hud.victory_title.text, LocaleStrings.text("conquest_done"), "Título de conquista libre")
+	assert_true(hud.btn_next_level.visible, "La conquista ofrece seguir avanzando")
+	remove_child(hud)
+	hud.free()
+	GameManager.reset_save()
+
+func test_atlas_and_first_levels() -> void:
+	print("\n-> Test: Atlas de Ciudades, Primer Arranque y Niveles Suaves")
+	GameManager.reset_save()
+	assert_true(not GameManager.has_started, "Partida nueva sin empezar")
+	GameManager.has_started = true
+	GameManager.save_game()
+	GameManager.has_started = false
+	GameManager.load_game()
+	assert_true(GameManager.has_started, "El primer arranque persiste entre sesiones")
+	assert_true(GameManager.conquer_city("madrid"), "Conquistar Madrid entra en el atlas")
+	assert_true(not GameManager.conquer_city("madrid"), "No se duplica")
+	assert_true(not GameManager.conquer_city(""), "Clave vacía se ignora")
+	assert_equals(GameManager.atlas_conquered_count(), 1, "Una ciudad registrada")
+	assert_true(GameManager.atlas_total_count() > 1000, "Más de mil ciudades coleccionables")
+	GameManager.save_game()
+	GameManager.conquered_cities.clear()
+	GameManager.load_game()
+	assert_true(GameManager.conquered_cities.has("madrid"), "El atlas persiste entre sesiones")
+	# La pantalla del atlas muestra el progreso y la ciudad
+	var AtlasScene = load("res://scenes/ui/atlas_menu.tscn")
+	var atlas = AtlasScene.instantiate()
+	add_child(atlas)
+	var texts = atlas.find_children("*", "Label", true, false).map(func(l): return l.text)
+	assert_true(texts.any(func(t): return t.contains("ATLAS")), "Título del atlas visible")
+	assert_true(texts.any(func(t): return t.contains("Madrid")), "Madrid aparece como conquistada")
+	assert_true(texts.any(func(t): return t.contains("/") and t.contains(str(GameManager.atlas_total_count()))), "Contador de progreso x/total")
+	remove_child(atlas)
+	atlas.free()
+	# europe_1 casi imposible de perder: jugador fuerte y un solo rival débil
+	var def1 = LevelDatabase.get_level_definition("europe_1")
+	var rivals1 = def1["bases"].filter(func(b): return b["faction"] != GameManager.Faction.PLAYER and b["faction"] != GameManager.Faction.NEUTRAL)
+	var mine1 = def1["bases"].filter(func(b): return b["faction"] == GameManager.Faction.PLAYER)
+	assert_equals(rivals1.size(), 1, "europe_1 tiene un único rival")
+	assert_true(mine1[0]["troops"] > rivals1[0]["troops"], "El jugador empieza con más tropas que el rival")
+	var def3 = LevelDatabase.get_level_definition("europe_3")
+	var rivals3 = def3["bases"].filter(func(b): return b["faction"] != GameManager.Faction.PLAYER and b["faction"] != GameManager.Faction.NEUTRAL)
+	assert_equals(rivals3.size(), 1, "europe_3 tiene un único rival")
+	# La IA espera al menos 25 s en los primeros niveles
+	var battle = load("res://scripts/battle/battle_controller.gd").new()
+	battle.level_id = "europe_2"
+	var ai = AIController.new()
+	ai.setup(battle, GameManager.Faction.ENEMY_1)
+	assert_true(ai.get_player_grace_period() >= 25.0, "Periodo de gracia largo en europe_2")
+	ai.free()
+	battle.free()
+	GameManager.reset_save()
+
+func test_cosmetics_shop() -> void:
+	print("\n-> Test: Tienda de Estética (Oro Útil Tras el Máximo)")
+	GameManager.reset_save()
+	GameManager.coins = 100
+	assert_true(not GameManager.buy_cosmetic("color_cyan"), "Sin oro no hay compra")
+	assert_true(not GameManager.buy_cosmetic("no_existe"), "Id desconocido se rechaza")
+	GameManager.coins = 1000
+	var before = GameManager.coins
+	assert_true(GameManager.buy_cosmetic("color_cyan"), "Compra con oro suficiente")
+	assert_equals(GameManager.coins, before - 250, "Se descuenta el precio exacto")
+	assert_true(GameManager.is_cosmetic_owned("color_cyan"), "Queda desbloqueado")
+	assert_equals(GameManager.cosmetics_equipped["army_color"], "color_cyan", "Comprar equipa al momento")
+	assert_true(GameManager.player_color() != GameManager.FACTION_COLORS[GameManager.Faction.PLAYER], "El color del ejército cambia")
+	assert_true(GameManager.equip_cosmetic("color_blue"), "Se puede volver al clásico gratis")
+	assert_equals(GameManager.player_color(), GameManager.FACTION_COLORS[GameManager.Faction.PLAYER], "El clásico restaura el azul")
+	assert_true(not GameManager.equip_cosmetic("color_gold"), "No se equipa lo no desbloqueado")
+	GameManager.save_game()
+	GameManager.cosmetics_owned.clear()
+	GameManager.load_game()
+	assert_true(GameManager.is_cosmetic_owned("color_cyan"), "Los cosméticos persisten")
+	assert_equals(GameManager.cosmetics_equipped["army_color"], "color_blue", "Lo equipado persiste")
+	GameManager.reset_save()
+
+func test_review_regressions() -> void:
+	print("\n-> Test: Simplificación (Mapas Idénticos, Caché Acotada y Guardados)")
+	GameManager.reset_save()
+	# Huellas capturadas antes del refactor: no cambiar mapas ni consumir otro RNG.
+	for sample in [
+		["daily", 365, "dd937f4c32a66da37e1f7bc2ea7a1588cbdcd0a6064f12db554606f44f3634ab"],
+		["conquest", 50, "4ef40d9c25c83a7382ef6ffc041b62b16489ca3d40e11dae7329d8acc65fb8fb"],
+	]:
+		var bases := []
+		for i in sample[1]:
+			var def := LevelGenerator.daily_challenge_definition(20000 + i) if sample[0] == "daily" else LevelGenerator.conquest_definition(i)
+			bases.append(def["bases"])
+		assert_equals(JSON.stringify(bases).sha256_text(), sample[2], "Mapas %s idénticos antes y después" % sample[0])
+	for i in range(LevelDatabase.MAX_CACHED_LEVELS + 1):
+		LevelDatabase.get_level_data(LevelGenerator.conquest_id(i))
+	assert_equals(LevelDatabase._built.size(), LevelDatabase.MAX_CACHED_LEVELS, "La conquista infinita no hace crecer la caché")
+	GameManager.current_level_id = "europe_3"
+	GameManager.play_level("conquest_2")
+	assert_equals(GameManager.current_level_id, "europe_3", "También play_level conserva la campaña en conquista")
+	GameManager.play_level("daily_20000")
+	assert_equals(GameManager.get_battle_level_id(), "daily_20000", "El modo diario reemplaza la conquista activa")
+	GameManager.coins = 1000
+	var changes: Array[int] = []
+	var on_change = func(): changes.append(1)
+	EventBus.cosmetics_changed.connect(on_change)
+	GameManager.buy_cosmetic("color_cyan")
+	assert_equals(changes.size(), 1, "Comprar emite un solo cambio de estética")
+	assert_true(not GameManager.buy_cosmetic("color_cyan"), "Comprar dos veces no duplica ni cobra")
+	assert_equals(GameManager.coins, 750, "La compra sólo descuenta una vez")
+	EventBus.cosmetics_changed.disconnect(on_change)
+	GameManager._apply_save({"language": "fr", "conquest_next": -4,
+		"conquered_cities": ["madrid", "madrid", "no_existe", 42],
+		"cosmetics_owned": ["color_cyan", "no_existe"],
+		"cosmetics_equipped": {"army_color": "color_gold", "base_shape": "color_cyan"}})
+	assert_equals(GameManager.conquered_cities, ["madrid"] as Array[String], "El guardado filtra ciudades inválidas y duplicadas")
+	assert_equals(GameManager.cosmetics_equipped, GameManager.DEFAULT_COSMETICS_EQUIPPED, "No se equipan objetos no poseídos ni de otra categoría")
+	assert_true(GameManager.is_cosmetic_owned("color_blue"), "Los cosméticos gratuitos siempre están disponibles")
+	assert_equals(LocaleStrings.lang, "es", "Sólo hay un idioma activo incluso al cargar datos inválidos")
+	assert_equals(GameManager.conquest_next, 0, "La progresión corrupta vuelve a cero")
+	assert_true(not GameManager.conquer_city("no_existe"), "El atlas sólo admite ciudades reales")
+	var battle := BattleController.new()
+	var hud: BattleHUD = load("res://scenes/ui/battle_hud.tscn").instantiate()
+	hud.battle_controller = battle
+	add_child(hud)
+	battle.target_time = 60.0
+	battle.battle_time = 12.0
+	hud._update_target_time()
+	assert_equals(hud.label_target_time.text, "⭐ 48s", "El HUD utiliza el objetivo de la batalla sin duplicarlo")
+	battle.battle_time = 65.0
+	hud._update_target_time()
+	assert_equals(hud.label_target_time.text, "⭐ +5s", "El HUD indica cuándo se supera el objetivo")
+	remove_child(hud)
+	hud.free()
+	battle.free()
+	GameManager.reset_save()

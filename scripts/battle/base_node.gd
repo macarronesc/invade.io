@@ -22,6 +22,8 @@ const DEFAULT_TIER_PARAMS = {"radius": 60.0, "capacity": 70, "rate": 1.0}
 @export var troops: int = 20
 @export var tier: int = 1
 @export var base_type: BaseType = BaseType.STANDARD
+## Clave de la ciudad real (para el atlas); "" en bases sin ciudad
+var city_key: String = ""
 
 var fortress_absorbed_damage: int = 0
 var factory_gear_angle: float = 0.0
@@ -129,6 +131,7 @@ func setup(data: Dictionary) -> void:
 	is_active = true
 	base_id = data.get("id", base_id)
 	base_name = data.get("name", base_name)
+	city_key = data.get("city", city_key)
 	faction = data.get("faction", faction)
 	troops = data.get("troops", troops)
 	tier = data.get("tier", tier)
@@ -304,7 +307,7 @@ func _update_label() -> void:
 		label_troops.text = str(troops)
 
 func _draw() -> void:
-	var color = GameManager.FACTION_COLORS.get(faction, Color.GRAY)
+	var color = GameManager.faction_color(faction)
 	var current_radius = radius * pulse_scale
 
 	# 1. Onda expansiva de impacto y conquista
@@ -344,7 +347,7 @@ func _draw() -> void:
 			draw_circle(t_pos, 4.8, Color(1.0, 0.8, 0.2, 0.95))
 			draw_circle(t_pos, 2.5, Color(0.25, 0.2, 0.1))
 	else:
-		draw_circle(Vector2.ZERO, current_radius + 4.5, Color.WHITE)
+		_draw_frame_shape(current_radius)
 
 	# 5. Cuerpo principal con color de la facción
 	draw_circle(Vector2.ZERO, current_radius, color)
@@ -401,6 +404,21 @@ func _draw_faction_symbol(center: Vector2, s: float) -> void:
 			draw_rect(Rect2(center - Vector2(s, s) * 0.75, Vector2(s, s) * 1.5), col)
 		GameManager.Faction.ENEMY_3:
 			draw_colored_polygon(PackedVector2Array([center + Vector2(0, -s), center + Vector2(s, 0), center + Vector2(0, s), center + Vector2(-s, 0)]), col)
+
+## Marco exterior de la base estándar según la forma equipada en la tienda
+func _draw_frame_shape(current_radius: float) -> void:
+	match GameManager.base_shape():
+		"base_square":
+			var half := current_radius + 4.5
+			var rect := Rect2(Vector2(-half, -half), Vector2(half, half) * 2.0)
+			draw_rect(rect.grow(3.0), Color(0, 0, 0, 0.25), true)
+			draw_rect(rect, Color.WHITE, true)
+		"base_diamond":
+			var r := current_radius + 6.0
+			var pts := PackedVector2Array([Vector2(0, -r), Vector2(r, 0), Vector2(0, r), Vector2(-r, 0)])
+			draw_colored_polygon(pts, Color.WHITE)
+		_:
+			draw_circle(Vector2.ZERO, current_radius + 4.5, Color.WHITE)
 
 func _draw_siege_alert(current_radius: float) -> void:
 	var p = (sin(siege_pulse_time) + 1.0) * 0.5

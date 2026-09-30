@@ -4,18 +4,18 @@ class_name UIThemeHelper
 ## UIThemeHelper: Utilidad central de diseño y estilos visuales State.io 2.5D
 ## Proporciona temas, botones táctiles con relieve, feedback elástico (tween bounce) y tarjetas de interfaz.
 
-const COLOR_BG: Color = Color(0.10, 0.12, 0.16)
-const COLOR_CARD: Color = Color(0.14, 0.17, 0.22, 0.94)
-const COLOR_CARD_BORDER: Color = Color(0.26, 0.34, 0.44, 0.75)
-const COLOR_PRIMARY: Color = Color(0.13, 0.59, 0.95)       # Azul brillante State.io
+const COLOR_BG: Color = Color(0.13, 0.16, 0.22)
+const COLOR_CARD: Color = Color(0.19, 0.23, 0.30, 0.96)
+const COLOR_CARD_BORDER: Color = Color(0.36, 0.46, 0.58, 0.80)
+const COLOR_PRIMARY: Color = Color(0.15, 0.65, 1.0)       # Azul vivo minimalista
 const COLOR_ACCENT: Color = Color(1.0, 0.82, 0.18)        # Oro brillante
 const COLOR_SUCCESS: Color = Color(0.22, 0.75, 0.38)       # Verde esmeralda
 const COLOR_DANGER: Color = Color(0.96, 0.26, 0.21)        # Rojo carmesí
-const COLOR_NEUTRAL: Color = Color(0.47, 0.56, 0.61)       # Gris pizarra
-const COLOR_HEADER_PILL: Color = Color(0.08, 0.10, 0.14, 0.88)
-const COLOR_PILL_BORDER: Color = Color(0.35, 0.45, 0.58, 0.60)
+const COLOR_NEUTRAL: Color = Color(0.55, 0.63, 0.68)       # Gris claro legible
+const COLOR_HEADER_PILL: Color = Color(0.10, 0.13, 0.18, 0.90)
+const COLOR_PILL_BORDER: Color = Color(0.42, 0.52, 0.64, 0.65)
 ## Botones secundarios: volver, sonido, pausa
-const COLOR_BTN_SECONDARY: Color = Color(0.18, 0.24, 0.32)
+const COLOR_BTN_SECONDARY: Color = Color(0.24, 0.31, 0.40)
 
 ## Textos de las píldoras de la cabecera, iguales en todas las pantallas
 static func coins_text(amount: int) -> String:

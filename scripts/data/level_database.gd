@@ -7,16 +7,23 @@ const LEVELS_PER_CONTINENT := 5
 
 ## Continentes en orden de campaña; sus niveles son "<id>_1" .. "<id>_5"
 const CONTINENTS: Array[Dictionary] = [
-	{"id": "europe", "name": "Europa", "color": Color(0.2, 0.6, 0.86)},
-	{"id": "north_america", "name": "América del Norte", "color": Color(0.9, 0.4, 0.3)},
-	{"id": "south_america", "name": "América del Sur", "color": Color(0.3, 0.75, 0.4)},
-	{"id": "africa", "name": "África", "color": Color(0.95, 0.7, 0.2)},
-	{"id": "asia", "name": "Asia", "color": Color(0.8, 0.3, 0.7)},
-	{"id": "oceania", "name": "Oceanía", "color": Color(0.1, 0.7, 0.7)},
+	{"id": "europe", "name": "Europa", "name_en": "Europe", "color": Color(0.2, 0.6, 0.86)},
+	{"id": "north_america", "name": "América del Norte", "name_en": "North America", "color": Color(0.9, 0.4, 0.3)},
+	{"id": "south_america", "name": "América del Sur", "name_en": "South America", "color": Color(0.3, 0.75, 0.4)},
+	{"id": "africa", "name": "África", "name_en": "Africa", "color": Color(0.95, 0.7, 0.2)},
+	{"id": "asia", "name": "Asia", "name_en": "Asia", "color": Color(0.8, 0.3, 0.7)},
+	{"id": "oceania", "name": "Oceanía", "name_en": "Oceania", "color": Color(0.1, 0.7, 0.7)},
 ]
 
 static func get_continents() -> Array[Dictionary]:
 	return CONTINENTS
+
+## Nombre del continente en el idioma actual
+static func continent_name(continent_id: String) -> String:
+	for c in CONTINENTS:
+		if c["id"] == continent_id:
+			return c["name_en"] if LocaleStrings.lang == "en" else c["name"]
+	return continent_id
 
 static func get_continent_level_ids(continent_id: String) -> Array[String]:
 	var ids: Array[String] = []
@@ -33,22 +40,46 @@ static func get_level_number(level_id: String) -> int:
 
 static var _definitions: Dictionary = {}
 static var _built: Dictionary = {}
+## ponytail: FIFO de 64 mapas; usar LRU si la regeneración resulta costosa en móviles.
+const MAX_CACHED_LEVELS := 64
 
 ## Nivel listo para jugar: bases con posición en pantalla y geografía proyectada.
-## Se construye la primera vez que se pide y queda en caché.
-## Los desafíos diarios ("daily_<día>") se generan a partir del número de día.
+## Se construye la primera vez que se pide y queda en caché (una entrada por idioma).
+## Los desafíos diarios ("daily_<día>") y la conquista ("conquest_<n>") se generan al vuelo.
 static func get_level_data(level_id: String) -> Dictionary:
-	if not _built.has(level_id):
+	var cache_key := "%s|%s" % [level_id, LocaleStrings.lang]
+	if not _built.has(cache_key):
 		var def := get_level_definition(level_id)
 		if def.is_empty():
 			return get_level_data(GameManager.FIRST_LEVEL_ID)
-		_built[level_id] = LevelGenerator.build(def, get_difficulty(level_id))
-	return _built[level_id]
+		var built: Dictionary = LevelGenerator.build(def, get_difficulty(level_id))
+		_localize(built, def)
+		if _built.size() >= MAX_CACHED_LEVELS:
+			_built.erase(_built.keys()[0])
+		_built[cache_key] = built
+	return _built[cache_key]
+
+## En inglés, los nombres y descripciones de campaña usan una plantilla con la
+## ciudad central (las 30 descripciones literarias sólo existen en español).
+static func _localize(built: Dictionary, def: Dictionary) -> void:
+	var level_id: String = def.get("id", "")
+	if LocaleStrings.lang != "en" or not _get_definitions().has(level_id):
+		return
+	var n := get_level_ids().find(level_id) + 1
+	var center := ""
+	for b in def.get("bases", []):
+		if b.get("faction") == GameManager.Faction.PLAYER:
+			center = GeoDatabase.city_name(GeoDatabase.get_city(b.get("city", "")))
+			break
+	built["name"] = "Level %d: %s" % [n, continent_name(get_continent_of(level_id))]
+	built["description"] = LocaleStrings.text("level_desc_en") % [center, built.get("target_time", 45)]
 
 ## Definición original (ciudades y facciones) sin construir
 static func get_level_definition(level_id: String) -> Dictionary:
 	if DailyRewards.is_challenge(level_id):
 		return LevelGenerator.daily_challenge_definition(DailyRewards.challenge_day(level_id))
+	if LevelGenerator.is_conquest(level_id):
+		return LevelGenerator.conquest_definition(LevelGenerator.conquest_index(level_id))
 	return _get_definitions().get(level_id, {})
 
 ## Ids de la campaña en orden de juego
@@ -64,6 +95,8 @@ static func _get_definitions() -> Dictionary:
 static func get_difficulty(level_id: String) -> float:
 	if DailyRewards.is_challenge(level_id):
 		return DailyRewards.CHALLENGE_DIFFICULTY
+	if LevelGenerator.is_conquest(level_id):
+		return LevelGenerator.conquest_difficulty(LevelGenerator.conquest_index(level_id))
 	var ids := get_level_ids()
 	return maxf(0.0, ids.find(level_id)) / float(ids.size() - 1)
 
@@ -92,38 +125,38 @@ static func _build_levels() -> Dictionary:
 			"id": "europe_1",
 			"name": "Nivel 1: Península Ibérica y Galia",
 			"description": "Aprende los conceptos básicos: captura las bases neutrales y vence al enemigo rojo.",
-			"target_time": 40,
+			"target_time": 45,
 			"bases": [
-				{"id": "b1", "city": "madrid", "faction": GameManager.Faction.PLAYER, "troops": 25, "tier": 1},
-				{"id": "b2", "city": "paris", "faction": GameManager.Faction.NEUTRAL, "troops": 10, "tier": 2},
-				{"id": "b3", "city": "london", "faction": GameManager.Faction.NEUTRAL, "troops": 15, "tier": 1},
-				{"id": "b4", "city": "berlin", "faction": GameManager.Faction.ENEMY_1, "troops": 25, "tier": 2}
+				{"id": "b1", "city": "madrid", "faction": GameManager.Faction.PLAYER, "troops": 35, "tier": 1},
+				{"id": "b2", "city": "paris", "faction": GameManager.Faction.NEUTRAL, "troops": 8, "tier": 1},
+				{"id": "b3", "city": "london", "faction": GameManager.Faction.NEUTRAL, "troops": 10, "tier": 1},
+				{"id": "b4", "city": "berlin", "faction": GameManager.Faction.ENEMY_1, "troops": 18, "tier": 1}
 			]
 		},
 		"europe_2": {
 			"id": "europe_2",
 			"name": "Nivel 2: Europa Central",
 			"description": "Una red más densa de bases neutrales separa tu avance de Berlín y Roma.",
-			"target_time": 50,
+			"target_time": 55,
 			"bases": [
-				{"id": "b1", "city": "lisbon", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 1},
-				{"id": "b2", "city": "marseille", "faction": GameManager.Faction.NEUTRAL, "troops": 12, "tier": 1},
-				{"id": "b3", "city": "rome", "faction": GameManager.Faction.NEUTRAL, "troops": 18, "tier": 2},
-				{"id": "b4", "city": "prague", "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 2},
-				{"id": "b5", "city": "warsaw", "faction": GameManager.Faction.ENEMY_1, "troops": 35, "tier": 2}
+				{"id": "b1", "city": "lisbon", "faction": GameManager.Faction.PLAYER, "troops": 35, "tier": 1},
+				{"id": "b2", "city": "marseille", "faction": GameManager.Faction.NEUTRAL, "troops": 10, "tier": 1},
+				{"id": "b3", "city": "rome", "faction": GameManager.Faction.NEUTRAL, "troops": 14, "tier": 1},
+				{"id": "b4", "city": "prague", "faction": GameManager.Faction.NEUTRAL, "troops": 16, "tier": 1},
+				{"id": "b5", "city": "warsaw", "faction": GameManager.Faction.ENEMY_1, "troops": 28, "tier": 1}
 			]
 		},
 		"europe_3": {
 			"id": "europe_3",
 			"name": "Nivel 3: Países Nórdicos",
 			"description": "Bases costeras con conexiones estratégicas.",
-			"target_time": 55,
+			"target_time": 60,
 			"bases": [
-				{"id": "b1", "city": "amsterdam", "faction": GameManager.Faction.PLAYER, "troops": 25, "tier": 1},
-				{"id": "b2", "city": "kobenhavn", "faction": GameManager.Faction.NEUTRAL, "troops": 15, "tier": 1},
-				{"id": "b3", "city": "oslo", "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 2},
-				{"id": "b4", "city": "stockholm", "faction": GameManager.Faction.ENEMY_1, "troops": 30, "tier": 2},
-				{"id": "b5", "city": "helsinki", "faction": GameManager.Faction.ENEMY_1, "troops": 20, "tier": 1}
+				{"id": "b1", "city": "amsterdam", "faction": GameManager.Faction.PLAYER, "troops": 32, "tier": 1},
+				{"id": "b2", "city": "kobenhavn", "faction": GameManager.Faction.NEUTRAL, "troops": 10, "tier": 1},
+				{"id": "b3", "city": "oslo", "faction": GameManager.Faction.NEUTRAL, "troops": 14, "tier": 1},
+				{"id": "b4", "city": "stockholm", "faction": GameManager.Faction.ENEMY_1, "troops": 24, "tier": 1},
+				{"id": "b5", "city": "helsinki", "faction": GameManager.Faction.NEUTRAL, "troops": 12, "tier": 1}
 			]
 		},
 		"europe_4": {

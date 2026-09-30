@@ -12,6 +12,11 @@ const BATTLE_SCENE := "res://scenes/battle/battle_field.tscn"
 @onready var btn_reset: Button = %BtnReset
 @onready var btn_daily: Button = %BtnDaily
 @onready var btn_achievements: Button = %BtnAchievements
+@onready var btn_conquest: Button = %BtnConquest
+@onready var btn_atlas: Button = %BtnAtlas
+@onready var btn_lang: Button = %BtnLang
+@onready var title_badge: Label = $HeaderBox/TitleBadge
+@onready var subtitle_label: Label = $HeaderBox/Subtitle
 @onready var coins_label: Label = %CoinsLabel
 @onready var stars_label: Label = %StarsLabel
 @onready var btn_sound: Button = %BtnSound
@@ -20,7 +25,6 @@ const BATTLE_SCENE := "res://scenes/battle/battle_field.tscn"
 @onready var coins_pill: PanelContainer = %CoinsPill
 
 const RESET_CONFIRM_WINDOW := 3.0
-const RESET_LABEL := "🔄 REINICIAR PROGRESO"
 
 var _play_pulse_tween: Tween = null
 var _reset_armed: bool = false
@@ -38,12 +42,24 @@ func _notification(what: int) -> void:
 func _ready() -> void:
 	_apply_visual_styling()
 	UIThemeHelper.apply_safe_area_top($TopBar)
-	btn_reset.text = RESET_LABEL
 
+	# Primer arranque: directo a la batalla, sin menús ni tarjetas en medio.
+	# Sólo cuando el menú es la escena real (en tests se instancia como hijo).
+	if not GameManager.has_started and get_tree().current_scene == self:
+		GameManager.has_started = true
+		GameManager.save_game()
+		GameManager.play_level(GameManager.FIRST_LEVEL_ID)
+		UIThemeHelper.go_to.bind(self, BATTLE_SCENE).call_deferred()
+		return
+
+	_apply_texts()
 	btn_play.pressed.connect(_on_play_pressed)
 	btn_world_map.pressed.connect(UIThemeHelper.go_to.bind(self, "res://scenes/ui/world_map.tscn"))
 	btn_upgrades.pressed.connect(UIThemeHelper.go_to.bind(self, "res://scenes/ui/upgrade_menu.tscn"))
 	btn_achievements.pressed.connect(UIThemeHelper.go_to.bind(self, "res://scenes/ui/achievements_menu.tscn"))
+	btn_conquest.pressed.connect(_on_conquest_pressed)
+	btn_atlas.pressed.connect(UIThemeHelper.go_to.bind(self, "res://scenes/ui/atlas_menu.tscn"))
+	btn_lang.pressed.connect(_on_lang_pressed)
 	btn_reset.pressed.connect(_on_reset_pressed)
 	btn_daily.pressed.connect(_on_daily_pressed)
 	btn_music.pressed.connect(_on_music_toggle_pressed)
@@ -64,6 +80,15 @@ func _ready() -> void:
 	_update_secondary_buttons()
 	_show_daily_reward_card.call_deferred()
 
+func _apply_texts() -> void:
+	title_badge.text = LocaleStrings.text("menu_badge")
+	subtitle_label.text = LocaleStrings.text("menu_subtitle")
+	btn_play.text = LocaleStrings.text("play")
+	btn_world_map.text = LocaleStrings.text("world_map")
+	btn_upgrades.text = LocaleStrings.text("upgrades")
+	btn_reset.text = LocaleStrings.text("reset")
+	btn_lang.text = "🌐 EN" if GameManager.language == "es" else "🌐 ES"
+
 func _apply_visual_styling() -> void:
 	UIThemeHelper.apply_stateio_button_style(btn_play, UIThemeHelper.COLOR_PRIMARY, 22, 7)
 	UIThemeHelper.apply_stateio_button_style(btn_world_map, Color(0.18, 0.44, 0.65), 18, 5)
@@ -73,6 +98,9 @@ func _apply_visual_styling() -> void:
 	UIThemeHelper.apply_stateio_button_style(btn_music, UIThemeHelper.COLOR_BTN_SECONDARY, 16, 4)
 	UIThemeHelper.apply_stateio_button_style(btn_daily, Color(0.55, 0.36, 0.10), 18, 5)
 	UIThemeHelper.apply_stateio_button_style(btn_achievements, Color(0.42, 0.26, 0.58), 18, 5)
+	UIThemeHelper.apply_stateio_button_style(btn_conquest, Color(0.12, 0.45, 0.50), 18, 5)
+	UIThemeHelper.apply_stateio_button_style(btn_atlas, Color(0.30, 0.38, 0.55), 18, 5)
+	UIThemeHelper.apply_stateio_button_style(btn_lang, UIThemeHelper.COLOR_BTN_SECONDARY, 16, 4)
 	UIThemeHelper.apply_pill_style(stars_pill)
 	UIThemeHelper.apply_pill_style(coins_pill)
 
@@ -111,9 +139,21 @@ func _on_play_pressed() -> void:
 
 ## Muestra si el desafío de hoy ya está superado y cuántos logros esperan su recompensa
 func _update_secondary_buttons() -> void:
-	btn_daily.text = "🎯 DESAFÍO DIARIO" + (" ✅" if GameManager.is_daily_challenge_done() else "")
+	btn_daily.text = LocaleStrings.text("daily") + (" ✅" if GameManager.is_daily_challenge_done() else "")
 	var claimable := GameManager.get_claimable_achievement_count()
-	btn_achievements.text = "🏆 LOGROS" + (" (%d)" % claimable if claimable > 0 else "")
+	btn_achievements.text = LocaleStrings.text("achievements") + (" (%d)" % claimable if claimable > 0 else "")
+	btn_conquest.text = "%s #%d" % [LocaleStrings.text("conquest"), GameManager.conquest_next + 1]
+	var total := GameManager.atlas_total_count()
+	var pct := int(round(100.0 * GameManager.atlas_conquered_count() / float(maxi(1, total))))
+	btn_atlas.text = "%s · %d%%" % [LocaleStrings.text("atlas"), pct]
+
+func _on_conquest_pressed() -> void:
+	GameManager.play_conquest(GameManager.conquest_next)
+	UIThemeHelper.go_to(self, BATTLE_SCENE)
+
+func _on_lang_pressed() -> void:
+	GameManager.set_language("en" if GameManager.language == "es" else "es")
+	get_tree().reload_current_scene()
 
 func _on_daily_pressed() -> void:
 	GameManager.play_level(DailyRewards.challenge_id(DailyRewards.today()))
@@ -123,9 +163,9 @@ func _show_daily_reward_card() -> void:
 	var state := GameManager.get_daily_reward_state()
 	if not state["can_claim"] or is_instance_valid(_daily_card):
 		return
-	var body := "Día %d de racha\n+%d 🪙\n\nVuelve mañana para seguir la racha: el día 7 da %d 🪙" % [
+	var body := LocaleStrings.text("daily_body") % [
 		state["streak"], state["reward"], DailyRewards.STREAK_REWARDS[-1]]
-	_daily_card = UIThemeHelper.create_modal_card("🎁 RECOMPENSA DIARIA", body, "¡RECOGER!", _on_daily_reward_claimed, true)
+	_daily_card = UIThemeHelper.create_modal_card(LocaleStrings.text("daily_title"), body, LocaleStrings.text("daily_claim"), _on_daily_reward_claimed, true)
 	add_child(_daily_card)
 
 func _on_daily_reward_claimed() -> void:
@@ -142,11 +182,12 @@ func _on_reset_pressed() -> void:
 	if not _reset_armed:
 		_reset_armed = true
 		_reset_arm_id += 1
-		btn_reset.text = "⚠️ ¿SEGURO? PULSA DE NUEVO PARA BORRAR TODO"
+		btn_reset.text = LocaleStrings.text("reset_confirm")
 		get_tree().create_timer(RESET_CONFIRM_WINDOW).timeout.connect(_on_reset_window_expired.bind(_reset_arm_id))
 		return
 	_disarm_reset()
 	GameManager.reset_save()
+	_apply_texts()
 	_update_coins(GameManager.coins)
 	_update_stars()
 	_update_secondary_buttons()
@@ -159,4 +200,4 @@ func _on_reset_window_expired(arm_id: int) -> void:
 func _disarm_reset() -> void:
 	_reset_armed = false
 	_reset_arm_id += 1
-	btn_reset.text = RESET_LABEL
+	btn_reset.text = LocaleStrings.text("reset")

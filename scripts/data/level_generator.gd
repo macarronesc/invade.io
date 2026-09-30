@@ -45,7 +45,7 @@ static func build(def: Dictionary, difficulty: float) -> Dictionary:
 			push_error("LevelGenerator: ciudad desconocida '%s' en %s" % [b_def.get("city", ""), def.get("id", "")])
 			continue
 		var base: Dictionary = b_def.duplicate()
-		base["name"] = city["name_es"]
+		base["name"] = GeoDatabase.city_name(city)
 		base["lonlat"] = city["lonlat"]
 		bases.append(base)
 	if bases.is_empty():
@@ -73,21 +73,11 @@ static func build(def: Dictionary, difficulty: float) -> Dictionary:
 static func daily_challenge_definition(day: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(DailyRewards.challenge_id(day))
-	var cities := GeoDatabase.get_cities()
-	var center: Dictionary = {}
-	var near: Array[Dictionary] = []
-	for attempt in DAILY_ATTEMPTS:
-		center = cities[rng.randi() % mini(DAILY_CENTER_POOL, cities.size())]
-		# Tras muchos intentos (regiones aisladas) se admiten vecinas más lejanas
-		var max_deg := DAILY_MAX_DEGREES * (1.0 if attempt < DAILY_ATTEMPTS - 5 else 3.0)
-		near = _spread_neighbors(center, cities, max_deg)
-		if near.size() >= DAILY_ANCHORS - 1:
-			break
-	if near.is_empty():
-		near = _spread_neighbors(center, cities, 360.0)
+	var region := _pick_region(rng, DAILY_CENTER_POOL)
+	var center: Dictionary = region["center"]
+	var near: Array[Dictionary] = region["neighbors"]
 
 	# Rival principal: la vecina más lejana. A veces, un segundo rival lejos de ambos.
-	near.sort_custom(func(a, b): return _geo_distance(center, a) > _geo_distance(center, b))
 	var bases: Array[Dictionary] = [
 		{"id": "b1", "city": center["key"], "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
 		{"id": "b2", "city": near[0]["key"], "faction": GameManager.Faction.ENEMY_1, "troops": 30, "tier": 2},
@@ -101,11 +91,78 @@ static func daily_challenge_definition(day: int) -> Dictionary:
 		bases.append(neutral)
 	return {
 		"id": DailyRewards.challenge_id(day),
-		"name": "Desafío diario: %s" % center["name_es"],
-		"description": "Un frente nuevo cada día. Conquista la región de %s antes de medianoche." % center["name_es"],
+		"name": LocaleStrings.text("daily_name") % GeoDatabase.city_name(center),
+		"description": LocaleStrings.text("daily_desc") % GeoDatabase.city_name(center),
 		"target_time": DAILY_TARGET_TIME,
 		"bases": bases,
 	}
+
+# =========================================================================
+# Conquista libre (punto 3): regiones infinitas con dificultad creciente.
+# Mismo generador que el desafío diario, pero con índice propio y enemigos
+# y tropas que escalan con `index` (0.15 de dificultad inicial, +0.07/región).
+# =========================================================================
+
+const CONQUEST_PREFIX := "conquest_"
+const CONQUEST_CENTER_POOL := 200
+
+static func conquest_id(index: int) -> String:
+	return "%s%d" % [CONQUEST_PREFIX, index]
+
+static func is_conquest(level_id: String) -> bool:
+	return level_id.begins_with(CONQUEST_PREFIX)
+
+static func conquest_index(level_id: String) -> int:
+	return maxi(0, int(level_id.substr(CONQUEST_PREFIX.length())))
+
+static func conquest_difficulty(index: int) -> float:
+	return minf(0.15 + 0.07 * index, 1.0)
+
+## Definición de la región `index`: determinista, igual para todos los jugadores.
+static func conquest_definition(index: int) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(conquest_id(index))
+	var region := _pick_region(rng, CONQUEST_CENTER_POOL)
+	var center: Dictionary = region["center"]
+	var near: Array[Dictionary] = region["neighbors"]
+	var enemy_troops := mini(30 + index * 2, 60)
+	var bases: Array[Dictionary] = [
+		{"id": "b1", "city": center["key"], "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2 if index < 4 else 3},
+		{"id": "b2", "city": near[0]["key"], "faction": GameManager.Faction.ENEMY_1, "troops": enemy_troops, "tier": 2 if index < 5 else 3},
+	]
+	for i in range(1, near.size()):
+		var neutral := {"id": "b%d" % (i + 2), "city": near[i]["key"], "faction": GameManager.Faction.NEUTRAL,
+			"troops": rng.randi_range(10, 18), "tier": 1}
+		# Segundo rival a partir de la región 2 y tercero a partir de la 6 (determinista)
+		if i == 1 and index >= 1 and index % 2 == 0:
+			neutral.merge({"faction": GameManager.Faction.ENEMY_2, "troops": enemy_troops - 5, "tier": 2}, true)
+		elif i == 2 and index >= 5 and index % 3 == 0:
+			neutral.merge({"faction": GameManager.Faction.ENEMY_3, "troops": enemy_troops - 5, "tier": 2}, true)
+		bases.append(neutral)
+	return {
+		"id": conquest_id(index),
+		"name": LocaleStrings.text("conquest_title") % [index + 1, GeoDatabase.city_name(center)],
+		"description": LocaleStrings.text("conquest_desc") % [index + 1, GeoDatabase.city_name(center)],
+		"target_time": DAILY_TARGET_TIME,
+		"bases": bases,
+	}
+
+## Selección geográfica común; conserva el RNG para no cambiar mapas ya publicados.
+static func _pick_region(rng: RandomNumberGenerator, center_pool: int) -> Dictionary:
+	var cities := GeoDatabase.get_cities()
+	var center: Dictionary = {}
+	var near: Array[Dictionary] = []
+	for attempt in DAILY_ATTEMPTS:
+		center = cities[rng.randi() % mini(center_pool, cities.size())]
+		# Regiones aisladas: ampliar el radio en los últimos intentos.
+		var max_deg := DAILY_MAX_DEGREES * (1.0 if attempt < DAILY_ATTEMPTS - 5 else 3.0)
+		near = _spread_neighbors(center, cities, max_deg)
+		if near.size() >= DAILY_ANCHORS - 1:
+			break
+	if near.is_empty():
+		near = _spread_neighbors(center, cities, 360.0)
+	near.sort_custom(func(a, b): return _geo_distance(center, a) > _geo_distance(center, b))
+	return {"center": center, "neighbors": near}
 
 ## Distancia aproximada en grados (longitud corregida por la latitud y el antimeridiano)
 static func _geo_distance(a: Dictionary, b: Dictionary) -> float:
@@ -217,7 +274,7 @@ static func _pick_extra_neutrals(proj: MapProjection, bases: Array[Dictionary], 
 		var extra := {
 			"id": "x%d" % (extras.size() + 1),
 			"city": city["key"],
-			"name": city["name_es"],
+			"name": GeoDatabase.city_name(city),
 			"lonlat": city["lonlat"],
 			"pos": pos,
 			"faction": GameManager.Faction.NEUTRAL,

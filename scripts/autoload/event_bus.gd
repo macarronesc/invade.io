@@ -19,3 +19,4 @@ signal sound_toggled(is_muted: bool)
 
 signal achievement_unlocked(achievement_id: String)
 signal daily_reward_claimed(streak: int, reward: int)
+signal cosmetics_changed()

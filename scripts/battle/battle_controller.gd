@@ -111,6 +111,7 @@ func load_level(p_level_id: String) -> void:
 		var geo: Dictionary = level_data.get("geo", {})
 		# Con geografía, los territorios cubren toda la tierra visible (también en pantallas altas)
 		territory_map.generate_map(bases, LevelGenerator.GEO_CLIP_RECT if geo else Rect2(), geo)
+		_apply_map_theme()
 
 	# IA para cada facción enemiga
 	for ef in enemy_factions_present:
@@ -127,6 +128,15 @@ func load_level(p_level_id: String) -> void:
 
 	queue_redraw()
 	EventBus.battle_started.emit(level_id)
+
+## Tema de mapa equipado en la tienda: fondo y tierra firme
+func _apply_map_theme() -> void:
+	var theme := GameManager.map_theme()
+	var bg := get_node_or_null("Background")
+	if bg is ColorRect:
+		(bg as ColorRect).color = theme.get("bg", Color(0.07, 0.11, 0.16))
+	if territory_map and theme.has("land"):
+		territory_map.land_color = theme["land"]
 
 func _process(delta: float) -> void:
 	if not is_game_over:
@@ -525,14 +535,21 @@ func _trigger_victory() -> void:
 	for b in bases:
 		if b.faction == GameManager.Faction.PLAYER:
 			player_bases_count += 1
+			# Atlas: ciudades en manos del jugador al ganar, en cualquier modo.
+			GameManager.conquer_city(b.city_key)
 
 	var is_challenge = DailyRewards.is_challenge(level_id)
+	var is_conquest = LevelGenerator.is_conquest(level_id)
 	var is_replay: bool
 	var total_gold: int
 	if is_challenge:
 		# Los desafíos diarios no cuentan para la campaña ni para las estrellas
 		is_replay = GameManager.is_daily_challenge_done(DailyRewards.challenge_day(level_id))
 		total_gold = GameManager.complete_daily_challenge(level_id)
+	elif is_conquest:
+		# La conquista libre avanza sola de región en región, sin repeticiones
+		is_replay = false
+		total_gold = GameManager.complete_conquest(LevelGenerator.conquest_index(level_id))
 	else:
 		var previous_stars: int = int(GameManager.completed_levels.get(level_id, 0))
 		is_replay = previous_stars > 0 and stars <= previous_stars
@@ -541,7 +558,7 @@ func _trigger_victory() -> void:
 	GameManager.add_coins(total_gold)
 	GameManager.haptic(80)
 
-	var is_continent_conquest = not is_challenge and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT
+	var is_continent_conquest = not is_challenge and not is_conquest and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT
 	# La fanfarria suena sola: la música se retira y vuelve la del menú al salir
 	AudioManager.stop_music()
 	if is_continent_conquest:
@@ -557,7 +574,8 @@ func _trigger_victory() -> void:
 		"bases_conquered": player_bases_count,
 		"is_continent_conquest": is_continent_conquest,
 		"is_replay": is_replay,
-		"is_daily_challenge": is_challenge
+		"is_daily_challenge": is_challenge,
+		"is_conquest": is_conquest
 	})
 
 func _trigger_defeat() -> void:
@@ -654,7 +672,7 @@ func _draw_drag_overlay() -> void:
 	if not is_dragging or selected_sources.is_empty():
 		return
 
-	var player_color = GameManager.FACTION_COLORS[GameManager.Faction.PLAYER]
+	var player_color = GameManager.faction_color(GameManager.Faction.PLAYER)
 	var end_global = hovered_target.global_position if hovered_target else drag_current_pos
 	var end_pt = canvas.to_local(end_global)
 

@@ -26,6 +26,14 @@ const FACTION_NAMES = {
 	Faction.ENEMY_3: "Verde"
 }
 
+const FACTION_NAMES_EN = {
+	Faction.NEUTRAL: "Gray",
+	Faction.PLAYER: "Blue",
+	Faction.ENEMY_1: "Red",
+	Faction.ENEMY_2: "Amber",
+	Faction.ENEMY_3: "Green"
+}
+
 const UPGRADE_BASE_COSTS = {
 	"starting_troops": 50,
 	"production_rate": 75,
@@ -44,7 +52,10 @@ const UPGRADE_STEPS = {
 const MAX_UPGRADE_LEVEL = 10
 const DEFAULT_COINS = 150
 const FIRST_LEVEL_ID := "europe_1"
-const SAVE_VERSION = 2
+const SAVE_VERSION = 3
+const SUPPORTED_LANGUAGES := ["es", "en"]
+## Cosméticos iniciales: uno gratis por categoría
+const DEFAULT_COSMETICS_EQUIPPED := {"army_color": "color_blue", "troop_style": "troop_classic", "base_shape": "base_round", "map_theme": "theme_midnight"}
 
 ## Fracción de oro que se concede al repetir un nivel ya superado sin mejorar estrellas
 const REPLAY_GOLD_FACTOR = 0.25
@@ -64,8 +75,23 @@ var stats: Dictionary = {}
 var achievements: Dictionary = {}
 ## Recompensa diaria y desafío del día (días locales, ver DailyRewards.today)
 var daily: Dictionary = {}
-## Desafío diario en juego; vacío = se juega current_level_id de la campaña
-var challenge_level_id: String = ""
+## Nivel diario o de conquista en juego; vacío = campaña. No se persiste.
+var special_level_id: String = ""
+## Idioma de la interfaz ("es" o "en")
+var language: String:
+	get:
+		return LocaleStrings.lang
+	set(value):
+		LocaleStrings.lang = value
+## Primer arranque: false hasta que el jugador entra en su primera batalla
+var has_started: bool = false
+## Siguiente región de conquista libre por jugar (dificultad infinita creciente)
+var conquest_next: int = 0
+## Ciudades reales conquistadas en cualquier modo (claves de GeoDatabase)
+var conquered_cities: Array[String] = []
+## Estética desbloqueada y equipada (ver CosmeticsDatabase)
+var cosmetics_owned: Array[String] = []
+var cosmetics_equipped: Dictionary = {}
 
 const ACHIEVEMENT_UNLOCKED := "unlocked"
 const ACHIEVEMENT_CLAIMED := "claimed"
@@ -170,17 +196,45 @@ func get_next_level(level_id: String) -> String:
 	var i := ids.find(level_id)
 	return ids[i + 1] if i >= 0 and i + 1 < ids.size() else ""
 
-## Nivel que carga la batalla: el desafío diario si hay uno en juego, si no el de la campaña
+## Nivel que carga la batalla sin perder el punto de la campaña
 func get_battle_level_id() -> String:
-	return challenge_level_id if challenge_level_id != "" else current_level_id
+	return special_level_id if special_level_id != "" else current_level_id
 
 ## Elige el nivel de la próxima batalla sin perder el punto de la campaña
 func play_level(level_id: String) -> void:
-	if DailyRewards.is_challenge(level_id):
-		challenge_level_id = level_id
+	if DailyRewards.is_challenge(level_id) or LevelGenerator.is_conquest(level_id):
+		special_level_id = level_id
 	else:
-		challenge_level_id = ""
+		special_level_id = ""
 		current_level_id = level_id
+
+## Juega una región de conquista libre ("conquest_<n>")
+func play_conquest(index: int) -> void:
+	play_level(LevelGenerator.conquest_id(index))
+
+## Nombre de facción en el idioma actual (etiquetas de la barra de dominancia)
+func faction_name(faction: int) -> String:
+	return FACTION_NAMES_EN.get(faction, "?") if language == "en" else FACTION_NAMES.get(faction, "?")
+
+## Color real de una facción en batalla (el jugador usa su color de la tienda)
+func faction_color(faction: int) -> Color:
+	if faction == Faction.PLAYER:
+		return player_color()
+	return FACTION_COLORS.get(faction, Color.GRAY)
+
+## Color del ejército equipado en la tienda de estética
+func player_color() -> Color:
+	return CosmeticsDatabase.get_by_id(cosmetics_equipped.get("army_color", "")).get("color", FACTION_COLORS[Faction.PLAYER])
+
+func troop_style() -> String:
+	return str(cosmetics_equipped.get("troop_style", "troop_classic"))
+
+func base_shape() -> String:
+	return str(cosmetics_equipped.get("base_shape", "base_round"))
+
+func map_theme() -> Dictionary:
+	var theme := CosmeticsDatabase.get_by_id(cosmetics_equipped.get("map_theme", ""))
+	return theme if not theme.is_empty() else CosmeticsDatabase.get_by_id("theme_midnight")
 
 # =========================================================================
 # Estadísticas y logros (AchievementManager decide cuándo se cumplen)
@@ -262,6 +316,59 @@ func mark_tip_seen(tip_id: String) -> void:
 		seen_tips.append(tip_id)
 		save_game()
 
+# =========================================================================
+# Idioma, conquista libre, atlas de ciudades y tienda de estética
+# =========================================================================
+
+## Cambia y persiste el idioma; la interfaz decide cuándo recargarse.
+func set_language(lang: String) -> void:
+	if lang not in SUPPORTED_LANGUAGES or lang == language:
+		return
+	language = lang
+	save_game()
+
+## Registra la victoria en una región de conquista; devuelve el oro (siempre suma, sin repeticiones)
+func complete_conquest(index: int) -> int:
+	conquest_next = maxi(conquest_next, index + 1)
+	return int(round((100 + 15 * mini(index, 20)) * get_gold_multiplier()))
+
+## Añade una ciudad real al atlas (devuelve true si era nueva)
+func conquer_city(city_key: String) -> bool:
+	if not GeoDatabase.has_city(city_key) or conquered_cities.has(city_key):
+		return false
+	conquered_cities.append(city_key)
+	return true
+
+func atlas_conquered_count() -> int:
+	return conquered_cities.size()
+
+func atlas_total_count() -> int:
+	return GeoDatabase.city_count()
+
+func is_cosmetic_owned(id: String) -> bool:
+	return cosmetics_owned.has(id)
+
+## Compra un cosmético; devuelve true si se ha desbloqueado
+func buy_cosmetic(id: String) -> bool:
+	var item := CosmeticsDatabase.get_by_id(id)
+	if item.is_empty() or is_cosmetic_owned(id) or coins < int(item["cost"]):
+		return false
+	coins -= int(item["cost"])
+	cosmetics_owned.append(id)
+	equip_cosmetic(id)
+	EventBus.coins_updated.emit(coins)
+	return true
+
+## Equipa un cosmético ya desbloqueado
+func equip_cosmetic(id: String) -> bool:
+	var item := CosmeticsDatabase.get_by_id(id)
+	if item.is_empty() or not is_cosmetic_owned(id):
+		return false
+	cosmetics_equipped[item["category"]] = id
+	save_game()
+	EventBus.cosmetics_changed.emit()
+	return true
+
 ## Vibración háptica breve en dispositivos móviles (no hace nada en escritorio)
 func haptic(duration_ms: int) -> void:
 	if OS.has_feature("mobile"):
@@ -281,7 +388,13 @@ func save_game() -> void:
 		"seen_tips": seen_tips,
 		"stats": stats,
 		"achievements": achievements,
-		"daily": daily
+		"daily": daily,
+		"language": language,
+		"has_started": has_started,
+		"conquest_next": conquest_next,
+		"conquered_cities": conquered_cities,
+		"cosmetics_owned": cosmetics_owned,
+		"cosmetics_equipped": cosmetics_equipped
 	}
 	# Escritura atómica: un cierre inesperado a mitad de escritura no corrompe la partida
 	var tmp_path = save_path + ".tmp"
@@ -304,7 +417,7 @@ func load_game() -> void:
 
 func reset_save() -> void:
 	_apply_save({})
-	challenge_level_id = ""
+	special_level_id = ""
 	save_game()
 
 ## Aplica un guardado validando cada campo: lo que falta o no es válido toma su valor inicial.
@@ -349,9 +462,32 @@ func _apply_save(data: Dictionary) -> void:
 	daily = {"last_claim_day": -1, "streak": 0, "challenge_day": -1}
 	for key in daily:
 		daily[key] = _as_int(saved_daily.get(key), daily[key])
+	var lang := str(data.get("language", "es"))
+	language = lang if lang in SUPPORTED_LANGUAGES else "es"
+	has_started = _as_bool(data.get("has_started"))
+	conquest_next = maxi(0, _as_int(data.get("conquest_next"), 0))
+	var saved_cities := {}
+	for c in _as_array(data.get("conquered_cities")):
+		if c is String and GeoDatabase.has_city(c):
+			saved_cities[c] = true
+	conquered_cities.assign(saved_cities.keys())
+	cosmetics_owned.clear()
+	for c in _as_array(data.get("cosmetics_owned")):
+		if c is String and not CosmeticsDatabase.get_by_id(c).is_empty() and not cosmetics_owned.has(c):
+			cosmetics_owned.append(c)
+	for free_id in DEFAULT_COSMETICS_EQUIPPED.values():
+		if not cosmetics_owned.has(free_id):
+			cosmetics_owned.append(free_id)
+	cosmetics_equipped = DEFAULT_COSMETICS_EQUIPPED.duplicate()
+	var saved_cosmetics := _as_dict(data.get("cosmetics_equipped"))
+	for key in saved_cosmetics:
+		var item := CosmeticsDatabase.get_by_id(str(saved_cosmetics[key]))
+		if not item.is_empty() and item["category"] == key and cosmetics_owned.has(item["id"]):
+			cosmetics_equipped[key] = item["id"]
 
 static func _is_campaign_level(level_id: Variant) -> bool:
 	return level_id is String and not DailyRewards.is_challenge(level_id) \
+		and not LevelGenerator.is_conquest(level_id) \
 		and not LevelDatabase.get_level_definition(level_id).is_empty()
 
 ## JSON devuelve los números como float y un guardado dañado puede traer cualquier tipo
