@@ -211,15 +211,14 @@ func _draw() -> void:
 		_draw_single_bead(origin_local + move_dir * dist, r, color, style)
 
 func _draw_single_bead(pos: Vector2, r: float, color: Color, style: String) -> void:
+	draw_circle(pos + Vector2(0, 3.0), r * 0.95, Color(0, 0, 0, 0.22))
+	draw_bead(self, pos, r, color, style)
+
+## Perla con el estilo de la tienda (también la usa la vista previa de Ejército)
+static func draw_bead(canvas: CanvasItem, pos: Vector2, r: float, color: Color, style: String) -> void:
 	if style == "troop_big":
 		r *= 1.35
 	if style == "troop_halo":
-		draw_circle(pos, r + 5.0, Color(1, 1, 1, 0.30))
-	# Sombra 2.5D difusa debajo de la perla
-	draw_circle(pos + Vector2(0, 3.0), r * 0.95, Color(0, 0, 0, 0.28))
-	# Borde exterior blanco puro
-	draw_circle(pos, r + 1.5, Color.WHITE)
-	# Núcleo de la perla con el color de la facción
-	draw_circle(pos, r, color)
-	# Reflejo especular esférico
-	draw_circle(pos + Vector2(-r * 0.35, -r * 0.35), r * 0.32, Color(1, 1, 1, 0.65))
+		canvas.draw_circle(pos, r + 5.0, Color(1, 1, 1, 0.30))
+	canvas.draw_circle(pos, r + 1.5, Color.WHITE)
+	canvas.draw_circle(pos, r, color)

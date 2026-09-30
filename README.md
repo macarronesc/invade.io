@@ -4,6 +4,16 @@ Juego vertical de estrategia territorial en Godot 4.7.
 
 ## Experiencia de jugador
 
+- El menú principal tiene cuatro secciones en una barra inferior:
+  **Jugar** (mapa del continente, ficha del nivel y «Continuar» a un toque; conquista libre
+  y desafío diario como accesos directos), **Retos** (recompensa diaria con racha, desafío
+  y misiones), **Ejército** (mejoras y aspecto) y **Progreso** (nivel, atlas y logros).
+  Un punto dorado avisa cuando hay algo que recoger; no hay ventanas emergentes al entrar.
+- Aspecto unificado en `scripts/ui/ui_theme_helper.gd` (paleta, tipografía y tema global de
+  Godot con variaciones como `PrimaryButton`, `Sheet` o `Caption`) e iconos SVG en
+  `scripts/ui/icons.gd`, generados al vuelo para no depender de emojis de la fuente.
+- Cada sección es un script corto registrado en `MainMenuUI.TABS`. Las desplazables heredan de
+  `ScrollPage` e implementan sólo `_build()`: se redibujan solas al cambiar el oro.
 - Campaña de 30 niveles, conquista libre, atlas y tienda de estética.
 - Tres misiones diarias con recompensas manuales de oro y XP. El nivel de jugador
   es visual: no modifica el equilibrio de las partidas.

@@ -6,6 +6,137 @@
 process_mode = 3
 script = ExtResource("1_hud_script")
 
+[node name="TopBar" type="MarginContainer" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 250.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 32
+
+[node name="VBox" type="VBoxContainer" parent="TopBar"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="Row" type="HBoxContainer" parent="TopBar/VBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 20
+
+[node name="BtnPause" type="Button" parent="TopBar/VBox/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_vertical = 0
+theme_type_variation = &"IconButton"
+
+[node name="Titles" type="VBoxContainer" parent="TopBar/VBox/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="LevelNameLabel" type="Label" parent="TopBar/VBox/Row/Titles"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Heading"
+theme_override_colors/font_outline_color = Color(0.054902, 0.086275, 0.141176, 0.85)
+theme_override_constants/outline_size = 8
+text = "Nivel 1"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+
+[node name="RuleLabel" type="Label" parent="TopBar/VBox/Row/Titles"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"Caption"
+theme_override_colors/font_color = Color(1, 0.784314, 0.239216, 1)
+theme_override_colors/font_outline_color = Color(0.054902, 0.086275, 0.141176, 0.85)
+theme_override_constants/outline_size = 6
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="TargetTimeChip" type="PanelContainer" parent="TopBar/VBox/Row"]
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_type_variation = &"Chip"
+
+[node name="TargetTimeLabel" type="Label" parent="TopBar/VBox/Row/TargetTimeChip"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+theme_type_variation = &"Heading"
+theme_override_colors/font_color = Color(1, 0.784314, 0.239216, 1)
+text = "★★★ 45s"
+horizontal_alignment = 1
+
+[node name="DominanceBarContainer" type="HBoxContainer" parent="TopBar/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 3
+
+[node name="BarPlayer" type="ColorRect" parent="TopBar/VBox/DominanceBarContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+color = Color(0.13, 0.59, 0.95, 1)
+
+[node name="BarNeutral" type="ColorRect" parent="TopBar/VBox/DominanceBarContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+color = Color(0.47, 0.56, 0.61, 1)
+
+[node name="BarEnemy" type="ColorRect" parent="TopBar/VBox/DominanceBarContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+color = Color(0.96, 0.26, 0.21, 1)
+
+[node name="FactionCountsContainer" type="HBoxContainer" parent="TopBar/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 28
+
+[node name="LabelCountPlayer" type="Label" parent="TopBar/VBox/FactionCountsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Caption"
+theme_override_colors/font_outline_color = Color(0.054902, 0.086275, 0.141176, 0.85)
+theme_override_constants/outline_size = 6
+text = "Tú 0"
+
+[node name="LabelCountNeutral" type="Label" parent="TopBar/VBox/FactionCountsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"Caption"
+theme_override_colors/font_outline_color = Color(0.054902, 0.086275, 0.141176, 0.85)
+theme_override_constants/outline_size = 6
+text = "Neutral 0"
+horizontal_alignment = 1
+
+[node name="LabelCountEnemy" type="Label" parent="TopBar/VBox/FactionCountsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Caption"
+theme_override_colors/font_outline_color = Color(0.054902, 0.086275, 0.141176, 0.85)
+theme_override_constants/outline_size = 6
+text = "Rojo 0"
+horizontal_alignment = 2
+
 [node name="DimOverlay" type="ColorRect" parent="."]
 unique_name_in_owner = true
 visible = false
@@ -14,419 +145,286 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 0
-color = Color(0.04, 0.06, 0.09, 0.65)
+color = Color(0.054902, 0.086275, 0.141176, 0.75)
 
-[node name="TopBar" type="Control" parent="."]
-layout_mode = 3
-anchors_preset = 10
-anchor_right = 1.0
-offset_bottom = 200.0
-grow_horizontal = 2
-
-[node name="DominanceBarContainer" type="HBoxContainer" parent="TopBar"]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -400.0
-offset_top = 40.0
-offset_right = 400.0
-offset_bottom = 65.0
-grow_horizontal = 2
-theme_override_constants/separation = 0
-
-[node name="BarPlayer" type="ColorRect" parent="TopBar/DominanceBarContainer"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(266, 25)
-layout_mode = 2
-color = Color(0.13, 0.59, 0.95, 1)
-
-[node name="BarNeutral" type="ColorRect" parent="TopBar/DominanceBarContainer"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(266, 25)
-layout_mode = 2
-color = Color(0.47, 0.56, 0.61, 1)
-
-[node name="BarEnemy" type="ColorRect" parent="TopBar/DominanceBarContainer"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(268, 25)
-layout_mode = 2
-color = Color(0.96, 0.26, 0.21, 1)
-
-[node name="LeaderCrown" type="Label" parent="TopBar"]
-unique_name_in_owner = true
-layout_mode = 0
-offset_left = 240.0
-offset_top = 6.0
-offset_right = 276.0
-offset_bottom = 38.0
-theme_override_font_sizes/font_size = 24
-text = "👑"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="FactionCountsContainer" type="HBoxContainer" parent="TopBar"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -400.0
-offset_top = 70.0
-offset_right = 400.0
-offset_bottom = 96.0
-grow_horizontal = 2
-theme_override_constants/separation = 24
-alignment = 1
-
-[node name="LabelCountPlayer" type="Label" parent="TopBar/FactionCountsContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.7, 1, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
-theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 18
-text = "Azul: 0"
-vertical_alignment = 1
-
-[node name="LabelCountNeutral" type="Label" parent="TopBar/FactionCountsContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.75, 0.8, 0.85, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
-theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 18
-text = "Gris: 0"
-vertical_alignment = 1
-
-[node name="LabelCountEnemy" type="Label" parent="TopBar/FactionCountsContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.35, 0.3, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
-theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 18
-text = "Rojo: 0"
-vertical_alignment = 1
-
-[node name="LevelNameLabel" type="Label" parent="TopBar"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -300.0
-offset_top = 100.0
-offset_right = 300.0
-offset_bottom = 145.0
-grow_horizontal = 2
-theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
-theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 28
-text = "Europa - Nivel 1"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="CoinsLabel" type="Label" parent="TopBar"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -220.0
-offset_top = 85.0
-offset_right = -40.0
-offset_bottom = 135.0
-grow_horizontal = 0
-theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
-theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 32
-text = "🪙 150"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="TargetTimeLabel" type="Label" parent="TopBar"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -300.0
-offset_top = 145.0
-offset_right = 300.0
-offset_bottom = 180.0
-grow_horizontal = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
-theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 24
-text = "⭐ 40s"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="BtnPause" type="Button" parent="TopBar"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(70, 60)
-layout_mode = 0
-offset_left = 40.0
-offset_top = 80.0
-offset_right = 110.0
-offset_bottom = 140.0
-theme_override_font_sizes/font_size = 28
-text = "⏸"
-
-[node name="VictoryPanel" type="Panel" parent="."]
+[node name="VictoryPanel" type="PanelContainer" parent="."]
 unique_name_in_owner = true
 visible = false
+custom_minimum_size = Vector2(900, 0)
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -440.0
-offset_top = -370.0
-offset_right = 440.0
-offset_bottom = 370.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_type_variation = &"Sheet"
 
 [node name="ConfettiOverlay" type="Control" parent="VictoryPanel"]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 2
 mouse_filter = 2
 
 [node name="VBox" type="VBoxContainer" parent="VictoryPanel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 40.0
-offset_top = 50.0
-offset_right = -40.0
-offset_bottom = -50.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 2
 theme_override_constants/separation = 28
-alignment = 1
 
 [node name="VictoryTitle" type="Label" parent="VictoryPanel/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.9, 0.3, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 52
-text = "¡VICTORIA!"
+theme_type_variation = &"Display"
+text = "¡Victoria!"
 horizontal_alignment = 1
 
 [node name="StarsContainer" type="HBoxContainer" parent="VictoryPanel/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 24
+theme_override_constants/separation = 20
 alignment = 1
 
 [node name="Star1" type="Label" parent="VictoryPanel/VBox/StarsContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(70, 70)
+custom_minimum_size = Vector2(120, 120)
 layout_mode = 2
-pivot_offset = Vector2(35, 35)
-theme_override_font_sizes/font_size = 54
-text = "⭐"
+theme_override_font_sizes/font_size = 110
+text = "★"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Star2" type="Label" parent="VictoryPanel/VBox/StarsContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(70, 70)
+custom_minimum_size = Vector2(120, 120)
 layout_mode = 2
-pivot_offset = Vector2(35, 35)
-theme_override_font_sizes/font_size = 54
-text = "⭐"
+theme_override_font_sizes/font_size = 110
+text = "★"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Star3" type="Label" parent="VictoryPanel/VBox/StarsContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(70, 70)
+custom_minimum_size = Vector2(120, 120)
 layout_mode = 2
-pivot_offset = Vector2(35, 35)
-theme_override_font_sizes/font_size = 54
-text = "⭐"
+theme_override_font_sizes/font_size = 110
+text = "★"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="VictoryRewardLabel" type="Label" parent="VictoryPanel/VBox"]
+[node name="Stats" type="HBoxContainer" parent="VictoryPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TimeTile" type="PanelContainer" parent="VictoryPanel/VBox/Stats"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"Tile"
+
+[node name="VBox" type="VBoxContainer" parent="VictoryPanel/VBox/Stats/TimeTile"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="StatTimeValue" type="Label" parent="VictoryPanel/VBox/Stats/TimeTile/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
-theme_override_font_sizes/font_size = 32
-text = "+120 Monedas de Oro"
+theme_type_variation = &"Heading"
+text = "0s"
 horizontal_alignment = 1
 
-[node name="Spacer" type="Control" parent="VictoryPanel/VBox"]
-custom_minimum_size = Vector2(0, 16)
+[node name="StatTimeCaption" type="Label" parent="VictoryPanel/VBox/Stats/TimeTile/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"Caption"
+text = "Tiempo"
+horizontal_alignment = 1
+
+[node name="GoldTile" type="PanelContainer" parent="VictoryPanel/VBox/Stats"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"Tile"
+
+[node name="VBox" type="VBoxContainer" parent="VictoryPanel/VBox/Stats/GoldTile"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="VictoryRewardLabel" type="Label" parent="VictoryPanel/VBox/Stats/GoldTile/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Heading"
+theme_override_colors/font_color = Color(1, 0.784314, 0.239216, 1)
+text = "+0"
+horizontal_alignment = 1
+
+[node name="StatGoldCaption" type="Label" parent="VictoryPanel/VBox/Stats/GoldTile/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Caption"
+text = "Oro"
+horizontal_alignment = 1
+
+[node name="CitiesTile" type="PanelContainer" parent="VictoryPanel/VBox/Stats"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"Tile"
+
+[node name="VBox" type="VBoxContainer" parent="VictoryPanel/VBox/Stats/CitiesTile"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="StatCitiesValue" type="Label" parent="VictoryPanel/VBox/Stats/CitiesTile/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Heading"
+theme_override_colors/font_color = Color(0.184314, 0.607843, 1, 1)
+text = "+0"
+horizontal_alignment = 1
+
+[node name="StatCitiesCaption" type="Label" parent="VictoryPanel/VBox/Stats/CitiesTile/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Caption"
+text = "Ciudades"
+horizontal_alignment = 1
+
+[node name="VictoryNote" type="Label" parent="VictoryPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Caption"
+horizontal_alignment = 1
+autowrap_mode = 3
 
 [node name="BtnNextLevel" type="Button" parent="VictoryPanel/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 80)
+custom_minimum_size = Vector2(0, 112)
 layout_mode = 2
-theme_override_font_sizes/font_size = 32
-text = "SIGUIENTE NIVEL"
+theme_type_variation = &"PrimaryButton"
+text = "Siguiente nivel"
 
-[node name="BtnVictoryMap" type="Button" parent="VictoryPanel/VBox"]
+[node name="Actions" type="HBoxContainer" parent="VictoryPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="BtnVictoryMap" type="Button" parent="VictoryPanel/VBox/Actions"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
-text = "MAPA MUNDIAL"
+size_flags_horizontal = 3
+text = "Mapa"
 
-[node name="DefeatPanel" type="Panel" parent="."]
+[node name="BtnShare" type="Button" parent="VictoryPanel/VBox/Actions"]
 unique_name_in_owner = true
 visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Compartir"
+
+[node name="DefeatPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(900, 0)
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -440.0
-offset_top = -340.0
-offset_right = 440.0
-offset_bottom = 340.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_type_variation = &"Sheet"
 
 [node name="VBox" type="VBoxContainer" parent="DefeatPanel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 40.0
-offset_top = 45.0
-offset_right = -40.0
-offset_bottom = -45.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 2
 theme_override_constants/separation = 24
-alignment = 1
 
 [node name="Title" type="Label" parent="DefeatPanel/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.96, 0.26, 0.21, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 52
-text = "DERROTA"
+theme_type_variation = &"Display"
+theme_override_colors/font_color = Color(1, 0.352941, 0.372549, 1)
+text = "Derrota"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="DefeatPanel/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
-theme_override_font_sizes/font_size = 24
-text = "Tus territorios han sido invadidos."
+theme_type_variation = &"Caption"
 horizontal_alignment = 1
-
-[node name="Spacer" type="Control" parent="DefeatPanel/VBox"]
-custom_minimum_size = Vector2(0, 10)
-layout_mode = 2
+autowrap_mode = 3
 
 [node name="BtnRetry" type="Button" parent="DefeatPanel/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 80)
+custom_minimum_size = Vector2(0, 112)
 layout_mode = 2
-theme_override_font_sizes/font_size = 32
-text = "🔄 REINTENTAR"
+theme_type_variation = &"PrimaryButton"
+text = "Reintentar"
 
 [node name="BtnDefeatUpgrade" type="Button" parent="DefeatPanel/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
-text = "🛡️ MEJORAR TROPAS"
+text = "Mejorar ejército"
 
 [node name="BtnDefeatMap" type="Button" parent="DefeatPanel/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
-text = "🗺️ SALIR AL MAPA"
+theme_type_variation = &"GhostButton"
+text = "Salir"
 
-[node name="PausePanel" type="Panel" parent="."]
+[node name="PausePanel" type="PanelContainer" parent="."]
 unique_name_in_owner = true
 visible = false
+custom_minimum_size = Vector2(820, 0)
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -420.0
-offset_top = -420.0
-offset_right = 420.0
-offset_bottom = 420.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_type_variation = &"Sheet"
 
 [node name="VBox" type="VBoxContainer" parent="PausePanel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 40.0
-offset_top = 40.0
-offset_right = -40.0
-offset_bottom = -40.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/separation = 22
-alignment = 1
+layout_mode = 2
+theme_override_constants/separation = 18
 
 [node name="Title" type="Label" parent="PausePanel/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.75, 1, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 46
-text = "PAUSA"
+theme_type_variation = &"Title"
+text = "Pausa"
 horizontal_alignment = 1
 
 [node name="BtnResume" type="Button" parent="PausePanel/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 70)
+custom_minimum_size = Vector2(0, 112)
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
-text = "▶ REANUDAR"
-
-[node name="BtnPauseSound" type="Button" parent="PausePanel/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 68)
-layout_mode = 2
-theme_override_font_sizes/font_size = 26
-text = "🔊 SONIDO: ACTIVADO"
-
-[node name="BtnPauseMusic" type="Button" parent="PausePanel/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 68)
-layout_mode = 2
-theme_override_font_sizes/font_size = 26
-text = "🎵 MÚSICA: ACTIVADA"
+theme_type_variation = &"PrimaryButton"
+text = "Reanudar"
 
 [node name="BtnPauseRetry" type="Button" parent="PausePanel/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 68)
 layout_mode = 2
-theme_override_font_sizes/font_size = 26
-text = "🔄 REINICIAR BATALLA"
+text = "Reiniciar batalla"
+
+[node name="BtnHowToPlay" type="Button" parent="PausePanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Cómo jugar"
+
+[node name="BtnSettings" type="Button" parent="PausePanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ajustes"
+
+[node name="AudioRow" type="HBoxContainer" parent="PausePanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="BtnPauseSound" type="Button" parent="PausePanel/VBox/AudioRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"IconButton"
+
+[node name="BtnPauseMusic" type="Button" parent="PausePanel/VBox/AudioRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"IconButton"
 
 [node name="BtnPauseMap" type="Button" parent="PausePanel/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 68)
 layout_mode = 2
-theme_override_font_sizes/font_size = 26
-text = "🗺️ SALIR AL MAPA"
+theme_type_variation = &"GhostButton"
+text = "Salir"

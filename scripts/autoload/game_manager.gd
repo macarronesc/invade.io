@@ -19,16 +19,16 @@ const FACTION_COLORS = {
 }
 
 const FACTION_NAMES = {
-	Faction.NEUTRAL: "Gris",
-	Faction.PLAYER: "Azul",
+	Faction.NEUTRAL: "Neutral",
+	Faction.PLAYER: "Tú",
 	Faction.ENEMY_1: "Rojo",
 	Faction.ENEMY_2: "Ámbar",
 	Faction.ENEMY_3: "Verde"
 }
 
 const FACTION_NAMES_EN = {
-	Faction.NEUTRAL: "Gray",
-	Faction.PLAYER: "Blue",
+	Faction.NEUTRAL: "Neutral",
+	Faction.PLAYER: "You",
 	Faction.ENEMY_1: "Red",
 	Faction.ENEMY_2: "Amber",
 	Faction.ENEMY_3: "Green"
@@ -428,6 +428,13 @@ func claim_mission(id: String, day: int = DailyRewards.today()) -> bool:
 		add_coins(int(mission["gold"]))
 		return true
 	return false
+
+## Misiones de hoy completadas y sin cobrar
+func claimable_mission_count(day: int = DailyRewards.today()) -> int:
+	if day != int(missions.get("day", -1)):
+		return 0
+	return DailyMissions.for_day(day).filter(func(m): return not missions["claimed"].has(m["id"]) \
+		and int(missions["progress"].get(m["id"], 0)) >= int(m["goal"])).size()
 
 func record_battle_result(result: Dictionary, flawless: bool) -> void:
 	var stars: int = clampi(int(result.get("stars", 1)), 1, 3)

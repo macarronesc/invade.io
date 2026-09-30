@@ -61,11 +61,9 @@ static func has_pending_steps(level_id: String, level_data: Dictionary) -> bool:
 func setup(p_battle: BattleController) -> void:
 	battle = p_battle
 	z_index = 20
-	_banner_style = StyleBoxFlat.new()
-	_banner_style.bg_color = Color(0.06, 0.08, 0.12, 0.88)
-	_banner_style.border_color = Color(1.0, 0.82, 0.18, 0.85)
-	_banner_style.set_border_width_all(3)
-	_banner_style.set_corner_radius_all(22)
+	_banner_style = UIThemeHelper.box(Color(UIThemeHelper.COLOR_SURFACE, 0.94), 32, 0)
+	_banner_style.set_border_width_all(2)
+	_banner_style.border_color = UIThemeHelper.COLOR_GOLD
 	for type_id in _pending_cards(battle.level_data):
 		_queue.append("card_%d" % type_id)
 	_queue.append_array(_pending_gestures(battle.level_id))
@@ -89,8 +87,10 @@ func _next_step() -> void:
 		_show_hint(LocaleStrings.text("hint_drag"), INF)
 	queue_redraw()
 
-func _complete_current() -> void:
-	GameManager.mark_tip_seen(_current)
+## `learned`: el jugador hizo el gesto. Si el paso sólo caduca, se volverá a enseñar otro día.
+func _complete_current(learned: bool = true) -> void:
+	if learned:
+		GameManager.mark_tip_seen(_current)
 	if _current == "drag":
 		battle.set_simulation_paused(false)
 		_show_hint(LocaleStrings.text("hint_goal"), 3.5)
@@ -148,7 +148,7 @@ func _process(delta: float) -> void:
 					_step_time = 0.0
 					_show_hint(LocaleStrings.text("hint_chain"), INF)
 			elif _step_time > CHAIN_TIMEOUT:
-				_complete_current()
+				_complete_current(false)
 		"slice":
 			if _hand_path.is_empty():
 				_hand_path = _build_slice_path()
@@ -156,7 +156,7 @@ func _process(delta: float) -> void:
 					_step_time = 0.0
 					_show_hint(LocaleStrings.text("hint_slice"), INF)
 			elif _step_time > SLICE_TIMEOUT:
-				_complete_current()
+				_complete_current(false)
 			else:
 				# Cada fotograma: la pausa del HUD restablece la escala de tiempo al reanudar
 				battle.base_time_scale = SLICE_TIME_SCALE
@@ -232,7 +232,7 @@ func _draw_hand() -> void:
 	var move_t = smoothstep(0.15, 0.75, cycle)
 	var alpha = clampf(cycle / 0.1, 0.0, 1.0) * (1.0 - smoothstep(0.85, 1.0, cycle))
 	var pos = _point_on_path(_hand_path, move_t)
-	var accent = Color(1.0, 0.82, 0.18)
+	var accent = UIThemeHelper.COLOR_GOLD
 
 	# Estela del gesto
 	var trail := PackedVector2Array()
@@ -252,9 +252,9 @@ func _draw_hand() -> void:
 
 func _draw_banner() -> void:
 	var font = ThemeDB.fallback_font
-	var font_size = 38
-	var width = 900.0
+	var font_size = 34
+	var width = 880.0
 	var text_size = font.get_multiline_string_size(_hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size)
-	var rect = Rect2(Vector2(540.0 - width * 0.5 - 30.0, 1700.0), Vector2(width + 60.0, text_size.y + 40.0))
+	var rect = Rect2(Vector2(540.0 - width * 0.5 - 36.0, 1680.0), Vector2(width + 72.0, text_size.y + 56.0))
 	draw_style_box(_banner_style, rect)
-	draw_multiline_string(font, rect.position + Vector2(30.0, 20.0 + font.get_ascent(font_size)), _hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size, -1, Color.WHITE)
+	draw_multiline_string(font, rect.position + Vector2(36.0, 28.0 + font.get_ascent(font_size)), _hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size, -1, UIThemeHelper.COLOR_TEXT)

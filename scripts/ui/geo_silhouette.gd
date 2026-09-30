@@ -12,21 +12,24 @@ var _color: Color = Color.WHITE
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-## `geo` = {"land": [polígonos], "borders": [polilíneas]} en coordenadas locales del control
+## `geo` = {"land": [polígonos], "borders": [polilíneas]} en coordenadas locales del control.
+## La triangulación se guarda en el propio diccionario para reutilizarla si se vuelve a mostrar.
 func set_geography(geo: Dictionary, color: Color) -> void:
 	_land.assign(geo.get("land", []))
-	_fills = FilledPolygon.build_all(_land)
+	if not geo.has("fills"):
+		geo["fills"] = FilledPolygon.build_all(_land)
+	_fills = geo["fills"]
 	_borders.assign(geo.get("borders", []))
 	_color = color
 	queue_redraw()
 
 func _draw() -> void:
-	var fill := Color(_color, 0.12)
-	var coast := Color(_color.lightened(0.2), 0.40)
+	var fill := Color(_color, 0.10)
+	var coast := Color(_color.lightened(0.2), 0.35)
 	for f in _fills:
 		f.draw(self, fill)
 	for line in _borders:
-		draw_polyline(line, Color(1, 1, 1, 0.06), 1.2, true)
+		draw_polyline(line, Color(1, 1, 1, 0.05), 1.2, true)
 	for poly in _land:
 		var closed := poly.duplicate()
 		closed.append(poly[0])

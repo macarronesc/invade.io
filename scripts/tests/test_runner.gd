@@ -94,12 +94,12 @@ func run_all_tests() -> void:
 	test_bezier_curves_and_marching_dots()
 	test_slice_gesture_and_troop_retreat()
 	test_under_siege_alert_trigger_and_deactivation()
-	test_hud_counters_and_leadership_crown()
-	test_main_menu_ui_and_ambient_system()
-	test_world_map_campaign_route_and_briefing()
-	test_upgrade_menu_cards_and_pips()
+	test_hud_force_counters()
+	test_main_menu_hub_navigation()
+	test_play_tab_campaign_route_and_briefing()
+	test_army_tab_upgrades_and_looks()
 	test_battle_hud_modals_and_sound_toggle()
-	test_cartographic_background_and_theme_helper()
+	test_theme_and_ui_helpers()
 	test_crossing_streams_low_fps_and_huge_streams()
 	test_save_robustness_and_replay_rewards()
 	test_ai_projected_defense_and_difficulty()
@@ -1447,21 +1447,21 @@ func test_confetti_and_star_revelation() -> void:
 
 	# 4. Probar configuración con 1 estrella
 	hud.animate_stars(1)
-	assert_equals(star1.text, "⭐", "Con 1 estrella ganada: Star1 es ⭐")
-	assert_equals(star2.text, "★", "Con 1 estrella ganada: Star2 es ★ inactiva")
-	assert_equals(star3.text, "★", "Con 1 estrella ganada: Star3 es ★ inactiva")
+	assert_equals(star1.text, "★", "Con 1 estrella ganada: Star1 es ★")
+	assert_equals(star2.text, "☆", "Con 1 estrella ganada: Star2 es ☆ pendiente")
+	assert_equals(star3.text, "☆", "Con 1 estrella ganada: Star3 es ☆ pendiente")
 
 	# 5. Probar configuración con 2 estrellas
 	hud.animate_stars(2)
-	assert_equals(star1.text, "⭐", "Con 2 estrellas ganadas: Star1 es ⭐")
-	assert_equals(star2.text, "⭐", "Con 2 estrellas ganadas: Star2 es ⭐")
-	assert_equals(star3.text, "★", "Con 2 estrellas ganadas: Star3 es ★ inactiva")
+	assert_equals(star1.text, "★", "Con 2 estrellas ganadas: Star1 es ★")
+	assert_equals(star2.text, "★", "Con 2 estrellas ganadas: Star2 es ★")
+	assert_equals(star3.text, "☆", "Con 2 estrellas ganadas: Star3 es ☆ pendiente")
 
 	# 6. Probar configuración con 3 estrellas y re-disparo seguro de tweens
 	hud.animate_stars(3)
-	assert_equals(star1.text, "⭐", "Con 3 estrellas ganadas: Star1 es ⭐")
-	assert_equals(star2.text, "⭐", "Con 3 estrellas ganadas: Star2 es ⭐")
-	assert_equals(star3.text, "⭐", "Con 3 estrellas ganadas: Star3 es ⭐")
+	assert_equals(star1.text, "★", "Con 3 estrellas ganadas: Star1 es ★")
+	assert_equals(star2.text, "★", "Con 3 estrellas ganadas: Star2 es ★")
+	assert_equals(star3.text, "★", "Con 3 estrellas ganadas: Star3 es ★")
 	assert_true(hud._star_tweens.size() > 0, "animate_stars gestiona lista activa de tweens sin conflictos")
 
 	# 7. Probar despliegue completo de modal con conquista continental
@@ -1469,11 +1469,11 @@ func test_confetti_and_star_revelation() -> void:
 	assert_true(hud.victory_panel.visible, "VictoryPanel es visible tras deploy_victory_modal()")
 	var title = hud.get_node_or_null("%VictoryTitle")
 	assert_true(title != null, "Label de título en VictoryPanel existe")
-	assert_equals(title.text, "¡CONTINENTE CONQUISTADO!", "Título conmuta a '¡CONTINENTE CONQUISTADO!' al completar nivel 5")
+	assert_equals(title.text, "¡Continente conquistado!", "Título de continente conquistado al completar nivel 5")
 
 	# Probar despliegue de victoria estándar
 	hud.deploy_victory_modal({"stars": 2, "gold_earned": 90, "is_continent_conquest": false})
-	assert_equals(title.text, "¡VICTORIA!", "Título conmuta a '¡VICTORIA!' en niveles normales")
+	assert_equals(title.text, "¡Victoria!", "Título de victoria en niveles normales")
 
 	remove_child(hud)
 	hud.free()
@@ -1811,154 +1811,78 @@ func test_under_siege_alert_trigger_and_deactivation() -> void:
 	base_player.free()
 	base_enemy.free()
 
-func test_hud_counters_and_leadership_crown() -> void:
-	print("\n-> Test: Contadores Numéricos en Tiempo Real y Corona de Liderazgo en el HUD")
-	var BattleHUDScene = load("res://scenes/ui/battle_hud.tscn")
-	var BattleControllerScript = load("res://scripts/battle/battle_controller.gd")
-	var BaseNodeScript = load("res://scripts/battle/base_node.gd")
-
-	var hud: BattleHUD = BattleHUDScene.instantiate()
+func test_hud_force_counters() -> void:
+	print("\n-> Test: Barra de Fuerzas y Contadores del HUD")
+	var hud: BattleHUD = load("res://scenes/ui/battle_hud.tscn").instantiate()
 	add_child(hud)
-
-	# 1. Verificar nodos de interfaz en BattleHUD
-	assert_true(hud.leader_crown != null, "Nodo LeaderCrown existe en BattleHUD")
-	assert_true(hud.label_count_player != null, "Nodo LabelCountPlayer existe en TopBar")
-	assert_true(hud.label_count_neutral != null, "Nodo LabelCountNeutral existe en TopBar")
-	assert_true(hud.label_count_enemy != null, "Nodo LabelCountEnemy existe en TopBar")
-	assert_true(hud.faction_counts_container != null, "Nodo FactionCountsContainer existe en TopBar")
-
-	# 2. Vincular a BattleController y verificar conteos iniciales
-	var battle = BattleControllerScript.new()
+	var battle = load("res://scripts/battle/battle_controller.gd").new()
 	add_child(battle)
 	for b in battle.bases:
 		b.queue_free()
 	battle.bases.clear()
 	battle.active_troops.clear()
 	hud.battle_controller = battle
+	var b_player = _make_base(Vector2.ZERO, GameManager.Faction.PLAYER, 35)
+	var b_enemy = _make_base(Vector2.ZERO, GameManager.Faction.ENEMY_1, 20)
+	var b_neutral = _make_base(Vector2.ZERO, GameManager.Faction.NEUTRAL, 15)
+	battle.bases.append_array([b_player, b_enemy, b_neutral])
 
-	var b_player = BaseNodeScript.new()
-	b_player.faction = GameManager.Faction.PLAYER
-	b_player.troops = 35
-	battle.bases.append(b_player)
-
-	var b_enemy = BaseNodeScript.new()
-	b_enemy.faction = GameManager.Faction.ENEMY_1
-	b_enemy.troops = 20
-	battle.bases.append(b_enemy)
-
-	var b_neutral = BaseNodeScript.new()
-	b_neutral.faction = GameManager.Faction.NEUTRAL
-	b_neutral.troops = 15
-	battle.bases.append(b_neutral)
-
-	# Ejecutar actualización de dominancia y contadores numéricos
 	hud._update_dominance_bar()
+	assert_true(hud.label_count_player.text.contains("35") and hud.label_count_player.text.contains(GameManager.faction_name(GameManager.Faction.PLAYER)), "El jugador se ve como 'Tú' con sus tropas")
+	assert_true(hud.label_count_enemy.text.contains("20"), "Contador enemigo en vivo")
+	assert_true(hud.label_count_neutral.text.contains("15"), "Contador neutral en vivo")
+	assert_equals(hud.bar_player.size_flags_stretch_ratio, 35.0, "El segmento del jugador es proporcional a sus tropas")
+	assert_equals(hud.bar_enemy.size_flags_stretch_ratio, 20.0, "El segmento enemigo es proporcional a sus tropas")
+	assert_true(not hud._faction_bars[GameManager.Faction.ENEMY_2].visible, "Los bandos ausentes no ocupan la barra")
 
-	assert_true(hud.label_count_player.text.contains("35"), "LabelCountPlayer muestra el conteo vivo del jugador (Azul: 35)")
-	assert_true(hud.label_count_enemy.text.contains("20"), "LabelCountEnemy muestra el conteo vivo del enemigo (Rojo: 20)")
-	assert_true(hud.label_count_neutral.text.contains("15"), "LabelCountNeutral muestra el conteo vivo neutral (Gris: 15)")
-
-	# 3. Liderazgo del jugador: Corona dorada sobre el segmento azul
-	assert_equals(hud.get_leader_faction(), GameManager.Faction.PLAYER, "Jugador con 35 tropas es la facción líder (PLAYER)")
-	assert_true(hud.leader_crown.visible, "Corona de liderazgo visible en HUD")
-
-	# La coordenada X de la corona debe estar en la mitad izquierda (segmento del jugador)
-	hud._process(0.1)
-	var top_bar = hud.get_node_or_null("TopBar") as Control
-	var top_w = top_bar.size.x if (top_bar and top_bar.size.x > 0.0) else 1080.0
-	var bar_midpoint = top_w * 0.5
-	assert_true(hud.leader_crown.position.x < bar_midpoint, "Corona de liderazgo posicionada sobre el segmento del jugador")
-
-	# 4. Transición dinámica de liderazgo hacia el enemigo
-	# El enemigo recluta o asalta masivamente (suma 50 tropas -> total 70 tropas enemigas frente a 35 del jugador)
-	b_enemy.troops = 70
-	hud._update_dominance_bar()
-
-	assert_equals(hud.get_leader_faction(), GameManager.Faction.ENEMY_1, "Liderazgo conmuta dinámicamente al enemigo al superar en tropas al jugador")
-	assert_true(hud.label_count_enemy.text.contains("70"), "LabelCountEnemy refleja inmediatamente el incremento a 70 tropas")
-
-	# Ejecutar varios frames de lerp para que la corona se desplace hacia el segmento enemigo
-	var pos_initial = hud.leader_crown.position.x
-	hud._process(0.05)
-	var pos_step1 = hud.leader_crown.position.x
-	assert_true(pos_step1 > pos_initial, "Corona de liderazgo avanza progresivamente mediante lerp hacia la derecha")
-
-	for _i in range(9):
-		hud._process(0.05)
-	assert_true(hud.leader_crown.position.x > bar_midpoint, "Corona de liderazgo se desplaza suavemente hacia el segmento derecho del enemigo líder")
-
-	# 5. Soporte para múltiples facciones enemigas y determinación del líder individual
-	var b_enemy2 = BaseNodeScript.new()
-	b_enemy2.faction = GameManager.Faction.ENEMY_2
-	b_enemy2.troops = 12
+	var b_enemy2 = _make_base(Vector2.ZERO, GameManager.Faction.ENEMY_2, 12)
 	battle.bases.append(b_enemy2)
 	hud._update_dominance_bar()
-	assert_true(hud.label_count_enemy.text.contains("12") or hud.label_count_enemy.text.contains("Otros"), "LabelCountEnemy reporta adecuadamente múltiples facciones enemigas activas")
-
-	# Jugador lidera individualmente con 35 tropas frente a Enemigo 1 (20) y Enemigo 2 (12)
-	b_player.troops = 35
-	b_enemy.troops = 20
-	b_enemy2.troops = 12
-	hud._update_dominance_bar()
-	assert_equals(hud.get_leader_faction(), GameManager.Faction.PLAYER, "Jugador (35) lidera individualmente frente a Enemigo 1 (20) y Enemigo 2 (12)")
-
-	# Enemigo 2 supera a todos individualmente (50 tropas)
-	b_enemy2.troops = 50
-	hud._update_dominance_bar()
-	assert_equals(hud.get_leader_faction(), GameManager.Faction.ENEMY_2, "Enemigo 2 toma el liderazgo con 50 tropas")
+	assert_true(hud.label_count_enemy.text.contains("20") and hud.label_count_enemy.text.contains("12"), "Se listan todos los rivales activos")
+	assert_true(hud._faction_bars[GameManager.Faction.ENEMY_2].visible, "Un nuevo rival aparece en la barra")
 
 	remove_child(hud)
 	remove_child(battle)
 	hud.free()
-	b_player.free()
-	b_enemy.free()
-	b_enemy2.free()
-	b_neutral.free()
-	battle.free()
+	for b in [b_player, b_enemy, b_enemy2, b_neutral, battle]:
+		b.free()
 
-func test_main_menu_ui_and_ambient_system() -> void:
-	print("\n-> Test: Menú Principal State.io, Sistema Ambiental y Estadísticas de Campaña")
-	var MainMenuScene = load("res://scenes/ui/main_menu.tscn")
-	var menu: MainMenuUI = MainMenuScene.instantiate()
+func test_main_menu_hub_navigation() -> void:
+	print("\n-> Test: Menú Principal con Secciones (Jugar, Retos, Ejército, Progreso)")
+	GameManager.reset_save()
+	var menu: MainMenuUI = load("res://scenes/ui/main_menu.tscn").instantiate()
 	add_child(menu)
+	assert_equals(menu.current_tab, "play", "El menú abre en Jugar")
+	assert_equals(menu._nav.size(), 4, "La barra inferior tiene cuatro secciones")
+	for tab in ["challenges", "army", "progress", "play"]:
+		menu.show_tab(tab)
+		assert_true(menu.current_tab == tab and menu._nav[tab].button_pressed, "La sección %s queda activa en la barra" % tab)
+		assert_equals(menu._content.get_child_count(), 1, "Sólo hay una sección montada a la vez (%s)" % tab)
+	assert_true(menu.btn_settings != null, "Ajustes accesibles desde la cabecera")
 
-	# 1. Verificar nodos e interactivos clave
-	assert_true(menu.btn_play != null, "Botón central de juego existe")
-	assert_true(menu.btn_world_map != null, "Botón de mapa mundial existe")
-	assert_true(menu.btn_upgrades != null, "Botón de tienda de mejoras existe")
-	assert_true(menu.btn_settings != null, "Ajustes centralizados accesibles")
-	assert_true(menu.coins_label != null, "Etiqueta de monedas de oro existe")
-	assert_true(menu.stars_label != null, "Etiqueta de estrellas de campaña existe")
-	assert_true(menu.btn_missions != null, "Misiones diarias accesibles")
-	assert_true(menu.stars_pill != null, "Píldora visual de estrellas existe")
-	assert_true(menu.coins_pill != null, "Píldora visual de monedas existe")
-
-	# 2. Fondo CartographicBackground y sistema ambiental
-	var bg = menu.get_node_or_null("CartographicBackground") as CartographicBackground
-	assert_true(bg != null, "CartographicBackground está presente en MainMenu")
-	assert_true(bg.show_ambient_nodes, "show_ambient_nodes está activo en el fondo del menú principal")
-	assert_equals(bg.ambient_nodes.size(), 8, "Existen exactamente 8 nodos geopolíticos ambientales configurados")
-
-	var p0 = bg.ambient_nodes[0].pos
-	bg._process(0.2)
-	assert_true(bg.ambient_nodes[0].pos != p0, "Nodos ambientales se desplazan continuamente mediante velocidad y delta")
-
-	# Rebote en límites
-	bg.ambient_nodes[0].pos.x = 40.0
-	bg.ambient_nodes[0].vel.x = -20.0
-	bg._process(0.05)
-	assert_true(bg.ambient_nodes[0].pos.x >= 60.0 and bg.ambient_nodes[0].vel.x > 0.0, "Nodos ambientales rebotan suavemente en los bordes")
-
-	# 3. Monedas y Estrellas en vivo
-	assert_true(menu.coins_label.text.contains(str(GameManager.coins)), "Etiqueta de monedas muestra saldo actual")
+	# Avisos: un punto sólo cuando hay algo que recoger, sin ventanas emergentes
+	assert_true(menu._badges["challenges"].visible, "Retos avisa de la recompensa diaria pendiente")
+	assert_true(not menu._badges["progress"].visible, "Progreso sin avisos si no hay logros por cobrar")
+	GameManager.claim_daily_reward()
+	assert_true(not menu._badges["challenges"].visible, "El aviso de Retos desaparece al recoger")
+	GameManager.unlock_achievement("blitz")
+	EventBus.achievement_unlocked.emit("blitz")
+	assert_true(menu._badges["progress"].visible, "Progreso avisa del logro por cobrar")
 	EventBus.coins_updated.emit(420)
-	assert_true(menu.coins_label.text.contains("420"), "Etiqueta de monedas responde a EventBus.coins_updated")
+	assert_true(menu.coins_label.text.contains("420"), "El saldo responde a EventBus.coins_updated")
 
-	var total_stars = GameManager.get_total_stars()
-	var max_stars = GameManager.get_max_possible_stars()
-	assert_true(menu.stars_label.text.contains("%d/%d" % [total_stars, max_stars]), "Etiqueta de estrellas refleja estrellas totales de campaña")
+	# Abrir directamente en una sección (al salir de una batalla) y volver con el botón atrás
+	MainMenuUI.next_tab = "army"
+	var menu2: MainMenuUI = load("res://scenes/ui/main_menu.tscn").instantiate()
+	add_child(menu2)
+	assert_equals(menu2.current_tab, "army", "El menú se abre en la sección pedida")
+	assert_equals(MainMenuUI.next_tab, "play", "La petición se consume una sola vez")
+	menu2._notification(NOTIFICATION_WM_GO_BACK_REQUEST)
+	assert_equals(menu2.current_tab, "play", "Atrás desde una sección vuelve a Jugar")
+	remove_child(menu2)
+	menu2.free()
 
-	# 4. Reinicio agrupado en ajustes, con confirmación nativa explícita.
+	# Reinicio agrupado en ajustes, con confirmación nativa explícita
 	GameManager.coins = 999
 	menu._open_settings()
 	menu._utility_panel._confirm_reset()
@@ -1969,303 +1893,223 @@ func test_main_menu_ui_and_ambient_system() -> void:
 	assert_equals(GameManager.coins, 150, "Reiniciar progreso restaura monedas iniciales a 150")
 	assert_equals(GameManager.get_total_stars(), 0, "Reiniciar progreso resetea estrellas completadas a 0")
 	assert_true(menu.coins_label.text.contains("150"), "Etiqueta de monedas se actualiza tras reseteo")
-	menu._update_stars()
-	assert_true(menu.stars_label.text.contains("0/90"), "Etiqueta de estrellas se actualiza a 0/90 tras reseteo")
 
 	remove_child(menu)
 	menu.free()
-
-func test_world_map_campaign_route_and_briefing() -> void:
-	print("\n-> Test: Mapa Mundial State.io, Ruta de Campaña Interconectada y Panel de Briefing")
-	var WorldMapScene = load("res://scenes/ui/world_map.tscn")
-	var world_map: WorldMapUI = WorldMapScene.instantiate()
-	add_child(world_map)
-
-	# 1. Verificar existencia de nodos principales
-	assert_true(world_map.continent_title != null, "Título de continente existe")
-	assert_true(world_map.btn_prev_continent != null, "Botón continente anterior existe")
-	assert_true(world_map.btn_next_continent != null, "Botón continente siguiente existe")
-	assert_true(world_map.levels_container != null, "Contenedor de niveles existe")
-	assert_true(world_map.route_container != null, "Contenedor de ruta existe")
-	assert_true(world_map.briefing_panel != null, "Panel de briefing de misión existe")
-	assert_true(world_map.briefing_title != null, "Título de briefing existe")
-	assert_true(world_map.briefing_desc != null, "Descripción de briefing existe")
-	assert_true(world_map.briefing_stars != null, "Estrellas en briefing existen")
-	assert_true(world_map.stat_bases != null, "Estadística de bases existe")
-	assert_true(world_map.stat_enemy != null, "Estadística de rivales existe")
-	assert_true(world_map.stat_target_time != null, "Estadística de tiempo objetivo existe")
-	assert_true(world_map.btn_start_level != null, "Botón iniciar asalto existe")
-
-	# 2. Navegación de continentes
-	assert_equals(world_map.continents.size(), 6, "Existen 6 continentes configurados")
-	var orig_idx = world_map.current_continent_index
-	world_map._on_next_continent()
-	assert_equals(world_map.current_continent_index, (orig_idx + 1) % 6, "Avanzar continente incrementa índice correctamente")
-	world_map._on_prev_continent()
-	assert_equals(world_map.current_continent_index, orig_idx, "Retroceder continente restaura índice original")
-
-	# 3. Nodos de la ruta de campaña (5 niveles por continente)
-	world_map.current_continent_index = 0 # Europa
-	world_map._refresh_display()
-	assert_equals(world_map.levels_container.get_child_count(), 5, "Existen exactamente 5 nodos de campaña para Europa")
-
-	var node1 = world_map.levels_container.get_node_or_null("NodeHolder_1")
-	assert_true(node1 != null, "NodeHolder_1 presente en la ruta")
-	var btn1 = node1.get_node_or_null("BtnLevel_1") as Button
-	assert_true(btn1 != null, "BtnLevel_1 presente")
-	assert_true(not btn1.disabled, "Nivel 1 de Europa está desbloqueado")
-
-	var node5 = world_map.levels_container.get_node_or_null("NodeHolder_5")
-	assert_true(node5 != null, "NodeHolder_5 presente en la ruta")
-	var btn5 = node5.get_node_or_null("BtnLevel_5") as Button
-	assert_true(btn5 != null, "BtnLevel_5 presente")
-	assert_true(btn5.disabled, "Nivel 5 de Europa está bloqueado inicialmente")
-	assert_equals(btn5.text, "🔒", "Nivel bloqueado muestra candado")
-
-	# Verificar cambio limpio de continente sin nodos fantasma
-	world_map._on_next_continent() # Norteamérica
-	assert_equals(world_map.levels_container.get_child_count(), 5, "Cambio de continente mantiene exactamente 5 nodos limpios")
-	var na_node1 = world_map.levels_container.get_node_or_null("NodeHolder_1")
-	assert_true(na_node1 != null and not na_node1.is_queued_for_deletion(), "NodeHolder_1 activo y no marcado para borrado en nuevo continente")
-	world_map._on_prev_continent() # Regresar a Europa
-	assert_equals(world_map.levels_container.get_child_count(), 5, "Regreso a Europa conserva 5 nodos limpios")
-
-	# 4. Actualización del panel de briefing
-	world_map._select_level("europe_1")
-	assert_equals(world_map.selected_level_id, "europe_1", "Nivel europe_1 seleccionado")
-	assert_true(world_map.briefing_title.text.length() > 0, "Título de briefing cargado")
-	assert_true(world_map.stat_bases.text.contains("Bases"), "Estadística de bases refleja guarnición táctica")
-	assert_true(not world_map.btn_start_level.disabled, "Botón iniciar asalto habilitado para nivel desbloqueado")
-	assert_equals(world_map.btn_start_level.text, "⚔️ INICIAR ASALTO", "Texto de asalto para nivel disponible")
-
-	world_map._select_level("europe_5")
-	assert_equals(world_map.selected_level_id, "europe_5", "Nivel europe_5 seleccionado")
-	assert_true(world_map.btn_start_level.disabled, "Botón iniciar asalto deshabilitado para nivel bloqueado")
-	assert_equals(world_map.btn_start_level.text, "🔒 NIVEL BLOQUEADO", "Texto de botón indica nivel bloqueado")
-
-	# 5. Simulación de animación de marcha táctica
-	var initial_phase = world_map.marching_phase
-	world_map._process(0.1)
-	assert_true(world_map.marching_phase != initial_phase, "Fase de puntos de marcha avanza continuamente")
-
-	remove_child(world_map)
-	world_map.free()
-
-func test_upgrade_menu_cards_and_pips() -> void:
-	print("\n-> Test: Tienda Táctica de Mejoras, Tarjetas 2.5D y Barras de 10 Pips")
 	GameManager.reset_save()
-	var UpgradeMenuScene = load("res://scenes/ui/upgrade_menu.tscn")
-	var upgrade_menu: UpgradeMenuUI = UpgradeMenuScene.instantiate()
-	add_child(upgrade_menu)
 
-	# 1. Verificar nodos principales
-	assert_true(upgrade_menu.cards_container != null, "CardsContainer existe en UpgradeMenu")
-	assert_true(upgrade_menu.coins_label != null, "CoinsLabel existe en UpgradeMenu")
-	assert_true(upgrade_menu.stars_label != null, "StarsLabel existe en UpgradeMenu")
-	assert_true(upgrade_menu.btn_back != null, "BtnBack existe en UpgradeMenu")
+func test_play_tab_campaign_route_and_briefing() -> void:
+	print("\n-> Test: Jugar (Mapa del Continente, Ficha del Nivel y Accesos Directos)")
+	GameManager.reset_save()
+	var play = load("res://scripts/ui/play_tab.gd").new()
+	add_child(play)
+	for node in [play.continent_title, play.btn_prev_continent, play.btn_next_continent, play.levels_container,
+			play.route_container, play.level_title, play.level_desc, play.level_stars, play.level_chips,
+			play.btn_start_level, play.btn_conquest, play.btn_daily]:
+		assert_true(node != null, "Elemento de Jugar presente: %s" % node.get_class())
 
-	# 2. Verificar las 4 tarjetas de mejoras tácticas (más la sección de estética)
-	var upgrade_cards = upgrade_menu.cards_container.get_children().filter(func(c): return c.name.begins_with("UpgradeCard_"))
-	assert_equals(upgrade_cards.size(), 4, "Existen exactamente 4 tarjetas de mejoras tácticas activas")
-	assert_true(upgrade_menu.cards_container.has_node("CosmeticRow_color_cyan"), "La tienda de estética ofrece colores")
-	var active_cards = upgrade_cards
+	# 1. Un toque para seguir la campaña
+	assert_equals(play.selected_level_id, "europe_1", "Se propone el nivel actual de la campaña")
+	assert_equals(play.btn_start_level.text, LocaleStrings.text("continue"), "El botón principal es Continuar")
+	assert_equals(play.level_chips.get_child_count(), 3, "Bases, rivales y tiempo de 3★ como etiquetas")
 
-	# 3. Verificar barra segmentada de 10 pips en la primera tarjeta
-	var card0 = active_cards[0] as PanelContainer
-	assert_true(card0 != null, "Tarjeta 0 es un PanelContainer")
-	var pips_box: HBoxContainer = null
-	for child in card0.find_children("", "HBoxContainer", true, false):
-		if child.get_child_count() == 10:
-			pips_box = child
-			break
-	assert_true(pips_box != null, "Contenedor de pips encontrado en la tarjeta")
-	assert_equals(pips_box.get_child_count(), 10, "La barra segmentada contiene exactamente 10 pips de nivel")
+	# 2. Navegación de continentes sin nodos fantasma
+	assert_equals(play.continents.size(), 6, "Existen 6 continentes configurados")
+	var orig_idx = play.current_continent_index
+	play._on_next_continent()
+	assert_equals(play.current_continent_index, (orig_idx + 1) % 6, "Avanzar continente incrementa índice correctamente")
+	assert_equals(play.levels_container.get_child_count(), 5, "Cambio de continente mantiene exactamente 5 nodos limpios")
+	assert_equals(GameManager.current_continent, play.continents[play.current_continent_index]["id"], "El continente elegido se recuerda")
+	play._on_prev_continent()
+	assert_equals(play.current_continent_index, orig_idx, "Retroceder continente restaura índice original")
 
-	# 4. Proceso de compra y actualización de pips y economía
+	# 3. Estado de cada nivel en la ruta
+	var btn1 = play.levels_container.get_node("NodeHolder_1/BtnLevel_1") as Button
+	var btn5 = play.levels_container.get_node("NodeHolder_5/BtnLevel_5") as Button
+	assert_true(not btn1.disabled and btn1.text == "1", "Nivel 1 de Europa desbloqueado y numerado")
+	assert_true(btn5.disabled and btn5.icon != null, "Nivel 5 bloqueado con candado")
+
+	# 4. Ficha: repetir un nivel superado, bloqueo y reglas
+	GameManager.completed_levels["europe_1"] = 3
+	play._select_level("europe_1")
+	assert_equals(play.btn_start_level.text, LocaleStrings.text("replay_level") % 1, "Un nivel superado se ofrece para repetir")
+	assert_equals(play.level_stars.text, "★★★", "La ficha muestra las estrellas conseguidas")
+	play._select_level("europe_5")
+	assert_true(play.btn_start_level.disabled, "Botón deshabilitado para nivel bloqueado")
+	assert_equals(play.btn_start_level.text, LocaleStrings.text("level_locked"), "Texto de nivel bloqueado")
+	assert_true(play.level_rule.visible and play.level_rule.text.contains("👑"), "El jefe del continente se explica en la ficha")
+
+	# 5. Accesos directos y animación de la frontera
+	var labels: Array = play.btn_conquest.find_children("*", "Label", true, false).map(func(l): return l.text)
+	assert_true(labels.has(LocaleStrings.text("conquest")), "Conquista libre a un toque desde Jugar")
+	assert_true(play.btn_daily.find_children("*", "Label", true, false).any(func(l): return l.text == LocaleStrings.text("daily")), "Desafío diario a un toque desde Jugar")
+	var initial_phase = play.marching_phase
+	play._process(0.1)
+	assert_true(play.marching_phase != initial_phase, "La frontera de la campaña se anima")
+
+	remove_child(play)
+	play.free()
+	GameManager.reset_save()
+
+func test_army_tab_upgrades_and_looks() -> void:
+	print("\n-> Test: Ejército (Mejoras con Progreso y Aspecto con Vista Previa)")
+	GameManager.reset_save()
+	var army = load("res://scripts/ui/army_tab.gd").new()
+	add_child(army)
+	var cards: Array = army.find_children("UpgradeCard_*", "", true, false)
+	assert_equals(cards.size(), 4, "Existen exactamente 4 tarjetas de mejora")
+	assert_true(army.find_child("CosmeticRow_color_cyan", true, false) == null, "El aspecto vive en su propia pestaña")
+	var pips: Array = cards[0].find_children("*", "HBoxContainer", true, false).filter(func(c): return c.get_child_count() == 10)
+	assert_equals(pips.size(), 1, "La barra segmentada contiene 10 niveles")
+
+	# Compra: descuenta oro, sube de nivel y redibuja conservando la sección
 	GameManager.coins = 500
-	upgrade_menu._update_coins(500)
 	var cost = GameManager.get_upgrade_cost("starting_troops")
-	upgrade_menu._buy_upgrade("starting_troops")
+	army._buy_upgrade("starting_troops")
 	assert_equals(GameManager.upgrades["starting_troops"], 1, "Mejora 'starting_troops' incrementada a nivel 1")
 	assert_equals(GameManager.coins, 500 - cost, "Oro descontado tras la compra")
-	assert_true(upgrade_menu.coins_label.text.contains(str(500 - cost)), "CoinsLabel refleja el saldo de oro restante")
+	var card = army.find_child("UpgradeCard_starting_troops", true, false)
+	assert_true(card.find_children("*", "Label", true, false).any(func(l): return l.text.contains("+5") and l.text.contains("+10")), "La tarjeta muestra efecto actual › siguiente")
 
-	# Caso borde: Intento de compra con fondos insuficientes
+	# Sin oro suficiente: botón desactivado y cuánto falta
 	GameManager.coins = 10
-	upgrade_menu._update_coins(10)
-	var buy_result = GameManager.buy_upgrade("production_rate")
-	assert_equals(buy_result, false, "Compra rechazada cuando los fondos son insuficientes")
-	assert_equals(GameManager.upgrades["production_rate"], 0, "Nivel de mejora no cambia tras compra rechazada")
+	EventBus.coins_updated.emit(10)
+	card = army.find_child("UpgradeCard_production_rate", true, false)
+	var buy: Button = card.find_children("*", "Button", true, false)[0]
+	assert_true(buy.disabled, "No se puede comprar sin oro")
+	var missing: int = GameManager.get_upgrade_cost("production_rate") - 10
+	assert_true(card.find_children("*", "Label", true, false).any(func(l): return l.text.contains(str(missing))), "Se explica cuánto oro falta")
+	assert_equals(GameManager.buy_upgrade("production_rate"), false, "Compra rechazada cuando los fondos son insuficientes")
 
-	# 5. Tarjeta en nivel máximo (MÁXIMO y deshabilitado)
+	# Nivel máximo
 	GameManager.upgrades["starting_troops"] = 10
-	upgrade_menu._build_cards()
-	var updated_cards = upgrade_menu.cards_container.get_children().filter(func(c): return c.name.begins_with("UpgradeCard_"))
-	assert_equals(updated_cards.size(), 4, "CardsContainer conserva exactamente 4 tarjetas tras reconstrucción")
-	var card_max = updated_cards[0]
-	var buy_btn: Button = null
-	for b in card_max.find_children("", "Button", true, false):
-		buy_btn = b
-		break
-	assert_true(buy_btn != null, "Botón de compra encontrado en tarjeta maximizada")
-	assert_true(buy_btn.disabled, "Botón de compra deshabilitado en nivel máximo")
-	assert_equals(buy_btn.text, "MÁXIMO", "Texto de botón muestra 'MÁXIMO'")
+	army.rebuild()
+	buy = army.find_child("UpgradeCard_starting_troops", true, false).find_children("*", "Button", true, false)[0]
+	assert_true(buy.disabled and buy.text == LocaleStrings.text("max"), "Botón en nivel máximo")
 
+	# Aspecto: miniaturas y estados comprar / equipar / equipado
+	army.find_child("Segment_looks", true, false).pressed.emit()
+	assert_equals(army.section, "looks", "La pestaña Aspecto se activa")
+	assert_equals(army.find_children("CosmeticRow_*", "", true, false).size(), CosmeticsDatabase.ITEMS.size(), "Una miniatura por objeto")
+	var blue: Button = army.find_child("CosmeticRow_color_blue", true, false).find_children("*", "Button", true, false)[0]
+	assert_true(blue.disabled and blue.text == LocaleStrings.text("equipped"), "El objeto equipado se indica claramente")
+	remove_child(army)
+	army.free()
+
+	# Tras una derrota, Ejército ofrece volver a la misma batalla
+	var retry = load("res://scripts/ui/army_tab.gd").new()
+	retry.return_to_battle = true
+	add_child(retry)
+	assert_true(retry.find_child("BtnReturnToBattle", true, false) != null, "Acceso directo para volver a la batalla")
+	remove_child(retry)
+	retry.free()
 	GameManager.reset_save()
-	remove_child(upgrade_menu)
-	upgrade_menu.free()
 
 func test_battle_hud_modals_and_sound_toggle() -> void:
-	print("\n-> Test: Modales de Batalla (Pausa, Victoria, Derrota) y Alternancia de Sonido")
-	var BattleHUDScene = load("res://scenes/ui/battle_hud.tscn")
-	var hud: BattleHUD = BattleHUDScene.instantiate()
+	print("\n-> Test: Capas de Batalla (Pausa, Victoria, Derrota), Sonido y Salidas")
+	var hud: BattleHUD = load("res://scenes/ui/battle_hud.tscn").instantiate()
 	add_child(hud)
 
-	# 1. Verificar nodos de modales y visibilidad inicial
-	assert_true(hud.dim_overlay != null, "DimOverlay existe")
-	assert_true(hud.victory_panel != null, "VictoryPanel existe")
-	assert_true(hud.defeat_panel != null, "DefeatPanel existe")
-	assert_true(hud.pause_panel != null, "PausePanel existe")
-	assert_true(hud.btn_pause != null, "BtnPause existe")
-	assert_true(hud.btn_resume != null, "BtnResume existe")
-	assert_true(hud.btn_pause_sound != null, "BtnPauseSound existe")
-	assert_true(not hud.dim_overlay.visible, "DimOverlay oculto inicialmente")
-	assert_true(not hud.victory_panel.visible, "VictoryPanel oculto inicialmente")
-	assert_true(not hud.defeat_panel.visible, "DefeatPanel oculto inicialmente")
-	assert_true(not hud.pause_panel.visible, "PausePanel oculto inicialmente")
+	# 1. Nodos y visibilidad inicial
+	for node in [hud.dim_overlay, hud.victory_panel, hud.defeat_panel, hud.pause_panel, hud.btn_pause, hud.btn_resume, hud.btn_pause_sound, hud.btn_how_to_play, hud.btn_settings]:
+		assert_true(node != null, "Nodo del HUD presente: %s" % node.name)
+	assert_true(not hud.dim_overlay.visible and not hud.victory_panel.visible and not hud.defeat_panel.visible and not hud.pause_panel.visible, "Capas ocultas al empezar")
 
-	# 2. Modal de Pausa y Alternancia de Sonido
+	# 2. Pausa y sonido
 	hud._on_pause_pressed()
-	assert_true(hud.pause_panel.visible, "PausePanel visible tras pausar")
-	assert_true(hud.dim_overlay.visible, "DimOverlay visible durante la pausa")
-	assert_equals(hud.dim_overlay.mouse_filter, Control.MOUSE_FILTER_STOP, "DimOverlay bloquea clics táctiles (MOUSE_FILTER_STOP) en pausa")
+	assert_true(hud.pause_panel.visible and hud.dim_overlay.visible, "Pausa visible sobre un fondo atenuado")
+	assert_equals(hud.dim_overlay.mouse_filter, Control.MOUSE_FILTER_STOP, "El fondo bloquea los toques en pausa")
 	assert_true(get_tree().paused, "Árbol de escena queda pausado")
-
 	var prev_muted = AudioManager.is_muted
 	hud._on_pause_sound_pressed()
 	assert_equals(AudioManager.is_muted, not prev_muted, "BtnPauseSound alterna el mute en AudioManager")
-	assert_true(hud.btn_pause_sound.text.contains("SILENCIADO" if not prev_muted else "ACTIVADO"), "Etiqueta de botón de pausa refleja estado de sonido")
+	assert_equals(hud.btn_pause_sound.tooltip_text, LocaleStrings.text("sound_off" if not prev_muted else "sound_on"), "El botón de sonido refleja su estado")
+	assert_true((hud.btn_pause_sound.modulate.a < 1.0) == (not prev_muted), "El icono se atenúa cuando está silenciado")
 	hud._on_pause_sound_pressed()
 	assert_equals(AudioManager.is_muted, prev_muted, "BtnPauseSound restaura el estado original")
-
+	hud.btn_how_to_play.pressed.emit()
+	var help = hud.find_child("BtnConfirm", true, false)
+	assert_true(help != null, "Cómo jugar se consulta desde la pausa")
+	help.pressed.emit()
 	hud._on_resume_pressed()
 	get_tree().paused = false
 	hud.pause_panel.visible = false
 	hud.dim_overlay.visible = false
 
-	# 3. Modal de Victoria estándar y confeti (3 estrellas)
-	hud.deploy_victory_modal({"stars": 3, "gold_earned": 150, "is_continent_conquest": false})
-	assert_true(hud.victory_panel.visible, "VictoryPanel visible tras victoria")
-	assert_true(hud.dim_overlay.visible, "DimOverlay visible tras victoria")
-	assert_equals(hud.victory_title.text, "¡VICTORIA!", "Título de victoria estándar")
-	assert_true(hud.victory_reward_label.text.contains("150"), "Recompensa de oro mostrada correctamente (+150)")
-	assert_equals(hud.confetti_pieces.size(), 75, "Sistema de confeti genera 75 partículas festivas")
+	# 3. Victoria: estrellas, tiempo, oro y ciudades nuevas
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 150, "time": 41.2, "new_cities": 2, "is_continent_conquest": false})
+	assert_true(hud.victory_panel.visible and hud.dim_overlay.visible, "Victoria visible tras ganar")
+	assert_equals(hud.victory_title.text, LocaleStrings.text("victory"), "Título de victoria estándar")
+	assert_equals(hud.victory_reward_label.text, "+150", "Recompensa de oro mostrada")
+	assert_equals(hud.stat_time_value.text, "42s", "Tiempo de la batalla mostrado")
+	assert_equals(hud.stat_cities_value.text, "+2", "Ciudades nuevas del atlas mostradas")
+	assert_equals(hud.confetti_pieces.size(), 75, "Celebración breve con confeti")
 	hud._update_confetti(0.1)
 	assert_true(hud.confetti_pieces.size() > 0, "Partículas de confeti se procesan sin error")
-
-	# Victoria parcial de 1 estrella (validar estrellas rellenas y vacías)
-	hud.deploy_victory_modal({"stars": 1, "gold_earned": 50, "is_continent_conquest": false})
-	assert_equals(hud.star_1.text, "⭐", "Primera estrella otorgada")
-	assert_equals(hud.star_2.text, "★", "Segunda estrella apagada")
-	assert_equals(hud.star_3.text, "★", "Tercera estrella apagada")
-
-	# 4. Modal de Conquista Continental
+	hud.deploy_victory_modal({"stars": 1, "gold_earned": 50})
+	assert_equals([hud.star_1.text, hud.star_2.text, hud.star_3.text], ["★", "☆", "☆"], "Una estrella ganada y dos pendientes")
 	hud.deploy_victory_modal({"stars": 3, "gold_earned": 300, "is_continent_conquest": true})
-	assert_equals(hud.victory_title.text, "¡CONTINENTE CONQUISTADO!", "Título de victoria continental aplicado")
+	assert_equals(hud.victory_title.text, LocaleStrings.text("continent_conquest"), "Título de victoria continental aplicado")
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 150, "is_daily_challenge": true, "level_id": DailyRewards.challenge_id(1)})
+	assert_true(hud.btn_share.visible and not hud.btn_next_level.visible, "El desafío diario ofrece compartir en vez de siguiente nivel")
+	assert_equals(hud.btn_victory_map.text, LocaleStrings.text("to_challenges"), "El desafío diario vuelve a Retos")
 
-	# 5. Modal de Derrota
+	# 4. Derrota: reintentar es la acción principal
 	hud.victory_panel.visible = false
 	hud._on_battle_lost()
-	assert_true(hud.defeat_panel.visible, "DefeatPanel visible tras derrota")
-	assert_true(hud.dim_overlay.visible, "DimOverlay visible tras derrota")
+	assert_true(hud.defeat_panel.visible and hud.dim_overlay.visible, "Derrota visible")
+	assert_equals(hud.btn_retry.theme_type_variation, &"PrimaryButton", "Reintentar es la acción destacada")
+
+	# 5. Salir devuelve a la sección de la que viene cada modo
+	var exit_battle := BattleController.new()
+	hud.battle_controller = exit_battle
+	exit_battle.level_id = DailyRewards.challenge_id(1)
+	assert_equals(hud.exit_tab(), "challenges", "El desafío diario vuelve a Retos")
+	exit_battle.level_id = "europe_2"
+	assert_equals(hud.exit_tab(), "play", "La campaña vuelve a Jugar")
+	hud.battle_controller = null
+	exit_battle.free()
 
 	get_tree().paused = false
 	Engine.time_scale = 1.0
 	remove_child(hud)
 	hud.free()
 
-func test_cartographic_background_and_theme_helper() -> void:
-	print("\n-> Test: CartographicBackground State.io y UIThemeHelper Estilo 2.5D")
+func test_theme_and_ui_helpers() -> void:
+	print("\n-> Test: Tema Visual Global, Iconos y Piezas de Interfaz")
+	var theme := ThemeDB.get_default_theme()
+	for v in ["PrimaryButton", "GoldButton", "GhostButton", "IconButton", "NavButton", "SegmentButton", "RowButton"]:
+		assert_equals(theme.get_type_variation_base(v), &"Button", "Variación de botón %s instalada" % v)
+	for v in ["Sheet", "Chip", "NavBar", "Tile"]:
+		assert_equals(theme.get_type_variation_base(v), &"PanelContainer", "Variación de panel %s instalada" % v)
+	for v in ["Display", "Title", "Heading", "Caption"]:
+		assert_equals(theme.get_type_variation_base(v), &"Label", "Variación de texto %s instalada" % v)
+	for type in ["Button", "PrimaryButton", "GoldButton"]:
+		var ink: float = theme.get_color("font_color", type).srgb_to_linear().get_luminance()
+		var background: float = (theme.get_stylebox("normal", type) as StyleBoxFlat).bg_color.srgb_to_linear().get_luminance()
+		assert_true((maxf(ink, background) + 0.05) / (minf(ink, background) + 0.05) >= 4.5, "El texto de %s tiene contraste accesible" % type)
 
-	# 1. Probar CartographicBackground
-	var bg = CartographicBackground.new()
-	assert_equals(bg.grid_spacing, 75.0, "grid_spacing por defecto es 75.0")
-	assert_equals(bg.mouse_filter, Control.MOUSE_FILTER_IGNORE, "Fondo ignora eventos de ratón (MOUSE_FILTER_IGNORE)")
-
-	bg.show_ambient_nodes = false
-	bg._process(0.5)
-	assert_equals(bg.ambient_nodes.size(), 0, "Sin ambient nodes cuando show_ambient_nodes está desactivado")
-
-	bg.show_ambient_nodes = true
-	bg._setup_ambient_nodes()
-	assert_equals(bg.ambient_nodes.size(), 8, "_setup_ambient_nodes inicializa 8 nodos tácticos")
-	var n0 = bg.ambient_nodes[0]
-	assert_true(n0.radius >= 22.0 and n0.radius <= 32.0, "Radio de nodo ambiental dentro del rango esperado")
-
-	# Generación y poda de tropas ambientales: agrupar todos los nodos para asegurar distancia < 420
-	for i in range(bg.ambient_nodes.size()):
-		bg.ambient_nodes[i].pos = Vector2(200.0 + float(i) * 20.0, 200.0 + float(i) * 20.0)
-	var spawned = false
-	for _attempt in range(10):
-		bg.spawn_timer = 2.0
-		bg._process(0.05)
-		if bg.ambient_troops.size() > 0:
-			spawned = true
-			break
-	assert_true(spawned, "Tropa ambiental generada entre nodos cercanos")
-	if bg.ambient_troops.size() > 0:
-		var tr = bg.ambient_troops[0]
-		assert_true(tr.progress >= 0.0, "Tropa ambiental inicializada con progreso")
-		tr.progress = 1.0
-		bg._process(0.01)
-		assert_true(not bg.ambient_troops.has(tr), "Tropas ambientales que completan marcha son podadas limpiamente")
-	bg.free()
-
-	# Prueba de robustez con grid_spacing no positivo
-	var bg_invalid = CartographicBackground.new()
-	bg_invalid.grid_spacing = -10.0
-	add_child(bg_invalid)
-	bg_invalid.queue_redraw()
-	assert_true(bg_invalid.grid_spacing < 0.0, "CartographicBackground acepta asignación de grid_spacing negativo de forma segura")
-	remove_child(bg_invalid)
-	bg_invalid.free()
-
-	# 2. Probar UIThemeHelper - Botones táctiles 2.5D
-	var btn = Button.new()
-	UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_PRIMARY, 18, 5)
-	# Aplicar segunda vez para probar idempotencia
-	UIThemeHelper.apply_stateio_button_style(btn, UIThemeHelper.COLOR_PRIMARY, 18, 5)
-	assert_true(btn.has_meta("_bounce_setup"), "Configuración de bounce es idempotente sin duplicar señales")
-	assert_true(btn.has_theme_stylebox_override("normal"), "Estilo 'normal' aplicado al botón")
-	assert_true(btn.has_theme_stylebox_override("hover"), "Estilo 'hover' aplicado al botón")
-	assert_true(btn.has_theme_stylebox_override("pressed"), "Estilo 'pressed' aplicado al botón")
-	assert_true(btn.has_theme_stylebox_override("disabled"), "Estilo 'disabled' aplicado al botón")
-	assert_true(btn.has_theme_stylebox_override("focus"), "Estilo 'focus' aplicado al botón")
-	var sb_norm = btn.get_theme_stylebox("normal") as StyleBoxFlat
-	assert_equals(sb_norm.border_width_bottom, 5, "Profundidad 2.5D de borde inferior igual a 5")
-	assert_equals(sb_norm.corner_radius_top_left, 18, "Radio de esquina del botón igual a 18")
-	var ink: float = btn.get_theme_color("font_color").srgb_to_linear().get_luminance()
-	var background: float = sb_norm.bg_color.srgb_to_linear().get_luminance()
-	assert_true((maxf(ink, background) + 0.05) / (minf(ink, background) + 0.05) >= 4.5, "El texto del botón tiene contraste accesible")
+	# Feedback táctil automático y sin duplicar señales
+	var btn := Button.new()
+	add_child(btn)
+	UIThemeHelper.setup_press_feedback(btn)
+	assert_true(btn.has_meta("_press_feedback"), "Todo botón recibe feedback al pulsarlo")
+	assert_equals(btn.get_signal_connection_list("button_down").size(), 1, "El feedback no se duplica")
+	remove_child(btn)
 	btn.free()
 
-	# 3. Probar UIThemeHelper - Tarjetas y Píldoras
-	var panel = PanelContainer.new()
-	UIThemeHelper.apply_card_style(panel, UIThemeHelper.COLOR_CARD, UIThemeHelper.COLOR_CARD_BORDER, 20, 2)
-	assert_true(panel.has_theme_stylebox_override("panel"), "Estilo 'panel' aplicado a PanelContainer")
-	var sb_card = panel.get_theme_stylebox("panel") as StyleBoxFlat
-	assert_equals(sb_card.corner_radius_top_left, 20, "Radio de esquina de tarjeta igual a 20")
-	assert_equals(sb_card.bg_color, UIThemeHelper.COLOR_CARD, "Color de fondo de tarjeta aplicado correctamente")
-	panel.free()
+	# Iconos SVG: todos se generan, se cachean y la moneda conserva su color en botones
+	var broken := Icons.SVG.keys().filter(func(n): return Icons.texture(n, 48).get_height() != 48)
+	assert_true(broken.is_empty(), "Todos los iconos se generan a su tamaño %s" % str(broken))
+	assert_true(Icons.texture("coin", 48) == Icons.texture("coin", 48), "Los iconos se cachean")
+	var gold := UIThemeHelper.button("10", "GoldButton", "coin")
+	assert_equals(gold.get_theme_color("icon_normal_color"), Color.WHITE, "La moneda no se tiñe con el color del texto")
+	gold.free()
+	var stars := UIThemeHelper.stars_label(2)
+	assert_equals(stars.text, "★★☆", "Valoración de estrellas con glifos de la fuente")
+	stars.free()
 
-	var pill = PanelContainer.new()
-	UIThemeHelper.apply_pill_style(pill, UIThemeHelper.COLOR_HEADER_PILL, Color.WHITE, 22)
-	assert_true(pill.has_theme_stylebox_override("panel"), "Estilo de píldora aplicado")
-	var sb_pill = pill.get_theme_stylebox("panel") as StyleBoxFlat
-	assert_equals(sb_pill.corner_radius_top_left, 22, "Radio de píldora igual a 22")
-	pill.free()
-
-	# 4. Probar animaciones de modal y cancelación segura de tween previo
+	# Capas modales: animación y tarjeta de ayuda que se cierra sola
 	var ctrl = Control.new()
 	add_child(ctrl)
 	UIThemeHelper.animate_modal_pop_in(ctrl)
@@ -2275,6 +2119,12 @@ func test_cartographic_background_and_theme_helper() -> void:
 	assert_true(ctrl.visible, "animate_modal_pop_in cancela pop_out previo y conserva visibilidad")
 	remove_child(ctrl)
 	ctrl.free()
+	var help := UIThemeHelper.how_to_play_card()
+	add_child(help)
+	help.find_child("BtnConfirm", true, false).pressed.emit()
+	assert_true(help.is_queued_for_deletion(), "La tarjeta Cómo jugar se cierra con su botón")
+	remove_child(help)
+	help.free()
 
 func test_crossing_streams_low_fps_and_huge_streams() -> void:
 	print("\n-> Test: Cruce de Hileras Independiente de FPS y Hileras Masivas Agrupadas")
@@ -2460,6 +2310,19 @@ func test_tutorial_steps_and_tips() -> void:
 	field.free()
 	get_tree().paused = false
 	Engine.time_scale = 1.0
+
+	# Un gesto que sólo caduca, sin que el jugador lo haga, se volverá a enseñar
+	GameManager.reset_save()
+	GameManager.current_level_id = "europe_2"
+	var field2 = load("res://scenes/battle/battle_field.tscn").instantiate()
+	add_child(field2)
+	assert_equals(field2._tutorial._current, "chain", "europe_2 enseña a encadenar bases")
+	field2._tutorial._complete_current(false)
+	assert_true(not GameManager.has_seen_tip("chain"), "Un paso caducado no se marca como aprendido")
+	remove_child(field2)
+	field2.free()
+	get_tree().paused = false
+	Engine.time_scale = 1.0
 	GameManager.reset_save()
 
 func test_real_geography_and_bigger_levels() -> void:
@@ -2538,8 +2401,8 @@ func test_real_geography_and_bigger_levels() -> void:
 		n.free()
 	map.free()
 
-	# 6. Mapa del mundo: cada nivel sobre su región real, sin nodos solapados
-	var layout = load("res://scripts/ui/world_map.gd")._build_continent_layout("europe")
+	# 6. Mapa de Jugar: cada nivel sobre su región real, sin nodos solapados
+	var layout = load("res://scripts/ui/play_tab.gd")._build_continent_layout("europe")
 	var pts: PackedVector2Array = layout["nodes"]
 	assert_equals(pts.size(), 5, "El mapa del mundo sitúa los 5 niveles del continente")
 	var min_sep = INF
@@ -2696,39 +2559,36 @@ func test_achievements_system() -> void:
 	assert_equals(GameManager.get_stat("victories"), 0, "Una estadística negativa se corrige a 0")
 	assert_equals(int(GameManager.daily["last_claim_day"]), -1, "Datos diarios corruptos vuelven a los valores por defecto")
 
-	# 8. Pantalla de logros: reclamar desde la tarjeta
+	# 8. Progreso: reclamar desde la tarjeta del logro
 	GameManager.reset_save()
 	GameManager.unlock_achievement("first_victory")
-	var menu: AchievementsMenuUI = load("res://scenes/ui/achievements_menu.tscn").instantiate()
-	add_child(menu)
-	assert_equals(menu.cards_container.get_child_count(), AchievementDatabase.get_all().size(), "Hay una tarjeta por logro")
-	var first_card = menu.cards_container.get_child(0)
+	var progress = load("res://scripts/ui/progress_tab.gd").new()
+	add_child(progress)
+	assert_equals(progress.achievements_box.get_child_count(), AchievementDatabase.get_all().size(), "Hay una tarjeta por logro")
+	var first_card = progress.achievements_box.get_child(0)
 	assert_equals(first_card.name, "Card_first_victory", "Los logros por reclamar aparecen primero")
 	var btn = first_card.find_child("BtnClaim", true, false)
 	assert_true(btn != null, "La tarjeta pendiente tiene botón de reclamar")
 	var before = GameManager.coins
 	btn.pressed.emit()
-	assert_equals(GameManager.coins, before + reward, "Pulsar RECLAMAR suma el oro")
-	assert_true(menu.cards_container.find_child("BtnClaim", true, false) == null, "Tras reclamar ya no queda botón")
-	assert_true(menu.count_label.text.contains("1/%d" % AchievementDatabase.get_all().size()), "El contador muestra los logros conseguidos")
-	remove_child(menu)
-	menu.free()
+	assert_equals(GameManager.coins, before + reward, "Pulsar Reclamar suma el oro")
+	assert_true(progress.find_child("BtnClaim", true, false) == null, "Tras reclamar ya no queda botón")
+	assert_true(progress.achievements_count.text.contains("1/%d" % AchievementDatabase.get_all().size()), "El contador muestra los logros conseguidos")
+	remove_child(progress)
+	progress.free()
 
-	# 9. Menú principal: contador de pendientes y tarjeta de recompensa diaria
+	# 9. Retos: la recompensa diaria se recoge sin ventanas emergentes
 	GameManager.reset_save()
-	GameManager.unlock_achievement("blitz")
-	var main: MainMenuUI = load("res://scenes/ui/main_menu.tscn").instantiate()
-	add_child(main)
-	assert_true(main.btn_achievements.text.contains("(1)"), "El botón de logros indica las recompensas pendientes")
-	main._show_daily_reward_card()
-	assert_true(is_instance_valid(main._daily_card), "Se ofrece la recompensa diaria pendiente")
+	var challenges = load("res://scripts/ui/challenges_tab.gd").new()
+	add_child(challenges)
+	var claim = challenges.find_child("BtnClaimDaily", true, false)
+	assert_true(claim != null, "Se ofrece la recompensa diaria pendiente")
 	var coins_before = GameManager.coins
-	main._daily_card.find_child("BtnConfirm", true, false).pressed.emit()
-	assert_true(GameManager.coins > coins_before and not GameManager.get_daily_reward_state()["can_claim"], "Recoger desde la tarjeta cobra la recompensa del día")
-	main._show_daily_reward_card()
-	assert_true(not is_instance_valid(main._daily_card), "No se vuelve a ofrecer hasta mañana")
-	remove_child(main)
-	main.free()
+	claim.pressed.emit()
+	assert_true(GameManager.coins > coins_before and not GameManager.get_daily_reward_state()["can_claim"], "Recoger cobra la recompensa del día")
+	assert_true(challenges.find_child("BtnClaimDaily", true, false) == null, "No se vuelve a ofrecer hasta mañana")
+	remove_child(challenges)
+	challenges.free()
 
 	EventBus.achievement_unlocked.disconnect(on_unlock)
 	GameManager.reset_save()
@@ -2834,11 +2694,11 @@ func test_language_system() -> void:
 	print("\n-> Test: Traducciones ES/EN y Nombres Localizados")
 	GameManager.reset_save()
 	assert_equals(GameManager.language, "es", "Idioma por defecto español")
-	assert_equals(LocaleStrings.text("play"), "⚔️ ¡JUGAR!", "Clave del menú en español")
+	assert_equals(LocaleStrings.text("play"), "Jugar", "Clave del menú en español")
 	GameManager.set_language("en")
 	assert_equals(GameManager.language, "en", "Cambio a inglés")
-	assert_equals(LocaleStrings.text("play"), "⚔️ PLAY!", "Clave del menú en inglés")
-	assert_equals(GameManager.faction_name(GameManager.Faction.PLAYER), "Blue", "Facción en inglés")
+	assert_equals(LocaleStrings.text("play"), "Play", "Clave del menú en inglés")
+	assert_equals(GameManager.faction_name(GameManager.Faction.PLAYER), "You", "El jugador se nombra en segunda persona")
 	assert_equals(LevelDatabase.continent_name("europe"), "Europe", "Continente en inglés")
 	assert_true(str(LevelDatabase.get_level_data("europe_1")["name"]).begins_with("Level 1:"), "Nivel de campaña con nombre inglés")
 	GameManager.set_language("fr")
@@ -2881,13 +2741,12 @@ func test_conquest_mode() -> void:
 	assert_equals(GameManager.get_battle_level_id(), "europe_1", "Jugar campaña sale de la conquista")
 	assert_true(not GameManager.completed_levels.has("conquest_2"), "La conquista no toca las estrellas")
 	assert_equals(GameManager.get_next_level("conquest_3"), "", "La conquista no tiene siguiente de campaña")
-	# El menú principal ofrece conquista, atlas e idioma
-	var MainMenuScene = load("res://scenes/ui/main_menu.tscn")
-	var menu = MainMenuScene.instantiate()
-	add_child(menu)
-	assert_true(menu.btn_conquest != null and menu.btn_atlas != null and menu.btn_settings != null, "Conquista, atlas y ajustes existen")
-	remove_child(menu)
-	menu.free()
+	# Jugar ofrece conquista y desafío a un toque; los ajustes viven en la cabecera
+	var play = load("res://scripts/ui/play_tab.gd").new()
+	add_child(play)
+	assert_true(play.btn_conquest != null and play.btn_daily != null, "Conquista y desafío accesibles desde Jugar")
+	remove_child(play)
+	play.free()
 	# Victoria completa en una región: oro, avance y atlas sin tocar la campaña
 	GameManager.reset_save()
 	GameManager.play_conquest(0)
@@ -2896,10 +2755,15 @@ func test_conquest_mode() -> void:
 	for b in cbattle.bases:
 		b.faction = GameManager.Faction.PLAYER
 	var cities_before = GameManager.atlas_conquered_count()
+	var won: Array[Dictionary] = []
+	var on_won = func(s): won.append(s)
+	EventBus.battle_won.connect(on_won)
 	cbattle._trigger_victory()
+	EventBus.battle_won.disconnect(on_won)
 	assert_true(cbattle.is_game_over, "La conquista termina en victoria")
 	assert_equals(GameManager.conquest_next, 1, "La victoria avanza a la siguiente región")
 	assert_true(GameManager.atlas_conquered_count() > cities_before, "La victoria registra ciudades en el atlas")
+	assert_equals(won[0]["new_cities"], GameManager.atlas_conquered_count() - cities_before, "La victoria informa de las ciudades nuevas")
 	assert_true(GameManager.completed_levels.is_empty(), "La campaña sigue intacta")
 	cbattle.free()
 	# El modal celebra la región y ofrece seguir la cadena
@@ -2908,7 +2772,7 @@ func test_conquest_mode() -> void:
 	add_child(hud)
 	hud.deploy_victory_modal({"stars": 2, "gold_earned": 120, "is_conquest": true})
 	assert_equals(hud.victory_title.text, LocaleStrings.text("conquest_done"), "Título de conquista libre")
-	assert_true(hud.btn_next_level.visible, "La conquista ofrece seguir avanzando")
+	assert_true(hud.btn_next_level.visible and hud.btn_next_level.text == LocaleStrings.text("next_region"), "La conquista ofrece seguir con la siguiente región")
 	remove_child(hud)
 	hud.free()
 	GameManager.reset_save()
@@ -2931,16 +2795,19 @@ func test_atlas_and_first_levels() -> void:
 	GameManager.conquered_cities.clear()
 	GameManager.load_game()
 	assert_true(GameManager.conquered_cities.has("madrid"), "El atlas persiste entre sesiones")
-	# La pantalla del atlas muestra el progreso y la ciudad
-	var AtlasScene = load("res://scenes/ui/atlas_menu.tscn")
-	var atlas = AtlasScene.instantiate()
-	add_child(atlas)
-	var texts = atlas.find_children("*", "Label", true, false).map(func(l): return l.text)
-	assert_true(texts.any(func(t): return t.contains("ATLAS")), "Título del atlas visible")
-	assert_true(texts.any(func(t): return t.contains("Madrid")), "Madrid aparece como conquistada")
-	assert_true(texts.any(func(t): return t.contains("/") and t.contains(str(GameManager.atlas_total_count()))), "Contador de progreso x/total")
-	remove_child(atlas)
-	atlas.free()
+	# Progreso muestra el atlas: contador, ciudad conquistada y reparto por continente
+	var progress = load("res://scripts/ui/progress_tab.gd").new()
+	add_child(progress)
+	var texts = progress.find_children("*", "Label", true, false).map(func(l): return l.text)
+	assert_true(texts.has(LocaleStrings.text("atlas")), "Título del atlas visible")
+	assert_true(texts.any(func(t): return t.contains("Madrid")), "Madrid aparece entre las últimas conquistas")
+	assert_equals(progress.find_child("Stat_stat_cities", true, false).text, "1/%d" % GameManager.atlas_total_count(), "Contador de progreso x/total")
+	assert_true(texts.any(func(t): return t.begins_with(LevelDatabase.continent_name("europe")) and t.ends_with("1")), "Madrid cuenta para Europa")
+	remove_child(progress)
+	progress.free()
+	for sample in [["madrid", "europe"], ["cairo", "africa"], ["algiers", "africa"], ["tokyo", "asia"], ["tehran", "asia"],
+			["sydney", "oceania"], ["new_york", "north_america"], ["panama_city", "north_america"], ["sao_paulo", "south_america"]]:
+		assert_equals(GeoDatabase.continent_of(GeoDatabase.get_city(sample[0])["lonlat"]), sample[1], "%s pertenece a %s" % sample)
 	# europe_1 casi imposible de perder: jugador fuerte y un solo rival débil
 	var def1 = LevelDatabase.get_level_definition("europe_1")
 	var rivals1 = def1["bases"].filter(func(b): return b["faction"] != GameManager.Faction.PLAYER and b["faction"] != GameManager.Faction.NEUTRAL)
@@ -3032,9 +2899,20 @@ func test_daily_missions_xp_and_share() -> void:
 	GameManager.load_game()
 	assert_equals(GameManager.daily_best["stars"], 3, "Récord diario persiste")
 	GameManager.reset_save()
-	var panel = load("res://scripts/ui/missions_panel.gd").new()
+	var panel = load("res://scripts/ui/challenges_tab.gd").new()
 	add_child(panel)
-	assert_equals(panel.find_children("Claim_*", "Button", true, false).size(), 3, "Panel ofrece tres recompensas")
+	assert_equals(panel.find_children("Claim_*", "Button", true, false).size(), 0, "Sin misiones completas no hay nada que reclamar")
+	remove_child(panel)
+	panel.free()
+	var first: Dictionary = DailyMissions.for_day(DailyRewards.today())[0]
+	GameManager.advance_mission(first["id"], int(first["goal"]))
+	assert_equals(GameManager.claimable_mission_count(), 1, "Una misión completa queda pendiente de cobro")
+	panel = load("res://scripts/ui/challenges_tab.gd").new()
+	add_child(panel)
+	var claims: Array = panel.find_children("Claim_*", "Button", true, false)
+	assert_equals(claims.size(), 1, "Retos ofrece reclamar la misión completada")
+	claims[0].pressed.emit()
+	assert_equals(GameManager.claimable_mission_count(), 0, "Reclamar desde Retos cobra la misión")
 	remove_child(panel)
 	panel.free()
 	GameManager.reset_save()
@@ -3203,10 +3081,13 @@ func test_review_regressions() -> void:
 	battle.target_time = 60.0
 	battle.battle_time = 12.0
 	hud._update_target_time()
-	assert_equals(hud.label_target_time.text, "⭐ 48s", "El HUD utiliza el objetivo de la batalla sin duplicarlo")
+	assert_equals(hud.label_target_time.text, "★★★ 48s", "El HUD utiliza el objetivo de la batalla sin duplicarlo")
 	battle.battle_time = 65.0
 	hud._update_target_time()
-	assert_equals(hud.label_target_time.text, "⭐ +5s", "El HUD indica cuándo se supera el objetivo")
+	assert_equals(hud.label_target_time.text, "★★ 25s", "Pasado el objetivo, el reloj pasa a defender la segunda estrella")
+	battle.battle_time = 95.0
+	hud._update_target_time()
+	assert_equals(hud.label_target_time.text, "★", "Tras 1,5 veces el objetivo sólo queda la estrella de victoria")
 	remove_child(hud)
 	hud.free()
 	battle.free()

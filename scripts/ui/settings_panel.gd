@@ -1,8 +1,11 @@
 extends Control
 
+## Ajustes agrupados por tema: juego, sonido, accesibilidad y datos.
+
 signal closed()
 var allow_backups: bool = true
 var _content: VBoxContainer
+var _group: VBoxContainer
 var _status: Label
 
 func _ready() -> void:
@@ -15,94 +18,86 @@ func _notification(what: int) -> void:
 func _close() -> void:
 	if is_queued_for_deletion():
 		return
+	AudioManager.play_click()
 	closed.emit()
 	queue_free()
 
 func _build() -> void:
-	for child in get_children():
-		remove_child(child)
-		child.queue_free()
+	UIThemeHelper.clear(self)
 	_content = UIThemeHelper.overlay_page(self, LocaleStrings.text("settings"), _close)
+
+	_section("section_game")
 	_label(LocaleStrings.text("language"))
-	var languages := OptionButton.new()
-	languages.add_item("Español")
-	languages.add_item("English")
-	languages.selected = 1 if GameManager.language == "en" else 0
-	languages.custom_minimum_size.y = 80
-	languages.add_theme_font_size_override("font_size", 30)
-	languages.item_selected.connect(func(index):
+	_group.add_child(_options(["Español", "English"], 1 if GameManager.language == "en" else 0, func(index):
 		GameManager.set_language("en" if index == 1 else "es")
-		_build())
-	_content.add_child(languages)
+		_build()))
+	_label(LocaleStrings.text("speed"))
+	var speeds: Array = GameManager.GAME_SPEEDS.map(func(value): return "×" + String.num(value))
+	_group.add_child(_options(speeds, GameManager.GAME_SPEEDS.find(float(GameManager.settings["speed"])), func(index):
+		GameManager.set_setting("speed", GameManager.GAME_SPEEDS[index])))
+	_button("how_to_play", func(): add_child(UIThemeHelper.how_to_play_card()), "help")
+
+	_section("section_sound")
 	_toggle("sound_enabled", not AudioManager.is_muted, func(value): AudioManager.set_muted(not value))
 	_toggle("music_enabled", not AudioManager.music_muted, func(value): AudioManager.set_music_muted(not value))
 	for key in ["volume", "music_volume"]:
 		_slider(key)
+
+	_section("section_access")
 	for key in ["vibration", "colorblind"]:
 		_toggle(key, GameManager.settings[key], func(value): GameManager.set_setting(key, value))
-	_label(LocaleStrings.text("speed"))
-	var speed := OptionButton.new()
-	for value in GameManager.GAME_SPEEDS:
-		speed.add_item("×%.2f" % value)
-	speed.selected = GameManager.GAME_SPEEDS.find(float(GameManager.settings["speed"]))
-	speed.custom_minimum_size.y = 80
-	speed.add_theme_font_size_override("font_size", 30)
-	speed.item_selected.connect(func(index): GameManager.set_setting("speed", GameManager.GAME_SPEEDS[index]))
-	_content.add_child(speed)
+
 	if allow_backups:
-		_button("backup_export", _choose_file.bind(false))
-		_button("backup_import", _choose_file.bind(true))
-		_button("reset", _confirm_reset)
-	_status = _label("")
-	_label(LocaleStrings.text("platform_pending"))
+		_section("section_data")
+		_button("backup_export", _choose_file.bind(false), "share")
+		_button("backup_import", _choose_file.bind(true), "retry")
+		_button("reset", _confirm_reset, "close")
+		_status = UIThemeHelper.paragraph("")
+		_group.add_child(_status)
+	_content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("platform_pending")))
 
-func _label(text: String) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.add_theme_font_size_override("font_size", 28)
-	_content.add_child(label)
-	return label
+func _section(key: String) -> void:
+	_content.add_child(UIThemeHelper.label(LocaleStrings.text(key), "Caption"))
+	_group = UIThemeHelper.card(_content, "", 12)
 
-func _button(key: String, callback: Callable) -> void:
-	var button := Button.new()
-	button.text = LocaleStrings.text(key)
-	button.custom_minimum_size.y = 80
-	button.add_theme_font_size_override("font_size", 28)
-	UIThemeHelper.apply_stateio_button_style(button, UIThemeHelper.COLOR_BTN_SECONDARY)
+func _label(text: String) -> void:
+	_group.add_child(UIThemeHelper.label(text, "Caption"))
+
+func _options(items: Array, selected: int, on_select: Callable) -> OptionButton:
+	var options := OptionButton.new()
+	for item in items:
+		options.add_item(item)
+	options.selected = selected
+	options.item_selected.connect(on_select)
+	return options
+
+func _button(key: String, callback: Callable, icon: String = "") -> void:
+	var button := UIThemeHelper.button(LocaleStrings.text(key), "", icon)
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.pressed.connect(callback)
-	_content.add_child(button)
+	_group.add_child(button)
 
 func _toggle(key: String, value: bool, callback: Callable) -> void:
 	var check := CheckButton.new()
 	check.text = LocaleStrings.text(key)
 	check.button_pressed = value
-	check.custom_minimum_size.y = 80
-	check.add_theme_font_size_override("font_size", 28)
-	# Iconos nativos escalados para el lienzo vertical 1080p; fila completa táctil.
-	for icon in ["checked", "unchecked"]:
-		var image := check.get_theme_icon(icon, "CheckButton").get_image()
-		image.resize(64, 32, Image.INTERPOLATE_LANCZOS)
-		check.add_theme_icon_override(icon, ImageTexture.create_from_image(image))
 	check.toggled.connect(callback)
-	_content.add_child(check)
+	_group.add_child(check)
 
 func _slider(key: String) -> void:
-	var label := _label("%s · %d%%" % [LocaleStrings.text(key), roundi(float(GameManager.settings[key]) * 100)])
+	var label := UIThemeHelper.label("", "Caption")
+	var update := func(value: float): label.text = "%s · %d%%" % [LocaleStrings.text(key), roundi(value * 100)]
+	update.call(float(GameManager.settings[key]))
+	_group.add_child(label)
 	var slider := HSlider.new()
-	slider.min_value = 0
 	slider.max_value = 1
 	slider.step = 0.05
 	slider.value = GameManager.settings[key]
-	slider.custom_minimum_size.y = 60
-	for icon in ["grabber", "grabber_highlight"]:
-		var image := slider.get_theme_icon(icon).get_image()
-		image.resize(36, 36, Image.INTERPOLATE_LANCZOS)
-		slider.add_theme_icon_override(icon, ImageTexture.create_from_image(image))
+	slider.custom_minimum_size.y = 56
 	slider.value_changed.connect(func(value):
 		GameManager.set_setting(key, value)
-		label.text = "%s · %d%%" % [LocaleStrings.text(key), roundi(value * 100)])
-	_content.add_child(slider)
+		update.call(value))
+	_group.add_child(slider)
 
 func _choose_file(importing: bool) -> void:
 	var dialog := FileDialog.new()

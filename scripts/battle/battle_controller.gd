@@ -575,11 +575,13 @@ func _trigger_victory() -> void:
 		stars = 2
 
 	var player_bases_count = 0
+	var new_cities := 0
 	for b in bases:
 		if b.faction == GameManager.Faction.PLAYER:
 			player_bases_count += 1
 			# Atlas: ciudades en manos del jugador al ganar, en cualquier modo.
-			GameManager.conquer_city(b.city_key)
+			if GameManager.conquer_city(b.city_key):
+				new_cities += 1
 
 	var is_challenge = DailyRewards.is_challenge(level_id)
 	var is_conquest = LevelGenerator.is_conquest(level_id)
@@ -616,6 +618,7 @@ func _trigger_victory() -> void:
 		"speed": _max_speed,
 		"gold_earned": total_gold,
 		"bases_conquered": player_bases_count,
+		"new_cities": new_cities,
 		"is_continent_conquest": is_continent_conquest,
 		"is_replay": is_replay,
 		"is_daily_challenge": is_challenge,
@@ -782,7 +785,8 @@ func _draw_arrow(canvas: CanvasItem, start_pt: Vector2, end_pt: Vector2, player_
 		canvas.draw_colored_polygon(PackedVector2Array([end_pt, p_wing1, p_notch, p_wing2]), Color(player_color, 0.98))
 		canvas.draw_colored_polygon(PackedVector2Array([end_pt, p_wing1, p_notch]), Color(1.0, 1.0, 1.0, 0.3))
 
-## Anillo sobre el objetivo que anticipa el resultado: verde si conquistas, rojo si no alcanza
+## Anillo sobre el objetivo que anticipa el resultado si las fuerzas no cambian por el camino:
+## verde si conquistas, rojo con las tropas que faltan, gris si no hay ruta
 func _draw_target_preview(canvas: CanvasItem, target: BaseNode) -> void:
 	var h_pos = canvas.to_local(target.global_position)
 	var ring_r = (target.radius + 16.0) * (1.0 + sin(marching_dots_phase * TAU * 2.0) * 0.04)
@@ -791,7 +795,7 @@ func _draw_target_preview(canvas: CanvasItem, target: BaseNode) -> void:
 	var text: String
 	if not selected_sources.any(func(source): return can_dispatch(source, target)):
 		ring_color = UIThemeHelper.COLOR_NEUTRAL
-		text = "×"
+		text = LocaleStrings.text("no_route")
 	elif target.faction == GameManager.Faction.PLAYER:
 		ring_color = Color(0.55, 0.85, 1.0)
 		text = "+%d" % attack
@@ -799,15 +803,15 @@ func _draw_target_preview(canvas: CanvasItem, target: BaseNode) -> void:
 		# Misma regla que BaseNode.receive_troops: se conquista al superar la defensa (puede ser x.5)
 		var wins := attack > target.get_defense_power()
 		var margin := attack - target.get_effective_defense()
-		ring_color = Color(0.3, 0.95, 0.45) if wins else Color(1.0, 0.3, 0.25)
-		text = ("+%d" % maxi(1, margin)) if wins else ("%d" % margin)
+		ring_color = UIThemeHelper.COLOR_SUCCESS if wins else UIThemeHelper.COLOR_DANGER
+		text = ("+%d" % maxi(1, margin)) if wins else LocaleStrings.text("troops_missing") % maxi(1, -margin)
 	canvas.draw_circle(h_pos, ring_r, Color(ring_color, 0.10))
 	canvas.draw_arc(h_pos, ring_r, 0, TAU, 48, Color(ring_color, 0.95), 4.0, true)
 
 	var font = ThemeDB.fallback_font
-	var text_pos = h_pos + Vector2(-80.0, -ring_r - 14.0)
-	canvas.draw_string_outline(font, text_pos, text, HORIZONTAL_ALIGNMENT_CENTER, 160.0, 34, 8, Color(0, 0, 0, 0.75))
-	canvas.draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_CENTER, 160.0, 34, ring_color)
+	var text_pos = h_pos + Vector2(-160.0, -ring_r - 16.0)
+	canvas.draw_string_outline(font, text_pos, text, HORIZONTAL_ALIGNMENT_CENTER, 320.0, 34, 8, Color(0, 0, 0, 0.75))
+	canvas.draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_CENTER, 320.0, 34, ring_color)
 
 func _draw_cartographic_grid() -> void:
 	if level_data.has("sea_lanes"):

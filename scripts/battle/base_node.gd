@@ -316,8 +316,8 @@ func _draw() -> void:
 	var color = GameManager.faction_color(faction)
 	var current_radius = radius * pulse_scale
 	if is_capital or is_boss:
-		var marker := "♛" if is_boss else "★"
-		draw_string(ThemeDB.fallback_font, Vector2(-20, -current_radius - 34), marker, HORIZONTAL_ALIGNMENT_CENTER, 40, 34, Color("ffe483"))
+		var marker := "👑" if is_boss else "★"
+		draw_string(ThemeDB.fallback_font, Vector2(-30, -current_radius - 30), marker, HORIZONTAL_ALIGNMENT_CENTER, 60, 34, UIThemeHelper.COLOR_GOLD)
 
 	# 1. Onda expansiva de impacto y conquista
 	if shockwave_alpha > 0.0:
@@ -328,15 +328,12 @@ func _draw() -> void:
 	# Aplicar transformación de sacudida y escala elástica
 	draw_set_transform(shake_offset, 0.0, elastic_scale)
 
-	# 2. Sombra 2.5D difusa multicapa (+Y hacia abajo)
-	draw_circle(Vector2(0, 14), current_radius + 12.0, Color(0, 0, 0, 0.05))
-	draw_circle(Vector2(0, 10), current_radius + 8.0, Color(0, 0, 0, 0.09))
-	draw_circle(Vector2(0, 7), current_radius + 4.0, Color(0, 0, 0, 0.15))
-	draw_circle(Vector2(0, 4), current_radius + 1.0, Color(0, 0, 0, 0.22))
+	# 2. Sombra suave (una sola capa)
+	draw_circle(Vector2(0, 6), current_radius + 5.0, Color(0, 0, 0, 0.22))
 
 	# 3. Anillo de selección exterior si está seleccionada
 	if is_selected:
-		draw_circle(Vector2.ZERO, current_radius + 14.0, Color(1, 1, 1, 0.25))
+		draw_circle(Vector2.ZERO, current_radius + 14.0, Color(1, 1, 1, 0.22))
 		draw_arc(Vector2.ZERO, current_radius + 11.0, 0, TAU, 48, Color.WHITE, 4.0, true)
 
 	# 4. Borde exterior y elementos tácticos distintivos según BaseType
@@ -356,7 +353,7 @@ func _draw() -> void:
 			draw_circle(t_pos, 4.8, Color(1.0, 0.8, 0.2, 0.95))
 			draw_circle(t_pos, 2.5, Color(0.25, 0.2, 0.1))
 	else:
-		_draw_frame_shape(current_radius)
+		draw_frame(self, Vector2.ZERO, current_radius, GameManager.base_shape())
 
 	# 5. Cuerpo principal con color de la facción
 	draw_circle(Vector2.ZERO, current_radius, color)
@@ -381,22 +378,13 @@ func _draw() -> void:
 	# 7. Símbolo de facción (accesibilidad para daltonismo: no depender sólo del color)
 	_draw_faction_symbol(Vector2(0, -current_radius * 0.62), 5.5)
 
-	# 8. Iluminación domo / reflejo redondeado 2.5D superior
-	draw_arc(Vector2(0, -current_radius * 0.12), current_radius * 0.72, PI * 1.15, PI * 1.85, 32, Color(1, 1, 1, 0.28), 3.5, true)
-
-	# 9. Anillo interior decorativo sutil
-	draw_arc(Vector2.ZERO, current_radius * 0.82, 0, TAU, 40, Color(1, 1, 1, 0.18), 1.8, true)
-
-	# 10. Indicadores de Tier (pips redondeados en la parte superior)
+	# 8. Indicadores de Tier (pips redondeados en la parte superior)
 	var pip_spacing = 16.0
 	var start_x = -((tier - 1) * pip_spacing) / 2.0
 	for i in tier:
-		var pip_pos = Vector2(start_x + i * pip_spacing, -current_radius - 12.0)
-		draw_circle(pip_pos + Vector2(0, 2), 4.5, Color(0, 0, 0, 0.35))
-		draw_circle(pip_pos, 4.5, Color.WHITE)
-		draw_circle(pip_pos, 3.0, Color(0.92, 0.92, 0.96))
+		draw_circle(Vector2(start_x + i * pip_spacing, -current_radius - 12.0), 4.5, Color.WHITE)
 
-	# 11. Alerta Visual de Asedio Inminente
+	# 9. Alerta Visual de Asedio Inminente
 	if is_under_siege:
 		_draw_siege_alert(current_radius)
 
@@ -414,20 +402,17 @@ func _draw_faction_symbol(center: Vector2, s: float) -> void:
 		GameManager.Faction.ENEMY_3:
 			draw_colored_polygon(PackedVector2Array([center + Vector2(0, -s), center + Vector2(s, 0), center + Vector2(0, s), center + Vector2(-s, 0)]), col)
 
-## Marco exterior de la base estándar según la forma equipada en la tienda
-func _draw_frame_shape(current_radius: float) -> void:
-	match GameManager.base_shape():
+## Marco exterior de la base estándar según la forma de la tienda (también en la vista previa de Ejército)
+static func draw_frame(canvas: CanvasItem, center: Vector2, r: float, shape: String) -> void:
+	match shape:
 		"base_square":
-			var half := current_radius + 4.5
-			var rect := Rect2(Vector2(-half, -half), Vector2(half, half) * 2.0)
-			draw_rect(rect.grow(3.0), Color(0, 0, 0, 0.25), true)
-			draw_rect(rect, Color.WHITE, true)
+			var half := r + 4.5
+			canvas.draw_rect(Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), Color.WHITE, true)
 		"base_diamond":
-			var r := current_radius + 6.0
-			var pts := PackedVector2Array([Vector2(0, -r), Vector2(r, 0), Vector2(0, r), Vector2(-r, 0)])
-			draw_colored_polygon(pts, Color.WHITE)
+			var d := r + 6.0
+			canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(0, -d), center + Vector2(d, 0), center + Vector2(0, d), center + Vector2(-d, 0)]), Color.WHITE)
 		_:
-			draw_circle(Vector2.ZERO, current_radius + 4.5, Color.WHITE)
+			canvas.draw_circle(center, r + 4.5, Color.WHITE)
 
 func _draw_siege_alert(current_radius: float) -> void:
 	var p = (sin(siege_pulse_time) + 1.0) * 0.5

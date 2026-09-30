@@ -1,169 +1,148 @@
 extends Control
 class_name MainMenuUI
 
-## MainMenuUI: Menú principal State.io con fondo táctico vivo,
-## botones 2.5D con animación elástica y estadísticas globales de campaña.
+## Pantalla principal: cabecera (oro y ajustes), la sección activa y la barra de navegación.
+## Las secciones se construyen al abrirlas; cambiar de sección no cambia de escena.
 
-const BATTLE_SCENE := "res://scenes/battle/battle_field.tscn"
+const SCENE := "res://scenes/ui/main_menu.tscn"
+## Una entrada por sección: añadir una nueva es añadir una línea y su script
+const TABS := {
+	"play": {"icon": "map", "title": "tab_play", "page": preload("res://scripts/ui/play_tab.gd")},
+	"challenges": {"icon": "target", "title": "tab_challenges", "page": preload("res://scripts/ui/challenges_tab.gd")},
+	"army": {"icon": "shield", "title": "tab_army", "page": preload("res://scripts/ui/army_tab.gd")},
+	"progress": {"icon": "trophy", "title": "tab_progress", "page": preload("res://scripts/ui/progress_tab.gd")},
+}
 
-@onready var btn_play: Button = %BtnPlay
-@onready var btn_world_map: Button = %BtnWorldMap
-@onready var btn_upgrades: Button = %BtnUpgrades
-@onready var btn_daily: Button = %BtnDaily
-@onready var btn_achievements: Button = %BtnAchievements
-@onready var btn_conquest: Button = %BtnConquest
-@onready var btn_atlas: Button = %BtnAtlas
-@onready var title_badge: Label = $HeaderBox/TitleBadge
-@onready var subtitle_label: Label = $HeaderBox/Subtitle
-@onready var coins_label: Label = %CoinsLabel
-@onready var stars_label: Label = %StarsLabel
-@onready var stars_pill: PanelContainer = %StarsPill
-@onready var coins_pill: PanelContainer = %CoinsPill
-@onready var btn_settings: Button = %BtnSettings
-@onready var btn_missions: Button = %BtnMissions
-@onready var xp_label: Label = %XPLabel
+## Sección con la que se abrirá el menú la próxima vez (p. ej. al salir de un desafío diario)
+static var next_tab := "play"
+## Tras una derrota, Ejército ofrece volver directamente a la misma batalla
+static var return_to_battle := false
 
-var _play_pulse_tween: Tween = null
-var _daily_card: Control = null
+var current_tab := ""
+var coins_label: Label
+var btn_settings: Button
+var _content: Control
+var _nav: Dictionary = {}
+var _badges: Dictionary = {}
 var _utility_panel: Control = null
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
-		if is_instance_valid(_utility_panel):
-			return # El panel maneja su propio botón atrás.
-		if is_instance_valid(_daily_card):
-			_on_daily_reward_claimed()
-		else:
-			get_tree().quit()
+	if what != NOTIFICATION_WM_GO_BACK_REQUEST or is_instance_valid(_utility_panel):
+		return # Los paneles superpuestos gestionan su propio botón atrás.
+	if current_tab != "play":
+		show_tab("play")
+	else:
+		get_tree().quit()
 
 func _ready() -> void:
-	_apply_visual_styling()
-	UIThemeHelper.apply_safe_area_top($TopBar)
-
 	# Primer arranque: directo a la batalla, sin menús ni tarjetas en medio.
 	# Sólo cuando el menú es la escena real (en tests se instancia como hijo).
 	if not GameManager.has_started and get_tree().current_scene == self:
 		GameManager.has_started = true
 		GameManager.save_game()
-		GameManager.play_level(GameManager.FIRST_LEVEL_ID)
-		UIThemeHelper.go_to.bind(self, BATTLE_SCENE).call_deferred()
+		UIThemeHelper.start_battle.bind(self, GameManager.FIRST_LEVEL_ID).call_deferred()
 		return
-
-	_apply_texts()
-	btn_play.pressed.connect(_on_play_pressed)
-	btn_world_map.pressed.connect(UIThemeHelper.go_to.bind(self, "res://scenes/ui/world_map.tscn"))
-	btn_upgrades.pressed.connect(UIThemeHelper.go_to.bind(self, "res://scenes/ui/upgrade_menu.tscn"))
-	btn_achievements.pressed.connect(UIThemeHelper.go_to.bind(self, "res://scenes/ui/achievements_menu.tscn"))
-	btn_conquest.pressed.connect(_on_conquest_pressed)
-	btn_atlas.pressed.connect(UIThemeHelper.go_to.bind(self, "res://scenes/ui/atlas_menu.tscn"))
-	btn_daily.pressed.connect(_on_daily_pressed)
-	btn_settings.pressed.connect(_open_settings)
-	btn_missions.pressed.connect(_open_missions)
-	EventBus.achievement_unlocked.connect(_update_secondary_buttons.unbind(1))
+	_build()
 	EventBus.coins_updated.connect(_update_coins)
-
+	# Reclamar cualquier recompensa mueve el oro, así que basta con escuchar estos avisos
+	EventBus.coins_updated.connect(_refresh_badges.unbind(1))
+	EventBus.achievement_unlocked.connect(_refresh_badges.unbind(1))
 	AudioManager.play_music("menu")
-	_update_coins(GameManager.coins)
-	_update_stars()
-	xp_label.text = UIThemeHelper.xp_text()
-	_start_play_pulse()
-
-	# Logros cumplidos con progreso anterior y recompensa diaria pendiente
 	AchievementManager.check_all()
-	_update_secondary_buttons()
-	_show_daily_reward_card.call_deferred()
+	_update_coins(GameManager.coins)
+	var tab := next_tab
+	next_tab = "play"
+	show_tab(tab)
 
-func _apply_texts() -> void:
-	title_badge.text = LocaleStrings.text("menu_badge")
-	subtitle_label.text = LocaleStrings.text("menu_subtitle")
-	btn_play.text = LocaleStrings.text("play")
-	btn_world_map.text = LocaleStrings.text("world_map")
-	btn_upgrades.text = LocaleStrings.text("upgrades")
-	btn_settings.text = "⚙"
-	btn_settings.tooltip_text = LocaleStrings.text("settings")
-	btn_missions.text = "☑ " + LocaleStrings.text("missions")
+func _build() -> void:
+	var background := ColorRect.new()
+	background.color = UIThemeHelper.COLOR_BG
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(background)
+	var column := UIThemeHelper.vbox(0)
+	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(column)
 
-func _apply_visual_styling() -> void:
-	UIThemeHelper.apply_stateio_button_style(btn_play, UIThemeHelper.COLOR_PRIMARY, 22, 7)
-	UIThemeHelper.apply_stateio_button_style(btn_world_map, Color("2574b2"), 18, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_upgrades, Color("167862"), 18, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_daily, Color("996300"), 18, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_achievements, Color("7953bb"), 18, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_conquest, Color("087d92"), 18, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_atlas, Color("446cc1"), 18, 5)
-	UIThemeHelper.apply_stateio_button_style(btn_settings, UIThemeHelper.COLOR_BTN_SECONDARY, 16, 4)
-	UIThemeHelper.apply_stateio_button_style(btn_missions, UIThemeHelper.COLOR_BTN_SECONDARY, 18, 4)
-	UIThemeHelper.apply_pill_style(stars_pill)
-	UIThemeHelper.apply_pill_style(coins_pill)
+	var bar := UIThemeHelper.hbox(16)
+	column.add_child(UIThemeHelper.page_margin(bar, 32 + UIThemeHelper.get_safe_area_top(self), 16))
+	var logo := UIThemeHelper.label("invade.io", "Title")
+	logo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	logo.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	bar.add_child(logo)
+	var coins := UIThemeHelper.chip("0", "coin")
+	coins.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	coins_label = coins.find_children("*", "Label", true, false)[0]
+	coins_label.theme_type_variation = "Heading"
+	bar.add_child(coins)
+	btn_settings = UIThemeHelper.icon_button("gear", LocaleStrings.text("settings"))
+	btn_settings.pressed.connect(_open_settings)
+	bar.add_child(btn_settings)
 
-## Respiración sutil del botón de asalto; se detiene mientras el botón rebota al tocarlo,
-## porque ambas animaciones mueven la misma escala
-func _start_play_pulse() -> void:
-	_play_pulse_tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_play_pulse_tween.tween_property(btn_play, "scale", Vector2(1.035, 1.035), 1.1)
-	_play_pulse_tween.tween_property(btn_play, "scale", Vector2.ONE, 1.1)
-	for sig in [btn_play.mouse_entered, btn_play.button_down]:
-		sig.connect(_play_pulse_tween.pause)
-	for sig in [btn_play.mouse_exited, btn_play.button_up]:
-		sig.connect(_play_pulse_tween.play)
+	_content = Control.new()
+	_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(_content)
+
+	var nav := PanelContainer.new()
+	nav.theme_type_variation = "NavBar"
+	column.add_child(nav)
+	var nav_margin := MarginContainer.new()
+	nav_margin.add_theme_constant_override("margin_bottom", UIThemeHelper.get_safe_area_bottom(self))
+	nav.add_child(nav_margin)
+	var items := UIThemeHelper.hbox(0)
+	nav_margin.add_child(items)
+	var group := ButtonGroup.new()
+	for id in TABS:
+		var btn := UIThemeHelper.button(LocaleStrings.text(TABS[id]["title"]), "NavButton")
+		btn.name = "Nav_" + id
+		btn.icon = Icons.texture(TABS[id]["icon"], 52)
+		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		btn.toggle_mode = true
+		btn.button_group = group
+		btn.custom_minimum_size.y = 132
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.pressed.connect(func():
+			AudioManager.play_click()
+			show_tab(id))
+		items.add_child(btn)
+		_nav[id] = btn
+		var badge := Panel.new()
+		badge.theme_type_variation = "Badge"
+		badge.size = Vector2(20, 20)
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		badge.visible = false
+		btn.add_child(badge)
+		_badges[id] = badge
+		btn.resized.connect(func(): badge.position = Vector2(btn.size.x * 0.5 + 18, 16))
+
+func show_tab(id: String) -> void:
+	if not TABS.has(id):
+		id = "play"
+	current_tab = id
+	_nav[id].set_pressed_no_signal(true)
+	UIThemeHelper.clear(_content)
+	var page: Control = TABS[id]["page"].new()
+	if id == "army" and return_to_battle:
+		page.return_to_battle = true
+		return_to_battle = false
+	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_content.add_child(page)
+	_refresh_badges()
+
+## Punto dorado sólo cuando hay algo que recoger
+func _refresh_badges() -> void:
+	_badges["challenges"].visible = GameManager.get_daily_reward_state()["can_claim"] or GameManager.claimable_mission_count() > 0
+	_badges["progress"].visible = GameManager.get_claimable_achievement_count() > 0
 
 func _update_coins(amount: int) -> void:
-	coins_label.text = UIThemeHelper.coins_text(amount)
-
-func _update_stars() -> void:
-	stars_label.text = UIThemeHelper.stars_text()
-
-func _on_play_pressed() -> void:
-	# Continuar con el nivel actual de la campaña
-	GameManager.play_level(GameManager.current_level_id)
-	UIThemeHelper.go_to(self, BATTLE_SCENE)
-
-## Muestra si el desafío de hoy ya está superado y cuántos logros esperan su recompensa
-func _update_secondary_buttons() -> void:
-	btn_daily.text = LocaleStrings.text("daily") + (" ✅" if GameManager.is_daily_challenge_done() else "")
-	var claimable := GameManager.get_claimable_achievement_count()
-	btn_achievements.text = LocaleStrings.text("achievements") + (" (%d)" % claimable if claimable > 0 else "")
-	btn_conquest.text = "%s #%d" % [LocaleStrings.text("conquest"), GameManager.conquest_next + 1]
-	var total := GameManager.atlas_total_count()
-	var pct := int(round(100.0 * GameManager.atlas_conquered_count() / float(maxi(1, total))))
-	btn_atlas.text = "%s · %d%%" % [LocaleStrings.text("atlas"), pct]
-
-func _on_conquest_pressed() -> void:
-	GameManager.play_conquest(GameManager.conquest_next)
-	UIThemeHelper.go_to(self, BATTLE_SCENE)
+	coins_label.text = str(amount)
 
 func _open_settings() -> void:
 	if is_instance_valid(_utility_panel):
 		return
+	AudioManager.play_click()
 	_utility_panel = load("res://scripts/ui/settings_panel.gd").new()
-	_utility_panel.closed.connect(func(): get_tree().reload_current_scene())
+	_utility_panel.closed.connect(func():
+		next_tab = current_tab
+		get_tree().reload_current_scene())
 	add_child(_utility_panel)
-
-func _open_missions() -> void:
-	if is_instance_valid(_utility_panel):
-		return
-	_utility_panel = load("res://scripts/ui/missions_panel.gd").new()
-	_utility_panel.tree_exited.connect(func():
-		if is_instance_valid(xp_label): xp_label.text = UIThemeHelper.xp_text())
-	add_child(_utility_panel)
-
-func _on_daily_pressed() -> void:
-	GameManager.play_level(DailyRewards.challenge_id(DailyRewards.today()))
-	UIThemeHelper.go_to(self, BATTLE_SCENE)
-
-func _show_daily_reward_card() -> void:
-	var state := GameManager.get_daily_reward_state()
-	if not state["can_claim"] or is_instance_valid(_daily_card):
-		return
-	var body := LocaleStrings.text("daily_body") % [
-		state["streak"], state["reward"], DailyRewards.STREAK_REWARDS[-1]]
-	_daily_card = UIThemeHelper.create_modal_card(LocaleStrings.text("daily_title"), body, LocaleStrings.text("daily_claim"), _on_daily_reward_claimed, true)
-	add_child(_daily_card)
-
-func _on_daily_reward_claimed() -> void:
-	if GameManager.claim_daily_reward() > 0:
-		AudioManager.play_star_reveal(2)
-		GameManager.haptic(30)
-	if is_instance_valid(_daily_card):
-		_daily_card.queue_free()
-	_daily_card = null

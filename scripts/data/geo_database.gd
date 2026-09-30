@@ -69,6 +69,22 @@ static func city_count() -> int:
 	_ensure_loaded()
 	return _cities_by_pop.size()
 
+## ponytail: cajas lon/lat aproximadas; bastan para agrupar el atlas (algún puerto del
+## Mediterráneo puede caer en el continente vecino). Guardar el continente en geo.json si hace falta exactitud.
+static func continent_of(lonlat: Vector2) -> String:
+	var lon := lonlat.x
+	var lat := lonlat.y
+	if lon < -25.0:
+		return "north_america" if lat > 7.5 else "south_america"
+	if lon > 165.0 or (lon > 110.0 and lat < -10.0):
+		return "oceania"
+	var maghreb := lat < 37.2 and lon > -1.5 and lon < 11.5
+	if (lat < 35.8 or maghreb) and lon < 60.0 and not (lon > 32.0 and lat > 12.0):
+		return "africa"
+	if lon < 50.0 and lat >= 35.8:
+		return "europe"
+	return "asia"
+
 ## Ciudades ordenadas de mayor a menor población
 static func get_cities() -> Array[Dictionary]:
 	_ensure_loaded()
