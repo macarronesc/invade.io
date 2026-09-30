@@ -5,6 +5,8 @@ class_name Icons
 ## `modulate` o con los colores de icono del tema; los de COLORED traen su propio color.
 
 const COLORED := ["coin", "star"]
+## Iconos con colores de la paleta activa (se generan de nuevo al cambiar de modo)
+const THEMED := ["toggle_on", "toggle_off"]
 
 const SVG := {
 	"play": '<path d="M8 5v14l11-7z" fill="#fff" stroke="none"/>',
@@ -32,8 +34,8 @@ const SVG := {
 	"share": '<path d="M12 15V4M8 7.5l4-4 4 4M5 12v7.5h14V12"/>',
 	"flag": '<path d="M5.5 21V4M5.5 4.5h12l-2.5 4 2.5 4h-12"/>',
 	"close": '<path d="M6 6l12 12M18 6L6 18" stroke-width="2.6"/>',
-	"toggle_on": '<rect x="1" y="5" width="22" height="14" rx="7" fill="#2F9BFF" stroke="none"/><circle cx="16" cy="12" r="5" fill="#fff" stroke="none"/>',
-	"toggle_off": '<rect x="1" y="5" width="22" height="14" rx="7" fill="#2A3A54" stroke="none"/><circle cx="8" cy="12" r="5" fill="#8FA3BD" stroke="none"/>',
+	"toggle_on": '<rect x="1" y="5" width="22" height="14" rx="7" fill="{primary}" stroke="none"/><circle cx="16" cy="12" r="5" fill="#fff" stroke="none"/>',
+	"toggle_off": '<rect x="1" y="5" width="22" height="14" rx="7" fill="{track}" stroke="none"/><circle cx="8" cy="12" r="5" fill="{muted}" stroke="none"/>',
 	"knob": '<circle cx="12" cy="12" r="10" fill="#fff" stroke="none"/>',
 	"chevron_down": '<path d="M6 9l6 6 6-6" stroke-width="2.6"/>',
 }
@@ -42,19 +44,25 @@ static var _cache: Dictionary = {}
 
 ## Textura del icono a `size` píxeles de alto (cacheada)
 static func texture(name: String, size: int = 48) -> Texture2D:
-	var key := "%s@%d" % [name, size]
+	var themed := name in THEMED
+	var key := "%s@%d@%s" % [name, size, UIThemeHelper.palette_name if themed else ""]
 	if not _cache.has(key):
-		var svg := '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">%s</svg>' % SVG[name]
+		var body: String = SVG[name]
+		if themed:
+			body = body.format({"primary": "#" + UIThemeHelper.colors.primary.to_html(false),
+				"track": "#" + UIThemeHelper.colors.line.to_html(false), "muted": "#" + UIThemeHelper.colors.muted.to_html(false)})
+		var svg := '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">%s</svg>' % body
 		var image := Image.new()
 		image.load_svg_from_string(svg, size / 24.0)
 		_cache[key] = ImageTexture.create_from_image(image)
 	return _cache[key]
 
 ## Icono listo para colocar en un contenedor
-static func rect(name: String, size: int = 48, color: Color = Color.WHITE) -> TextureRect:
+## Sin color explícito toma el del texto de la paleta activa
+static func rect(name: String, size: int = 48, color: Color = Color.TRANSPARENT) -> TextureRect:
 	var icon := TextureRect.new()
 	icon.texture = texture(name, size)
-	icon.modulate = Color.WHITE if name in COLORED else color
+	icon.modulate = Color.WHITE if name in COLORED else (UIThemeHelper.colors.text if color == Color.TRANSPARENT else color)
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 	icon.custom_minimum_size = Vector2(size, size)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE

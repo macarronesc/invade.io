@@ -16,7 +16,24 @@ func _ready() -> void:
 	print("  INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS: INVADE.IO  ")
 	print("=======================================================\n")
 
-	run_all_tests()
+	if "--quick" in OS.get_cmdline_user_args():
+		test_packets_and_battle_feedback()
+		test_progression_overhaul()
+		test_light_and_dark_mode()
+		test_new_ui_flows()
+		test_packet_combat_and_migration()
+		test_crossing_streams_low_fps_and_huge_streams()
+		test_multi_stream_simultaneous_collision()
+		test_slice_gesture_and_troop_retreat()
+		test_voronoi_halfplane_clipping_geometry()
+		test_territory_map_generation_and_coverage()
+		test_theme_and_ui_helpers()
+		test_achievements_system()
+	else:
+		run_all_tests()
+	# Vaciar los queue_free de las páginas reconstruidas antes de cerrar el proceso.
+	await get_tree().process_frame
+	await get_tree().process_frame
 
 	print("\n-------------------------------------------------------")
 	DirAccess.remove_absolute(TEST_SAVE_PATH)
@@ -35,7 +52,7 @@ func _ready() -> void:
 		print("❌ ERROR: Al menos una prueba ha fallado.")
 		get_tree().quit(1)
 	else:
-		print("✅ ÉXITO TOTAL: Todas las mecánicas y cálculos han sido validados con éxito.")
+		print("✅ Todas las verificaciones ejecutadas han pasado.")
 		get_tree().quit(0)
 
 func assert_true(condition: bool, test_name: String) -> void:
@@ -118,6 +135,11 @@ func run_all_tests() -> void:
 	test_settings_and_backups()
 	test_continent_mechanics()
 	test_cleanup_regressions()
+	test_packets_and_battle_feedback()
+	test_progression_overhaul()
+	test_light_and_dark_mode()
+	test_new_ui_flows()
+	test_packet_combat_and_migration()
 
 func test_base_production_mechanics() -> void:
 	print("-> Test: Producción de Tropas y Límites de Capacidad")
@@ -267,7 +289,7 @@ func test_level_database_integrity() -> void:
 	var continents = LevelDatabase.get_continents()
 	assert_equals(continents.size(), 6, "Existen exactamente 6 continentes configurados")
 
-	var all_levels = LevelDatabase.get_all_levels()
+	var all_levels = _all_campaign_levels()
 	assert_equals(all_levels.size(), 30, "La base de datos contiene exactamente 30 niveles mundiales")
 
 	# Verificar que cada continente tiene sus 5 niveles válidos
@@ -295,7 +317,23 @@ func _make_base(pos: Vector2, faction: int = GameManager.Faction.NEUTRAL, troops
 	b.troops = troops
 	return b
 
+## Utilidades de validación: no forman parte de la API del juego.
+func _all_campaign_levels() -> Dictionary:
+	var levels := {}
+	for id in LevelDatabase.get_level_ids():
+		levels[id] = LevelDatabase.get_level_data(id)
+	return levels
+
+func _polygon_area(poly: PackedVector2Array) -> float:
+	var area := 0.0
+	for i in poly.size():
+		area += poly[i].cross(poly[(i + 1) % poly.size()])
+	return absf(area) * 0.5
+
 func _make_stream(from: BaseNode, to: BaseNode, count: int, faction: int) -> Troop:
+	# Una orden sale de una base de su dueño, también en estos escenarios sintéticos.
+	if from.faction == GameManager.Faction.NEUTRAL:
+		from.faction = faction
 	var t = load("res://scripts/battle/troop.gd").new()
 	t.setup(from, to, count, faction)
 	return t
@@ -305,8 +343,11 @@ func _simulate(battle, streams: Array, steps: int, dt: float) -> void:
 	for _i in steps:
 		for s in streams:
 			if is_instance_valid(s) and not s.is_queued_for_deletion():
-				s._process(dt)
+				s.advance(dt)
 		battle._process_troop_collisions()
+		for s in streams:
+			if is_instance_valid(s) and not s.is_queued_for_deletion():
+				s.resolve_arrivals()
 
 func test_midair_troop_collisions() -> void:
 	print("-> Test: Combate en Tránsito (Colisión de Tropas en Pleno Campo)")
@@ -342,6 +383,7 @@ func test_troop_stream_dynamics() -> void:
 	var TroopScript = load("res://scripts/battle/troop.gd")
 
 	var base_origin = BaseNodeScript.new()
+	base_origin.faction = GameManager.Faction.PLAYER
 	base_origin.global_position = Vector2(100, 100)
 	base_origin.radius = 50.0
 
@@ -352,24 +394,24 @@ func test_troop_stream_dynamics() -> void:
 	base_target.faction = GameManager.Faction.PLAYER
 
 	var stream = TroopScript.new()
-	stream.setup(base_origin, base_target, 5, GameManager.Faction.PLAYER)
+	stream.setup(base_origin, base_target, 15, GameManager.Faction.PLAYER)
 
-	assert_equals(stream.bead_values.size(), 5, "Hilera de tropas contiene exactamente 5 perlas")
-	assert_equals(stream.count, 5, "Contador inicial del stream coincide con tropas enviadas")
+	assert_equals(stream.packets.size(), 3, "15 tropas salen en 3 paquetes de 5")
+	assert_equals(stream.count, 15, "Contador inicial de la orden coincide con tropas enviadas")
 
-	# Verificar espaciado constante entre perlas contiguas
+	# Verificar espaciado constante entre paquetes contiguos
 	var spacing_ok = true
-	for i in range(stream.bead_values.size() - 1):
-		var diff = stream.bead_dist(i) - stream.bead_dist(i + 1)
-		if abs(diff - Troop.BEAD_SPACING) > 0.001:
+	for i in range(stream.packets.size() - 1):
+		var diff = stream.packet_dist(i) - stream.packet_dist(i + 1)
+		if abs(diff - Troop.PACKET_SPACING) > 0.001:
 			spacing_ok = false
 			break
-	assert_true(spacing_ok, "Espaciado constante entre perlas consecutivas (22 px)")
+	assert_true(spacing_ok, "Espaciado constante entre paquetes consecutivos")
 
-	# Simular avance del stream
-	var initial_lead_dist = stream.bead_dist(0)
+	# Simular avance
+	var initial_lead_dist = stream.packet_dist(0)
 	stream._process(0.1)
-	assert_true(stream.bead_dist(0) > initial_lead_dist, "Perlas avanzan a lo largo de la trayectoria con el tiempo")
+	assert_true(stream.packet_dist(0) > initial_lead_dist, "Los paquetes avanzan a lo largo de la trayectoria con el tiempo")
 
 	base_origin.free()
 	base_target.free()
@@ -460,8 +502,10 @@ func test_stream_midair_collision() -> void:
 
 	var battle = BattleControllerScript.new()
 	var base_a = BaseNodeScript.new()
+	base_a.faction = GameManager.Faction.PLAYER
 	base_a.global_position = Vector2(100, 100)
 	var base_b = BaseNodeScript.new()
+	base_b.faction = GameManager.Faction.ENEMY_1
 	base_b.global_position = Vector2(700, 100)
 
 	# Stream 1: Jugador envía 6 tropas de A hacia B
@@ -521,11 +565,9 @@ func test_dominance_with_active_streams() -> void:
 	s.count = 10
 	battle.active_troops.append(s)
 
-	var ratios = battle.get_dominance_ratios()
-	# Total = 10 (base jugador) + 10 (base enemigo) + 10 (tropa jugador) = 30
-	# Jugador = 20 / 30 = 0.666..., Enemigo = 10 / 30 = 0.333...
-	assert_true(ratios[GameManager.Faction.PLAYER] > 0.65, "Tropas en marcha contabilizadas en la proporción de dominancia del jugador")
-	assert_true(ratios[GameManager.Faction.ENEMY_1] < 0.35, "Proporción enemiga ajustada en dominancia general")
+	var counts = battle.get_faction_troop_counts()
+	assert_equals(counts[GameManager.Faction.PLAYER], 20, "Las fuerzas del jugador incluyen bases y órdenes en marcha")
+	assert_equals(counts[GameManager.Faction.ENEMY_1], 10, "Las fuerzas enemigas no incluyen las tropas del jugador")
 
 	b1.free()
 	b2.free()
@@ -537,10 +579,11 @@ func test_multi_stream_simultaneous_collision() -> void:
 	var battle = load("res://scripts/battle/battle_controller.gd").new()
 	var a = _make_base(Vector2(100, 500))
 	var b = _make_base(Vector2(900, 500))
+	var c = _make_base(Vector2(900, 500), GameManager.Faction.ENEMY_2)
 	# t1 (jugador, 10) choca de frente contra dos hileras de facciones distintas que salen de B
 	var t1 = _make_stream(a, b, 10, GameManager.Faction.PLAYER)
 	var t2 = _make_stream(b, a, 3, GameManager.Faction.ENEMY_1)
-	var t3 = _make_stream(b, a, 4, GameManager.Faction.ENEMY_2)
+	var t3 = _make_stream(c, a, 4, GameManager.Faction.ENEMY_2)
 	battle.active_troops.append_array([t1, t2, t3])
 	_simulate(battle, [t1, t2, t3], 40, 0.04)
 
@@ -548,7 +591,7 @@ func test_multi_stream_simultaneous_collision() -> void:
 	assert_true(not is_instance_valid(t2), "Primer stream enemigo eliminado")
 	assert_true(not is_instance_valid(t3), "Segundo stream enemigo no fue saltado y fue eliminado")
 
-	for n in [t1, a, b, battle]:
+	for n in [t1, a, b, c, battle]:
 		if is_instance_valid(n):
 			n.free()
 
@@ -563,13 +606,13 @@ func test_troop_stream_api_and_orphan_handling() -> void:
 	base_target.global_position = Vector2(600, 100)
 
 	var stream = TroopScript.new()
-	stream.setup(base_origin, base_target, 5, GameManager.Faction.PLAYER)
+	stream.setup(base_origin, base_target, 15, GameManager.Faction.PLAYER)
 
-	assert_equals(stream.front_index(), 0, "front_index apunta a la primera perla viva")
-	stream.damage_bead(0, 1)
-	stream.damage_bead(1, 1)
-	assert_equals(stream.count, 3, "damage_bead reduce conteo de 5 a 3 correctamente")
-	assert_equals(stream.front_index(), 2, "front_index salta las perlas eliminadas")
+	assert_equals(stream.front_index(), 0, "front_index apunta al primer paquete vivo")
+	stream.damage_packet(0, 5)
+	stream.damage_packet(1, 5)
+	assert_equals(stream.count, 5, "damage_packet reduce conteo de 15 a 5 correctamente")
+	assert_equals(stream.front_index(), 2, "front_index salta los paquetes eliminados")
 
 	# Probar huérfano cuando target_base es destruida/liberada
 	base_target.free()
@@ -662,7 +705,6 @@ func test_multi_base_chaining_and_reinforcement() -> void:
 
 	# Bases aliadas A y B, y base enemiga C
 	var b_a = BaseNodeScript.new()
-	b_a.base_id = "base_a"
 	b_a.faction = GameManager.Faction.PLAYER
 	b_a.troops = 20
 	b_a.radius = 50.0
@@ -671,7 +713,6 @@ func test_multi_base_chaining_and_reinforcement() -> void:
 	battle.bases.append(b_a)
 
 	var b_b = BaseNodeScript.new()
-	b_b.base_id = "base_b"
 	b_b.faction = GameManager.Faction.PLAYER
 	b_b.troops = 15
 	b_b.radius = 50.0
@@ -680,7 +721,6 @@ func test_multi_base_chaining_and_reinforcement() -> void:
 	battle.bases.append(b_b)
 
 	var b_c = BaseNodeScript.new()
-	b_c.base_id = "base_c"
 	b_c.faction = GameManager.Faction.ENEMY_1
 	b_c.troops = 10
 	b_c.radius = 50.0
@@ -735,27 +775,27 @@ func test_voronoi_halfplane_clipping_geometry() -> void:
 		Vector2(0, 100)
 	])
 
-	var area_initial = TerritoryMap2DScript.calculate_polygon_area(square)
+	var area_initial = _polygon_area(square)
 	assert_equals(area_initial, 10000.0, "Cálculo de área de polígono cuadrado inicial es 10000")
 
 	# 1. Recorte vertical: mantener puntos donde X <= 40
 	# Punto plano (40, 50), Normal (1, 0)
 	var clipped_vert = TerritoryMap2DScript.clip_polygon_halfplane(square, Vector2(40, 50), Vector2(1, 0))
 	assert_equals(clipped_vert.size(), 4, "Polígono recortado verticalmente tiene 4 vértices")
-	var area_vert = TerritoryMap2DScript.calculate_polygon_area(clipped_vert)
+	var area_vert = _polygon_area(clipped_vert)
 	assert_true(abs(area_vert - 4000.0) < 0.1, "Área resultante tras corte X <= 40 es 4000 (40 x 100)")
 
 	# 2. Recorte horizontal: mantener puntos donde Y <= 60
 	# Punto plano (50, 60), Normal (0, 1)
 	var clipped_horiz = TerritoryMap2DScript.clip_polygon_halfplane(square, Vector2(50, 60), Vector2(0, 1))
-	var area_horiz = TerritoryMap2DScript.calculate_polygon_area(clipped_horiz)
+	var area_horiz = _polygon_area(clipped_horiz)
 	assert_true(abs(area_horiz - 6000.0) < 0.1, "Área resultante tras corte Y <= 60 es 6000 (100 x 60)")
 
 	# 3. Recorte diagonal a 45 grados: pasando por (50, 50) con normal (1, 1).normalized()
 	var diag_normal = Vector2(1, 1).normalized()
 	var clipped_diag = TerritoryMap2DScript.clip_polygon_halfplane(square, Vector2(50, 50), diag_normal)
 	assert_true(clipped_diag.size() >= 3, "Recorte diagonal produce polígono convexo válido")
-	var area_diag = TerritoryMap2DScript.calculate_polygon_area(clipped_diag)
+	var area_diag = _polygon_area(clipped_diag)
 	# Corte diagonal a través de (50, 50) corta exactamente la mitad del cuadrado (área 5000)
 	assert_true(abs(area_diag - 5000.0) < 1.0, "Área tras corte diagonal equidistante es aproximadamente 5000")
 
@@ -773,33 +813,29 @@ func test_territory_map_generation_and_coverage() -> void:
 	b_single.faction = GameManager.Faction.PLAYER
 	map.generate_map([b_single], bounds)
 
-	assert_equals(map.get_cells().size(), 1, "Mapa con 1 base genera exactamente 1 celda")
-	var single_cell = map.get_cells()[0]
-	var area_single = TerritoryMap2DScript.calculate_polygon_area(single_cell.polygon)
+	assert_equals(map.cells.size(), 1, "Mapa con 1 base genera exactamente 1 celda")
+	var single_cell = map.cells[0]
+	var area_single = _polygon_area(single_cell.polygon)
 	assert_equals(area_single, total_bounds_area, "Celda única cubre el 100% del área 1080x1920 (2,073,600 px²)")
 	b_single.free()
 
 	# 2. Probar nivel con 4 bases (similar a Península Ibérica y Galia: Madrid, París, Londres, Berlín)
 	var b1 = BaseNodeScript.new()
-	b1.base_id = "madrid"
 	b1.base_name = "Madrid"
 	b1.global_position = Vector2(320, 1400)
 	b1.faction = GameManager.Faction.PLAYER
 
 	var b2 = BaseNodeScript.new()
-	b2.base_id = "paris"
 	b2.base_name = "París"
 	b2.global_position = Vector2(540, 1000)
 	b2.faction = GameManager.Faction.NEUTRAL
 
 	var b3 = BaseNodeScript.new()
-	b3.base_id = "londres"
 	b3.base_name = "Londres"
 	b3.global_position = Vector2(360, 600)
 	b3.faction = GameManager.Faction.NEUTRAL
 
 	var b4 = BaseNodeScript.new()
-	b4.base_id = "berlin"
 	b4.base_name = "Berlín"
 	b4.global_position = Vector2(760, 650)
 	b4.faction = GameManager.Faction.ENEMY_1
@@ -807,7 +843,7 @@ func test_territory_map_generation_and_coverage() -> void:
 	var bases_list: Array[BaseNode] = [b1, b2, b3, b4]
 	map.generate_map(bases_list, bounds)
 
-	assert_equals(map.get_cells().size(), 4, "Se generan exactamente 4 territorios para las 4 bases")
+	assert_equals(map.cells.size(), 4, "Se generan exactamente 4 territorios para las 4 bases")
 
 	# Verificar que cada base está estrictamente dentro de su propio polígono territorial
 	for b in bases_list:
@@ -819,14 +855,14 @@ func test_territory_map_generation_and_coverage() -> void:
 
 	# Verificar teselado exacto: la suma de áreas de las 4 celdas debe igualar el área total del rectángulo
 	var sum_areas = 0.0
-	for cell in map.get_cells():
-		sum_areas += TerritoryMap2DScript.calculate_polygon_area(cell.polygon)
+	for cell in map.cells:
+		sum_areas += _polygon_area(cell.polygon)
 	var area_diff = abs(sum_areas - total_bounds_area)
 	assert_true(area_diff < 10.0, "La suma de áreas de los territorios tesela el 100% del área de juego (Error < 0.001%)")
 
 	# Verificar búsqueda de territorio por coordenada (Point in polygon)
-	var cell_madrid = map.get_cell_at_point(Vector2(320, 1400))
-	assert_true(cell_madrid != null and cell_madrid.base_node == b1, "get_cell_at_point localiza el territorio de Madrid")
+	var madrid_index: int = map.cells.find_custom(func(c): return Geometry2D.is_point_in_polygon(Vector2(320, 1400), c.polygon))
+	assert_true(madrid_index >= 0 and map.cells[madrid_index].base_node == b1, "El polígono de Madrid contiene su capital")
 
 	b1.free()
 	b2.free()
@@ -842,7 +878,6 @@ func test_territory_color_transition_and_conquest() -> void:
 	map.transition_duration = 0.5
 
 	var base = BaseNodeScript.new()
-	base.base_id = "paris"
 	base.global_position = Vector2(500, 500)
 	base.faction = GameManager.Faction.NEUTRAL
 
@@ -907,7 +942,7 @@ func test_territory_edge_cases_and_rapid_conquests() -> void:
 
 	# 1. Caso límite: lista vacía de bases
 	map.generate_map([], bounds)
-	assert_equals(map.get_cells().size(), 0, "generate_map con lista vacía produce 0 celdas sin errores")
+	assert_equals(map.cells.size(), 0, "generate_map con lista vacía produce 0 celdas sin errores")
 
 	# 2. Caso límite: bases colineales alineadas verticalmente
 	var b_col1 = BaseNodeScript.new()
@@ -918,11 +953,11 @@ func test_territory_edge_cases_and_rapid_conquests() -> void:
 	b_col3.global_position = Vector2(540, 1520)
 
 	map.generate_map([b_col1, b_col2, b_col3], bounds)
-	assert_equals(map.get_cells().size(), 3, "Bases colineales generan exactamente 3 celdas horizontales")
+	assert_equals(map.cells.size(), 3, "Bases colineales generan exactamente 3 celdas horizontales")
 	var sum_col_area = 0.0
-	for c in map.get_cells():
+	for c in map.cells:
 		assert_equals(c.polygon.size(), 4, "Cada franja territorial colineal tiene 4 vértices rectangulares")
-		sum_col_area += TerritoryMap2DScript.calculate_polygon_area(c.polygon)
+		sum_col_area += _polygon_area(c.polygon)
 	assert_true(abs(sum_col_area - total_bounds_area) < 5.0, "Franjas colineales teselan el 100% del área de juego")
 
 	b_col1.free()
@@ -931,7 +966,6 @@ func test_territory_edge_cases_and_rapid_conquests() -> void:
 
 	# 3. Conquistas rápidas sucesivas en combate disputado
 	var base = BaseNodeScript.new()
-	base.base_id = "frente_activo"
 	base.global_position = Vector2(500, 500)
 	base.faction = GameManager.Faction.NEUTRAL
 
@@ -961,7 +995,7 @@ func test_territory_all_30_campaign_levels() -> void:
 	print("\n-> Test: Validación de Teselado Voronoi en los 30 Niveles de Campaña")
 	var TerritoryMap2DScript = load("res://scripts/battle/territory_map_2d.gd")
 	var BaseNodeScript = load("res://scripts/battle/base_node.gd")
-	var all_levels = LevelDatabase.get_all_levels()
+	var all_levels = _all_campaign_levels()
 	var bounds = Rect2(0, 0, 1080, 1920)
 	var expected_total_area = 1080.0 * 1920.0
 
@@ -979,7 +1013,7 @@ func test_territory_all_30_campaign_levels() -> void:
 			instantiated_bases.append(b)
 
 		map.generate_map(instantiated_bases, bounds)
-		var cells = map.get_cells()
+		var cells = map.cells
 
 		assert_equals(cells.size(), instantiated_bases.size(), "Nivel '%s': genera exactamente %d celdas" % [level_id, instantiated_bases.size()])
 
@@ -992,7 +1026,7 @@ func test_territory_all_30_campaign_levels() -> void:
 				assert_true(cell.polygon.size() >= 3, "Nivel '%s': celda de '%s' tiene al menos 3 vértices" % [level_id, b.base_name])
 				var in_poly = Geometry2D.is_point_in_polygon(b.global_position, cell.polygon)
 				assert_true(in_poly, "Nivel '%s': capital '%s' (%s) dentro de su territorio" % [level_id, b.base_name, str(b.global_position)])
-				sum_area += TerritoryMap2DScript.calculate_polygon_area(cell.polygon)
+				sum_area += _polygon_area(cell.polygon)
 
 		var diff = abs(sum_area - expected_total_area)
 		assert_true(diff < 25.0, "Nivel '%s': teselado cubre el 100%% del mapa (Suma: %.1f, Error: %.2f px²)" % [level_id, sum_area, diff])
@@ -1008,7 +1042,7 @@ func test_fortress_defense_absorption_and_production() -> void:
 	print("\n-> Test: Especialización Bastión (Fortaleza) - Absorción Defensiva 2x y Producción Reducida")
 	var BaseNodeScript = load("res://scripts/battle/base_node.gd")
 	var fortress = BaseNodeScript.new()
-	fortress.set_base_type(BaseNodeScript.BaseType.FORTRESS)
+	fortress._set_type_from_variant(BaseNodeScript.BaseType.FORTRESS)
 	fortress.faction = GameManager.Faction.PLAYER
 	fortress.tier = 1
 	fortress.troops = 10
@@ -1022,10 +1056,10 @@ func test_fortress_defense_absorption_and_production() -> void:
 	var f2 = BaseNodeScript.new()
 	f2.setup(fortress_data)
 	assert_equals(f2.base_type, BaseNodeScript.BaseType.FORTRESS, "setup() configura correctamente base_type = FORTRESS desde string 'fortress'")
-	f2.set_base_type("standard")
-	assert_equals(f2.base_type, BaseNodeScript.BaseType.STANDARD, "set_base_type('standard') actualiza base_type")
-	f2.set_base_type(BaseNodeScript.BaseType.FORTRESS)
-	assert_equals(f2.base_type, BaseNodeScript.BaseType.FORTRESS, "set_base_type acepta el valor del enum")
+	f2._set_type_from_variant("standard")
+	assert_equals(f2.base_type, BaseNodeScript.BaseType.STANDARD, "El tipo standard se lee correctamente")
+	f2._set_type_from_variant(BaseNodeScript.BaseType.FORTRESS)
+	assert_equals(f2.base_type, BaseNodeScript.BaseType.FORTRESS, "El tipo de base acepta el valor del enum")
 	f2.free()
 
 	# 3. Ataque enemigo inferior a la absorción (10 defensores absorben hasta 20 atacantes)
@@ -1088,7 +1122,7 @@ func test_factory_production_and_vulnerability() -> void:
 	print("\n-> Test: Especialización Fábrica - Producción Acelerada (2.5x) y Vulnerabilidad Defensiva (0.5x)")
 	var BaseNodeScript = load("res://scripts/battle/base_node.gd")
 	var factory = BaseNodeScript.new()
-	factory.set_base_type(BaseNodeScript.BaseType.FACTORY)
+	factory._set_type_from_variant(BaseNodeScript.BaseType.FACTORY)
 	factory.faction = GameManager.Faction.PLAYER
 	factory.tier = 1
 	factory.troops = 10
@@ -1614,13 +1648,13 @@ func test_slice_gesture_and_troop_retreat() -> void:
 	assert_equals(troop.count, 19, "Pelotón despachado contiene 19 tropas reteniendo 1 centinela")
 	assert_equals(base_a.troops, 1, "Base de origen retiene 1 centinela de guardia")
 
-	# Avanzar delta para que las perlas emerjan y se desplieguen en marcha
-	troop._process(0.4)
+	# Avanzar delta para que los paquetes salgan uno tras otro
+	troop._process(0.3)
 	var emerged = 0
-	for i in troop.bead_values.size():
-		if troop.bead_dist(i) >= 0.0:
+	for i in troop.packets.size():
+		if troop.packet_dist(i) >= 0.0:
 			emerged += 1
-	assert_true(emerged >= 4, "Tropas han emergido formando una hilera activa sobre el mapa")
+	assert_true(emerged >= 2 and emerged < troop.packets.size(), "Los paquetes salen escalonados (%d de %d fuera)" % [emerged, troop.packets.size()])
 
 	# 2. Detección de corte: un trazo lejano no interseca
 	var seg_far_a = Vector2(250.0, 50.0)
@@ -1911,7 +1945,8 @@ func test_play_tab_campaign_route_and_briefing() -> void:
 	# 1. Un toque para seguir la campaña
 	assert_equals(play.selected_level_id, "europe_1", "Se propone el nivel actual de la campaña")
 	assert_equals(play.btn_start_level.text, LocaleStrings.text("continue"), "El botón principal es Continuar")
-	assert_equals(play.level_chips.get_child_count(), 3, "Bases, rivales y tiempo de 3★ como etiquetas")
+	assert_equals(play.level_chips.get_child_count(), 4, "Bases, rivales, tiempo de 3★ y ciudades nuevas como etiquetas")
+	assert_true(play.level_medal.text == LocaleStrings.text("medal_todo"), "La ficha anuncia el objetivo de medalla")
 
 	# 2. Navegación de continentes sin nodos fantasma
 	assert_equals(play.continents.size(), 6, "Existen 6 continentes configurados")
@@ -2149,14 +2184,14 @@ func test_crossing_streams_low_fps_and_huge_streams() -> void:
 	# 2. Hileras masivas: se limitan a MAX_BEADS perlas sin perder unidades
 	var big = _make_stream(a, b, 300, GameManager.Faction.PLAYER)
 	var mid = _make_stream(b, a, 200, GameManager.Faction.ENEMY_1)
-	assert_equals(big.bead_values.size(), Troop.MAX_BEADS, "Hilera de 300 unidades se dibuja con %d perlas" % Troop.MAX_BEADS)
+	assert_equals(big.packets.size(), Troop.MAX_PACKETS, "Orden de 300 unidades se reparte en %d paquetes" % Troop.MAX_PACKETS)
 	var total = 0
-	for v in big.bead_values:
+	for v in big.packets:
 		total += v
-	assert_equals(total, 300, "Las perlas agrupadas conservan las 300 unidades")
+	assert_equals(total, 300, "Los paquetes conservan las 300 unidades")
 	battle.active_troops.clear()
 	battle.active_troops.append_array([big, mid])
-	_simulate(battle, [big, mid], 60, 0.05)
+	_simulate(battle, [big, mid], 50, 0.05)
 	assert_true(not is_instance_valid(mid), "Hilera enemiga de 200 aniquilada en choque frontal masivo")
 	assert_equals(big.count, 100, "Hilera masiva sobrevive con la diferencia exacta (300 - 200 = 100)")
 
@@ -2389,11 +2424,11 @@ func test_real_geography_and_bigger_levels() -> void:
 	map.generate_map(nodes, LevelGenerator.GEO_CLIP_RECT, level["geo"])
 	var clipped_to_land = true
 	var capitals_covered = true
-	for cell in map.get_cells():
+	for cell in map.cells:
 		var visible = 0.0
 		for piece in cell.pieces:
-			visible += map.calculate_polygon_area(piece)
-		clipped_to_land = clipped_to_land and visible < map.calculate_polygon_area(cell.polygon)
+			visible += _polygon_area(piece)
+		clipped_to_land = clipped_to_land and visible < _polygon_area(cell.polygon)
 		capitals_covered = capitals_covered and cell.pieces.any(func(pc): return Geometry2D.is_point_in_polygon(cell.capital_pos, pc))
 	assert_true(clipped_to_land, "El mar no pertenece a ningún territorio")
 	assert_true(capitals_covered, "Cada capital se asienta sobre su propio territorio (o su islote)")
@@ -2790,7 +2825,7 @@ func test_atlas_and_first_levels() -> void:
 	assert_true(not GameManager.conquer_city("madrid"), "No se duplica")
 	assert_true(not GameManager.conquer_city(""), "Clave vacía se ignora")
 	assert_equals(GameManager.atlas_conquered_count(), 1, "Una ciudad registrada")
-	assert_true(GameManager.atlas_total_count() > 1000, "Más de mil ciudades coleccionables")
+	assert_true(GeoDatabase.get_cities().size() > 1000, "Más de mil ciudades en la base geográfica")
 	GameManager.save_game()
 	GameManager.conquered_cities.clear()
 	GameManager.load_game()
@@ -2801,7 +2836,8 @@ func test_atlas_and_first_levels() -> void:
 	var texts = progress.find_children("*", "Label", true, false).map(func(l): return l.text)
 	assert_true(texts.has(LocaleStrings.text("atlas")), "Título del atlas visible")
 	assert_true(texts.any(func(t): return t.contains("Madrid")), "Madrid aparece entre las últimas conquistas")
-	assert_equals(progress.find_child("Stat_stat_cities", true, false).text, "1/%d" % GameManager.atlas_total_count(), "Contador de progreso x/total")
+	assert_equals(progress.find_child("Stat_stat_cities", true, false).text, "1", "Contador de ciudades conquistadas")
+	assert_equals(progress.find_children("Collection_*", "", true, false).size(), 6, "Una colección por continente")
 	assert_true(texts.any(func(t): return t.begins_with(LevelDatabase.continent_name("europe")) and t.ends_with("1")), "Madrid cuenta para Europa")
 	remove_child(progress)
 	progress.free()
@@ -2822,7 +2858,7 @@ func test_atlas_and_first_levels() -> void:
 	battle.level_id = "europe_2"
 	var ai = AIController.new()
 	ai.setup(battle, GameManager.Faction.ENEMY_1)
-	assert_true(ai.get_player_grace_period() >= 25.0, "Periodo de gracia largo en europe_2")
+	assert_true(ai._grace_period >= 25.0, "Periodo de gracia largo en europe_2")
 	ai.free()
 	battle.free()
 	GameManager.reset_save()
@@ -2831,14 +2867,14 @@ func test_cosmetics_shop() -> void:
 	print("\n-> Test: Tienda de Estética (Oro Útil Tras el Máximo)")
 	GameManager.reset_save()
 	GameManager.coins = 100
-	assert_true(not GameManager.buy_cosmetic("color_cyan"), "Sin oro no hay compra")
+	assert_true(not GameManager.buy_cosmetic("color_violet"), "Sin oro no hay compra")
 	assert_true(not GameManager.buy_cosmetic("no_existe"), "Id desconocido se rechaza")
 	GameManager.coins = 1000
 	var before = GameManager.coins
-	assert_true(GameManager.buy_cosmetic("color_cyan"), "Compra con oro suficiente")
-	assert_equals(GameManager.coins, before - 250, "Se descuenta el precio exacto")
-	assert_true(GameManager.is_cosmetic_owned("color_cyan"), "Queda desbloqueado")
-	assert_equals(GameManager.cosmetics_equipped["army_color"], "color_cyan", "Comprar equipa al momento")
+	assert_true(GameManager.buy_cosmetic("color_violet"), "Compra con oro suficiente")
+	assert_equals(GameManager.coins, before - 300, "Se descuenta el precio exacto")
+	assert_true(GameManager.is_cosmetic_owned("color_violet"), "Queda desbloqueado")
+	assert_equals(GameManager.cosmetics_equipped["army_color"], "color_violet", "Comprar equipa al momento")
 	assert_true(GameManager.player_color() != GameManager.FACTION_COLORS[GameManager.Faction.PLAYER], "El color del ejército cambia")
 	assert_true(GameManager.equip_cosmetic("color_blue"), "Se puede volver al clásico gratis")
 	assert_equals(GameManager.player_color(), GameManager.FACTION_COLORS[GameManager.Faction.PLAYER], "El clásico restaura el azul")
@@ -2846,7 +2882,7 @@ func test_cosmetics_shop() -> void:
 	GameManager.save_game()
 	GameManager.cosmetics_owned.clear()
 	GameManager.load_game()
-	assert_true(GameManager.is_cosmetic_owned("color_cyan"), "Los cosméticos persisten")
+	assert_true(GameManager.is_cosmetic_owned("color_violet"), "Los cosméticos persisten")
 	assert_equals(GameManager.cosmetics_equipped["army_color"], "color_blue", "Lo equipado persiste")
 	GameManager.reset_save()
 
@@ -2878,9 +2914,9 @@ func test_daily_missions_xp_and_share() -> void:
 	assert_equals(GameManager.missions["day"], day, "Reloj atrasado no reinicia objetivos")
 	GameManager.ensure_missions(day + 1)
 	assert_true(GameManager.missions["claimed"].is_empty() and GameManager.missions["progress"].is_empty(), "Medianoche limpia progreso y cobros")
-	assert_equals(DailyMissions.player_level(99), 1, "Primer nivel hasta 99 XP")
-	assert_equals(DailyMissions.player_level(100), 2, "Nivel 2 a 100 XP")
-	assert_equals(DailyMissions.player_level(400), 3, "Nivel 3 a 400 XP")
+	assert_equals(PlayerRank.level(99), 1, "Primer nivel hasta 99 XP")
+	assert_equals(PlayerRank.level(100), 2, "Nivel 2 a 100 XP")
+	assert_equals(PlayerRank.level(400), 3, "Nivel 3 a 400 XP")
 	GameManager.reset_save()
 	var result := {"level_id": DailyRewards.challenge_id(day), "stars": 3, "time": 34.2, "speed": 1.5, "is_daily_challenge": true}
 	GameManager.record_battle_result(result, true)
@@ -2967,7 +3003,8 @@ func test_settings_and_backups() -> void:
 	var panel = load("res://scripts/ui/settings_panel.gd").new()
 	add_child(panel)
 	assert_equals(panel.find_children("*", "HSlider", true, false).size(), 2, "Dos controles nativos de volumen")
-	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 4, "Sonido, música, vibración y paleta")
+	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 5, "Sonido, música, vibración, paleta y reducir movimiento")
+	assert_equals(panel.find_children("*", "OptionButton", true, false).size(), 3, "Apariencia, idioma y velocidad")
 	remove_child(panel)
 	panel.free()
 	GameManager.reset_save()
@@ -3091,4 +3128,260 @@ func test_review_regressions() -> void:
 	remove_child(hud)
 	hud.free()
 	battle.free()
+	GameManager.reset_save()
+
+func test_packets_and_battle_feedback() -> void:
+	print("\n-> Test: Tropas en Paquetes, Vista Previa Estimada y Ficha de Base")
+	# 1. Una orden sale en paquetes pequeños, uno tras otro, sin perder unidades
+	var a = _make_base(Vector2(100, 500), GameManager.Faction.PLAYER, 1)
+	var b = _make_base(Vector2(900, 500), GameManager.Faction.NEUTRAL, 50)
+	var t = _make_stream(a, b, 23, GameManager.Faction.PLAYER)
+	assert_equals(t.packets.size(), 5, "23 tropas salen en 5 paquetes")
+	var total := 0
+	for v in t.packets:
+		total += v
+	assert_equals(total, 23, "Los paquetes conservan todas las unidades")
+	assert_equals(t.pending_units(), 23, "La orden reserva sus tropas antes de empezar a salir")
+	t._process(0.2)
+	assert_true(t.pending_units() > 0 and t.pending_units() < 23, "La salida es escalonada")
+	assert_true(Troop.emission_seconds(23) > 0.3 and Troop.emission_seconds(200) < 1.5, "Toda la orden sale en menos de 1,5 s")
+	assert_equals(Troop.packet_count_for(300), Troop.MAX_PACKETS, "Órdenes enormes se agrupan en MAX_PACKETS paquetes")
+
+	# 2. Si cae la base de origen, lo que no había salido se pierde con ella
+	var pending := t.pending_units()
+	a.faction = GameManager.Faction.ENEMY_1
+	t._process(0.01)
+	assert_equals(t.count, 23 - pending, "Las tropas pendientes se pierden al caer el origen")
+	assert_equals(t.pending_units(), 0, "Ya no queda nada por salir")
+	t.free()
+
+	# 3. Retirada: lo pendiente vuelve a la guarnición al instante
+	a.faction = GameManager.Faction.PLAYER
+	a.troops = 1
+	var r = _make_stream(a, b, 30, GameManager.Faction.PLAYER)
+	r._process(0.1)
+	var waiting := r.pending_units()
+	r.abort_mission()
+	assert_equals(a.troops, 1 + waiting, "La retirada devuelve al momento lo que no había salido")
+	r.free()
+
+	# 4. Defensa estimada al llegar: una base con dueño sigue reclutando hasta llenarse
+	var enemy = _make_base(Vector2(500, 500), GameManager.Faction.ENEMY_1, 10)
+	assert_true(enemy.defense_after(5.0) > 10.0, "La defensa estimada crece con el tiempo de viaje")
+	assert_equals(enemy.defense_after(1000.0), float(enemy.max_capacity), "La estimación no supera la capacidad")
+	assert_equals(b.defense_after(5.0), 50.0, "Las neutrales no crecen")
+	enemy.troops = enemy.max_capacity
+	assert_true(enemy.is_full(), "Base llena detectada")
+
+	# 5. Ventajas legibles de cada base especial
+	enemy.base_type = BaseNode.BaseType.FACTORY
+	assert_equals(enemy.perk_text(), LocaleStrings.text("perk_factory"), "La fábrica explica su ventaja")
+	enemy.base_type = BaseNode.BaseType.STANDARD
+	assert_equals(enemy.perk_text(), "", "Una base normal no muestra ventaja")
+
+	# 6. Tocar una base muestra su ficha; arrastrar no
+	var battle := BattleController.new()
+	battle.bases.append_array([a, b])
+	a.troops = 20
+	battle._handle_press(a.position)
+	battle._handle_release(a.position + Vector2(5, 0))
+	assert_true(battle._info_base == a and battle._info_timer > 0.0, "Un toque sobre tu base muestra su ficha")
+	assert_equals(a.troops, 20, "Un toque no envía tropas")
+	battle._handle_press(Vector2(500, 900))
+	battle._handle_release(b.position)
+	assert_true(battle._info_base == a, "Un corte largo no abre fichas")
+	battle._handle_press(b.position)
+	battle._handle_release(b.position)
+	assert_true(battle._info_base == b, "También se consultan bases ajenas")
+
+	# 7. Consejo de derrota basado en lo ocurrido
+	assert_equals(battle.defeat_tip(), LocaleStrings.text("tip_expand"), "Sin capturas, el consejo es expandirse")
+	battle._fell_with_troops_out = true
+	assert_equals(battle.defeat_tip(), LocaleStrings.text("tip_left_empty"), "Base vacía al atacar: se explica")
+	battle.free()
+	for n in [a, b, enemy]:
+		n.free()
+
+func test_progression_overhaul() -> void:
+	print("\n-> Test: Economía, Rangos, Premios, Medallas, Colecciones y Siguiente Objetivo")
+	GameManager.reset_save()
+	# 1. Economía: siempre hay una compra al alcance y la última no es desorbitada
+	assert_equals(GameManager.get_upgrade_cost("starting_troops"), 50, "Primera mejora: 50 de oro")
+	GameManager.upgrades["starting_troops"] = 9
+	assert_true(GameManager.get_upgrade_cost("starting_troops") <= 50 * 32, "La última mejora cuesta ~30× la primera (antes ~200×)")
+	GameManager.upgrades["starting_troops"] = 0
+	GameManager.coins = 60
+	assert_true(GameManager.should_suggest_first_upgrade(), "Se sugiere la primera compra en cuanto es asequible")
+	assert_true(NextGoal.text().contains(LocaleStrings.text("upg_starting_troops")), "El siguiente objetivo apunta a esa mejora")
+	GameManager.buy_upgrade("starting_troops")
+	assert_true(not GameManager.should_suggest_first_upgrade(), "La guía desaparece tras la primera compra")
+
+	# 2. Rangos con nombre y premios de estética
+	assert_equals(PlayerRank.level(100), 2, "Nivel 2 a 100 XP")
+	assert_equals(PlayerRank.title(1), "Recluta", "Primer rango con nombre")
+	assert_true(PlayerRank.title(12).begins_with("Mariscal"), "Tras el último rango se sigue numerando")
+	assert_true(not GameManager.is_cosmetic_owned("color_cyan"), "El premio de rango 2 empieza bloqueado")
+	GameManager.coins = 9999
+	assert_true(not GameManager.buy_cosmetic("color_cyan"), "Los premios no se venden")
+	GameManager.experience = 100
+	assert_true(GameManager.is_cosmetic_owned("color_cyan") and GameManager.equip_cosmetic("color_cyan"), "Rango 2 desbloquea y permite equipar su premio")
+	for i in range(1, 6):
+		GameManager.completed_levels["europe_%d" % i] = 1
+	assert_true(GameManager.is_cosmetic_owned("theme_ocean"), "Vencer al jefe de Europa desbloquea su tema")
+
+	# 3. Medalla de dominio: se guarda por nivel
+	GameManager.complete_level("europe_1", 3, true)
+	assert_true(GameManager.medals.has("europe_1"), "Ganar sin perder bases concede la medalla")
+	GameManager.save_game()
+	GameManager.medals.clear()
+	GameManager.load_game()
+	assert_true(GameManager.medals.has("europe_1"), "Las medallas persisten")
+	assert_equals(GameManager.victory_xp({"stars": 3, "new_medal": true}), 80, "La medalla nueva da XP extra")
+
+	# 4. Colecciones: ciudades de campaña alcanzables y premio único
+	var cities := LevelDatabase.collection_cities("europe")
+	assert_true(cities.size() >= 10 and cities.has("madrid"), "La colección de Europa reúne sus ciudades de campaña")
+	for c in cities:
+		GameManager.conquer_city(c)
+	assert_equals(GameManager.claimable_collection_count(), 1, "Colección completa pendiente de cobro")
+	var gold := GameManager.coins
+	assert_equals(GameManager.claim_collection("europe"), GameManager.COLLECTION_GOLD, "Cobrar la colección da su oro")
+	assert_equals(GameManager.coins, gold + GameManager.COLLECTION_GOLD, "El oro llega al saldo")
+	assert_equals(GameManager.claim_collection("europe"), 0, "No se cobra dos veces")
+
+	# 5. Desafío diario comparable (sin mejoras de combate) y con particularidad del día
+	GameManager.upgrades["troop_speed"] = 3
+	GameManager.normalized_battle = true
+	assert_equals(GameManager.get_troop_speed_multiplier(), 1.0, "El desafío diario ignora las mejoras de combate")
+	GameManager.normalized_battle = false
+	assert_true(GameManager.get_troop_speed_multiplier() > 1.0, "Fuera del desafío las mejoras cuentan")
+	var twists := {}
+	for d in 6:
+		twists[LevelDatabase.get_level_data(DailyRewards.challenge_id(20000 + d)).get("rule_key", "")] = true
+	assert_equals(twists.size(), 6, "El desafío rota las seis reglas de continente")
+	assert_true(LevelDatabase.get_level_data("conquest_1").has("rule_key"), "Las expediciones varían sus reglas")
+
+	# 6. Expediciones: la quinta región es un jefe y paga el doble
+	assert_true(LevelGenerator.is_expedition_finale(4) and not LevelGenerator.is_expedition_finale(3), "La región 5 cierra la expedición")
+	assert_true(LevelGenerator.conquest_definition(4)["bases"].any(func(x): return x.get("boss", false)), "El final de expedición tiene jefe")
+	assert_true(GameManager.complete_conquest(4) > GameManager.complete_conquest(5), "El final de expedición paga más que la región siguiente")
+
+	# 7. Racha con un día de margen y misiones variadas
+	assert_equals(DailyRewards.evaluate(100, 5, 102)["streak"], 6, "Olvidarse un día no rompe la racha")
+	var ids := {}
+	for d in 8:
+		for m in DailyMissions.for_day(d):
+			ids[m["id"]] = true
+	assert_equals(ids.size(), DailyMissions.POOL.size(), "Todas las misiones aparecen a lo largo de los días")
+	GameManager.reset_save()
+
+func test_new_ui_flows() -> void:
+	print("\n-> Test: Flujos de interfaz y objetivos diarios")
+	GameManager.reset_save()
+	var menu: MainMenuUI = load("res://scenes/ui/main_menu.tscn").instantiate()
+	add_child(menu)
+	var play = menu._content.get_child(0)
+	play._select_level("europe_2")
+	GameManager.set_setting("light_mode", true)
+	assert_equals(play.selected_level_id, "europe_2", "El tema conserva el nivel seleccionado")
+	assert_equals(menu._background.color, UIThemeHelper.colors.bg, "El fondo cambia sin recargar el menú")
+	menu.show_tab("army")
+	var army = menu._content.get_child(0)
+	assert_equals(menu._nav.values().filter(func(b): return b.button_pressed).size(), 1, "Sólo una pestaña de navegación aparece seleccionada")
+	army.find_child("Segment_looks", true, false).pressed.emit()
+	GameManager.set_setting("light_mode", false)
+	assert_equals(army.section, "looks", "El tema conserva la pestaña de aspecto")
+	remove_child(menu)
+	menu.free()
+	var battle := BattleController.new()
+	var capital := _make_base(Vector2.ZERO, GameManager.Faction.PLAYER, 15)
+	capital.is_capital = true
+	battle.bases.append(capital)
+	battle.level_data = {"objective": "hold_capital", "hold_seconds": 12.0}
+	battle._update_level_objective(11.0)
+	assert_true(not battle._level_objective_complete(), "El objetivo no termina antes de tiempo")
+	capital.faction = GameManager.Faction.ENEMY_1
+	battle._update_level_objective(1.0)
+	assert_equals(battle._objective_held, 0.0, "Perder el objetivo reinicia el contador")
+	capital.faction = GameManager.Faction.PLAYER
+	battle._update_level_objective(12.0)
+	assert_true(battle._level_objective_complete(), "Mantener el objetivo permite ganar")
+	capital.free()
+	battle.free()
+	var hud: BattleHUD = load("res://scenes/ui/battle_hud.tscn").instantiate()
+	add_child(hud)
+	GameManager.experience = 80
+	hud.deploy_victory_modal({"xp_before": 0, "xp": 80, "stars": 3, "new_medal": true})
+	var m := DailyMissions.for_day(DailyRewards.today())[0]
+	GameManager.advance_mission(m["id"], int(m["goal"]))
+	hud._refresh_next_goal()
+	assert_true(hud.btn_claim_missions.visible, "Las misiones se reclaman desde la victoria")
+	hud._claim_missions()
+	assert_true(hud.unlock_label.visible and GameManager.is_cosmetic_owned("color_cyan"), "Cobrar una misión actualiza rango y desbloqueos")
+	assert_true(not hud.btn_claim_missions.visible, "La recompensa ya cobrada desaparece")
+	remove_child(hud)
+	hud.free()
+	GameManager.reset_save()
+
+func test_packet_combat_and_migration() -> void:
+	print("\n-> Test: Combate de paquetes y migración sin pérdida de progreso")
+	for dt in [0.016, 0.1, 0.5]:
+		var a := _make_base(Vector2(100, 500), GameManager.Faction.PLAYER, 1)
+		var b := _make_base(Vector2(900, 500), GameManager.Faction.ENEMY_1, 1)
+		var battle := BattleController.new()
+		var t1 := _make_stream(a, b, 40, GameManager.Faction.PLAYER)
+		var t2 := _make_stream(b, a, 20, GameManager.Faction.ENEMY_1)
+		battle.active_troops.append_array([t1, t2])
+		for _step in int(2.0 / dt):
+			for t in battle.active_troops.duplicate():
+				if BattleController._is_alive(t):
+					t.advance(dt)
+			battle._process_troop_collisions()
+			for t in battle.active_troops.duplicate():
+				if BattleController._is_alive(t):
+					t.resolve_arrivals()
+		assert_true(not is_instance_valid(t2), "Choque frontal elimina al menor (delta %.3f)" % dt)
+		assert_equals(t1.count, 20, "Choque conserva la diferencia exacta (delta %.3f)" % dt)
+		for n in [t1, t2, a, b, battle]:
+			if is_instance_valid(n):
+				n.free()
+	var day := DailyRewards.today()
+	var legacy := DailyMissions.for_day(day, true)
+	var first: Dictionary = legacy[0]
+	GameManager._apply_save({"version": 4, "coins": 333, "experience": 150,
+		"upgrades": {"production_rate": 4}, "cosmetics_owned": ["color_gold"],
+		"missions": {"day": day, "progress": {first["id"]: first["goal"]}, "claimed": []}})
+	assert_equals(GameManager.mission_definitions(), legacy, "Las misiones antiguas siguen vigentes hasta medianoche")
+	assert_true(GameManager.claim_mission(first["id"]), "La misión completada antes de actualizar se puede cobrar")
+	assert_equals(GameManager.upgrades["production_rate"], 4, "La actualización conserva las mejoras compradas")
+	assert_true(GameManager.is_cosmetic_owned("color_gold"), "Los cosméticos comprados siguen siendo tuyos")
+	GameManager.save_game()
+	GameManager.load_game()
+	assert_equals(GameManager.mission_definitions(), legacy, "La migración de misiones persiste")
+	GameManager.reset_save()
+
+func test_light_and_dark_mode() -> void:
+	print("\n-> Test: Modo Claro y Oscuro")
+	GameManager.reset_save()
+	GameManager.set_setting("light_mode", true)
+	assert_equals(UIThemeHelper.palette_name, "light", "Activar el modo claro cambia la paleta al instante")
+	var theme := ThemeDB.get_default_theme()
+	assert_equals(theme.get_color("font_color", "Label"), UIThemeHelper.PALETTES.light.text, "El tema global usa el texto oscuro")
+	for type in ["Button", "PrimaryButton", "GoldButton"]:
+		var ink: float = theme.get_color("font_color", type).srgb_to_linear().get_luminance()
+		var background: float = (theme.get_stylebox("normal", type) as StyleBoxFlat).bg_color.srgb_to_linear().get_luminance()
+		assert_true((maxf(ink, background) + 0.05) / (minf(ink, background) + 0.05) >= 4.5, "Contraste accesible en modo claro: %s" % type)
+	var text: float = UIThemeHelper.colors.text.srgb_to_linear().get_luminance()
+	var surface: float = UIThemeHelper.colors.surface.srgb_to_linear().get_luminance()
+	assert_true((surface + 0.05) / (text + 0.05) >= 7.0, "Texto sobre tarjetas muy legible en modo claro")
+	GameManager.load_game()
+	assert_true(GameManager.settings["light_mode"], "La preferencia se guarda")
+	var menu: MainMenuUI = load("res://scenes/ui/main_menu.tscn").instantiate()
+	add_child(menu)
+	assert_true(menu.get_child(0) is ColorRect and menu.get_child(0).color == UIThemeHelper.PALETTES.light.bg, "El menú se construye con el fondo claro")
+	remove_child(menu)
+	menu.free()
+	GameManager.set_setting("light_mode", false)
+	assert_equals(UIThemeHelper.palette_name, "dark", "Volver al modo oscuro")
+	assert_equals(theme.get_color("font_color", "Label"), UIThemeHelper.PALETTES.dark.text, "El tema global vuelve al texto claro")
 	GameManager.reset_save()

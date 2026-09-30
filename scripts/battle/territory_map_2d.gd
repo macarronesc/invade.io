@@ -27,7 +27,7 @@ class TerritoryCell extends RefCounted:
 	var flash_intensity: float = 0.0
 
 @export var map_bounds: Rect2 = Rect2(0, 0, 1080, 1920)
-@export var territory_alpha: float = 0.22
+@export var territory_alpha: float = 0.30
 @export var neutral_alpha: float = 0.14
 @export var border_color: Color = Color(1.0, 1.0, 1.0, 0.40)
 @export var border_width: float = 3.5
@@ -155,8 +155,10 @@ func on_base_conquered(base: BaseNode, new_faction: int) -> void:
 	if cell:
 		cell.start_color = cell.current_color
 		cell.target_color = get_faction_territory_color(new_faction)
-		cell.transition_progress = 0.0
-		cell.flash_intensity = 0.45
+		cell.transition_progress = 1.0 if GameManager.settings["reduced_motion"] else 0.0
+		cell.flash_intensity = 0.0 if GameManager.settings["reduced_motion"] else 0.45
+		if GameManager.settings["reduced_motion"]:
+			cell.current_color = cell.target_color
 		queue_redraw()
 
 func get_cell_for_base(base: BaseNode) -> TerritoryCell:
@@ -164,15 +166,6 @@ func get_cell_for_base(base: BaseNode) -> TerritoryCell:
 		if cell.base_node == base:
 			return cell
 	return null
-
-func get_cell_at_point(point: Vector2) -> TerritoryCell:
-	for cell in cells:
-		if cell.polygon.size() >= 3 and Geometry2D.is_point_in_polygon(point, cell.polygon):
-			return cell
-	return null
-
-func get_cells() -> Array[TerritoryCell]:
-	return cells
 
 func get_faction_territory_color(faction: int) -> Color:
 	var base_col = GameManager.faction_color(faction)
@@ -280,21 +273,10 @@ static func _clean_polygon(poly: PackedVector2Array) -> PackedVector2Array:
 		var pt = poly[i]
 		if res.is_empty():
 			res.append(pt)
-		else:
-			if res[res.size() - 1].distance_squared_to(pt) > 0.04:
-				res.append(pt)
+		elif res[res.size() - 1].distance_squared_to(pt) > 0.04:
+			res.append(pt)
 	if res.size() > 1 and res[0].distance_squared_to(res[res.size() - 1]) <= 0.04:
 		res.remove_at(res.size() - 1)
 	if res.size() < 3:
 		return PackedVector2Array()
 	return res
-
-static func calculate_polygon_area(poly: PackedVector2Array) -> float:
-	var n = poly.size()
-	if n < 3:
-		return 0.0
-	var area: float = 0.0
-	for i in range(n):
-		var j = (i + 1) % n
-		area += poly[i].x * poly[j].y - poly[j].x * poly[i].y
-	return absf(area) * 0.5

@@ -3,7 +3,7 @@ extends Node2D
 ## TutorialOverlay: enseña cada gesto una sola vez con una mano animada sobre el mapa.
 ## - europe_1: arrastrar para atacar (la simulación espera al primer envío)
 ## - europe_2: encadenar varias bases en un mismo trazo
-## - europe_3: cortar una hilera propia para que se retire (con cámara lenta)
+## - europe_3: cortar la ruta de una orden propia para que sus paquetes se retiren
 ## - Primer nivel con fortaleza / fábrica: tarjeta explicativa de cada tipo de base
 
 const GESTURE_STEPS = {
@@ -61,9 +61,8 @@ static func has_pending_steps(level_id: String, level_data: Dictionary) -> bool:
 func setup(p_battle: BattleController) -> void:
 	battle = p_battle
 	z_index = 20
-	_banner_style = UIThemeHelper.box(Color(UIThemeHelper.COLOR_SURFACE, 0.94), 32, 0)
-	_banner_style.set_border_width_all(2)
-	_banner_style.border_color = UIThemeHelper.COLOR_GOLD
+	_refresh_style()
+	EventBus.settings_changed.connect(_refresh_style)
 	for type_id in _pending_cards(battle.level_data):
 		_queue.append("card_%d" % type_id)
 	_queue.append_array(_pending_gestures(battle.level_id))
@@ -85,6 +84,12 @@ func _next_step() -> void:
 	elif _current == "drag":
 		battle.set_simulation_paused(true)
 		_show_hint(LocaleStrings.text("hint_drag"), INF)
+	queue_redraw()
+
+func _refresh_style() -> void:
+	_banner_style = UIThemeHelper.box(Color(UIThemeHelper.colors.surface, 0.94), 32, 0)
+	_banner_style.set_border_width_all(2)
+	_banner_style.border_color = UIThemeHelper.colors.gold
 	queue_redraw()
 
 ## `learned`: el jugador hizo el gesto. Si el paso sólo caduca, se volverá a enseñar otro día.
@@ -199,11 +204,11 @@ func _build_chain_path() -> PackedVector2Array:
 
 func _build_slice_path() -> PackedVector2Array:
 	for t in battle.active_troops:
-		if is_instance_valid(t) and t.faction == GameManager.Faction.PLAYER and not t.is_retreating and t.count >= 3:
+		if is_instance_valid(t) and t.faction == GameManager.Faction.PLAYER and not t.is_retreating and t.count >= 1:
 			var f = t.front_index()
-			if f < 0 or t.bead_dist(f) < 120.0 or t.bead_dist(f) > t.path_length * 0.6:
+			if f < 0 or t.packet_dist(f) < 120.0 or t.packet_dist(f) > t.path_length * 0.6:
 				continue
-			var mid = battle.to_local(t.bead_position(f)) - t.move_dir * 30.0
+			var mid = battle.to_local(t.packet_position(f)) - t.move_dir * 30.0
 			var n = Vector2(-t.move_dir.y, t.move_dir.x) * 110.0
 			return PackedVector2Array([mid - n, mid + n])
 	return PackedVector2Array()
@@ -232,7 +237,7 @@ func _draw_hand() -> void:
 	var move_t = smoothstep(0.15, 0.75, cycle)
 	var alpha = clampf(cycle / 0.1, 0.0, 1.0) * (1.0 - smoothstep(0.85, 1.0, cycle))
 	var pos = _point_on_path(_hand_path, move_t)
-	var accent = UIThemeHelper.COLOR_GOLD
+	var accent = UIThemeHelper.colors.gold
 
 	# Estela del gesto
 	var trail := PackedVector2Array()
@@ -247,14 +252,14 @@ func _draw_hand() -> void:
 	draw_circle(pos, 12.0, Color(accent, 0.8 * alpha))
 
 	# Mano (el dedo apunta al punto de contacto)
-	var font = ThemeDB.fallback_font
+	var font = UIThemeHelper.bold_font()
 	draw_string(font, pos + Vector2(-38, 72), "👆", HORIZONTAL_ALIGNMENT_LEFT, -1, 72, Color(1, 1, 1, alpha))
 
 func _draw_banner() -> void:
-	var font = ThemeDB.fallback_font
+	var font = UIThemeHelper.bold_font()
 	var font_size = 34
 	var width = 880.0
 	var text_size = font.get_multiline_string_size(_hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size)
 	var rect = Rect2(Vector2(540.0 - width * 0.5 - 36.0, 1680.0), Vector2(width + 72.0, text_size.y + 56.0))
 	draw_style_box(_banner_style, rect)
-	draw_multiline_string(font, rect.position + Vector2(36.0, 28.0 + font.get_ascent(font_size)), _hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size, -1, UIThemeHelper.COLOR_TEXT)
+	draw_multiline_string(font, rect.position + Vector2(36.0, 28.0 + font.get_ascent(font_size)), _hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size, -1, UIThemeHelper.colors.text)

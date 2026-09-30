@@ -12,128 +12,141 @@ anchor_right = 1.0
 offset_bottom = 250.0
 grow_horizontal = 2
 mouse_filter = 2
-theme_override_constants/margin_left = 32
-theme_override_constants/margin_top = 28
-theme_override_constants/margin_right = 32
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
 
-[node name="VBox" type="VBoxContainer" parent="TopBar"]
+[node name="Card" type="PanelContainer" parent="TopBar"]
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"HudBar"
+
+[node name="VBox" type="VBoxContainer" parent="TopBar/Card"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 12
 
-[node name="Row" type="HBoxContainer" parent="TopBar/VBox"]
+[node name="Row" type="HBoxContainer" parent="TopBar/Card/VBox"]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 20
 
-[node name="BtnPause" type="Button" parent="TopBar/VBox/Row"]
+[node name="BtnPause" type="Button" parent="TopBar/Card/VBox/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(96, 96)
+custom_minimum_size = Vector2(88, 88)
 layout_mode = 2
-size_flags_vertical = 0
+size_flags_vertical = 4
 theme_type_variation = &"IconButton"
 
-[node name="Titles" type="VBoxContainer" parent="TopBar/VBox/Row"]
+[node name="Titles" type="VBoxContainer" parent="TopBar/Card/VBox/Row"]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 theme_override_constants/separation = 2
 alignment = 1
 
-[node name="LevelNameLabel" type="Label" parent="TopBar/VBox/Row/Titles"]
+[node name="LevelNameLabel" type="Label" parent="TopBar/Card/VBox/Row/Titles"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Heading"
-theme_override_colors/font_outline_color = Color(0.054902, 0.086275, 0.141176, 0.85)
-theme_override_constants/outline_size = 8
 text = "Nivel 1"
 horizontal_alignment = 1
 text_overrun_behavior = 3
 
-[node name="RuleLabel" type="Label" parent="TopBar/VBox/Row/Titles"]
+[node name="RuleLabel" type="Label" parent="TopBar/Card/VBox/Row/Titles"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_type_variation = &"Caption"
-theme_override_colors/font_color = Color(1, 0.784314, 0.239216, 1)
-theme_override_colors/font_outline_color = Color(0.054902, 0.086275, 0.141176, 0.85)
-theme_override_constants/outline_size = 6
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="TargetTimeChip" type="PanelContainer" parent="TopBar/VBox/Row"]
+[node name="TargetTimeChip" type="PanelContainer" parent="TopBar/Card/VBox/Row"]
 layout_mode = 2
 size_flags_vertical = 4
 mouse_filter = 2
 theme_type_variation = &"Chip"
 
-[node name="TargetTimeLabel" type="Label" parent="TopBar/VBox/Row/TargetTimeChip"]
+[node name="TargetTimeLabel" type="Label" parent="TopBar/Card/VBox/Row/TargetTimeChip"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 theme_type_variation = &"Heading"
-theme_override_colors/font_color = Color(1, 0.784314, 0.239216, 1)
 text = "★★★ 45s"
 horizontal_alignment = 1
 
-[node name="DominanceBarContainer" type="HBoxContainer" parent="TopBar/VBox"]
+[node name="StatusRow" type="HBoxContainer" parent="TopBar/Card/VBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="BasesLabel" type="Label" parent="TopBar/Card/VBox/StatusRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"Caption"
+text = "Bases 1/4"
+
+[node name="ObjectiveLabel" type="Label" parent="TopBar/Card/VBox/StatusRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"Caption"
+horizontal_alignment = 2
+
+[node name="DominanceBarContainer" type="HBoxContainer" parent="TopBar/Card/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 10)
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 3
 
-[node name="BarPlayer" type="ColorRect" parent="TopBar/VBox/DominanceBarContainer"]
+[node name="BarPlayer" type="ColorRect" parent="TopBar/Card/VBox/DominanceBarContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 color = Color(0.13, 0.59, 0.95, 1)
 
-[node name="BarNeutral" type="ColorRect" parent="TopBar/VBox/DominanceBarContainer"]
+[node name="BarNeutral" type="ColorRect" parent="TopBar/Card/VBox/DominanceBarContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 color = Color(0.47, 0.56, 0.61, 1)
 
-[node name="BarEnemy" type="ColorRect" parent="TopBar/VBox/DominanceBarContainer"]
+[node name="BarEnemy" type="ColorRect" parent="TopBar/Card/VBox/DominanceBarContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 color = Color(0.96, 0.26, 0.21, 1)
 
-[node name="FactionCountsContainer" type="HBoxContainer" parent="TopBar/VBox"]
+[node name="FactionCountsContainer" type="HBoxContainer" parent="TopBar/Card/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 28
 
-[node name="LabelCountPlayer" type="Label" parent="TopBar/VBox/FactionCountsContainer"]
+[node name="LabelCountPlayer" type="Label" parent="TopBar/Card/VBox/FactionCountsContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Caption"
-theme_override_colors/font_outline_color = Color(0.054902, 0.086275, 0.141176, 0.85)
-theme_override_constants/outline_size = 6
 text = "Tú 0"
 
-[node name="LabelCountNeutral" type="Label" parent="TopBar/VBox/FactionCountsContainer"]
+[node name="LabelCountNeutral" type="Label" parent="TopBar/Card/VBox/FactionCountsContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"Caption"
-theme_override_colors/font_outline_color = Color(0.054902, 0.086275, 0.141176, 0.85)
-theme_override_constants/outline_size = 6
 text = "Neutral 0"
 horizontal_alignment = 1
 
-[node name="LabelCountEnemy" type="Label" parent="TopBar/VBox/FactionCountsContainer"]
+[node name="LabelCountEnemy" type="Label" parent="TopBar/Card/VBox/FactionCountsContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Caption"
-theme_override_colors/font_outline_color = Color(0.054902, 0.086275, 0.141176, 0.85)
-theme_override_constants/outline_size = 6
 text = "Rojo 0"
 horizontal_alignment = 2
 
@@ -145,7 +158,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.054902, 0.086275, 0.141176, 0.75)
+color = Color(0.02, 0.04, 0.08, 0.6)
 
 [node name="VictoryPanel" type="PanelContainer" parent="."]
 unique_name_in_owner = true
@@ -167,13 +180,21 @@ mouse_filter = 2
 
 [node name="VBox" type="VBoxContainer" parent="VictoryPanel"]
 layout_mode = 2
-theme_override_constants/separation = 28
+theme_override_constants/separation = 24
 
 [node name="VictoryTitle" type="Label" parent="VictoryPanel/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Display"
 text = "¡Victoria!"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="RecordLabel" type="Label" parent="VictoryPanel/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"Caption"
 horizontal_alignment = 1
 
 [node name="StarsContainer" type="HBoxContainer" parent="VictoryPanel/VBox"]
@@ -184,30 +205,37 @@ alignment = 1
 
 [node name="Star1" type="Label" parent="VictoryPanel/VBox/StarsContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 120)
+custom_minimum_size = Vector2(120, 110)
 layout_mode = 2
-theme_override_font_sizes/font_size = 110
+theme_override_font_sizes/font_size = 100
 text = "★"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Star2" type="Label" parent="VictoryPanel/VBox/StarsContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 120)
+custom_minimum_size = Vector2(120, 110)
 layout_mode = 2
-theme_override_font_sizes/font_size = 110
+theme_override_font_sizes/font_size = 100
 text = "★"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Star3" type="Label" parent="VictoryPanel/VBox/StarsContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 120)
+custom_minimum_size = Vector2(120, 110)
 layout_mode = 2
-theme_override_font_sizes/font_size = 110
+theme_override_font_sizes/font_size = 100
 text = "★"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="MedalLabel" type="Label" parent="VictoryPanel/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"Heading"
+horizontal_alignment = 1
 
 [node name="Stats" type="HBoxContainer" parent="VictoryPanel/VBox"]
 layout_mode = 2
@@ -249,7 +277,6 @@ theme_override_constants/separation = 2
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Heading"
-theme_override_colors/font_color = Color(1, 0.784314, 0.239216, 1)
 text = "+0"
 horizontal_alignment = 1
 
@@ -273,7 +300,6 @@ theme_override_constants/separation = 2
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Heading"
-theme_override_colors/font_color = Color(0.184314, 0.607843, 1, 1)
 text = "+0"
 horizontal_alignment = 1
 
@@ -284,8 +310,64 @@ theme_type_variation = &"Caption"
 text = "Ciudades"
 horizontal_alignment = 1
 
+[node name="Progress" type="VBoxContainer" parent="VictoryPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="CitiesLabel" type="Label" parent="VictoryPanel/VBox/Progress"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"Caption"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="RankRow" type="HBoxContainer" parent="VictoryPanel/VBox/Progress"]
+layout_mode = 2
+
+[node name="RankLabel" type="Label" parent="VictoryPanel/VBox/Progress/RankRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Recluta · nivel 1"
+
+[node name="XpLabel" type="Label" parent="VictoryPanel/VBox/Progress/RankRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Heading"
+text = "+0 XP"
+
+[node name="XpBar" type="ProgressBar" parent="VictoryPanel/VBox/Progress"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+theme_type_variation = &"GoldBar"
+max_value = 1.0
+show_percentage = false
+
+[node name="UnlockLabel" type="Label" parent="VictoryPanel/VBox/Progress"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"Heading"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="NextGoalLabel" type="Label" parent="VictoryPanel/VBox/Progress"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Caption"
+autowrap_mode = 3
+
+[node name="BtnClaimMissions" type="Button" parent="VictoryPanel/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"GoldButton"
+
 [node name="VictoryNote" type="Label" parent="VictoryPanel/VBox"]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
 theme_type_variation = &"Caption"
 horizontal_alignment = 1
@@ -302,10 +384,18 @@ text = "Siguiente nivel"
 layout_mode = 2
 theme_override_constants/separation = 16
 
+[node name="BtnResultAction" type="Button" parent="VictoryPanel/VBox/Actions"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+
 [node name="BtnVictoryMap" type="Button" parent="VictoryPanel/VBox/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = &"GhostButton"
 text = "Mapa"
 
 [node name="BtnShare" type="Button" parent="VictoryPanel/VBox/Actions"]
@@ -335,15 +425,19 @@ theme_override_constants/separation = 24
 [node name="Title" type="Label" parent="DefeatPanel/VBox"]
 layout_mode = 2
 theme_type_variation = &"Display"
-theme_override_colors/font_color = Color(1, 0.352941, 0.372549, 1)
 text = "Derrota"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="DefeatPanel/VBox"]
 layout_mode = 2
-theme_type_variation = &"Caption"
 horizontal_alignment = 1
 autowrap_mode = 3
+
+[node name="DefeatXpLabel" type="Label" parent="DefeatPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Caption"
+horizontal_alignment = 1
 
 [node name="BtnRetry" type="Button" parent="DefeatPanel/VBox"]
 unique_name_in_owner = true
@@ -385,6 +479,14 @@ layout_mode = 2
 theme_type_variation = &"Title"
 text = "Pausa"
 horizontal_alignment = 1
+
+[node name="PauseRule" type="Label" parent="PausePanel/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"Caption"
+horizontal_alignment = 1
+autowrap_mode = 3
 
 [node name="BtnResume" type="Button" parent="PausePanel/VBox"]
 unique_name_in_owner = true

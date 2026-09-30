@@ -15,8 +15,10 @@ const TIER_PARAMS = {
 	3: {"radius": 80.0, "capacity": 140, "rate": 2.5},
 }
 const DEFAULT_TIER_PARAMS = {"radius": 60.0, "capacity": 70, "rate": 1.0}
+## Colores del mapa: no dependen del modo claro/oscuro de la interfaz
+const MARKER_GOLD := Color("ffc83d")
+const FLOAT_TEXT_SECONDS := 1.6
 
-@export var base_id: String = ""
 @export var base_name: String = "Territorio"
 @export var faction: int = GameManager.Faction.NEUTRAL
 @export var troops: int = 20
@@ -55,6 +57,10 @@ var siege_pulse_time: float = 0.0
 
 var is_active: bool = true
 var _dirty: bool = true
+## Avance hasta los próximos refuerzos del jefe (0..1); < 0 si no aplica
+var reinforce_progress: float = -1.0
+## Textos flotantes breves sobre la base: {"text", "color", "t"}
+var _float_texts: Array[Dictionary] = []
 
 @onready var label_troops: Label = get_node_or_null("TroopLabel")
 @onready var label_name: Label = get_node_or_null("NameLabel")
@@ -103,6 +109,35 @@ func get_defense_power() -> float:
 func get_effective_defense() -> int:
 	return ceili(get_defense_power())
 
+## Defensa estimada dentro de `seconds`: una base con dueño sigue reclutando hasta llenarse
+func defense_after(seconds: float) -> float:
+	if faction == GameManager.Faction.NEUTRAL or not is_active:
+		return get_defense_power()
+	var future_troops := minf(float(max_capacity), troops + get_production_rate() * maxf(0.0, seconds))
+	return maxf(get_defense_power(), future_troops * get_defense_multiplier() - fortress_absorbed_damage)
+
+func is_full() -> bool:
+	return faction != GameManager.Faction.NEUTRAL and troops >= max_capacity
+
+## Texto breve que sube y se desvanece sobre la base (conquistas especiales, refuerzos...)
+func float_text(text: String, color: Color = Color.WHITE) -> void:
+	_float_texts.append({"text": text, "color": color, "t": 0.0})
+	_dirty = true
+
+## Qué aporta esta base a su dueño, en una línea (vacío si es una base normal)
+func perk_text() -> String:
+	var parts: PackedStringArray = []
+	if is_boss:
+		parts.append(LocaleStrings.text("perk_boss"))
+	if is_capital:
+		parts.append(LocaleStrings.text("perk_capital") % roundi((production_bonus - 1.0) * 100.0))
+	match base_type:
+		BaseType.FACTORY:
+			parts.append(LocaleStrings.text("perk_factory"))
+		BaseType.FORTRESS:
+			parts.append(LocaleStrings.text("perk_fortress"))
+	return " · ".join(parts)
+
 func update_siege_status(troops_list: Array) -> void:
 	var was_under_siege = is_under_siege
 	if not is_active or faction == GameManager.Faction.NEUTRAL:
@@ -119,10 +154,6 @@ func update_siege_status(troops_list: Array) -> void:
 	if was_under_siege != is_under_siege:
 		_dirty = true
 
-func set_base_type(p_type) -> void:
-	_set_type_from_variant(p_type)
-	_dirty = true
-
 ## Acepta el enum o el texto de las definiciones de nivel ("fortress" / "factory")
 func _set_type_from_variant(v) -> void:
 	if v is int:
@@ -132,7 +163,6 @@ func _set_type_from_variant(v) -> void:
 
 func setup(data: Dictionary) -> void:
 	is_active = true
-	base_id = data.get("id", base_id)
 	base_name = data.get("name", base_name)
 	city_key = data.get("city", city_key)
 	production_bonus = data.get("production_bonus", 1.0)
@@ -175,7 +205,7 @@ func _process(delta: float) -> void:
 				_update_label()
 				_trigger_generation_pulse()
 
-	var animating := _animate(delta)
+	var animating := _animate(delta) or reinforce_progress >= 0.0
 	if animating or _dirty:
 		_dirty = false
 		if label_troops:
@@ -186,7 +216,7 @@ func _process(delta: float) -> void:
 ## Avanza las animaciones y devuelve true mientras alguna siga activa
 func _animate(delta: float) -> bool:
 	var animating := false
-	if base_type == BaseType.FACTORY:
+	if base_type == BaseType.FACTORY and not GameManager.settings["reduced_motion"]:
 		factory_gear_angle += delta * 2.4
 		animating = true
 
@@ -208,8 +238,14 @@ func _animate(delta: float) -> bool:
 		pulse_scale = maxf(1.0, pulse_scale - delta * 2.5)
 		animating = true
 
+	for i in range(_float_texts.size() - 1, -1, -1):
+		animating = true
+		_float_texts[i]["t"] += delta
+		if _float_texts[i]["t"] >= FLOAT_TEXT_SECONDS:
+			_float_texts.remove_at(i)
+
 	if shake_intensity > 0.0:
-		shake_intensity = maxf(0.0, shake_intensity - delta * 22.0)
+		shake_intensity = 0.0 if GameManager.settings["reduced_motion"] else maxf(0.0, shake_intensity - delta * 22.0)
 		shake_offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake_intensity
 		animating = true
 	elif shake_offset != Vector2.ZERO:
@@ -221,9 +257,14 @@ func _animate(delta: float) -> bool:
 		shockwave_alpha = maxf(0.0, shockwave_alpha - delta * 2.6)
 		animating = true
 
-	if is_under_siege:
+	if is_under_siege and not GameManager.settings["reduced_motion"]:
 		siege_pulse_time += delta * 6.5
 		animating = true
+	if GameManager.settings["reduced_motion"]:
+		elastic_scale = Vector2.ONE
+		elastic_velocity = Vector2.ZERO
+		pulse_scale = 1.0
+		shockwave_alpha = 0.0
 	return animating
 
 func _trigger_generation_pulse() -> void:
@@ -306,6 +347,14 @@ func _change_faction(new_faction: int) -> void:
 	faction = new_faction
 	_trigger_conquest_shockwave(new_faction)
 	AudioManager.play_capture()
+	var perk := perk_text()
+	if new_faction == GameManager.Faction.PLAYER and perk != "":
+		# Las bases especiales explican lo que acabas de ganar y celebran algo más fuerte
+		float_text(perk, MARKER_GOLD)
+		shockwave_alpha = 1.0
+		elastic_scale = Vector2(1.45, 1.45)
+	elif prev_faction == GameManager.Faction.PLAYER:
+		float_text(LocaleStrings.text("base_lost"), UIThemeHelper.colors.danger.lightened(0.2))
 	EventBus.base_captured.emit(self, prev_faction, new_faction)
 
 func _update_label() -> void:
@@ -315,9 +364,13 @@ func _update_label() -> void:
 func _draw() -> void:
 	var color = GameManager.faction_color(faction)
 	var current_radius = radius * pulse_scale
-	if is_capital or is_boss:
-		var marker := "👑" if is_boss else "★"
-		draw_string(ThemeDB.fallback_font, Vector2(-30, -current_radius - 30), marker, HORIZONTAL_ALIGNMENT_CENTER, 60, 34, UIThemeHelper.COLOR_GOLD)
+	if is_boss:
+		_draw_crown(Vector2(0, -current_radius - 34), 15.0)
+	elif is_capital:
+		_draw_star(Vector2(0, -current_radius - 34), 15.0)
+	# Refuerzos del jefe: el arco se llena hasta la próxima oleada
+	if reinforce_progress >= 0.0:
+		draw_arc(Vector2.ZERO, current_radius + 20.0, -PI * 0.5, -PI * 0.5 + TAU * reinforce_progress, 48, Color(MARKER_GOLD, 0.85), 4.0, true)
 
 	# 1. Onda expansiva de impacto y conquista
 	if shockwave_alpha > 0.0:
@@ -376,7 +429,7 @@ func _draw() -> void:
 		draw_circle(Vector2(0, gear_y), 2.2, Color(1, 1, 1, 0.55))
 
 	# 7. Símbolo de facción (accesibilidad para daltonismo: no depender sólo del color)
-	_draw_faction_symbol(Vector2(0, -current_radius * 0.62), 5.5)
+	draw_faction_symbol(self, Vector2(0, -current_radius * 0.62), 5.5, faction)
 
 	# 8. Indicadores de Tier (pips redondeados en la parte superior)
 	var pip_spacing = 16.0
@@ -384,23 +437,48 @@ func _draw() -> void:
 	for i in tier:
 		draw_circle(Vector2(start_x + i * pip_spacing, -current_radius - 12.0), 4.5, Color.WHITE)
 
-	# 9. Alerta Visual de Asedio Inminente
+	# 9. Base llena: deja de reclutar, anillo completo para que se note
+	if is_full():
+		draw_arc(Vector2.ZERO, current_radius + 2.5, 0, TAU, 48, Color(1, 1, 1, 0.9), 3.0, true)
+
+	# 10. Alerta Visual de Asedio Inminente
 	if is_under_siege:
 		_draw_siege_alert(current_radius)
 
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	_draw_float_texts()
 
-func _draw_faction_symbol(center: Vector2, s: float) -> void:
+func _draw_float_texts() -> void:
+	var font := UIThemeHelper.bold_font()
+	for ft in _float_texts:
+		var k: float = ft["t"] / FLOAT_TEXT_SECONDS
+		var pos := Vector2(-200, -radius - 60.0 - (0.0 if GameManager.settings["reduced_motion"] else k * 50.0))
+		var alpha := 1.0 - smoothstep(0.6, 1.0, k)
+		draw_string_outline(font, pos, ft["text"], HORIZONTAL_ALIGNMENT_CENTER, 400, 28, 8, Color(0, 0, 0, 0.75 * alpha))
+		draw_string(font, pos, ft["text"], HORIZONTAL_ALIGNMENT_CENTER, 400, 28, Color(ft["color"], alpha))
+
+func _draw_star(c: Vector2, r: float) -> void:
+	var pts := PackedVector2Array()
+	for i in 10:
+		pts.append(c + Vector2.from_angle(-PI * 0.5 + i * PI / 5.0) * (r if i % 2 == 0 else r * 0.45))
+	draw_colored_polygon(pts, MARKER_GOLD)
+
+func _draw_crown(c: Vector2, r: float) -> void:
+	var pts := PackedVector2Array([c + Vector2(-r, r * 0.6), c + Vector2(-r, -r * 0.5), c + Vector2(-r * 0.5, 0),
+		c + Vector2(0, -r * 0.8), c + Vector2(r * 0.5, 0), c + Vector2(r, -r * 0.5), c + Vector2(r, r * 0.6)])
+	draw_colored_polygon(pts, MARKER_GOLD)
+
+static func draw_faction_symbol(canvas: CanvasItem, center: Vector2, s: float, owner: int) -> void:
 	var col = Color(1, 1, 1, 0.85)
-	match faction:
+	match owner:
 		GameManager.Faction.PLAYER:
-			draw_circle(center, s * 0.8, col)
+			canvas.draw_circle(center, s * 0.8, col)
 		GameManager.Faction.ENEMY_1:
-			draw_colored_polygon(PackedVector2Array([center + Vector2(0, -s), center + Vector2(s, s * 0.8), center + Vector2(-s, s * 0.8)]), col)
+			canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(0, -s), center + Vector2(s, s * 0.8), center + Vector2(-s, s * 0.8)]), col)
 		GameManager.Faction.ENEMY_2:
-			draw_rect(Rect2(center - Vector2(s, s) * 0.75, Vector2(s, s) * 1.5), col)
+			canvas.draw_rect(Rect2(center - Vector2(s, s) * 0.75, Vector2(s, s) * 1.5), col)
 		GameManager.Faction.ENEMY_3:
-			draw_colored_polygon(PackedVector2Array([center + Vector2(0, -s), center + Vector2(s, 0), center + Vector2(0, s), center + Vector2(-s, 0)]), col)
+			canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(0, -s), center + Vector2(s, 0), center + Vector2(0, s), center + Vector2(-s, 0)]), col)
 
 ## Marco exterior de la base estándar según la forma de la tienda (también en la vista previa de Ejército)
 static func draw_frame(canvas: CanvasItem, center: Vector2, r: float, shape: String) -> void:

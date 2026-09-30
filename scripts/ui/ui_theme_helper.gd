@@ -10,19 +10,21 @@ class_name UIThemeHelper
 
 const BATTLE_SCENE := "res://scenes/battle/battle_field.tscn"
 
-const COLOR_BG := Color("0e1624")
-const COLOR_SURFACE := Color("172234")
-const COLOR_SURFACE_2 := Color("22314a")
-const COLOR_LINE := Color("2c3d59")
-const COLOR_TEXT := Color("eaf1fa")
-const COLOR_MUTED := Color("8fa3bd")
-## Texto sobre botones claros (azul, oro)
-const COLOR_INK := Color("0b1a2e")
-const COLOR_PRIMARY := Color("2f9bff")
-const COLOR_GOLD := Color("ffc83d")
-const COLOR_SUCCESS := Color("3dd68c")
-const COLOR_DANGER := Color("ff5a5f")
-const COLOR_NEUTRAL := Color("8fa3bd")
+## Paletas de interfaz. El mapa de batalla no cambia con ellas: tiene su propio tema (tienda).
+## "ink" es el texto sobre los botones de color primario y dorado.
+const PALETTES := {
+	"dark": {"bg": Color("0e1624"), "surface": Color("172234"), "surface_2": Color("22314a"), "line": Color("2c3d59"),
+		"text": Color("eaf1fa"), "muted": Color("8fa3bd"), "ink": Color("0b1a2e"),
+		"primary": Color("2f9bff"), "gold": Color("ffc83d"), "success": Color("3dd68c"), "danger": Color("ff5a5f"), "neutral": Color("8fa3bd")},
+	"light": {"bg": Color("f2f4f8"), "surface": Color("ffffff"), "surface_2": Color("e5eaf1"), "line": Color("d3dbe6"),
+		"text": Color("15202f"), "muted": Color("5d6c80"), "ink": Color("ffffff"),
+		"primary": Color("1668c8"), "gold": Color("865700"), "success": Color("087747"), "danger": Color("d63c43"), "neutral": Color("64748b")},
+}
+## Velo bajo las capas modales (igual en ambos modos)
+const COLOR_SCRIM := Color(0.02, 0.04, 0.08, 0.6)
+
+static var palette_name := "dark"
+static var colors: Dictionary = PALETTES.dark
 
 const RADIUS := 28
 const SPACE := 24
@@ -42,81 +44,100 @@ static func bold_font() -> FontVariation:
 	return _bold
 
 ## Aplica el tema y el feedback táctil a toda la aplicación (una vez, desde un autoload)
-static func install(tree: SceneTree) -> void:
-	ThemeDB.get_default_theme().merge_with(build_theme())
+static func install(tree: SceneTree, light: bool) -> void:
+	apply_palette(tree, light)
 	tree.node_added.connect(func(node: Node):
 		if node is BaseButton:
 			setup_press_feedback(node))
+
+## Cambia entre modo claro y oscuro al instante, sin recargar escenas. Los colores fijados
+## con overrides los refresca cada pantalla al recibir EventBus.settings_changed.
+static func apply_palette(tree: SceneTree, light: bool) -> void:
+	var name := "light" if light else "dark"
+	if name == palette_name and tree.has_meta("_theme_installed"):
+		return
+	tree.set_meta("_theme_installed", true)
+	palette_name = name
+	colors = PALETTES[name]
+	ThemeDB.get_default_theme().merge_with(build_theme())
+	if tree.root:
+		tree.root.propagate_notification(Control.NOTIFICATION_THEME_CHANGED)
 
 static func build_theme() -> Theme:
 	var t := Theme.new()
 	t.default_font_size = FONT_BODY
 
 	# Texto
-	t.set_color("font_color", "Label", COLOR_TEXT)
+	t.set_color("font_color", "Label", colors.text)
 	for v in [["Display", 76, true], ["Title", 46, true], ["Heading", 34, true], ["Caption", 24, false]]:
 		t.set_type_variation(v[0], "Label")
 		t.set_font_size("font_size", v[0], v[1])
 		if v[2]:
 			t.set_font("font", v[0], bold_font())
-	t.set_color("font_color", "Caption", COLOR_MUTED)
+	t.set_color("font_color", "Caption", colors.muted)
 
 	# Botones: secundario por defecto y variaciones por énfasis
-	_button_type(t, "Button", COLOR_SURFACE_2, COLOR_TEXT)
-	_button_type(t, "OptionButton", COLOR_SURFACE_2, COLOR_TEXT)
-	for b in [["PrimaryButton", COLOR_PRIMARY], ["GoldButton", COLOR_GOLD]]:
+	_button_type(t, "Button", colors.surface_2, colors.text)
+	_button_type(t, "OptionButton", colors.surface_2, colors.text)
+	for b in [["PrimaryButton", colors.primary, colors.ink], ["GoldButton", colors.gold, colors.ink]]:
 		t.set_type_variation(b[0], "Button")
-		_button_type(t, b[0], b[1], COLOR_INK)
+		_button_type(t, b[0], b[1], b[2])
 		t.set_font_size("font_size", b[0], 34)
 		t.set_font("font", b[0], bold_font())
 	t.set_type_variation("GhostButton", "Button")
-	_flat_button(t, "GhostButton", Color.TRANSPARENT, COLOR_SURFACE, COLOR_MUTED, COLOR_TEXT)
+	_flat_button(t, "GhostButton", Color.TRANSPARENT, colors.surface, colors.muted, colors.text)
 	t.set_type_variation("SegmentButton", "Button")
-	_flat_button(t, "SegmentButton", Color.TRANSPARENT, COLOR_SURFACE_2, COLOR_MUTED, COLOR_TEXT)
+	_flat_button(t, "SegmentButton", Color.TRANSPARENT, colors.surface_2, colors.muted, colors.text)
 	t.set_type_variation("NavButton", "Button")
-	_flat_button(t, "NavButton", Color.TRANSPARENT, Color.TRANSPARENT, COLOR_MUTED, COLOR_PRIMARY)
+	_flat_button(t, "NavButton", Color.TRANSPARENT, Color.TRANSPARENT, colors.muted, colors.primary)
 	t.set_font_size("font_size", "NavButton", 22)
 	t.set_constant("h_separation", "NavButton", 4)
 	t.set_type_variation("RowButton", "Button")
-	_flat_button(t, "RowButton", COLOR_SURFACE, COLOR_SURFACE_2, COLOR_TEXT, COLOR_TEXT)
+	_flat_button(t, "RowButton", colors.surface, colors.surface_2, colors.text, colors.text)
 	t.set_type_variation("IconButton", "Button")
-	_flat_button(t, "IconButton", COLOR_SURFACE, COLOR_SURFACE_2, COLOR_TEXT, COLOR_TEXT)
+	_flat_button(t, "IconButton", colors.surface, colors.surface_2, colors.text, colors.text)
 	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 		var box: StyleBoxFlat = t.get_stylebox(state, "IconButton")
 		box.set_corner_radius_all(999)
 		box.set_content_margin_all(22)
 
 	# Paneles
-	t.set_stylebox("panel", "PanelContainer", box(COLOR_SURFACE, RADIUS, 32))
+	t.set_stylebox("panel", "PanelContainer", box(colors.surface, RADIUS, 32))
 	t.set_type_variation("Sheet", "PanelContainer")
-	var sheet := box(COLOR_SURFACE, 40, 48)
+	var sheet := box(colors.surface, 40, 48)
 	sheet.set_border_width_all(2)
-	sheet.border_color = COLOR_LINE
-	sheet.shadow_color = Color(0, 0, 0, 0.45)
+	sheet.border_color = colors.line
+	sheet.shadow_color = Color(0, 0, 0, 0.45 if palette_name == "dark" else 0.12)
 	sheet.shadow_size = 24
 	t.set_stylebox("panel", "Sheet", sheet)
 	t.set_type_variation("Chip", "PanelContainer")
-	var chip := box(COLOR_SURFACE_2, 999, 10)
+	var chip := box(colors.surface_2, 999, 10)
 	chip.content_margin_left = 22
 	chip.content_margin_right = 22
 	t.set_stylebox("panel", "Chip", chip)
 	t.set_type_variation("Tile", "PanelContainer")
-	t.set_stylebox("panel", "Tile", box(COLOR_SURFACE_2, 24, 20))
+	t.set_stylebox("panel", "Tile", box(colors.surface_2, 24, 20))
 	t.set_type_variation("NavBar", "PanelContainer")
-	var nav := box(COLOR_SURFACE, 0, 8)
+	var nav := box(colors.surface, 0, 8)
 	nav.border_width_top = 2
-	nav.border_color = COLOR_LINE
+	nav.border_color = colors.line
 	t.set_stylebox("panel", "NavBar", nav)
 	t.set_type_variation("Badge", "Panel")
-	t.set_stylebox("panel", "Badge", box(COLOR_GOLD, 999, 0))
+	t.set_stylebox("panel", "Badge", box(colors.gold, 999, 0))
+	# Cabecera de batalla: superficie translúcida para leerse sobre cualquier tema de mapa
+	t.set_type_variation("HudBar", "PanelContainer")
+	var hud := box(Color(colors.surface, 0.92), 32, 20)
+	hud.set_border_width_all(2)
+	hud.border_color = Color(colors.line, 0.8)
+	t.set_stylebox("panel", "HudBar", hud)
 
 	# Progreso, desplazamiento, interruptores y deslizadores
-	t.set_stylebox("background", "ProgressBar", box(COLOR_SURFACE_2, 999, 0))
-	t.set_stylebox("fill", "ProgressBar", box(COLOR_PRIMARY, 999, 0))
+	t.set_stylebox("background", "ProgressBar", box(colors.surface_2, 999, 0))
+	t.set_stylebox("fill", "ProgressBar", box(colors.primary, 999, 0))
 	t.set_type_variation("GoldBar", "ProgressBar")
-	t.set_stylebox("fill", "GoldBar", box(COLOR_GOLD, 999, 0))
+	t.set_stylebox("fill", "GoldBar", box(colors.gold, 999, 0))
 	t.set_stylebox("panel", "ScrollContainer", StyleBoxEmpty.new())
-	var grabber := box(COLOR_LINE, 999, 0)
+	var grabber := box(colors.line, 999, 0)
 	grabber.content_margin_left = 6
 	grabber.content_margin_right = 6
 	for s in ["grabber", "grabber_highlight", "grabber_pressed"]:
@@ -128,14 +149,14 @@ static func build_theme() -> Theme:
 		empty.content_margin_bottom = 14
 		t.set_stylebox(s, "CheckButton", empty)
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
-		t.set_color(c, "CheckButton", COLOR_TEXT)
+		t.set_color(c, "CheckButton", colors.text)
 	t.set_icon("checked", "CheckButton", Icons.texture("toggle_on", 64))
 	t.set_icon("unchecked", "CheckButton", Icons.texture("toggle_off", 64))
-	var track := box(COLOR_SURFACE_2, 999, 0)
+	var track := box(colors.surface_2, 999, 0)
 	track.content_margin_top = 7
 	track.content_margin_bottom = 7
 	t.set_stylebox("slider", "HSlider", track)
-	var filled := box(COLOR_PRIMARY, 999, 0)
+	var filled := box(colors.primary, 999, 0)
 	t.set_stylebox("grabber_area", "HSlider", filled)
 	t.set_stylebox("grabber_area_highlight", "HSlider", filled)
 	t.set_icon("grabber", "HSlider", Icons.texture("knob", 44))
@@ -143,24 +164,24 @@ static func build_theme() -> Theme:
 	t.set_icon("arrow", "OptionButton", Icons.texture("chevron_down", 36))
 
 	# Listas desplegables y diálogos nativos de Godot
-	var popup := box(COLOR_SURFACE, 24, 16)
+	var popup := box(colors.surface, 24, 16)
 	popup.set_border_width_all(2)
-	popup.border_color = COLOR_LINE
+	popup.border_color = colors.line
 	t.set_stylebox("panel", "PopupMenu", popup)
-	t.set_stylebox("hover", "PopupMenu", box(COLOR_SURFACE_2, 16, 0))
+	t.set_stylebox("hover", "PopupMenu", box(colors.surface_2, 16, 0))
 	t.set_font_size("font_size", "PopupMenu", FONT_BODY)
 	t.set_constant("v_separation", "PopupMenu", 28)
-	t.set_color("font_color", "PopupMenu", COLOR_TEXT)
-	t.set_color("font_hover_color", "PopupMenu", COLOR_TEXT)
-	t.set_stylebox("panel", "AcceptDialog", box(COLOR_SURFACE, 0, 32))
-	var border := box(COLOR_SURFACE, 28, 0)
+	t.set_color("font_color", "PopupMenu", colors.text)
+	t.set_color("font_hover_color", "PopupMenu", colors.text)
+	t.set_stylebox("panel", "AcceptDialog", box(colors.surface, 0, 32))
+	var border := box(colors.surface, 28, 0)
 	border.set_expand_margin_all(8)
 	border.expand_margin_top = 80
 	t.set_stylebox("embedded_border", "Window", border)
 	t.set_stylebox("embedded_unfocused_border", "Window", border)
 	t.set_font_size("title_font_size", "Window", FONT_BODY)
 	t.set_constant("title_height", "Window", 72)
-	t.set_color("title_color", "Window", COLOR_TEXT)
+	t.set_color("title_color", "Window", colors.text)
 	return t
 
 static func box(color: Color, radius: int, padding: float) -> StyleBoxFlat:
@@ -177,7 +198,7 @@ static func _button_type(t: Theme, type: String, color: Color, ink: Color) -> vo
 	var states := {
 		"normal": [color, 4], "hover": [color.lightened(0.08), 4],
 		"pressed": [color.darkened(0.1), 1], "hover_pressed": [color.darkened(0.1), 1],
-		"disabled": [Color(COLOR_SURFACE_2, 0.55), 0],
+		"disabled": [Color(colors.surface_2, 0.55), 0],
 	}
 	for state in states:
 		var b := box(states[state][0], 24, 0)
@@ -191,9 +212,9 @@ static func _button_type(t: Theme, type: String, color: Color, ink: Color) -> vo
 	var focus := box(Color.TRANSPARENT, 26, 0)
 	focus.draw_center = false
 	focus.set_border_width_all(3)
-	focus.border_color = COLOR_PRIMARY.lightened(0.3)
+	focus.border_color = colors.primary.lightened(0.3)
 	t.set_stylebox("focus", type, focus)
-	_button_colors(t, type, ink, ink, COLOR_MUTED)
+	_button_colors(t, type, ink, ink, colors.muted)
 
 ## Botón plano: fondo sólo al pulsarlo o al estar activo (toggle)
 static func _flat_button(t: Theme, type: String, normal: Color, active: Color, ink: Color, active_ink: Color) -> void:
@@ -201,13 +222,13 @@ static func _flat_button(t: Theme, type: String, normal: Color, active: Color, i
 		t.set_stylebox(state, type, box(normal, 24, 18))
 	for state in ["hover", "pressed", "hover_pressed"]:
 		t.set_stylebox(state, type, box(active if state != "hover" else normal.lerp(active, 0.5), 24, 18))
-	_button_colors(t, type, ink, active_ink, Color(COLOR_MUTED, 0.5))
+	_button_colors(t, type, ink, active_ink, colors.muted)
 
 static func _button_colors(t: Theme, type: String, ink: Color, active_ink: Color, disabled: Color) -> void:
-	var colors := {"normal": ink, "hover": ink, "focus": ink, "pressed": active_ink, "hover_pressed": active_ink, "disabled": disabled}
-	for state in colors:
-		t.set_color("font_color" if state == "normal" else "font_%s_color" % state, type, colors[state])
-		t.set_color("icon_%s_color" % state, type, colors[state])
+	var state_colors := {"normal": ink, "hover": ink, "focus": ink, "pressed": active_ink, "hover_pressed": active_ink, "disabled": disabled}
+	for state in state_colors:
+		t.set_color("font_color" if state == "normal" else "font_%s_color" % state, type, state_colors[state])
+		t.set_color("icon_%s_color" % state, type, state_colors[state])
 	t.set_constant("h_separation", type, 14)
 	t.set_constant("icon_max_width", type, 48)
 
@@ -306,7 +327,9 @@ static func round_badge(content: Control, tint: Color, diameter: float = 96.0) -
 	panel.add_child(center)
 	return panel
 
-static func chip(text: String, icon: String = "", color: Color = COLOR_TEXT) -> PanelContainer:
+static func chip(text: String, icon: String = "", color: Color = Color.TRANSPARENT) -> PanelContainer:
+	if color == Color.TRANSPARENT:
+		color = colors.text
 	var panel := PanelContainer.new()
 	panel.theme_type_variation = "Chip"
 	var row := hbox(10)
@@ -330,10 +353,12 @@ static func progress(value: float, max_value: float, variation: String = "") -> 
 	return bar
 
 ## Fila tocable de lista: icono, título, subtítulo y un indicador a la derecha
-static func row_button(icon: String, title: String, subtitle: String, trailing: String, tint: Color = COLOR_PRIMARY) -> Button:
+static func row_button(icon: String, title: String, subtitle: String, trailing: String, tint: Color = Color.TRANSPARENT) -> Button:
+	if tint == Color.TRANSPARENT:
+		tint = colors.primary
 	var b := button("", "RowButton")
 	b.custom_minimum_size.y = 128
-	var row := item_row(round_badge(Icons.rect(icon, 52, tint), tint, 80), title, subtitle, Icons.rect(trailing, 40, COLOR_MUTED))
+	var row := item_row(round_badge(Icons.rect(icon, 52, tint), tint, 80), title, subtitle, Icons.rect(trailing, 40, colors.muted))
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	row.offset_left = 24
 	row.offset_right = -28
@@ -345,7 +370,7 @@ static func row_button(icon: String, title: String, subtitle: String, trailing: 
 ## Estrellas ★ doradas y ☆ pendientes
 static func set_stars(l: Label, stars: int) -> void:
 	l.text = "★".repeat(stars) + "☆".repeat(3 - stars)
-	l.add_theme_color_override("font_color", COLOR_GOLD if stars > 0 else COLOR_MUTED)
+	l.add_theme_color_override("font_color", colors.gold if stars > 0 else colors.muted)
 
 static func stars_label(stars: int, variation: String = "Heading") -> Label:
 	var l := label("", variation)
@@ -365,10 +390,6 @@ static func clear(container: Node) -> void:
 	for child in container.get_children():
 		container.remove_child(child)
 		child.queue_free()
-
-static func xp_text() -> String:
-	var level := DailyMissions.player_level(GameManager.experience)
-	return LocaleStrings.text("player_xp") % [level, GameManager.experience - DailyMissions.level_start(level), DailyMissions.level_start(level + 1) - DailyMissions.level_start(level)]
 
 # =========================================================================
 # Navegación, zonas seguras y capas
@@ -414,7 +435,7 @@ static func overlay_page(root: Control, title: String, close: Callable) -> VBoxC
 	root.process_mode = Node.PROCESS_MODE_ALWAYS
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var background := ColorRect.new()
-	background.color = COLOR_BG
+	background.color = colors.bg
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(background)
 	var column := vbox(32)
@@ -465,7 +486,7 @@ static func create_modal_card(title: String, body: String, button_text: String, 
 	var root: Control = center
 	if backdrop:
 		root = ColorRect.new()
-		root.color = Color(COLOR_BG, 0.75)
+		root.color = COLOR_SCRIM
 		root.mouse_filter = Control.MOUSE_FILTER_STOP
 		root.add_child(center)
 	root.tree_entered.connect(func():
@@ -498,6 +519,9 @@ static func setup_press_feedback(btn: BaseButton) -> void:
 		if not btn.is_inside_tree() or btn.disabled and target < 1.0:
 			return
 		_kill_meta_tween(btn, "_press_tween")
+		if GameManager.settings["reduced_motion"]:
+			btn.scale = Vector2.ONE
+			return
 		var tw := btn.create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 		btn.set_meta("_press_tween", tw)
@@ -514,6 +538,10 @@ static func animate_modal_pop_in(modal: Control) -> void:
 		return
 	_kill_meta_tween(modal, "_modal_tween")
 	modal.visible = true
+	if GameManager.settings["reduced_motion"]:
+		modal.scale = Vector2.ONE
+		modal.modulate = Color.WHITE
+		return
 	modal.pivot_offset = modal.size * 0.5
 	modal.scale = Vector2(0.94, 0.94)
 	modal.modulate = Color(1, 1, 1, 0.0)
@@ -532,6 +560,13 @@ static func animate_modal_pop_out(modal: Control, on_complete: Callable = Callab
 			on_complete.call()
 		return
 	_kill_meta_tween(modal, "_modal_tween")
+	if GameManager.settings["reduced_motion"]:
+		modal.visible = false
+		modal.scale = Vector2.ONE
+		modal.modulate = Color.WHITE
+		if on_complete.is_valid():
+			on_complete.call()
+		return
 	modal.pivot_offset = modal.size * 0.5
 	var tw := modal.create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)

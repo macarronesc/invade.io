@@ -29,10 +29,12 @@ var think_scale: float = 1.0
 ## Tropas en marcha por base objetivo: {BaseNode: {faction: unidades}}
 var _incoming: Dictionary = {}
 var _grace_period: float = 0.0
+var _rng := RandomNumberGenerator.new()
 
 func setup(p_battle_controller: BattleController, p_faction: int) -> void:
 	battle_controller = p_battle_controller
 	faction = p_faction
+	_rng.seed = hash(p_battle_controller.level_id) ^ p_faction
 	var difficulty := LevelDatabase.get_difficulty(battle_controller.level_id)
 	think_scale = lerpf(1.25, 0.7, difficulty)
 	# Segundos iniciales sin atacar al jugador: 12 s en el primer nivel, 0 en el último
@@ -40,6 +42,8 @@ func setup(p_battle_controller: BattleController, p_faction: int) -> void:
 	# Los 3 primeros niveles son casi imposibles de perder: la IA espera aún más
 	if battle_controller.level_id in ["europe_1", "europe_2", "europe_3"]:
 		_grace_period = maxf(_grace_period, 25.0)
+	elif battle_controller.level_id == "europe_4":
+		_grace_period = maxf(_grace_period, 18.0)
 	set_archetype(FACTION_ARCHETYPES.get(faction, AIArchetype.AGGRESSIVE))
 
 func set_archetype(p_archetype: AIArchetype) -> void:
@@ -49,13 +53,13 @@ func set_archetype(p_archetype: AIArchetype) -> void:
 func _configure_timers_for_archetype() -> void:
 	match archetype:
 		AIArchetype.AGGRESSIVE:
-			think_interval = randf_range(1.1, 1.7)
+			think_interval = _rng.randf_range(1.1, 1.7)
 		AIArchetype.EXPANSIVE:
-			think_interval = randf_range(1.3, 1.9)
+			think_interval = _rng.randf_range(1.3, 1.9)
 		AIArchetype.OPPORTUNIST:
-			think_interval = randf_range(1.5, 2.3)
+			think_interval = _rng.randf_range(1.5, 2.3)
 	think_interval *= think_scale
-	think_timer = randf_range(0.2, think_interval)
+	think_timer = _rng.randf_range(0.2, think_interval)
 
 func _process(delta: float) -> void:
 	if battle_controller.is_game_over:
@@ -64,9 +68,6 @@ func _process(delta: float) -> void:
 	if think_timer <= 0.0:
 		_configure_timers_for_archetype()
 		_evaluate_and_execute()
-
-func get_player_grace_period() -> float:
-	return _grace_period
 
 func _rebuild_incoming() -> void:
 	_incoming.clear()
@@ -84,8 +85,9 @@ func get_projected_defense(src: BaseNode, dst: BaseNode) -> float:
 	var def := float(dst.get_effective_defense())
 	var m := dst.get_defense_multiplier()
 	if dst.faction != GameManager.Faction.NEUTRAL and dst.faction != faction:
-		var travel_time := src.global_position.distance_to(dst.global_position) / (Troop.BASE_SPEED * float(battle_controller.level_data.get("travel_multiplier", 1.0)))
-		def += dst.get_production_rate() * travel_time * m
+		var speed := Troop.BASE_SPEED * float(battle_controller.level_data.get("travel_multiplier", 1.0))
+		var travel_time := maxf(10.0, src.global_position.distance_to(dst.global_position) - dst.radius * 0.45) / speed + Troop.emission_seconds(src.troops - 1, speed)
+		def = ceilf(dst.defense_after(travel_time))
 	var per_faction: Dictionary = _incoming.get(dst, {})
 	for f in per_faction:
 		def += per_faction[f] * m if f == dst.faction else -per_faction[f]

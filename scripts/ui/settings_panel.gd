@@ -27,6 +27,10 @@ func _build() -> void:
 	_content = UIThemeHelper.overlay_page(self, LocaleStrings.text("settings"), _close)
 
 	_section("section_game")
+	_label(LocaleStrings.text("appearance"))
+	_group.add_child(_options([LocaleStrings.text("theme_dark"), LocaleStrings.text("theme_light")], 1 if GameManager.settings["light_mode"] else 0, func(index):
+		GameManager.set_setting("light_mode", index == 1)
+		_build()))
 	_label(LocaleStrings.text("language"))
 	_group.add_child(_options(["Español", "English"], 1 if GameManager.language == "en" else 0, func(index):
 		GameManager.set_language("en" if index == 1 else "es")
@@ -44,7 +48,7 @@ func _build() -> void:
 		_slider(key)
 
 	_section("section_access")
-	for key in ["vibration", "colorblind"]:
+	for key in ["vibration", "colorblind", "reduced_motion"]:
 		_toggle(key, GameManager.settings[key], func(value): GameManager.set_setting(key, value))
 
 	if allow_backups:

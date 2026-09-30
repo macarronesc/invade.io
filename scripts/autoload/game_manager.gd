@@ -46,14 +46,18 @@ const UPGRADE_STEPS = {
 	"starting_troops": 5,
 	"production_rate": 15,
 	"troop_speed": 10,
-	"gold_bonus": 20
+	"gold_bonus": 10
 }
+## Crecimiento del coste por nivel: base × (1 + n + n²/4). Suave para que siempre haya una
+## compra a pocas victorias (nivel 9 ≈ 30× la primera, antes 200×)
+const UPGRADE_COST_QUADRATIC := 0.25
 
 const MAX_UPGRADE_LEVEL = 10
 const DEFAULT_COINS = 150
 const FIRST_LEVEL_ID := "europe_1"
-const SAVE_VERSION = 4
-const DEFAULT_SETTINGS := {"volume": 0.8, "music_volume": 0.8, "vibration": true, "speed": 1.0, "colorblind": false}
+const SAVE_VERSION = 5
+const DEFAULT_SETTINGS := {"volume": 0.8, "music_volume": 0.8, "vibration": true, "speed": 1.0, "colorblind": false,
+	"light_mode": false, "reduced_motion": false}
 const GAME_SPEEDS := [0.75, 1.0, 1.5, 2.0]
 const ACCESSIBLE_FACTION_COLORS := [Color("8796a5"), Color("0072b2"), Color("d55e00"), Color("f0e442"), Color("cc79a7")]
 const SUPPORTED_LANGUAGES := ["es", "en"]
@@ -62,6 +66,11 @@ const DEFAULT_COSMETICS_EQUIPPED := {"army_color": "color_blue", "troop_style": 
 
 ## Fracción de oro que se concede al repetir un nivel ya superado sin mejorar estrellas
 const REPLAY_GOLD_FACTOR = 0.25
+const DEFEAT_XP := 10
+## Oro al completar la colección de ciudades de un continente
+const COLLECTION_GOLD := 200
+## Regiones por expedición en la conquista libre; la última es un jefe con premio doble
+const EXPEDITION_SIZE := 5
 
 var coins: int = DEFAULT_COINS
 var upgrades: Dictionary = {}
@@ -88,7 +97,7 @@ var language: String:
 		LocaleStrings.lang = value
 ## Primer arranque: false hasta que el jugador entra en su primera batalla
 var has_started: bool = false
-## Siguiente región de conquista libre por jugar (dificultad infinita creciente)
+## Siguiente región de expedición por jugar; la dificultad crece hasta su techo.
 var conquest_next: int = 0
 ## Ciudades reales conquistadas en cualquier modo (claves de GeoDatabase)
 var conquered_cities: Array[String] = []
@@ -99,6 +108,14 @@ var settings: Dictionary = {}
 var experience: int = 0
 var missions: Dictionary = {}
 var daily_best: Dictionary = {}
+## Tiempo de victoria más rápido por nivel de campaña (segundos de simulación).
+var campaign_best: Dictionary = {}
+## Niveles de campaña ganados sin perder ninguna base (medalla de dominio)
+var medals: Array[String] = []
+## Continentes cuya colección del atlas ya se ha cobrado
+var collections_claimed: Array[String] = []
+## Batalla en curso sin mejoras de combate (desafío diario, comparable entre jugadores)
+var normalized_battle: bool = false
 
 const ACHIEVEMENT_UNLOCKED := "unlocked"
 const ACHIEVEMENT_CLAIMED := "claimed"
@@ -125,6 +142,8 @@ func get_max_possible_stars() -> int:
 
 ## Bonificación total de una mejora con su nivel actual (tropas o puntos porcentuales)
 func get_upgrade_bonus(upgrade_id: String) -> int:
+	if normalized_battle and upgrade_id != "gold_bonus":
+		return 0
 	return upgrades.get(upgrade_id, 0) * UPGRADE_STEPS[upgrade_id]
 
 func get_starting_troops_bonus() -> int:
@@ -148,11 +167,27 @@ func get_faction_production_multiplier(faction: int) -> float:
 	return enemy_production_multiplier
 
 func get_upgrade_cost(upgrade_id: String) -> int:
+	if not UPGRADE_BASE_COSTS.has(upgrade_id):
+		return -1
 	var lvl: int = upgrades.get(upgrade_id, 0)
 	if lvl >= MAX_UPGRADE_LEVEL:
 		return -1
-	var base_cost: int = UPGRADE_BASE_COSTS.get(upgrade_id, 50)
-	return int(round(base_cost * pow(1.8, lvl)))
+	var base_cost: int = UPGRADE_BASE_COSTS[upgrade_id]
+	return int(round(base_cost * (1.0 + lvl + lvl * lvl * UPGRADE_COST_QUADRATIC)))
+
+## Mejora más barata que aún se puede subir ("" si están todas al máximo)
+func cheapest_upgrade() -> String:
+	var best := ""
+	for id in UPGRADE_BASE_COSTS:
+		var cost := get_upgrade_cost(id)
+		if cost >= 0 and (best == "" or cost < get_upgrade_cost(best)):
+			best = id
+	return best
+
+## Primera compra guiada: aún no ha mejorado nada y ya puede permitírselo
+func should_suggest_first_upgrade() -> bool:
+	var id := cheapest_upgrade()
+	return id != "" and upgrades.values().max() == 0 and coins >= get_upgrade_cost(id)
 
 func buy_upgrade(upgrade_id: String) -> bool:
 	var cost := get_upgrade_cost(upgrade_id)
@@ -179,10 +214,12 @@ func calculate_victory_gold(level_id: String, stars: int, base_amount: int) -> i
 		factor = 0.5 if stars > previous else REPLAY_GOLD_FACTOR
 	return int(round(base_amount * factor * get_gold_multiplier()))
 
-func complete_level(level_id: String, stars: int) -> void:
+func complete_level(level_id: String, stars: int, medal: bool = false) -> void:
 	var current_stars: int = int(completed_levels.get(level_id, 0))
 	if stars > current_stars:
 		completed_levels[level_id] = stars
+	if medal and not medals.has(level_id):
+		medals.append(level_id)
 
 	# Desbloquear siguiente nivel
 	var next_id = get_next_level(level_id)
@@ -234,6 +271,12 @@ func faction_color(faction: int) -> Color:
 ## Color del ejército equipado en la tienda de estética
 func player_color() -> Color:
 	return CosmeticsDatabase.get_by_id(cosmetics_equipped.get("army_color", "")).get("color", FACTION_COLORS[Faction.PLAYER])
+
+func player_level() -> int:
+	return PlayerRank.level(experience)
+
+func is_continent_complete(continent_id: String) -> bool:
+	return LevelDatabase.get_continent_level_ids(continent_id).all(func(id): return completed_levels.has(id))
 
 func troop_style() -> String:
 	return str(cosmetics_equipped.get("troop_style", "troop_classic"))
@@ -335,11 +378,33 @@ func set_language(lang: String) -> void:
 		return
 	language = lang
 	save_game()
+	EventBus.settings_changed.emit()
 
-## Registra la victoria en una región de conquista; devuelve el oro (siempre suma, sin repeticiones)
+## Registra la victoria en una región de conquista; devuelve el oro (siempre suma, sin repeticiones).
+## Cerrar una expedición (su región final, con jefe) paga el doble.
 func complete_conquest(index: int) -> int:
 	conquest_next = maxi(conquest_next, index + 1)
-	return int(round((100 + 15 * mini(index, 20)) * get_gold_multiplier()))
+	var finale := 2.0 if LevelGenerator.is_expedition_finale(index) else 1.0
+	return int(round((100 + 15 * mini(index, 20)) * finale * get_gold_multiplier()))
+
+## Ciudades de la colección de un continente ya en el atlas
+func collection_progress(continent_id: String) -> int:
+	return LevelDatabase.collection_cities(continent_id).filter(func(c): return conquered_cities.has(c)).size()
+
+func is_collection_complete(continent_id: String) -> bool:
+	var cities := LevelDatabase.collection_cities(continent_id)
+	return not cities.is_empty() and collection_progress(continent_id) == cities.size()
+
+## Cobra el premio de una colección completa; devuelve el oro (0 si no procede)
+func claim_collection(continent_id: String) -> int:
+	if collections_claimed.has(continent_id) or not is_collection_complete(continent_id):
+		return 0
+	collections_claimed.append(continent_id)
+	add_coins(COLLECTION_GOLD)
+	return COLLECTION_GOLD
+
+func claimable_collection_count() -> int:
+	return LevelDatabase.get_continents().filter(func(c): return is_collection_complete(c["id"]) and not collections_claimed.has(c["id"])).size()
 
 ## Añade una ciudad real al atlas (devuelve true si era nueva)
 func conquer_city(city_key: String) -> bool:
@@ -351,16 +416,19 @@ func conquer_city(city_key: String) -> bool:
 func atlas_conquered_count() -> int:
 	return conquered_cities.size()
 
-func atlas_total_count() -> int:
-	return GeoDatabase.city_count()
-
+## Comprado, o ganado por rango o por conquistar su continente
 func is_cosmetic_owned(id: String) -> bool:
-	return cosmetics_owned.has(id)
+	if cosmetics_owned.has(id):
+		return true
+	var item := CosmeticsDatabase.get_by_id(id)
+	if item.has("rank"):
+		return player_level() >= int(item["rank"])
+	return item.has("continent") and is_continent_complete(item["continent"])
 
-## Compra un cosmético; devuelve true si se ha desbloqueado
+## Compra un cosmético; devuelve true si se ha desbloqueado. Los premios no se venden.
 func buy_cosmetic(id: String) -> bool:
 	var item := CosmeticsDatabase.get_by_id(id)
-	if item.is_empty() or is_cosmetic_owned(id) or coins < int(item["cost"]):
+	if item.is_empty() or CosmeticsDatabase.is_reward(item) or is_cosmetic_owned(id) or coins < int(item["cost"]):
 		return false
 	coins -= int(item["cost"])
 	cosmetics_owned.append(id)
@@ -410,17 +478,22 @@ static func _setting_number(key: String, value: Variant) -> float:
 func ensure_missions(day: int = DailyRewards.today()) -> void:
 	# Un reloj atrasado no permite volver a cobrar los objetivos de ayer.
 	if day > int(missions.get("day", -1)):
-		missions = {"day": day, "progress": {}, "claimed": []}
+		missions = {"day": day, "progress": {}, "claimed": [], "ids": DailyMissions.for_day(day).map(func(m): return m["id"])}
+
+func mission_definitions(day: int = DailyRewards.today()) -> Array[Dictionary]:
+	if day == int(missions.get("day", -1)):
+		return DailyMissions.for_ids(missions["ids"])
+	return DailyMissions.for_day(day)
 
 func advance_mission(id: String, amount: int = 1, day: int = DailyRewards.today()) -> void:
 	ensure_missions(day)
-	for mission in DailyMissions.for_day(int(missions["day"])):
+	for mission in mission_definitions(int(missions["day"])):
 		if mission["id"] == id:
 			missions["progress"][id] = clampi(int(missions["progress"].get(id, 0)) + maxi(0, amount), 0, int(mission["goal"]))
 
 func claim_mission(id: String, day: int = DailyRewards.today()) -> bool:
 	ensure_missions(day)
-	for mission in DailyMissions.for_day(int(missions["day"])):
+	for mission in mission_definitions(int(missions["day"])):
 		if mission["id"] != id or missions["claimed"].has(id) or int(missions["progress"].get(id, 0)) < int(mission["goal"]):
 			continue
 		missions["claimed"].append(id)
@@ -433,12 +506,18 @@ func claim_mission(id: String, day: int = DailyRewards.today()) -> bool:
 func claimable_mission_count(day: int = DailyRewards.today()) -> int:
 	if day != int(missions.get("day", -1)):
 		return 0
-	return DailyMissions.for_day(day).filter(func(m): return not missions["claimed"].has(m["id"]) \
+	return mission_definitions(day).filter(func(m): return not missions["claimed"].has(m["id"]) \
 		and int(missions["progress"].get(m["id"], 0)) >= int(m["goal"])).size()
+
+## XP de una victoria: más por estrellas y por la medalla, poca al repetir sin mejorar
+static func victory_xp(result: Dictionary) -> int:
+	var stars: int = clampi(int(result.get("stars", 1)), 1, 3)
+	var base := 10 if result.get("is_replay", false) else 30 + stars * 10
+	return base + (20 if result.get("new_medal", false) else 0)
 
 func record_battle_result(result: Dictionary, flawless: bool) -> void:
 	var stars: int = clampi(int(result.get("stars", 1)), 1, 3)
-	experience += 10 if result.get("is_replay", false) else 30 + stars * 10
+	experience += victory_xp(result)
 	advance_mission("wins")
 	advance_mission("stars", stars)
 	if flawless:
@@ -448,7 +527,14 @@ func record_battle_result(result: Dictionary, flawless: bool) -> void:
 		var day := DailyRewards.challenge_day(str(result["level_id"]))
 		var seconds := float(result.get("time", 0.0))
 		if day > int(daily_best.get("day", -1)) or (day == int(daily_best.get("day", -1)) and (stars > int(daily_best["stars"]) or (stars == int(daily_best["stars"]) and seconds < float(daily_best["time"])))):
-			daily_best = {"day": day, "stars": stars, "time": seconds, "speed": result.get("speed", 1.0)}
+			result["new_record"] = true
+			daily_best = {"day": day, "stars": stars, "time": seconds, "speed": result.get("speed", 1.0), "normalized": true}
+	elif _is_campaign_level(result.get("level_id", "")):
+		var id: String = result["level_id"]
+		var seconds := float(result.get("time", INF))
+		if is_finite(seconds) and seconds >= 0 and seconds < float(campaign_best.get(id, INF)):
+			result["new_record"] = campaign_best.has(id)
+			campaign_best[id] = seconds
 	save_game()
 
 func save_data() -> Dictionary:
@@ -472,7 +558,9 @@ func save_data() -> Dictionary:
 		"conquered_cities": conquered_cities,
 		"cosmetics_owned": cosmetics_owned,
 		"cosmetics_equipped": cosmetics_equipped,
-		"settings": settings, "experience": experience, "missions": missions, "daily_best": daily_best
+		"settings": settings, "experience": experience, "missions": missions, "daily_best": daily_best,
+		"medals": medals, "collections_claimed": collections_claimed,
+		"campaign_best": campaign_best,
 	}
 
 func save_game() -> void:
@@ -516,6 +604,7 @@ func import_save(path: String) -> Error:
 	error = write_save(save_path, save_data())
 	if error != OK:
 		_apply_save(previous)
+	EventBus.settings_changed.emit()
 	return error
 
 func load_game() -> void:
@@ -531,8 +620,10 @@ func load_game() -> void:
 func reset_save() -> void:
 	_apply_save({})
 	special_level_id = ""
+	normalized_battle = false
 	save_game()
 	EventBus.coins_updated.emit(coins)
+	EventBus.settings_changed.emit()
 
 ## Aplica un guardado validando cada campo: lo que falta o no es válido toma su valor inicial.
 ## Con un diccionario vacío deja la partida nueva.
@@ -547,19 +638,29 @@ func _apply_save(data: Dictionary) -> void:
 				settings[key] = _setting_number(key, saved_settings[key])
 	experience = maxi(0, _as_int(data.get("experience"), 0))
 	var saved_missions := _as_dict(data.get("missions"))
-	missions = {"day": _as_int(saved_missions.get("day"), -1), "progress": {}, "claimed": []}
+	var mission_day := _as_int(saved_missions.get("day"), -1)
+	var definitions := DailyMissions.for_ids(_as_array(saved_missions.get("ids")))
+	if definitions.size() != 3:
+		definitions = DailyMissions.for_day(mission_day, not data.is_empty() and _as_int(data.get("version"), 0) < 5)
+	missions = {"day": mission_day, "progress": {}, "claimed": [], "ids": definitions.map(func(m): return m["id"])}
 	var progress := _as_dict(saved_missions.get("progress"))
-	for mission in DailyMissions.for_day(int(missions["day"])):
+	for mission in definitions:
 		var id: String = mission["id"]
 		missions["progress"][id] = clampi(_as_int(progress.get(id), 0), 0, int(mission["goal"]))
 		if _as_array(saved_missions.get("claimed")).has(id):
 			missions["claimed"].append(id)
 	daily_best = {}
 	var best := _as_dict(data.get("daily_best"))
-	if best.get("time") is float or best.get("time") is int:
+	if best.get("normalized", false) == true and (best.get("time") is float or best.get("time") is int):
 		var seconds := float(best["time"])
 		if is_finite(seconds) and seconds >= 0 and _as_int(best.get("day"), -1) >= 0:
-			daily_best = {"day": int(best["day"]), "stars": clampi(_as_int(best.get("stars"), 1), 1, 3), "time": seconds, "speed": _setting_number("speed", best.get("speed", 1.0))}
+			daily_best = {"day": int(best["day"]), "stars": clampi(_as_int(best.get("stars"), 1), 1, 3), "time": seconds, "speed": _setting_number("speed", best.get("speed", 1.0)), "normalized": true}
+	campaign_best = {}
+	var times := _as_dict(data.get("campaign_best"))
+	for id in times:
+		var seconds = times[id]
+		if _is_campaign_level(id) and (seconds is float or seconds is int) and is_finite(float(seconds)) and seconds >= 0:
+			campaign_best[id] = float(seconds)
 	coins = maxi(0, _as_int(data.get("coins"), DEFAULT_COINS))
 	var saved_upgrades := _as_dict(data.get("upgrades"))
 	upgrades = {}
@@ -615,11 +716,19 @@ func _apply_save(data: Dictionary) -> void:
 	for free_id in DEFAULT_COSMETICS_EQUIPPED.values():
 		if not cosmetics_owned.has(free_id):
 			cosmetics_owned.append(free_id)
+	medals.clear()
+	for id in _as_array(data.get("medals")):
+		if _is_campaign_level(id) and completed_levels.has(id) and not medals.has(id):
+			medals.append(id)
+	collections_claimed.clear()
+	for id in _as_array(data.get("collections_claimed")):
+		if id is String and is_collection_complete(id) and not collections_claimed.has(id):
+			collections_claimed.append(id)
 	cosmetics_equipped = DEFAULT_COSMETICS_EQUIPPED.duplicate()
 	var saved_cosmetics := _as_dict(data.get("cosmetics_equipped"))
 	for key in saved_cosmetics:
 		var item := CosmeticsDatabase.get_by_id(str(saved_cosmetics[key]))
-		if not item.is_empty() and item["category"] == key and cosmetics_owned.has(item["id"]):
+		if not item.is_empty() and item["category"] == key and is_cosmetic_owned(item["id"]):
 			cosmetics_equipped[key] = item["id"]
 
 static func _is_campaign_level(level_id: Variant) -> bool:

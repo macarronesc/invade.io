@@ -25,6 +25,8 @@ var _content: Control
 var _nav: Dictionary = {}
 var _badges: Dictionary = {}
 var _utility_panel: Control = null
+var _background: ColorRect
+var _appearance := ""
 
 func _notification(what: int) -> void:
 	if what != NOTIFICATION_WM_GO_BACK_REQUEST or is_instance_valid(_utility_panel):
@@ -43,6 +45,8 @@ func _ready() -> void:
 		UIThemeHelper.start_battle.bind(self, GameManager.FIRST_LEVEL_ID).call_deferred()
 		return
 	_build()
+	_appearance = _appearance_key()
+	EventBus.settings_changed.connect(_refresh_appearance)
 	EventBus.coins_updated.connect(_update_coins)
 	# Reclamar cualquier recompensa mueve el oro, así que basta con escuchar estos avisos
 	EventBus.coins_updated.connect(_refresh_badges.unbind(1))
@@ -55,10 +59,10 @@ func _ready() -> void:
 	show_tab(tab)
 
 func _build() -> void:
-	var background := ColorRect.new()
-	background.color = UIThemeHelper.COLOR_BG
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(background)
+	_background = ColorRect.new()
+	_background.color = UIThemeHelper.colors.bg
+	_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_background)
 	var column := UIThemeHelper.vbox(0)
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(column)
@@ -119,7 +123,8 @@ func show_tab(id: String) -> void:
 	if not TABS.has(id):
 		id = "play"
 	current_tab = id
-	_nav[id].set_pressed_no_signal(true)
+	for tab in _nav:
+		_nav[tab].set_pressed_no_signal(tab == id)
 	UIThemeHelper.clear(_content)
 	var page: Control = TABS[id]["page"].new()
 	if id == "army" and return_to_battle:
@@ -132,7 +137,8 @@ func show_tab(id: String) -> void:
 ## Punto dorado sólo cuando hay algo que recoger
 func _refresh_badges() -> void:
 	_badges["challenges"].visible = GameManager.get_daily_reward_state()["can_claim"] or GameManager.claimable_mission_count() > 0
-	_badges["progress"].visible = GameManager.get_claimable_achievement_count() > 0
+	_badges["progress"].visible = GameManager.get_claimable_achievement_count() + GameManager.claimable_collection_count() > 0
+	_badges["army"].visible = GameManager.should_suggest_first_upgrade()
 
 func _update_coins(amount: int) -> void:
 	coins_label.text = str(amount)
@@ -142,7 +148,25 @@ func _open_settings() -> void:
 		return
 	AudioManager.play_click()
 	_utility_panel = load("res://scripts/ui/settings_panel.gd").new()
-	_utility_panel.closed.connect(func():
-		next_tab = current_tab
-		get_tree().reload_current_scene())
+	_utility_panel.closed.connect(_refresh_appearance)
 	add_child(_utility_panel)
+
+func _appearance_key() -> String:
+	return "%s|%s" % [UIThemeHelper.palette_name, GameManager.language]
+
+## Refresca colores y textos conservando la pestaña, su selección y su scroll.
+func _refresh_appearance() -> void:
+	if _appearance == _appearance_key():
+		return
+	_appearance = _appearance_key()
+	_background.color = UIThemeHelper.colors.bg
+	coins_label.add_theme_color_override("font_color", UIThemeHelper.colors.text)
+	btn_settings.tooltip_text = LocaleStrings.text("settings")
+	for id in TABS:
+		_nav[id].text = LocaleStrings.text(TABS[id]["title"])
+	if _content.get_child_count() > 0:
+		var page := _content.get_child(0)
+		if page.has_method("refresh_appearance"):
+			page.refresh_appearance()
+		elif page.has_method("rebuild"):
+			page.rebuild()

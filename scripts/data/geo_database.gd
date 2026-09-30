@@ -64,11 +64,6 @@ static func get_city(key: String) -> Dictionary:
 static func city_name(city: Dictionary) -> String:
 	return city.get("name_en", "?") if LocaleStrings.lang == "en" else city.get("name_es", "?")
 
-## Número total de ciudades coleccionables en el atlas
-static func city_count() -> int:
-	_ensure_loaded()
-	return _cities_by_pop.size()
-
 ## ponytail: cajas lon/lat aproximadas; bastan para agrupar el atlas (algún puerto del
 ## Mediterráneo puede caer en el continente vecino). Guardar el continente en geo.json si hace falta exactitud.
 static func continent_of(lonlat: Vector2) -> String:

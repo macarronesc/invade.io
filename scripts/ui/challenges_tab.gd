@@ -24,7 +24,7 @@ func _build() -> void:
 	_build_reward()
 	_build_daily_challenge()
 	UIThemeHelper.section(content, LocaleStrings.text("missions"), LocaleStrings.text("mission_reset"), "Heading")
-	for mission in DailyMissions.for_day(_day):
+	for mission in GameManager.mission_definitions(_day):
 		_build_mission(mission)
 
 ## Recompensa diaria: los 7 días del ciclo de racha, con el de hoy resaltado
@@ -33,7 +33,7 @@ func _build_reward() -> void:
 	var can_claim: bool = state["can_claim"]
 	var streak: int = state["streak"] if can_claim else int(GameManager.daily["streak"])
 	var card := UIThemeHelper.card(content)
-	card.add_child(UIThemeHelper.item_row(Icons.rect("gift", 64, UIThemeHelper.COLOR_GOLD), LocaleStrings.text("daily_title"),
+	card.add_child(UIThemeHelper.item_row(Icons.rect("gift", 64, UIThemeHelper.colors.gold), LocaleStrings.text("daily_title"),
 		LocaleStrings.text("daily_ready" if can_claim else "daily_wait") % streak))
 	var days := UIThemeHelper.hbox(8)
 	var today := posmod(streak - 1, DailyRewards.STREAK_REWARDS.size())
@@ -43,10 +43,10 @@ func _build_reward() -> void:
 		var dot := Panel.new()
 		dot.custom_minimum_size = Vector2(0, 14)
 		var reached := i < today or (i == today and not can_claim)
-		var color := UIThemeHelper.COLOR_GOLD if reached else (UIThemeHelper.COLOR_TEXT if i == today else UIThemeHelper.COLOR_SURFACE_2)
+		var color: Color = UIThemeHelper.colors.gold if reached else (UIThemeHelper.colors.text if i == today else UIThemeHelper.colors.surface_2)
 		dot.add_theme_stylebox_override("panel", UIThemeHelper.box(color, 999, 0))
 		col.add_child(dot)
-		var amount := UIThemeHelper.label("+%d" % DailyRewards.STREAK_REWARDS[i], "Caption", UIThemeHelper.COLOR_TEXT if i == today else UIThemeHelper.COLOR_MUTED)
+		var amount := UIThemeHelper.label("+%d" % DailyRewards.STREAK_REWARDS[i], "Caption", UIThemeHelper.colors.text if i == today else UIThemeHelper.colors.muted)
 		amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(amount)
 		days.add_child(col)
@@ -64,16 +64,24 @@ func _build_reward() -> void:
 func _build_daily_challenge() -> void:
 	var day := DailyRewards.today()
 	var id := DailyRewards.challenge_id(day)
+	var data := LevelDatabase.get_level_data(id)
 	var done := GameManager.is_daily_challenge_done(day)
 	var card := UIThemeHelper.card(content)
-	card.add_child(UIThemeHelper.item_row(Icons.rect("check" if done else "target", 64, UIThemeHelper.COLOR_SUCCESS if done else UIThemeHelper.COLOR_GOLD),
-		LocaleStrings.text("daily"), LevelDatabase.get_level_definition(id).get("name", "")))
+	card.add_child(UIThemeHelper.item_row(Icons.rect("check" if done else "target", 64, UIThemeHelper.colors.success if done else UIThemeHelper.colors.gold),
+		LocaleStrings.text("daily"), data["name"]))
 	var best := GameManager.daily_best
 	var has_best := not best.is_empty() and int(best["day"]) == day
 	var status := LocaleStrings.text("daily_row") % DailyRewards.DAILY_CHALLENGE_GOLD
 	if has_best:
 		status = LocaleStrings.text("daily_best") % ["★".repeat(int(best["stars"])), ceili(float(best["time"]))]
-	card.add_child(UIThemeHelper.label(status, "", UIThemeHelper.COLOR_SUCCESS if done else UIThemeHelper.COLOR_TEXT))
+	card.add_child(UIThemeHelper.label(status, "", UIThemeHelper.colors.success if done else UIThemeHelper.colors.text))
+	# Cada día rota una regla de continente: se anuncia antes de jugar
+	var twist := CampaignRules.description(data).strip_edges()
+	if twist != "":
+		card.add_child(UIThemeHelper.paragraph(LocaleStrings.text("daily_rule") % twist))
+	card.add_child(UIThemeHelper.paragraph(LocaleStrings.text("daily_normalized")))
+	if data.has("objective"):
+		card.add_child(UIThemeHelper.paragraph(LocaleStrings.text("daily_objective") % (LocaleStrings.text(data["objective"]) % int(data["hold_seconds"]))))
 	var actions := UIThemeHelper.hbox(16)
 	var play := UIThemeHelper.button(LocaleStrings.text("replay" if done else "play"), "PrimaryButton", "retry" if done else "play")
 	play.name = "BtnPlayDaily"
@@ -103,8 +111,8 @@ func _build_mission(mission: Dictionary) -> void:
 	card.add_child(bar_row)
 	if claimed:
 		var done := UIThemeHelper.hbox(10)
-		done.add_child(Icons.rect("check", 36, UIThemeHelper.COLOR_SUCCESS))
-		done.add_child(UIThemeHelper.label(LocaleStrings.text("mission_claimed"), "Caption", UIThemeHelper.COLOR_SUCCESS))
+		done.add_child(Icons.rect("check", 36, UIThemeHelper.colors.success))
+		done.add_child(UIThemeHelper.label(LocaleStrings.text("mission_claimed"), "Caption", UIThemeHelper.colors.success))
 		card.add_child(done)
 	elif progress >= goal:
 		var claim := UIThemeHelper.button(LocaleStrings.text("mission_claim"), "GoldButton", "coin")

@@ -87,7 +87,6 @@ func set_muted(muted: bool) -> void:
 	GameManager.sound_muted = muted
 	GameManager.save_game()
 	_refresh_music()
-	EventBus.sound_toggled.emit(is_muted)
 
 func toggle_music() -> bool:
 	set_music_muted(not music_muted)

@@ -15,7 +15,6 @@ signal battle_lost()
 
 signal coins_updated(total_coins: int)
 signal upgrade_purchased(upgrade_id: String, new_level: int)
-signal sound_toggled(is_muted: bool)
 
 signal achievement_unlocked(achievement_id: String)
 signal daily_reward_claimed(streak: int, reward: int)

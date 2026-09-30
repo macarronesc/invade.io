@@ -2,7 +2,7 @@ extends Node
 
 ## AchievementManager: convierte eventos en estadísticas, misiones, XP y logros.
 ## Sólo lógica: el estado se guarda en GameManager y los avisos los muestra Toasts.
-## Los logros se comprueban en cuanto cambia una estadística (el aviso sale en plena batalla),
+## Los logros se comprueban en cuanto cambia una estadística (el aviso espera al resultado),
 ## pero las estadísticas sólo se escriben en disco al terminar la batalla o al desbloquear.
 
 var _lost_base_this_battle: bool = false
@@ -28,7 +28,7 @@ func get_stat(stat: String) -> int:
 		"continents_completed":
 			var done := 0
 			for c in LevelDatabase.get_continents():
-				if LevelDatabase.get_continent_level_ids(c["id"]).all(func(id): return GameManager.completed_levels.has(id)):
+				if GameManager.is_continent_complete(c["id"]):
 					done += 1
 			return done
 		"max_upgrade_level":
@@ -52,10 +52,12 @@ func check_all() -> Array[String]:
 func _on_battle_started(_level_id: String) -> void:
 	_lost_base_this_battle = false
 
-func _on_base_captured(_base: Node, previous_faction: int, new_faction: int) -> void:
+func _on_base_captured(base: Node, previous_faction: int, new_faction: int) -> void:
 	if new_faction == GameManager.Faction.PLAYER:
 		GameManager.add_stat("bases_captured")
 		GameManager.advance_mission("captures")
+		if base is BaseNode and base.perk_text() != "":
+			GameManager.advance_mission("special")
 		check_all()
 	elif previous_faction == GameManager.Faction.PLAYER:
 		_lost_base_this_battle = true
@@ -71,7 +73,7 @@ func _on_battle_won(battle_stats: Dictionary) -> void:
 	GameManager.save_game()
 
 func _on_battle_lost() -> void:
-	GameManager.experience += 10
+	GameManager.experience += GameManager.DEFEAT_XP
 	GameManager.save_game()
 
 func _on_troops_dispatched(_from: Node, _to: Node, count: int, faction: int) -> void:
@@ -81,9 +83,12 @@ func _on_troops_dispatched(_from: Node, _to: Node, count: int, faction: int) -> 
 
 func _on_player_assault(source_count: int) -> void:
 	GameManager.record_stat_max("chain_max", source_count)
+	if source_count >= 2:
+		GameManager.advance_mission("chain")
 	check_all()
 
 func _on_troops_retreated(faction: int) -> void:
 	if faction == GameManager.Faction.PLAYER:
 		GameManager.add_stat("retreats")
+		GameManager.advance_mission("retreat")
 		check_all()

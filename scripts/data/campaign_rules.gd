@@ -1,17 +1,28 @@
 extends RefCounted
 class_name CampaignRules
 
-## Reglas de campaña sobre una copia del nivel construido; diario y conquista no cambian.
+## Reglas de continente sobre una copia del nivel construido. La campaña usa la de su
+## continente (salvo los tutoriales) y el desafío diario rota por las seis según el día,
+## para que cada día tenga una particularidad. Las expediciones también rotan esas reglas.
 static func apply(level: Dictionary) -> void:
 	var id: String = level.get("id", "")
-	if not LevelDatabase.get_level_ids().has(id) or id in ["europe_1", "europe_2", "europe_3"]:
+	var continent := ""
+	if DailyRewards.is_challenge(id):
+		var continents := LevelDatabase.get_continents()
+		continent = continents[posmod(DailyRewards.challenge_day(id), continents.size())]["id"]
+	elif LevelGenerator.is_conquest(id):
+		var continents := LevelDatabase.get_continents()
+		var index := LevelGenerator.conquest_index(id)
+		continent = continents[posmod(index + LevelGenerator.expedition_of(index) - 1, continents.size())]["id"]
+	elif LevelDatabase.get_level_ids().has(id) and id not in ["europe_1", "europe_2", "europe_3"]:
+		continent = LevelDatabase.get_continent_of(id)
+	if continent == "":
 		return
-	var continent := LevelDatabase.get_continent_of(id)
 	var bases: Array = level["bases"]
 	level["rule_key"] = "rule_" + continent
 	match continent:
 		"europe", "africa":
-			var capital: Dictionary = bases[1] if continent == "europe" else bases[2]
+			var capital: Dictionary = bases[mini(1 if continent == "europe" else 2, bases.size() - 1)]
 			capital["capital"] = true
 			capital["production_bonus"] = 1.5 if continent == "europe" else 1.75
 		"north_america", "asia":
@@ -23,7 +34,17 @@ static func apply(level: Dictionary) -> void:
 			level["travel_multiplier"] = 0.8
 		"oceania":
 			level["sea_lanes"] = sea_lanes(bases)
-	if LevelDatabase.get_level_number(id) == LevelDatabase.LEVELS_PER_CONTINENT:
+	if DailyRewards.is_challenge(id):
+		if continent in ["europe", "africa"]:
+			level["objective"] = "hold_capital"
+			level["hold_seconds"] = 12.0
+		elif continent == "north_america":
+			level["objective"] = "hold_factories"
+			level["hold_seconds"] = 8.0
+		elif continent == "asia":
+			level["objective"] = "hold_fortresses"
+			level["hold_seconds"] = 8.0
+	if LevelDatabase.get_level_ids().has(id) and LevelDatabase.get_level_number(id) == LevelDatabase.LEVELS_PER_CONTINENT:
 		for base in bases:
 			if base["faction"] == GameManager.Faction.ENEMY_1:
 				base.merge({"boss": true, "type": "fortress", "tier": 3, "troops": int(base["troops"]) + 25}, true)

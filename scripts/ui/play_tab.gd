@@ -31,7 +31,8 @@ var level_title: Label
 var level_desc: Label
 var level_rule: Label
 var level_stars: Label
-var level_chips: HBoxContainer
+var level_chips: HFlowContainer
+var level_medal: Label
 var btn_start_level: Button
 var btn_conquest: Button
 var btn_daily: Button
@@ -104,10 +105,14 @@ func _build() -> void:
 	level_desc.max_lines_visible = 2
 	sheet.add_child(level_desc)
 	level_rule = UIThemeHelper.paragraph("", "Caption")
-	level_rule.add_theme_color_override("font_color", UIThemeHelper.COLOR_GOLD)
+	level_rule.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
 	sheet.add_child(level_rule)
-	level_chips = UIThemeHelper.hbox(12)
+	level_chips = HFlowContainer.new()
+	level_chips.add_theme_constant_override("h_separation", 12)
+	level_chips.add_theme_constant_override("v_separation", 12)
 	sheet.add_child(level_chips)
+	level_medal = UIThemeHelper.label("", "Caption")
+	sheet.add_child(level_medal)
 	btn_start_level = UIThemeHelper.button("", "PrimaryButton", "play")
 	btn_start_level.custom_minimum_size.y = 112
 	# Deshabilitado mientras el nivel seleccionado siga bloqueado
@@ -117,18 +122,29 @@ func _build() -> void:
 	# Otros modos, a un toque
 	var shortcuts := UIThemeHelper.vbox(16)
 	add_child(UIThemeHelper.page_margin(shortcuts, 0, 24))
-	btn_conquest = UIThemeHelper.row_button("flag", LocaleStrings.text("conquest"),
-		LocaleStrings.text("conquest_row") % (GameManager.conquest_next + 1), "play")
+	btn_conquest = UIThemeHelper.row_button("flag", LocaleStrings.text("conquest"), _conquest_subtitle(), "play")
 	btn_conquest.pressed.connect(UIThemeHelper.start_battle.bind(self, LevelGenerator.conquest_id(GameManager.conquest_next)))
 	shortcuts.add_child(btn_conquest)
 	var done := GameManager.is_daily_challenge_done()
 	var daily_sub := LocaleStrings.text("daily_row_done") if done else LocaleStrings.text("daily_row") % DailyRewards.DAILY_CHALLENGE_GOLD
+	var twist := CampaignRules.description(LevelDatabase.get_level_data(DailyRewards.challenge_id(DailyRewards.today()))).strip_edges()
+	if twist != "":
+		daily_sub += "\n" + LocaleStrings.text("daily_rule") % twist
 	btn_daily = UIThemeHelper.row_button("check" if done else "target", LocaleStrings.text("daily"), daily_sub, "play",
-		UIThemeHelper.COLOR_SUCCESS if done else UIThemeHelper.COLOR_GOLD)
+		UIThemeHelper.colors.success if done else UIThemeHelper.colors.gold)
 	btn_daily.pressed.connect(UIThemeHelper.start_battle.bind(self, DailyRewards.challenge_id(DailyRewards.today())))
 	shortcuts.add_child(btn_daily)
 
+static func _conquest_subtitle() -> String:
+	var index := GameManager.conquest_next
+	var expedition := LevelGenerator.expedition_of(index)
+	if LevelGenerator.is_expedition_finale(index):
+		return LocaleStrings.text("conquest_row_boss") % expedition
+	return LocaleStrings.text("conquest_row") % [expedition, LevelGenerator.expedition_step(index), GameManager.EXPEDITION_SIZE]
+
 func _process(delta: float) -> void:
+	if GameManager.settings["reduced_motion"]:
+		return
 	marching_phase = fmod(marching_phase + delta * 0.8, 1.0)
 	pulse_time += delta * 3.0
 	route_container.queue_redraw()
@@ -177,14 +193,16 @@ func _build_level_node(level_id: String, index: int) -> Control:
 		btn.disabled = true
 		btn.icon = Icons.texture("lock", 40)
 		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_style_node(btn, UIThemeHelper.COLOR_SURFACE_2, UIThemeHelper.COLOR_MUTED)
+		_style_node(btn, UIThemeHelper.colors.surface_2, UIThemeHelper.colors.muted)
 	else:
 		btn.text = str(index + 1)
 		# Hecho: azul. Pendiente: blanco, para que el siguiente paso destaque
-		_style_node(btn, UIThemeHelper.COLOR_PRIMARY if stars > 0 else UIThemeHelper.COLOR_TEXT, UIThemeHelper.COLOR_INK)
+		_style_node(btn, UIThemeHelper.colors.primary if stars > 0 else UIThemeHelper.colors.text, UIThemeHelper.colors.ink)
 		btn.pressed.connect(_select_level.bind(level_id))
 	if stars > 0:
 		var star_row := UIThemeHelper.stars_label(stars, "Caption")
+		if GameManager.medals.has(level_id):
+			star_row.text += " 💎"
 		star_row.position = Vector2(0, NODE_SIZE + 4)
 		star_row.size = Vector2(NODE_SIZE, 30)
 		star_row.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -195,12 +213,19 @@ func _build_level_node(level_id: String, index: int) -> Control:
 		holder.add_child(boss)
 	return holder
 
+func refresh_appearance() -> void:
+	var selection := selected_level_id
+	UIThemeHelper.clear(self)
+	_build()
+	_refresh_display()
+	_select_level(selection)
+
 func _style_node(btn: Button, fill: Color, ink: Color) -> void:
 	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
 		var b := UIThemeHelper.box(fill.darkened(0.12) if state == "pressed" else fill, 999, 0)
 		b.draw_center = state != "focus"
 		b.set_border_width_all(4)
-		b.border_color = UIThemeHelper.COLOR_BG if state != "focus" else UIThemeHelper.COLOR_GOLD
+		b.border_color = UIThemeHelper.colors.bg if state != "focus" else UIThemeHelper.colors.gold
 		btn.add_theme_stylebox_override(state, b)
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color", "icon_disabled_color"]:
 		btn.add_theme_color_override(c, ink)
@@ -242,6 +267,9 @@ func _update_briefing_card() -> void:
 	level_title.text = data["name"]
 	level_desc.text = data["description"]
 	level_rule.text = CampaignRules.description(data).strip_edges()
+	if LevelDatabase.get_level_number(selected_level_id) == LevelDatabase.LEVELS_PER_CONTINENT:
+		var reward := CosmeticsDatabase.continent_reward(LevelDatabase.get_continent_of(selected_level_id))
+		level_rule.text += "\n" + LocaleStrings.text("boss_reward") % CosmeticsDatabase.item_name(reward)
 	level_rule.visible = level_rule.text != ""
 	UIThemeHelper.set_stars(level_stars, stars)
 
@@ -251,9 +279,15 @@ func _update_briefing_card() -> void:
 		if b["faction"] not in [GameManager.Faction.PLAYER, GameManager.Faction.NEUTRAL]:
 			rivals[b["faction"]] = true
 	UIThemeHelper.clear(level_chips)
-	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("bases") % bases.size(), "flag", UIThemeHelper.COLOR_MUTED))
-	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("rival" if rivals.size() == 1 else "rivals") % rivals.size(), "shield", UIThemeHelper.COLOR_DANGER))
-	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("target_time") % data.get("target_time", 45), "clock", UIThemeHelper.COLOR_GOLD))
+	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("bases") % bases.size(), "flag", UIThemeHelper.colors.muted))
+	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("rival" if rivals.size() == 1 else "rivals") % rivals.size(), "shield", UIThemeHelper.colors.danger))
+	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("target_time") % data.get("target_time", 45), "clock", UIThemeHelper.colors.gold))
+	# Motivos para jugar (o repetir) este nivel: ciudades aún no coleccionadas y la medalla
+	var new_cities := bases.filter(func(b): return GeoDatabase.has_city(b.get("city", "")) and not GameManager.conquered_cities.has(b["city"])).size()
+	if new_cities > 0:
+		level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("new_cities_chip") % new_cities, "globe", UIThemeHelper.colors.primary))
+	level_medal.text = LocaleStrings.text("medal_won") if GameManager.medals.has(selected_level_id) else LocaleStrings.text("medal_todo")
+	level_medal.add_theme_color_override("font_color", UIThemeHelper.colors.gold if GameManager.medals.has(selected_level_id) else UIThemeHelper.colors.muted)
 
 	btn_start_level.disabled = not unlocked
 	btn_start_level.icon = Icons.texture("play" if unlocked else "lock", 44)
@@ -273,18 +307,18 @@ func _draw_route() -> void:
 		var p1 := _node_positions[i]
 		var p2 := _node_positions[i + 1]
 		if GameManager.is_level_unlocked(level_ids[i + 1]):
-			route_container.draw_line(p1, p2, Color(UIThemeHelper.COLOR_PRIMARY, 0.85), 6.0, true)
+			route_container.draw_line(p1, p2, Color(UIThemeHelper.colors.primary, 0.85), 6.0, true)
 		elif GameManager.is_level_unlocked(level_ids[i]):
 			# Frontera: el siguiente tramo por conquistar
-			route_container.draw_dashed_line(p1, p2, Color(UIThemeHelper.COLOR_TEXT, 0.45), 4.0, 12.0)
-			route_container.draw_circle(p1.lerp(p2, marching_phase), 7.0, UIThemeHelper.COLOR_GOLD)
+			route_container.draw_dashed_line(p1, p2, Color(UIThemeHelper.colors.text, 0.45), 4.0, 12.0)
+			route_container.draw_circle(p1.lerp(p2, marching_phase), 7.0, UIThemeHelper.colors.gold)
 		else:
-			route_container.draw_dashed_line(p1, p2, UIThemeHelper.COLOR_LINE, 3.0, 12.0)
+			route_container.draw_dashed_line(p1, p2, UIThemeHelper.colors.line, 3.0, 12.0)
 	var selected := level_ids.find(selected_level_id)
 	if selected >= 0:
 		var r := NODE_SIZE * 0.5 + 14.0 + sin(pulse_time) * 3.0
-		route_container.draw_circle(_node_positions[selected], r, Color(UIThemeHelper.COLOR_GOLD, 0.14))
-		route_container.draw_arc(_node_positions[selected], r, 0, TAU, 48, UIThemeHelper.COLOR_GOLD, 4.0, true)
+		route_container.draw_circle(_node_positions[selected], r, Color(UIThemeHelper.colors.gold, 0.14))
+		route_container.draw_arc(_node_positions[selected], r, 0, TAU, 48, UIThemeHelper.colors.gold, 4.0, true)
 
 func _on_prev_continent() -> void:
 	_change_continent(-1)

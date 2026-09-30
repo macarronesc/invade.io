@@ -110,12 +110,19 @@ static func get_level_lonlats(level_id: String) -> Array[Vector2]:
 			result.append(city["lonlat"])
 	return result
 
-## Todos los niveles construidos (costoso: sólo para validaciones y tests)
-static func get_all_levels() -> Dictionary:
-	var result := {}
-	for level_id in get_level_ids():
-		result[level_id] = get_level_data(level_id)
-	return result
+static var _collections: Dictionary = {}
+
+## Colección del atlas de un continente: las ciudades de sus 5 niveles de campaña, todas
+## alcanzables jugando (se conquistan al ganar con ellas en tu poder)
+static func collection_cities(continent_id: String) -> Array[String]:
+	if not _collections.has(continent_id):
+		var keys: Array[String] = []
+		for level_id in get_continent_level_ids(continent_id):
+			for b in get_level_definition(level_id).get("bases", []):
+				if not keys.has(b["city"]):
+					keys.append(b["city"])
+		_collections[continent_id] = keys
+	return _collections[continent_id]
 
 ## Definiciones de campaña: cada base apunta a una ciudad real de GeoDatabase. LevelGenerator
 ## las sitúa en el mapa, añade neutrales según la dificultad y recorta costas y fronteras.
@@ -163,13 +170,13 @@ static func _build_levels() -> Dictionary:
 		"europe_4": {
 			"id": "europe_4",
 			"name": "Nivel 4: Balcanes y Mediterráneo",
-			"description": "Dos frentes hostiles: Facciones Roja y Amarilla te rodean.",
+			"description": "Una fortaleza y una fábrica decidirán quién domina los Balcanes.",
 			"target_time": 65,
 			"bases": [
 				{"id": "b1", "city": "athens", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
 				{"id": "b2", "city": "belgrade", "faction": GameManager.Faction.NEUTRAL, "troops": 25, "tier": 2, "type": "fortress"},
 				{"id": "b3", "city": "vienna", "faction": GameManager.Faction.ENEMY_1, "troops": 30, "tier": 2},
-				{"id": "b4", "city": "bucharest", "faction": GameManager.Faction.ENEMY_2, "troops": 30, "tier": 2},
+				{"id": "b4", "city": "bucharest", "faction": GameManager.Faction.NEUTRAL, "troops": 18, "tier": 2},
 				{"id": "b5", "city": "istanbul", "faction": GameManager.Faction.NEUTRAL, "troops": 15, "tier": 1, "type": "factory"}
 			]
 		},

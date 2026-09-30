@@ -1,15 +1,22 @@
 extends Node2D
 class_name Troop
 
-## Troop: Hilera fluida de unidades ("perlas") en marcha hacia un territorio objetivo.
-## Todas las perlas avanzan a la misma velocidad en línea recta, así que la perla i está siempre
-## a `head_dist - i * BEAD_SPACING` del origen. Cada perla puede agrupar varias unidades para
-## limitar el coste de dibujo y colisión en hileras enormes (MAX_BEADS).
+## Troop: una orden de ataque en marcha. Las tropas salen de la base en paquetes pequeños,
+## uno tras otro, y avanzan en línea recta hacia el objetivo. Todos los paquetes llevan la
+## misma velocidad, así que el paquete i está siempre a `head_dist - i * PACKET_SPACING` del
+## origen. Los que aún no han salido (distancia <= 0) esperan en la base de origen: se pierden
+## si esa base cae y vuelven a la guarnición si se ordena la retirada.
 
-const BEAD_SPACING: float = 22.0
-const BEAD_RADIUS: float = 7.0
-const MAX_BEADS: int = 40
+const PACKET_SPACING: float = 64.0
+const PACKET_RADIUS: float = 18.0
+## Unidades por paquete antes de repartir la orden en más paquetes
+const PACKET_UNITS: int = 5
+const MAX_PACKETS: int = 8
 const BASE_SPEED: float = 380.0
+const DOT_RADIUS: float = 5.5
+## Puntos de un paquete: centro y un anillo algo irregular (se llenan en este orden)
+const DOT_LAYOUT: Array[Vector2] = [Vector2(0, 0), Vector2(11, -2), Vector2(3, 10), Vector2(-9, 6),
+	Vector2(-10, -5), Vector2(-2, -11), Vector2(9, -10)]
 
 var origin_base: BaseNode
 var target_base: BaseNode
@@ -19,9 +26,9 @@ var speed: float = BASE_SPEED
 var is_active: bool = true
 var is_retreating: bool = false
 
-## Unidades que representa cada perla (0 = perla eliminada o ya absorbida)
-var bead_values: PackedInt32Array = PackedInt32Array()
-## Distancia recorrida por la perla 0 desde start_pos
+## Unidades de cada paquete (0 = paquete eliminado o ya absorbido)
+var packets: PackedInt32Array = PackedInt32Array()
+## Distancia recorrida por el paquete 0 desde start_pos
 var head_dist: float = 0.0
 ## Avance del último paso de simulación (para no perder cruces a pocos fps)
 var last_advance: float = 0.0
@@ -31,11 +38,13 @@ var path_length: float = 0.0
 var arrival_dist: float = 0.0
 
 var _front: int = 0
+var _launched: int = 1
 
 func setup(p_origin: BaseNode, p_target: BaseNode, p_count: int, p_faction: int) -> void:
 	origin_base = p_origin
 	target_base = p_target
 	count = p_count
+	_launched = maxi(p_count, 1)
 	faction = p_faction
 	is_active = true
 	speed = BASE_SPEED
@@ -45,15 +54,23 @@ func setup(p_origin: BaseNode, p_target: BaseNode, p_count: int, p_faction: int)
 	_set_path(origin_base.global_position, target_base.global_position, target_base.radius)
 	global_position = start_pos
 
-	var n := mini(maxi(p_count, 1), MAX_BEADS)
-	bead_values.resize(n)
-	var per_bead := p_count / n
+	var n := packet_count_for(p_count)
+	packets.resize(n)
+	@warning_ignore("integer_division")
+	var per_packet := p_count / n
 	var remainder := p_count % n
 	for i in n:
-		bead_values[i] = per_bead + (1 if i < remainder else 0)
+		packets[i] = per_packet + (1 if i < remainder else 0)
 	head_dist = 0.0
 	_front = 0
 	queue_redraw()
+
+static func packet_count_for(units: int) -> int:
+	return clampi(ceili(units / float(PACKET_UNITS)), 1, MAX_PACKETS)
+
+## Segundos desde la orden hasta que el último paquete sale de la base
+static func emission_seconds(units: int, p_speed: float = BASE_SPEED) -> float:
+	return (packet_count_for(units) - 1) * PACKET_SPACING / p_speed
 
 func _set_path(from: Vector2, to: Vector2, target_radius: float) -> void:
 	start_pos = from
@@ -65,125 +82,164 @@ func _set_path(from: Vector2, to: Vector2, target_radius: float) -> void:
 func _ready() -> void:
 	EventBus.battle_won.connect(_on_battle_ended.unbind(1))
 	EventBus.battle_lost.connect(_on_battle_ended)
+	EventBus.base_captured.connect(_on_origin_captured)
+
+func _on_origin_captured(base: Node, _previous: int, new_faction: int) -> void:
+	if base == origin_base and not is_retreating and new_faction != faction:
+		_drop_pending()
+		if count <= 0:
+			_finish()
 
 func _on_battle_ended() -> void:
 	is_active = false
 
-func bead_dist(i: int) -> float:
-	return head_dist - i * BEAD_SPACING
+func packet_dist(i: int) -> float:
+	return head_dist - i * PACKET_SPACING
 
-func bead_position(i: int) -> Vector2:
-	return start_pos + move_dir * bead_dist(i)
+func packet_position(i: int) -> Vector2:
+	return start_pos + move_dir * packet_dist(i)
 
-## Índice de la perla viva más adelantada, o -1 si no queda ninguna
+func remaining_seconds() -> float:
+	var seconds := 0.0
+	for i in packets.size():
+		if packets[i] > 0:
+			seconds = maxf(seconds, (arrival_dist - packet_dist(i)) / speed)
+	return maxf(0.0, seconds)
+
+## Unidades que aún esperan en la base de origen
+func pending_units() -> int:
+	var total := 0
+	for i in range(packets.size() - 1, -1, -1):
+		if packet_dist(i) > 0.0:
+			break
+		total += packets[i]
+	return total
+
+## Índice del paquete vivo más adelantado, o -1 si no queda ninguno
 func front_index() -> int:
-	while _front < bead_values.size() and bead_values[_front] <= 0:
+	while _front < packets.size() and packets[_front] <= 0:
 		_front += 1
-	return _front if _front < bead_values.size() else -1
+	return _front if _front < packets.size() else -1
 
-## Perlas vivas que ocupan el punto `u` de la trayectoria o lo han cruzado durante el último
+## Paquetes vivos que ocupan el punto `u` de la trayectoria o lo han cruzado durante el último
 ## paso de simulación, de delante hacia atrás. Así el combate en cruces no depende de los fps.
-func beads_near(u: float) -> PackedInt32Array:
+func packets_near(u: float) -> PackedInt32Array:
 	var result := PackedInt32Array()
-	var n := bead_values.size()
-	var half := BEAD_SPACING * 0.5
-	var first := maxi(0, ceili((head_dist - (u + half + last_advance)) / BEAD_SPACING))
-	var last := mini(n - 1, floori((head_dist - (u - half)) / BEAD_SPACING))
+	var n := packets.size()
+	var first := maxi(0, ceili((head_dist - (u + PACKET_RADIUS + last_advance)) / PACKET_SPACING))
+	var last := mini(n - 1, floori((head_dist - (u - PACKET_RADIUS)) / PACKET_SPACING))
 	for i in range(first, last + 1):
-		var d := bead_dist(i)
-		if bead_values[i] > 0 and d >= 0.0 and d < arrival_dist:
+		var d := packet_dist(i)
+		if packets[i] > 0 and d >= 0.0 and d - last_advance < arrival_dist:
 			result.append(i)
 	return result
 
-## Resta `amount` unidades a la perla i y devuelve las que le quedan
-func damage_bead(i: int, amount: int) -> int:
-	var dealt := mini(amount, bead_values[i])
-	bead_values[i] -= dealt
+## Resta `amount` unidades al paquete i y devuelve las que le quedan
+func damage_packet(i: int, amount: int) -> int:
+	var dealt := mini(amount, packets[i])
+	packets[i] -= dealt
 	count -= dealt
 	queue_redraw()
-	return bead_values[i]
+	return packets[i]
 
 func _process(delta: float) -> void:
-	if not is_active:
+	advance(delta)
+	resolve_arrivals()
+
+## En la escena real BattleController mueve todas las órdenes, resuelve los choques y
+## sólo después las llegadas: un salto de FPS no permite atravesar un combate.
+func advance(delta: float) -> void:
+	if not is_active or is_queued_for_deletion():
 		return
 	if not is_instance_valid(target_base):
-		EventBus.troop_arrived.emit(self)
-		queue_free()
+		_finish()
 		return
-	if bead_values.is_empty():
+	if packets.is_empty():
 		return
+
+	# La base de origen ha caído: los paquetes que no habían salido se pierden con ella
+	if not is_retreating and is_instance_valid(origin_base) and origin_base.faction != faction:
+		_drop_pending()
 
 	head_dist += speed * delta
 	last_advance = speed * delta
-
-	# Llegada y absorción progresiva de las perlas delanteras en la base objetivo
 	var f := front_index()
-	while f >= 0 and bead_dist(f) >= arrival_dist:
-		var v := bead_values[f]
-		bead_values[f] = 0
+	if f >= 0:
+		global_position = start_pos + move_dir * maxf(0.0, packet_dist(f))
+	queue_redraw()
+
+func resolve_arrivals() -> void:
+	if not is_active or is_queued_for_deletion() or not is_instance_valid(target_base):
+		return
+	# Llegada y absorción progresiva de los paquetes delanteros en la base objetivo
+	var f := front_index()
+	while is_active and f >= 0 and packet_dist(f) >= arrival_dist:
+		var v := packets[f]
+		packets[f] = 0
 		count -= v
 		target_base.receive_troops(faction, v)
 		f = front_index()
 
 	if f < 0 or count <= 0:
-		EventBus.troop_arrived.emit(self)
-		queue_free()
-		return
+		_finish()
 
-	global_position = start_pos + move_dir * maxf(0.0, bead_dist(f))
-	queue_redraw()
+func _drop_pending() -> void:
+	for i in range(packets.size() - 1, -1, -1):
+		if packet_dist(i) > 0.0:
+			break
+		count -= packets[i]
+		packets[i] = 0
+
+func _finish() -> void:
+	is_active = false
+	count = 0
+	EventBus.troop_arrived.emit(self)
+	queue_free()
 
 func abort_mission() -> void:
-	if is_retreating or not is_instance_valid(origin_base):
+	if is_retreating or not is_active or not is_instance_valid(origin_base):
 		return
 	is_retreating = true
 	var dest := origin_base
 	origin_base = target_base
 	target_base = dest
 
-	var n := bead_values.size()
-	# Las perlas que aún no habían salido de la base se reintegran directamente
-	var unemerged := 0
-	for i in range(n - 1, -1, -1):
-		if bead_dist(i) > 0.0:
-			break
-		unemerged += bead_values[i]
-		bead_values[i] = 0
-	if unemerged > 0:
+	# Los paquetes que aún no habían salido vuelven directamente a la guarnición
+	var unemerged := pending_units()
+	_drop_pending()
+	if unemerged > 0 and dest.faction == faction:
 		dest.receive_troops(faction, unemerged)
-		count -= unemerged
 
-	# Invertir la hilera: la perla más retrasada pasa a ser la cabeza del regreso
-	var old_tail_world := bead_position(n - 1)
+	# Invertir la columna: el paquete más retrasado pasa a ser la cabeza del regreso
+	var n := packets.size()
+	var old_tail_world := packet_position(n - 1)
 	_set_path(start_pos + move_dir * path_length, dest.global_position, dest.radius)
-	bead_values.reverse()
+	packets.reverse()
 	head_dist = (old_tail_world - start_pos).dot(move_dir)
 	_front = 0
 	queue_redraw()
 
 	if count <= 0:
-		EventBus.troop_arrived.emit(self)
-		if is_inside_tree():
-			queue_free()
+		_finish()
 
-## ¿Un trazo de corte (seg_a -> seg_b) atraviesa la trayectoria o la hilera de esta tropa?
+## ¿Un trazo de corte (seg_a -> seg_b) atraviesa la trayectoria o algún paquete de esta orden?
 func intersects_segment(seg_a: Vector2, seg_b: Vector2) -> bool:
-	if count <= 0 or not is_active or is_retreating or bead_values.is_empty():
+	if count <= 0 or not is_active or is_retreating or packets.is_empty():
 		return false
 	# 1. Cortar cualquier punto de la trayectoria restante (más permisivo con el dedo)
 	if Geometry2D.segment_intersects_segment(seg_a, seg_b, start_pos, start_pos + move_dir * path_length) != null:
 		return true
-	# 2. Proximidad al tramo ocupado por las perlas emergidas
+	# 2. Proximidad al tramo ocupado por los paquetes que ya han salido
 	var f := front_index()
-	if f < 0 or bead_dist(f) < 0.0:
+	if f < 0 or packet_dist(f) < 0.0:
 		return false
 	var tail := f
-	for i in range(bead_values.size() - 1, f, -1):
-		if bead_values[i] > 0 and bead_dist(i) >= 0.0:
+	for i in range(packets.size() - 1, f, -1):
+		if packets[i] > 0 and packet_dist(i) >= 0.0:
 			tail = i
 			break
-	var pts := Geometry2D.get_closest_points_between_segments(seg_a, seg_b, bead_position(tail), bead_position(f))
-	return pts[0].distance_to(pts[1]) <= BEAD_RADIUS + 14.0
+	var pts := Geometry2D.get_closest_points_between_segments(seg_a, seg_b, packet_position(tail), packet_position(f))
+	return pts[0].distance_to(pts[1]) <= PACKET_RADIUS + 10.0
 
 func _draw() -> void:
 	var f := front_index()
@@ -192,33 +248,46 @@ func _draw() -> void:
 	var color: Color = GameManager.faction_color(faction)
 	var style := GameManager.troop_style()
 	var origin_local := to_local(start_pos)
-	for i in range(f, bead_values.size()):
-		var v := bead_values[i]
+	# Tropas que aún esperan para salir: arco que se vacía sobre la base de origen
+	var pending := pending_units()
+	if pending > 0 and not is_retreating and is_instance_valid(origin_base):
+		var r := origin_base.radius + 10.0
+		draw_arc(origin_local, r, -PI * 0.5, -PI * 0.5 + TAU * pending / float(_launched), 40, Color(color, 0.9), 5.0, true)
+	for i in range(f, packets.size()):
+		var v := packets[i]
 		if v <= 0:
 			continue
-		var dist := bead_dist(i)
-		# Las perlas siguientes siguen dentro de la base de origen
+		var dist := packet_dist(i)
 		if dist < 0.0:
 			break
-		# Animación elástica de escala al emerger y al ser absorbida
-		var cur_scale := 1.0
+		# Aparece al salir y se encoge al llegar
+		var s := 1.0
 		if dist < 25.0:
-			cur_scale = clampf(dist / 25.0, 0.25, 1.0)
+			s = clampf(dist / 25.0, 0.3, 1.0)
 		elif dist > arrival_dist - 15.0:
-			cur_scale = clampf((arrival_dist - dist) / 15.0, 0.2, 1.0)
-		# Las perlas que agrupan varias unidades son ligeramente más grandes
-		var r := BEAD_RADIUS * (1.0 + 0.1 * mini(v - 1, 5)) * cur_scale
-		_draw_single_bead(origin_local + move_dir * dist, r, color, style)
+			s = clampf((arrival_dist - dist) / 15.0, 0.2, 1.0)
+		var center := origin_local + move_dir * dist
+		draw_packet(self, center, v, color, style, s, i * 1.1)
+		BaseNode.draw_faction_symbol(self, center, 3.5 * s, faction)
+		# Las cantidades grandes se representan con pocos puntos y su cantidad real.
+		if v > DOT_LAYOUT.size():
+			var pos := center + Vector2(-24, -26)
+			var font := UIThemeHelper.bold_font()
+			draw_string_outline(font, pos, str(v), HORIZONTAL_ALIGNMENT_CENTER, 48, 22, 5, Color(0, 0, 0, 0.85))
+			draw_string(font, pos, str(v), HORIZONTAL_ALIGNMENT_CENTER, 48, 22, Color.WHITE)
 
-func _draw_single_bead(pos: Vector2, r: float, color: Color, style: String) -> void:
-	draw_circle(pos + Vector2(0, 3.0), r * 0.95, Color(0, 0, 0, 0.22))
-	draw_bead(self, pos, r, color, style)
-
-## Perla con el estilo de la tienda (también la usa la vista previa de Ejército)
-static func draw_bead(canvas: CanvasItem, pos: Vector2, r: float, color: Color, style: String) -> void:
+## Paquete con el estilo de la tienda (también lo usa la vista previa de Ejército).
+## Hasta 7 puntos; los paquetes con más unidades tienen puntos algo más grandes.
+static func draw_packet(canvas: CanvasItem, pos: Vector2, units: int, color: Color, style: String, s: float = 1.0, angle: float = 0.0) -> void:
+	var r := DOT_RADIUS * s * (1.0 + 0.06 * clampi(units - DOT_LAYOUT.size(), 0, 10))
+	var spread := s * (1.2 if style == "troop_big" else 1.0)
 	if style == "troop_big":
-		r *= 1.35
+		r *= 1.3
 	if style == "troop_halo":
-		canvas.draw_circle(pos, r + 5.0, Color(1, 1, 1, 0.30))
-	canvas.draw_circle(pos, r + 1.5, Color.WHITE)
-	canvas.draw_circle(pos, r, color)
+		canvas.draw_circle(pos, (PACKET_RADIUS + 4.0) * s, Color(color, 0.22))
+	var dots := mini(units, DOT_LAYOUT.size())
+	for i in dots:
+		var p := pos + DOT_LAYOUT[i].rotated(angle) * spread
+		canvas.draw_circle(p + Vector2(0, 2.0), r, Color(0, 0, 0, 0.25))
+		canvas.draw_circle(p, r + 1.4, Color.WHITE)
+		canvas.draw_circle(p, r, color)

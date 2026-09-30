@@ -4,10 +4,10 @@ extends ScrollPage
 ## Tras una derrota ofrece volver directamente a la misma batalla.
 
 const UPGRADES := {
-	"starting_troops": {"icon": "shield", "color": UIThemeHelper.COLOR_PRIMARY, "percent": false},
-	"production_rate": {"icon": "bolt", "color": UIThemeHelper.COLOR_GOLD, "percent": true},
-	"troop_speed": {"icon": "speed", "color": UIThemeHelper.COLOR_SUCCESS, "percent": true},
-	"gold_bonus": {"icon": "coin", "color": UIThemeHelper.COLOR_GOLD, "percent": true},
+	"starting_troops": {"icon": "shield", "color": "primary", "percent": false},
+	"production_rate": {"icon": "bolt", "color": "gold", "percent": true},
+	"troop_speed": {"icon": "speed", "color": "success", "percent": true},
+	"gold_bonus": {"icon": "coin", "color": "gold", "percent": true},
 }
 
 var return_to_battle := false
@@ -28,7 +28,12 @@ func _build() -> void:
 		retry.add_child(go)
 	content.add_child(_segments())
 	if section == "upgrades":
-		content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("upgrades_sub")))
+		if GameManager.should_suggest_first_upgrade():
+			var first := UIThemeHelper.card(content, "", 8)
+			first.add_child(UIThemeHelper.label(LocaleStrings.text("first_upgrade"), "Heading", UIThemeHelper.colors.gold))
+			first.add_child(UIThemeHelper.paragraph(LocaleStrings.text("first_upgrade_sub")))
+		else:
+			content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("upgrades_sub")))
 		for id in UPGRADES:
 			content.add_child(_upgrade_card(id))
 	else:
@@ -66,6 +71,7 @@ func _segments() -> Control:
 
 func _upgrade_card(id: String) -> PanelContainer:
 	var cfg: Dictionary = UPGRADES[id]
+	var tint: Color = UIThemeHelper.colors[cfg["color"]]
 	var level: int = GameManager.upgrades.get(id, 0)
 	var max_level := GameManager.MAX_UPGRADE_LEVEL
 	var step: int = GameManager.UPGRADE_STEPS[id]
@@ -80,15 +86,19 @@ func _upgrade_card(id: String) -> PanelContainer:
 	if level < max_level:
 		effect += "  ›  " + fmt % ((level + 1) * step)
 	effect += " " + LocaleStrings.text("upg_%s_unit" % id)
-	column.add_child(UIThemeHelper.item_row(UIThemeHelper.round_badge(Icons.rect(cfg["icon"], 52, cfg["color"]), cfg["color"]),
-		LocaleStrings.text("upg_" + id), effect, UIThemeHelper.chip(LocaleStrings.text("level_short") % [level, max_level])))
+	# La mejora más barata se recomienda: siempre hay un siguiente paso claro
+	var recommended := id == GameManager.cheapest_upgrade() and GameManager.coins >= GameManager.get_upgrade_cost(id)
+	var badge := UIThemeHelper.chip(LocaleStrings.text("recommended") if recommended else LocaleStrings.text("level_short") % [level, max_level],
+		"star" if recommended else "", UIThemeHelper.colors.gold if recommended else UIThemeHelper.colors.text)
+	column.add_child(UIThemeHelper.item_row(UIThemeHelper.round_badge(Icons.rect(cfg["icon"], 52, tint), tint),
+		LocaleStrings.text("upg_" + id), effect, badge))
 
 	var pips := UIThemeHelper.hbox(6)
 	for i in max_level:
 		var pip := Panel.new()
 		pip.custom_minimum_size = Vector2(0, 12)
 		pip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		pip.add_theme_stylebox_override("panel", UIThemeHelper.box(cfg["color"] if i < level else UIThemeHelper.COLOR_SURFACE_2, 999, 0))
+		pip.add_theme_stylebox_override("panel", UIThemeHelper.box(tint if i < level else UIThemeHelper.colors.surface_2, 999, 0))
 		pips.add_child(pip)
 	column.add_child(pips)
 
@@ -126,7 +136,7 @@ func _cosmetic_tile(item: Dictionary) -> PanelContainer:
 	preview.item = item
 	preview.custom_minimum_size = Vector2(0, 130)
 	column.add_child(preview)
-	var name_label := UIThemeHelper.label(CosmeticsDatabase.item_name(item), "Caption", UIThemeHelper.COLOR_TEXT)
+	var name_label := UIThemeHelper.label(CosmeticsDatabase.item_name(item), "Caption", UIThemeHelper.colors.text)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	column.add_child(name_label)
@@ -136,13 +146,18 @@ func _cosmetic_tile(item: Dictionary) -> PanelContainer:
 		btn.text = LocaleStrings.text("equipped")
 		btn.icon = Icons.texture("check", 36)
 		btn.disabled = true
-		btn.add_theme_color_override("font_disabled_color", UIThemeHelper.COLOR_SUCCESS)
-		btn.add_theme_color_override("icon_disabled_color", UIThemeHelper.COLOR_SUCCESS)
+		btn.add_theme_color_override("font_disabled_color", UIThemeHelper.colors.success)
+		btn.add_theme_color_override("icon_disabled_color", UIThemeHelper.colors.success)
 	elif GameManager.is_cosmetic_owned(item["id"]):
 		btn.text = LocaleStrings.text("equip")
 		btn.pressed.connect(func():
 			if GameManager.equip_cosmetic(item["id"]):
 				AudioManager.play_click())
+	elif CosmeticsDatabase.is_reward(item):
+		# Premio de un hito: se explica cómo conseguirlo en lugar de venderlo
+		btn.text = CosmeticsDatabase.unlock_text(item)
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.disabled = true
 	else:
 		btn.theme_type_variation = "GoldButton"
 		btn.text = str(item["cost"])
@@ -171,8 +186,7 @@ class CosmeticPreview extends Control:
 			_:
 				var style: String = item["id"] if item["category"] == "troop_style" else GameManager.troop_style()
 				_base(c + Vector2(-60, 0), 30.0, player, GameManager.base_shape())
-				for i in 3:
-					Troop.draw_bead(self, c + Vector2(-5 + i * 34, 0), 8.0, player, style)
+				Troop.draw_packet(self, c + Vector2(30, 0), 7, player, style, 1.3)
 
 	func _base(pos: Vector2, r: float, color: Color, shape: String) -> void:
 		BaseNode.draw_frame(self, pos, r, shape)

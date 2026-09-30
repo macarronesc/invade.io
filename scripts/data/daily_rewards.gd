@@ -7,6 +7,7 @@ class_name DailyRewards
 ## Oro por día de racha (el 7º día es el premio gordo y la racha vuelve a empezar el ciclo)
 const STREAK_REWARDS = [50, 75, 100, 125, 150, 200, 300]
 const DAILY_CHALLENGE_GOLD := 150
+const STREAK_GRACE_DAYS := 1
 const DAILY_CHALLENGE_PREFIX := "daily_"
 ## Dificultad fija del desafío (mitad de la campaña: IA media y algunos neutrales extra)
 const CHALLENGE_DIFFICULTY := 0.5
@@ -21,7 +22,8 @@ static func evaluate(last_claim_day: int, streak: int, day: int) -> Dictionary:
 	# day < last_claim_day: reloj atrasado; no se paga hasta volver al día del último cobro
 	if day <= last_claim_day:
 		return {"can_claim": false, "streak": streak, "reward": 0}
-	var new_streak := streak + 1 if last_claim_day == day - 1 else 1
+	# Un día de margen: olvidarse una vez no borra una racha larga
+	var new_streak := streak + 1 if last_claim_day >= day - 1 - STREAK_GRACE_DAYS else 1
 	return {"can_claim": true, "streak": new_streak, "reward": reward_for_streak(new_streak)}
 
 static func reward_for_streak(streak: int) -> int:

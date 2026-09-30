@@ -1,11 +1,13 @@
 extends CanvasLayer
 class_name BattleHUD
 
-## BattleHUD: cabecera de batalla (pausa, nivel y reloj de estrellas), fuerza de cada bando
-## y las capas de pausa, victoria y derrota.
+## BattleHUD: cabecera de batalla (pausa, nivel, reloj de estrellas, bases controladas, objetivo
+## de medalla y fuerza de cada bando) y las capas de pausa, victoria y derrota. La victoria
+## cierra con el progreso ganado y un único siguiente objetivo.
 
 const DOMINANCE_UPDATE_INTERVAL := 0.1
 const ENEMY_FACTIONS = [GameManager.Faction.ENEMY_1, GameManager.Faction.ENEMY_2, GameManager.Faction.ENEMY_3]
+const XP_BAR_SECONDS := 0.8
 
 @export var battle_controller: BattleController
 
@@ -19,12 +21,12 @@ const ENEMY_FACTIONS = [GameManager.Faction.ENEMY_1, GameManager.Faction.ENEMY_2
 @onready var label_count_player: Label = %LabelCountPlayer
 @onready var label_count_enemy: Label = %LabelCountEnemy
 @onready var label_count_neutral: Label = %LabelCountNeutral
-@onready var faction_counts_container: HBoxContainer = %FactionCountsContainer
+@onready var bases_label: Label = %BasesLabel
+@onready var objective_label: Label = %ObjectiveLabel
 @onready var dim_overlay: ColorRect = %DimOverlay
 
 @onready var victory_panel: Control = %VictoryPanel
 @onready var victory_title: Label = %VictoryTitle
-@onready var stars_container: HBoxContainer = %StarsContainer
 @onready var star_1: Label = %Star1
 @onready var star_2: Label = %Star2
 @onready var star_3: Label = %Star3
@@ -32,6 +34,16 @@ const ENEMY_FACTIONS = [GameManager.Faction.ENEMY_1, GameManager.Faction.ENEMY_2
 @onready var stat_time_value: Label = %StatTimeValue
 @onready var stat_cities_value: Label = %StatCitiesValue
 @onready var victory_note: Label = %VictoryNote
+@onready var cities_label: Label = %CitiesLabel
+@onready var record_label: Label = %RecordLabel
+@onready var btn_result_action: Button = %BtnResultAction
+@onready var medal_label: Label = %MedalLabel
+@onready var rank_label: Label = %RankLabel
+@onready var xp_label: Label = %XpLabel
+@onready var xp_bar: ProgressBar = %XpBar
+@onready var unlock_label: Label = %UnlockLabel
+@onready var next_goal_label: Label = %NextGoalLabel
+@onready var btn_claim_missions: Button = %BtnClaimMissions
 @onready var confetti_overlay: Control = %ConfettiOverlay
 @onready var btn_next_level: Button = %BtnNextLevel
 @onready var btn_victory_map: Button = %BtnVictoryMap
@@ -39,6 +51,7 @@ const ENEMY_FACTIONS = [GameManager.Faction.ENEMY_1, GameManager.Faction.ENEMY_2
 
 @onready var defeat_panel: Control = %DefeatPanel
 @onready var btn_retry: Button = %BtnRetry
+@onready var defeat_xp_label: Label = %DefeatXpLabel
 @onready var btn_defeat_upgrade: Button = %BtnDefeatUpgrade
 @onready var btn_defeat_map: Button = %BtnDefeatMap
 
@@ -51,6 +64,7 @@ const ENEMY_FACTIONS = [GameManager.Faction.ENEMY_1, GameManager.Faction.ENEMY_2
 @onready var btn_how_to_play: Button = %BtnHowToPlay
 @onready var btn_settings: Button = %BtnSettings
 @onready var btn_pause_map: Button = %BtnPauseMap
+@onready var pause_rule: Label = %PauseRule
 
 var confetti_pieces: Array = []
 var _star_tweens: Array[Tween] = []
@@ -62,6 +76,11 @@ var _tip_on_close: Callable = Callable()
 var _last_shown_second: int = -999
 var _utility_panel: Control = null
 var _share_result: Dictionary = {}
+## La medalla de este nivel sigue en juego (campaña, aún no conseguida y sin bases perdidas)
+var _medal_tracked: bool = false
+var _result: Dictionary = {}
+var _xp_tween: Tween
+var _reward_to_equip := ""
 
 func _notification(what: int) -> void:
 	match what:
@@ -112,6 +131,8 @@ func _ready() -> void:
 	btn_retry.pressed.connect(_on_retry_pressed)
 	btn_defeat_upgrade.pressed.connect(_on_upgrade_pressed)
 	btn_defeat_map.pressed.connect(_on_map_pressed)
+	btn_claim_missions.pressed.connect(_claim_missions)
+	btn_result_action.pressed.connect(_on_result_action)
 	_refresh_audio_buttons()
 
 ## Textos estáticos de capas y botones en el idioma actual
@@ -122,6 +143,7 @@ func _apply_texts() -> void:
 	%StatGoldCaption.text = LocaleStrings.text("stat_gold")
 	%StatCitiesCaption.text = LocaleStrings.text("stat_new_cities")
 	defeat_panel.get_node("VBox/Title").text = LocaleStrings.text("defeat_title")
+	UIThemeHelper.set_icon(btn_claim_missions, "coin", 40)
 	defeat_panel.get_node("VBox/Subtitle").text = LocaleStrings.text("defeat_sub")
 	btn_retry.text = LocaleStrings.text("retry")
 	btn_defeat_upgrade.text = LocaleStrings.text("improve")
@@ -152,11 +174,25 @@ func _build_faction_bars() -> void:
 		_faction_bars[f] = bar
 	_refresh_palette()
 
+## Colores que no vienen del tema (se repite al cambiar a modo claro u oscuro)
 func _refresh_palette() -> void:
 	for faction in _faction_bars:
 		_faction_bars[faction].color = GameManager.faction_color(faction)
-	label_count_player.add_theme_color_override("font_color", GameManager.faction_color(GameManager.Faction.PLAYER).lightened(0.25))
-	label_count_enemy.add_theme_color_override("font_color", GameManager.faction_color(GameManager.Faction.ENEMY_1).lightened(0.25))
+	label_count_player.add_theme_color_override("font_color", UIThemeHelper.colors.text)
+	label_count_enemy.add_theme_color_override("font_color", UIThemeHelper.colors.text)
+	label_rule.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
+	victory_reward_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
+	stat_cities_value.add_theme_color_override("font_color", UIThemeHelper.colors.primary)
+	medal_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
+	unlock_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
+	xp_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
+	defeat_panel.get_node("VBox/Title").add_theme_color_override("font_color", UIThemeHelper.colors.danger)
+	for star in [star_1, star_2, star_3]:
+		star.add_theme_color_override("font_color", UIThemeHelper.colors.gold if star.text == "★" else UIThemeHelper.colors.line)
+	_last_shown_second = -999
+	_update_objective()
+	if not _result.is_empty():
+		_refresh_result_title()
 
 func _refresh_audio_buttons() -> void:
 	btn_pause_sound.modulate.a = 0.4 if AudioManager.is_muted else 1.0
@@ -182,6 +218,7 @@ func _open_settings() -> void:
 	_utility_panel.closed.connect(func():
 		_apply_texts()
 		_refresh_audio_buttons()
+		_refresh_palette()
 		if is_instance_valid(battle_controller):
 			_on_battle_started(battle_controller.level_id)
 			for base in battle_controller.bases:
@@ -206,10 +243,41 @@ func _open_share() -> void:
 func _on_battle_started(level_id: String) -> void:
 	var data := LevelDatabase.get_level_data(level_id)
 	label_level_name.text = data["name"]
-	label_rule.text = CampaignRules.description(data).strip_edges()
+	label_rule.text = CampaignRules.description(data).strip_edges().get_slice("\n", 0)
 	label_rule.visible = label_rule.text != ""
+	pause_rule.text = CampaignRules.description(data).strip_edges()
+	if data.has("objective"):
+		pause_rule.text += "\n" + LocaleStrings.text("daily_objective") % (LocaleStrings.text(data["objective"]) % int(data["hold_seconds"]))
+	pause_rule.visible = pause_rule.text != ""
+	_medal_tracked = LevelDatabase.get_level_ids().has(level_id) and not GameManager.medals.has(level_id)
 	_last_shown_second = -999
 	_update_target_time()
+	_update_objective()
+	_introduce_rivals()
+
+## La primera vez que aparece cada personalidad de IA, un aviso breve explica cómo juega
+func _introduce_rivals() -> void:
+	if not is_instance_valid(battle_controller) or not GameManager.has_seen_tip("drag"):
+		return
+	for ai in battle_controller.ai_controllers:
+		var tip := "rival_%d" % ai.archetype
+		if not GameManager.has_seen_tip(tip):
+			GameManager.mark_tip_seen(tip)
+			Toasts.show_toast("⚔️", "%s · %s" % [GameManager.faction_name(ai.faction), LocaleStrings.text(tip + "_t")], LocaleStrings.text(tip + "_b"), true)
+
+## Objetivo secundario seguido: la medalla de dominio (no perder ninguna base)
+func _update_objective() -> void:
+	if is_instance_valid(battle_controller) and battle_controller.level_data.has("objective"):
+		objective_label.visible = true
+		objective_label.text = battle_controller.objective_text()
+		objective_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
+		return
+	objective_label.visible = _medal_tracked
+	if not _medal_tracked:
+		return
+	var lost := is_instance_valid(battle_controller) and battle_controller.lost_a_base
+	objective_label.text = LocaleStrings.text("medal_lost" if lost else "medal_goal")
+	objective_label.add_theme_color_override("font_color", UIThemeHelper.colors.muted if lost else UIThemeHelper.colors.gold)
 
 func _process(delta: float) -> void:
 	if battle_controller:
@@ -217,6 +285,7 @@ func _process(delta: float) -> void:
 		if _dominance_timer <= 0.0:
 			_dominance_timer = DOMINANCE_UPDATE_INTERVAL
 			_update_dominance_bar()
+			_update_objective()
 		if not battle_controller.is_game_over:
 			_update_target_time()
 	_update_confetti(delta)
@@ -235,17 +304,19 @@ func _update_target_time() -> void:
 		return
 	_last_shown_second = key
 	label_target_time.text = "★".repeat(stars) + (" %ds" % remaining if remaining >= 0 else "")
-	label_target_time.add_theme_color_override("font_color", UIThemeHelper.COLOR_GOLD if stars == 3 else UIThemeHelper.COLOR_GOLD.lerp(UIThemeHelper.COLOR_MUTED, 0.5 if stars == 2 else 1.0))
+	label_target_time.add_theme_color_override("font_color", UIThemeHelper.colors.gold if stars == 3 else UIThemeHelper.colors.gold.lerp(UIThemeHelper.colors.muted, 0.5 if stars == 2 else 1.0))
 
-## Reparto de tropas en juego (bases + hileras) de cada bando
+## Bases controladas (el avance real) y reparto de tropas en juego de cada bando (las fuerzas)
 func _update_dominance_bar() -> void:
+	var mine: int = battle_controller.bases.filter(func(b): return b.faction == GameManager.Faction.PLAYER).size()
+	bases_label.text = LocaleStrings.text("hud_bases") % [mine, battle_controller.bases.size()]
 	var counts: Dictionary = battle_controller.get_faction_troop_counts()
 	for f in _faction_bars:
 		var n: int = counts.get(f, 0)
 		_faction_bars[f].visible = n > 0
 		_faction_bars[f].size_flags_stretch_ratio = maxf(n, 0.001)
 	var player_count: int = counts.get(GameManager.Faction.PLAYER, 0)
-	label_count_player.text = "%s %d" % [GameManager.faction_name(GameManager.Faction.PLAYER), player_count]
+	label_count_player.text = LocaleStrings.text("forces_count") % [GameManager.faction_name(GameManager.Faction.PLAYER), player_count]
 	label_count_neutral.text = "%s %d" % [GameManager.faction_name(GameManager.Faction.NEUTRAL), counts.get(GameManager.Faction.NEUTRAL, 0)]
 	var enemy_parts: PackedStringArray = []
 	for f in ENEMY_FACTIONS:
@@ -290,6 +361,8 @@ func _on_battle_won(stats: Dictionary) -> void:
 
 func deploy_victory_modal(stats: Dictionary) -> void:
 	_cleanup_time_scale()
+	_result = stats.duplicate(true)
+	defeat_panel.visible = false
 	dim_overlay.visible = true
 	UIThemeHelper.animate_modal_pop_in(victory_panel)
 	var daily: bool = stats.get("is_daily_challenge", false)
@@ -302,30 +375,117 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 	btn_next_level.text = LocaleStrings.text("next_region" if conquest else "next_level")
 	btn_victory_map.text = LocaleStrings.text("to_challenges" if daily else "exit")
 
-	var title := ["victory", UIThemeHelper.COLOR_SUCCESS]
-	if daily:
-		title = ["daily_done", UIThemeHelper.COLOR_GOLD]
-	elif conquest:
-		title = ["conquest_done", UIThemeHelper.COLOR_PRIMARY]
-	elif stats.get("is_continent_conquest", false):
-		title = ["continent_conquest", UIThemeHelper.COLOR_GOLD]
-	victory_title.text = LocaleStrings.text(title[0])
-	victory_title.add_theme_color_override("font_color", title[1])
+	_refresh_result_title()
 
 	stat_time_value.text = "%ds" % ceili(float(stats.get("time", 0.0)))
 	victory_reward_label.text = "+%d" % stats.get("gold_earned", 0)
 	stat_cities_value.text = "+%d" % stats.get("new_cities", 0)
-	var note := UIThemeHelper.xp_text()
-	if stats.get("is_replay", false):
-		note = LocaleStrings.text("replay_note") + "\n" + note
-	victory_note.text = note
+	var city_names: Array = stats.get("city_names", [])
+	cities_label.text = " · ".join(city_names.slice(0, 3)) + (" +%d" % (city_names.size() - 3) if city_names.size() > 3 else "")
+	cities_label.visible = not city_names.is_empty()
+	record_label.text = LocaleStrings.text("new_record")
+	record_label.visible = stats.get("new_record", false)
+	victory_note.text = LocaleStrings.text("replay_note")
+	victory_note.visible = stats.get("is_replay", false)
+	medal_label.text = LocaleStrings.text("medal_won")
+	medal_label.visible = stats.get("new_medal", false)
+	_show_progress(stats)
 
 	trigger_confetti()
 	animate_stars(stats.get("stars", 1))
 
+func _refresh_result_title() -> void:
+	var title := ["victory", UIThemeHelper.colors.success]
+	if _result.get("is_daily_challenge", false):
+		title = ["daily_done", UIThemeHelper.colors.gold]
+	elif _result.get("expedition_finale", false):
+		title = ["expedition_done", UIThemeHelper.colors.gold]
+	elif _result.get("is_conquest", false):
+		title = ["conquest_done", UIThemeHelper.colors.primary]
+	elif _result.get("is_continent_conquest", false):
+		title = ["continent_conquest", UIThemeHelper.colors.gold]
+	victory_title.text = LocaleStrings.text(title[0])
+	victory_title.add_theme_color_override("font_color", title[1])
+
+## Progreso de la partida: XP ganada sobre la barra de rango, lo desbloqueado y un siguiente
+## objetivo. Las misiones completadas se cobran aquí mismo, sin cambiar de pantalla.
+func _show_progress(stats: Dictionary) -> void:
+	var xp: int = stats.get("xp", 0)
+	var before: int = stats.get("xp_before", GameManager.experience - xp)
+	var level_before := PlayerRank.level(before)
+	var level_now := GameManager.player_level()
+	rank_label.text = LocaleStrings.text("rank_line") % [PlayerRank.title(level_now), level_now]
+	xp_label.text = "+%d XP" % xp
+	xp_bar.value = PlayerRank.progress(before) if level_now == level_before else 0.0
+	if is_instance_valid(_xp_tween):
+		_xp_tween.kill()
+	if is_inside_tree() and not GameManager.settings["reduced_motion"]:
+		_xp_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_xp_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		_xp_tween.tween_property(xp_bar, "value", PlayerRank.progress(GameManager.experience), XP_BAR_SECONDS).set_delay(0.3)
+	else:
+		xp_bar.value = PlayerRank.progress(GameManager.experience)
+
+	var unlocks: PackedStringArray = []
+	_reward_to_equip = ""
+	for level in range(level_before + 1, level_now + 1):
+		unlocks.append(LocaleStrings.text("rank_up") % PlayerRank.title(level))
+		for item in CosmeticsDatabase.rank_rewards(level):
+			unlocks.append(LocaleStrings.text("unlocked") % CosmeticsDatabase.item_name(item))
+			_reward_to_equip = item["id"]
+	if stats.get("new_continent", false):
+		var reward := CosmeticsDatabase.continent_reward(LevelDatabase.get_continent_of(str(stats.get("level_id", ""))))
+		if not reward.is_empty():
+			unlocks.append(LocaleStrings.text("unlocked") % CosmeticsDatabase.item_name(reward))
+			_reward_to_equip = reward["id"]
+	unlock_label.text = "\n".join(unlocks)
+	unlock_label.visible = not unlocks.is_empty()
+	_refresh_next_goal()
+
+func _refresh_next_goal() -> void:
+	var goal := NextGoal.text()
+	next_goal_label.text = LocaleStrings.text("next_goal") % goal
+	next_goal_label.visible = goal != ""
+	var claimable := GameManager.claimable_mission_count()
+	btn_claim_missions.visible = claimable > 0
+	btn_claim_missions.text = LocaleStrings.text("claim_missions") % claimable
+	var guide: bool = GameManager.should_suggest_first_upgrade() and not _result.get("is_daily_challenge", false)
+	btn_result_action.visible = guide or _reward_to_equip != ""
+	btn_result_action.text = LocaleStrings.text("improve_continue") if guide else LocaleStrings.text("equip_reward") % CosmeticsDatabase.item_name(CosmeticsDatabase.get_by_id(_reward_to_equip))
+
+func _on_result_action() -> void:
+	if GameManager.should_suggest_first_upgrade() and not _result.get("is_daily_challenge", false):
+		if is_instance_valid(battle_controller):
+			if _result.get("is_conquest", false):
+				GameManager.play_conquest(GameManager.conquest_next)
+			else:
+				var next := GameManager.get_next_level(battle_controller.level_id)
+				if next != "":
+					GameManager.play_level(next)
+		_on_upgrade_pressed()
+	elif GameManager.equip_cosmetic(_reward_to_equip):
+		AudioManager.play_click()
+		_reward_to_equip = ""
+		_refresh_next_goal()
+
+func _claim_missions() -> void:
+	var before := GameManager.experience
+	var claimed := 0
+	for m in GameManager.mission_definitions():
+		if GameManager.claim_mission(m["id"]):
+			claimed += 1
+	if claimed > 0:
+		AudioManager.play_star_reveal(1)
+		GameManager.haptic(30)
+	_result["xp"] = int(_result.get("xp", 0)) + GameManager.experience - before
+	_show_progress(_result)
+
 func trigger_confetti() -> void:
 	confetti_pieces.clear()
-	var colors := [UIThemeHelper.COLOR_GOLD, UIThemeHelper.COLOR_PRIMARY, UIThemeHelper.COLOR_SUCCESS, UIThemeHelper.COLOR_TEXT]
+	if GameManager.settings["reduced_motion"]:
+		confetti_overlay.queue_redraw()
+		return
+	var colors := [UIThemeHelper.colors.gold, UIThemeHelper.colors.primary, UIThemeHelper.colors.success, UIThemeHelper.colors.text]
 	for i in 75:
 		var angle = randf_range(-PI * 0.85, -PI * 0.15)
 		var spd = randf_range(320.0, 780.0)
@@ -353,11 +513,11 @@ func animate_stars(stars_count: int) -> void:
 		var s := stars[i]
 		var earned := i < stars_count
 		s.text = "★" if earned else "☆"
-		s.add_theme_color_override("font_color", UIThemeHelper.COLOR_GOLD if earned else UIThemeHelper.COLOR_LINE)
+		s.add_theme_color_override("font_color", UIThemeHelper.colors.gold if earned else UIThemeHelper.colors.muted)
 		s.modulate = Color(1, 1, 1, 0.0 if earned else 1.0)
 		s.scale = Vector2.ZERO if earned else Vector2.ONE
 
-	if not is_inside_tree():
+	if not is_inside_tree() or GameManager.settings["reduced_motion"]:
 		for i in mini(stars_count, stars.size()):
 			stars[i].modulate = Color.WHITE
 			stars[i].scale = Vector2.ONE
@@ -374,9 +534,16 @@ func animate_stars(stars_count: int) -> void:
 		t.tween_property(s, "modulate:a", 1.0, 0.1)
 		t.parallel().tween_property(s, "scale", Vector2.ONE, 0.25)
 
+## Derrota: un consejo concreto de lo que pasó, la XP ganada y reintentar como acción principal.
+## Mejorar sólo se ofrece si hay una mejora que se pueda comprar ya.
 func _on_battle_lost() -> void:
 	_cleanup_time_scale()
 	dim_overlay.visible = true
+	var tip := battle_controller.defeat_tip() if is_instance_valid(battle_controller) else ""
+	defeat_panel.get_node("VBox/Subtitle").text = tip if tip != "" else LocaleStrings.text("defeat_sub")
+	defeat_xp_label.text = LocaleStrings.text("defeat_xp") % [GameManager.DEFEAT_XP, PlayerRank.title(GameManager.player_level())]
+	var upgrade := GameManager.cheapest_upgrade()
+	btn_defeat_upgrade.visible = upgrade != "" and GameManager.coins >= GameManager.get_upgrade_cost(upgrade)
 	UIThemeHelper.animate_modal_pop_in(defeat_panel)
 
 # =========================================================================

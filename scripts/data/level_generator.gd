@@ -118,6 +118,17 @@ static func conquest_index(level_id: String) -> int:
 static func conquest_difficulty(index: int) -> float:
 	return minf(0.15 + 0.07 * index, 1.0)
 
+## Expediciones: bloques de GameManager.EXPEDITION_SIZE regiones; la última de cada una es un jefe
+static func expedition_of(index: int) -> int:
+	@warning_ignore("integer_division")
+	return index / GameManager.EXPEDITION_SIZE + 1
+
+static func expedition_step(index: int) -> int:
+	return index % GameManager.EXPEDITION_SIZE + 1
+
+static func is_expedition_finale(index: int) -> bool:
+	return expedition_step(index) == GameManager.EXPEDITION_SIZE
+
 ## Definición de la región `index`: determinista, igual para todos los jugadores.
 static func conquest_definition(index: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
@@ -130,6 +141,8 @@ static func conquest_definition(index: int) -> Dictionary:
 		{"id": "b1", "city": center["key"], "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2 if index < 4 else 3},
 		{"id": "b2", "city": near[0]["key"], "faction": GameManager.Faction.ENEMY_1, "troops": enemy_troops, "tier": 2 if index < 5 else 3},
 	]
+	if is_expedition_finale(index):
+		bases[1].merge({"boss": true, "type": "fortress", "tier": 3, "troops": enemy_troops + 15}, true)
 	for i in range(1, near.size()):
 		var neutral := {"id": "b%d" % (i + 2), "city": near[i]["key"], "faction": GameManager.Faction.NEUTRAL,
 			"troops": rng.randi_range(10, 18), "tier": 1}
@@ -141,9 +154,9 @@ static func conquest_definition(index: int) -> Dictionary:
 		bases.append(neutral)
 	return {
 		"id": conquest_id(index),
-		"name": LocaleStrings.text("conquest_title") % [index + 1, GeoDatabase.city_name(center)],
+		"name": LocaleStrings.text("conquest_title") % [expedition_of(index), expedition_step(index), GameManager.EXPEDITION_SIZE, GeoDatabase.city_name(center)],
 		"description": LocaleStrings.text("conquest_desc") % [index + 1, GeoDatabase.city_name(center)],
-		"target_time": DAILY_TARGET_TIME,
+		"target_time": DAILY_TARGET_TIME + (25 if is_expedition_finale(index) else 0),
 		"bases": bases,
 	}
 
