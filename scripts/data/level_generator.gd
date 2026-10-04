@@ -100,7 +100,7 @@ static func daily_challenge_definition(day: int) -> Dictionary:
 # =========================================================================
 # Conquista libre (punto 3): regiones infinitas con dificultad creciente.
 # Mismo generador que el desafío diario, pero con índice propio y enemigos
-# y tropas que escalan con `index` (0.15 de dificultad inicial, +0.07/región).
+# y tropas que escalan con `index` (0.15 de dificultad inicial, +0.03/región).
 # =========================================================================
 
 const CONQUEST_PREFIX := "conquest_"
@@ -116,7 +116,7 @@ static func conquest_index(level_id: String) -> int:
 	return maxi(0, int(level_id.substr(CONQUEST_PREFIX.length())))
 
 static func conquest_difficulty(index: int) -> float:
-	return minf(0.15 + 0.07 * index, 1.0)
+	return minf(0.15 + 0.03 * index, 1.0)
 
 ## Expediciones: bloques de GameManager.EXPEDITION_SIZE regiones; la última de cada una es un jefe
 static func expedition_of(index: int) -> int:
@@ -136,20 +136,20 @@ static func conquest_definition(index: int) -> Dictionary:
 	var region := _pick_region(rng, CONQUEST_CENTER_POOL)
 	var center: Dictionary = region["center"]
 	var near: Array[Dictionary] = region["neighbors"]
-	var enemy_troops := mini(30 + index * 2, 60)
+	var enemy_troops := mini(24 + index, 55)
 	var bases: Array[Dictionary] = [
-		{"id": "b1", "city": center["key"], "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2 if index < 4 else 3},
+		{"id": "b1", "city": center["key"], "faction": GameManager.Faction.PLAYER, "troops": 36, "tier": 2 if index < 4 else 3},
 		{"id": "b2", "city": near[0]["key"], "faction": GameManager.Faction.ENEMY_1, "troops": enemy_troops, "tier": 2 if index < 5 else 3},
 	]
 	if is_expedition_finale(index):
-		bases[1].merge({"boss": true, "type": "fortress", "tier": 3, "troops": enemy_troops + 15}, true)
+		bases[1].merge({"boss": true, "type": "fortress", "tier": 3, "troops": enemy_troops + 8}, true)
 	for i in range(1, near.size()):
 		var neutral := {"id": "b%d" % (i + 2), "city": near[i]["key"], "faction": GameManager.Faction.NEUTRAL,
 			"troops": rng.randi_range(10, 18), "tier": 1}
-		# Segundo rival a partir de la región 2 y tercero a partir de la 6 (determinista)
-		if i == 1 and index >= 1 and index % 2 == 0:
+		# Segundo rival tras la primera expedición; tercero a partir de la cuarta.
+		if i == 1 and index >= 5 and index % 2 == 0:
 			neutral.merge({"faction": GameManager.Faction.ENEMY_2, "troops": enemy_troops - 5, "tier": 2}, true)
-		elif i == 2 and index >= 5 and index % 3 == 0:
+		elif i == 2 and index >= 15 and index % 3 == 0:
 			neutral.merge({"faction": GameManager.Faction.ENEMY_3, "troops": enemy_troops - 5, "tier": 2}, true)
 		bases.append(neutral)
 	return {

@@ -127,9 +127,7 @@ func _build() -> void:
 	shortcuts.add_child(btn_conquest)
 	var done := GameManager.is_daily_challenge_done()
 	var daily_sub := LocaleStrings.text("daily_row_done") if done else LocaleStrings.text("daily_row") % DailyRewards.DAILY_CHALLENGE_GOLD
-	var twist := CampaignRules.description(LevelDatabase.get_level_data(DailyRewards.challenge_id(DailyRewards.today()))).strip_edges()
-	if twist != "":
-		daily_sub += "\n" + LocaleStrings.text("daily_rule") % twist
+	daily_sub += "\n" + LocaleStrings.text("daily_short_rules")
 	btn_daily = UIThemeHelper.row_button("check" if done else "target", LocaleStrings.text("daily"), daily_sub, "play",
 		UIThemeHelper.colors.success if done else UIThemeHelper.colors.gold)
 	btn_daily.pressed.connect(UIThemeHelper.start_battle.bind(self, DailyRewards.challenge_id(DailyRewards.today())))
@@ -266,10 +264,14 @@ func _update_briefing_card() -> void:
 	var stars: int = GameManager.completed_levels.get(selected_level_id, 0)
 	level_title.text = data["name"]
 	level_desc.text = data["description"]
+	if selected_level_id == "europe_4":
+		level_desc.text = LocaleStrings.text("hint_factory")
 	level_rule.text = CampaignRules.description(data).strip_edges()
 	if LevelDatabase.get_level_number(selected_level_id) == LevelDatabase.LEVELS_PER_CONTINENT:
 		var reward := CosmeticsDatabase.continent_reward(LevelDatabase.get_continent_of(selected_level_id))
 		level_rule.text += "\n" + LocaleStrings.text("boss_reward") % CosmeticsDatabase.item_name(reward)
+		if stars == 0:
+			level_rule.text += " · " + LocaleStrings.text("boss_gold_preview") % roundi(GameManager.FIRST_BOSS_GOLD * GameManager.get_gold_multiplier())
 	level_rule.visible = level_rule.text != ""
 	UIThemeHelper.set_stars(level_stars, stars)
 

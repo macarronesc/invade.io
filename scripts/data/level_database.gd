@@ -101,6 +101,45 @@ static func get_difficulty(level_id: String) -> float:
 	var ids := get_level_ids()
 	return maxf(0.0, ids.find(level_id)) / float(ids.size() - 1)
 
+## Ritmo fijo del mapa, nunca del ejército comprado. La primera región de cada
+## continente/expedición da un respiro; la dificultad geográfica sigue separada.
+static func get_balance(level_id: String) -> Dictionary:
+	var difficulty := get_difficulty(level_id)
+	var cadence := lerpf(4.0, 2.8, difficulty)
+	var grace := lerpf(22.0, 14.0, difficulty)
+	var production := lerpf(0.85, 0.95, difficulty)
+	var actions := 1 if difficulty < 0.3 else 2
+	var joint := 2 if difficulty < 0.85 else 3
+	if DailyRewards.is_challenge(level_id):
+		cadence = 2.8
+		grace = 6.0
+		production = 1.0
+	elif LevelGenerator.is_conquest(level_id):
+		if LevelGenerator.expedition_step(LevelGenerator.conquest_index(level_id)) == 1:
+			cadence += 0.4
+			grace += 3.0
+			production -= 0.05
+	else:
+		var index := get_level_ids().find(level_id)
+		if index < 3:
+			cadence = 4.5
+			grace = 25.0
+			joint = 0
+		elif index < 5:
+			cadence = 4.0
+			grace = 22.0 if index == 3 else 20.0
+			joint = 0
+		elif get_level_number(level_id) == 1:
+			cadence += 0.4
+			grace += 3.0
+			production -= 0.05
+		if index < 10:
+			actions = 1
+	return {"cadence": cadence, "grace": grace, "production": production,
+		"actions": actions, "joint_sources": joint,
+		"boss_interval": lerpf(28.0, 22.0, difficulty),
+		"boss_reinforcement": roundi(lerpf(6.0, 10.0, difficulty))}
+
 ## Coordenadas de las ciudades de un nivel (sin construirlo), para situarlo en el mapa del mundo
 static func get_level_lonlats(level_id: String) -> Array[Vector2]:
 	var result: Array[Vector2] = []
@@ -127,7 +166,7 @@ static func collection_cities(continent_id: String) -> Array[String]:
 ## Definiciones de campaña: cada base apunta a una ciudad real de GeoDatabase. LevelGenerator
 ## las sitúa en el mapa, añade neutrales según la dificultad y recorta costas y fronteras.
 static func _build_levels() -> Dictionary:
-	return {
+	var levels := {
 		# ===================== EUROPA =====================
 		"europe_1": {
 			"id": "europe_1",
@@ -170,27 +209,27 @@ static func _build_levels() -> Dictionary:
 		"europe_4": {
 			"id": "europe_4",
 			"name": "Nivel 4: Balcanes y Mediterráneo",
-			"description": "Una fortaleza y una fábrica decidirán quién domina los Balcanes.",
+			"description": "Captura la fábrica de Estambul para reclutar más rápido. Después asegura la capital.",
 			"target_time": 65,
 			"bases": [
-				{"id": "b1", "city": "athens", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
-				{"id": "b2", "city": "belgrade", "faction": GameManager.Faction.NEUTRAL, "troops": 25, "tier": 2, "type": "fortress"},
-				{"id": "b3", "city": "vienna", "faction": GameManager.Faction.ENEMY_1, "troops": 30, "tier": 2},
-				{"id": "b4", "city": "bucharest", "faction": GameManager.Faction.NEUTRAL, "troops": 18, "tier": 2},
-				{"id": "b5", "city": "istanbul", "faction": GameManager.Faction.NEUTRAL, "troops": 15, "tier": 1, "type": "factory"}
+				{"id": "b1", "city": "athens", "faction": GameManager.Faction.PLAYER, "troops": 35, "tier": 2},
+				{"id": "b2", "city": "belgrade", "faction": GameManager.Faction.NEUTRAL, "troops": 12, "tier": 2},
+				{"id": "b3", "city": "vienna", "faction": GameManager.Faction.ENEMY_1, "troops": 24, "tier": 1},
+				{"id": "b4", "city": "bucharest", "faction": GameManager.Faction.NEUTRAL, "troops": 10, "tier": 1},
+				{"id": "b5", "city": "istanbul", "faction": GameManager.Faction.NEUTRAL, "troops": 10, "tier": 1, "type": "factory"}
 			]
 		},
 		"europe_5": {
 			"id": "europe_5",
 			"name": "Nivel 5: Capital Continental",
-			"description": "La gran batalla por el control absoluto de Europa.",
+			"description": "Reúne tus bases para vencer al primer jefe. Captura la fábrica antes de asediarlo.",
 			"target_time": 75,
 			"bases": [
 				{"id": "b1", "city": "madrid", "faction": GameManager.Faction.PLAYER, "troops": 40, "tier": 3},
-				{"id": "b2", "city": "berlin", "faction": GameManager.Faction.NEUTRAL, "troops": 30, "tier": 3, "type": "fortress"},
+				{"id": "b2", "city": "berlin", "faction": GameManager.Faction.NEUTRAL, "troops": 10, "tier": 2, "type": "fortress"},
 				{"id": "b3", "city": "stockholm", "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 1, "type": "factory"},
-				{"id": "b4", "city": "moscow", "faction": GameManager.Faction.ENEMY_1, "troops": 40, "tier": 3},
-				{"id": "b5", "city": "istanbul", "faction": GameManager.Faction.ENEMY_2, "troops": 40, "tier": 3},
+				{"id": "b4", "city": "moscow", "faction": GameManager.Faction.ENEMY_1, "troops": 38, "tier": 3},
+				{"id": "b5", "city": "istanbul", "faction": GameManager.Faction.NEUTRAL, "troops": 12, "tier": 2},
 				{"id": "b6", "city": "london", "faction": GameManager.Faction.NEUTRAL, "troops": 15, "tier": 1}
 			]
 		},
@@ -247,7 +286,7 @@ static func _build_levels() -> Dictionary:
 		"north_america_5": {
 			"id": "north_america_5",
 			"name": "Nivel 5: Megalópolis Continental",
-			"description": "Conquista final de Norteamérica frente a tres ejércitos simultáneos.",
+			"description": "Conquista final de Norteamérica frente a dos ejércitos simultáneos.",
 			"target_time": 80,
 			"bases": [
 				{"id": "b1", "city": "mexico_city", "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
@@ -312,7 +351,7 @@ static func _build_levels() -> Dictionary:
 		"south_america_5": {
 			"id": "south_america_5",
 			"name": "Nivel 5: Dominio Continental",
-			"description": "Gran batalla final por el control de toda América del Sur frente a 3 facciones.",
+			"description": "Reúne tus tropas para conquistar Sudamérica frente a dos ejércitos rivales.",
 			"target_time": 80,
 			"bases": [
 				{"id": "b1", "city": "buenos_aires", "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
@@ -423,7 +462,7 @@ static func _build_levels() -> Dictionary:
 			"bases": [
 				{"id": "b1", "city": "muscat", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
 				{"id": "b2", "city": "dubai", "faction": GameManager.Faction.NEUTRAL, "troops": 20, "tier": 1},
-				{"id": "b3", "city": "riyadh", "faction": GameManager.Faction.NEUTRAL, "troops": 25, "tier": 2},
+				{"id": "b3", "city": "riyadh", "faction": GameManager.Faction.NEUTRAL, "troops": 25, "tier": 2, "type": "factory"},
 				{"id": "b4", "city": "baghdad", "faction": GameManager.Faction.ENEMY_1, "troops": 35, "tier": 2},
 				{"id": "b5", "city": "tehran", "faction": GameManager.Faction.ENEMY_2, "troops": 35, "tier": 2}
 			]
@@ -521,3 +560,24 @@ static func _build_levels() -> Dictionary:
 			]
 		}
 	}
+	# Tropas y niveles se calibran antes de proyectar: radios y separación coherentes.
+	for i in range(5, levels.size()):
+		@warning_ignore("integer_division")
+		var continent := i / LEVELS_PER_CONTINENT
+		var step := i % LEVELS_PER_CONTINENT
+		for base in levels[levels.keys()[i]]["bases"]:
+			if base["faction"] == GameManager.Faction.PLAYER:
+				base["troops"] = 34 + continent * 2 + step * 2
+				base["tier"] = 3 if continent >= 4 or step == 4 else 2
+			elif base["faction"] != GameManager.Faction.NEUTRAL:
+				if base["faction"] == GameManager.Faction.ENEMY_3 and continent < 3:
+					base["faction"] = GameManager.Faction.NEUTRAL
+				base["troops"] = 20 + continent * 2 + step * 2
+				base["tier"] = 3 if (continent >= 3 and step >= 2) or (step == 4 and base["faction"] == GameManager.Faction.ENEMY_1) else 2
+			if base["faction"] == GameManager.Faction.NEUTRAL:
+				base["troops"] = 10 + continent * 2 + step
+				if base.get("type") == "fortress":
+					base["troops"] = 6 + continent * 2 + step
+			elif base.get("type") == "factory" and continent < 2:
+				base.erase("type") # Primero aprender a capturarlas, después enfrentarse a ellas.
+	return levels

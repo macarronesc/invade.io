@@ -22,6 +22,7 @@ func _ready() -> void:
 		test_light_and_dark_mode()
 		test_new_ui_flows()
 		test_packet_combat_and_migration()
+		test_campaign_balance_and_rewards()
 		test_crossing_streams_low_fps_and_huge_streams()
 		test_multi_stream_simultaneous_collision()
 		test_slice_gesture_and_troop_retreat()
@@ -140,6 +141,7 @@ func run_all_tests() -> void:
 	test_light_and_dark_mode()
 	test_new_ui_flows()
 	test_packet_combat_and_migration()
+	test_campaign_balance_and_rewards()
 
 func test_base_production_mechanics() -> void:
 	print("-> Test: Producción de Tropas y Límites de Capacidad")
@@ -2321,7 +2323,7 @@ func test_tutorial_steps_and_tips() -> void:
 	var Tutorial = load("res://scripts/battle/tutorial_overlay.gd")
 	GameManager.reset_save()
 	assert_true(Tutorial.has_pending_steps("europe_1", LevelDatabase.get_level_data("europe_1")), "europe_1 tiene tutorial de arrastre pendiente")
-	assert_true(Tutorial.has_pending_steps("europe_4", LevelDatabase.get_level_data("europe_4")), "europe_4 presenta fortaleza y fábrica")
+	assert_true(Tutorial.has_pending_steps("europe_4", LevelDatabase.get_level_data("europe_4")), "europe_4 presenta la fábrica")
 	assert_true(Tutorial.has_pending_steps("north_america_1", LevelDatabase.get_level_data("north_america_1")), "La industria introduce una fábrica con su tutorial")
 
 	# Integración: el primer nivel espera al primer envío del jugador
@@ -2690,6 +2692,7 @@ func test_cleanup_regressions() -> void:
 
 	# 2. Ataque conjunto: la IA puntúa y envía con las mismas 3 bases más cercanas
 	var battle = load("res://scripts/battle/battle_controller.gd").new()
+	battle.level_id = "oceania_5"
 	var target = _make_base(Vector2(500, 500), GameManager.Faction.NEUTRAL, 40)
 	var sources: Array[BaseNode] = []
 	for i in 5:
@@ -3063,11 +3066,12 @@ func test_continent_mechanics() -> void:
 	battle.load_level("africa_5")
 	var boss: BaseNode = battle.bases.filter(func(b): return b.is_boss)[0]
 	boss.troops = 20
-	battle._process_boss(18.0)
-	assert_equals(boss.troops, 30, "El jefe recibe refuerzos periódicos")
+	battle._process_boss(battle.level_data["boss_interval"])
+	var reinforced := 20 + int(battle.level_data["boss_reinforcement"])
+	assert_equals(boss.troops, reinforced, "El jefe recibe los refuerzos configurados en su mapa")
 	boss.faction = GameManager.Faction.PLAYER
-	battle._process_boss(18.0)
-	assert_equals(boss.troops, 30, "Jefe conquistado deja de recibir refuerzos")
+	battle._process_boss(battle.level_data["boss_interval"])
+	assert_equals(boss.troops, reinforced, "Jefe conquistado deja de recibir refuerzos")
 	battle.free()
 	GameManager.reset_save()
 
@@ -3077,7 +3081,7 @@ func test_review_regressions() -> void:
 	# Huellas capturadas antes del refactor: no cambiar mapas ni consumir otro RNG.
 	for sample in [
 		["daily", 365, "dd937f4c32a66da37e1f7bc2ea7a1588cbdcd0a6064f12db554606f44f3634ab"],
-		["conquest", 50, "4ef40d9c25c83a7382ef6ffc041b62b16489ca3d40e11dae7329d8acc65fb8fb"],
+		["conquest", 50, "a49fd247020ee60e1b88238b5c88d305f2448109ec689e3a979a6be1a347e928"],
 	]:
 		var bases := []
 		for i in sample[1]:
@@ -3096,10 +3100,10 @@ func test_review_regressions() -> void:
 	var changes: Array[int] = []
 	var on_change = func(): changes.append(1)
 	EventBus.cosmetics_changed.connect(on_change)
-	GameManager.buy_cosmetic("color_cyan")
+	GameManager.buy_cosmetic("color_violet")
 	assert_equals(changes.size(), 1, "Comprar emite un solo cambio de estética")
-	assert_true(not GameManager.buy_cosmetic("color_cyan"), "Comprar dos veces no duplica ni cobra")
-	assert_equals(GameManager.coins, 750, "La compra sólo descuenta una vez")
+	assert_true(not GameManager.buy_cosmetic("color_violet"), "Comprar dos veces no duplica ni cobra")
+	assert_equals(GameManager.coins, 700, "La compra sólo descuenta una vez")
 	EventBus.cosmetics_changed.disconnect(on_change)
 	GameManager._apply_save({"language": "fr", "conquest_next": -4,
 		"conquered_cities": ["madrid", "madrid", "no_existe", 42],
@@ -3358,6 +3362,88 @@ func test_packet_combat_and_migration() -> void:
 	GameManager.save_game()
 	GameManager.load_game()
 	assert_equals(GameManager.mission_definitions(), legacy, "La migración de misiones persiste")
+	GameManager.reset_save()
+
+func test_campaign_balance_and_rewards() -> void:
+	print("\n-> Test: Ritmo Humano, Progreso de Combate y Recompensas Limitadas")
+	GameManager.reset_save()
+	var battle := BattleController.new()
+	battle.level_id = "europe_4"
+	var ai := AIController.new()
+	ai.setup(battle, GameManager.Faction.ENEMY_1)
+	var full_wait := true
+	for i in 100:
+		ai._configure_timers_for_archetype()
+		full_wait = full_wait and is_equal_approx(ai.think_timer, ai.think_interval) and ai.think_timer >= 3.5
+	assert_true(full_wait, "Cien ciclos respetan el intervalo completo, sin esperas de 0,2 s")
+	var src := _make_base(Vector2(100, 500), GameManager.Faction.ENEMY_1, 80)
+	var src2 := _make_base(Vector2(100, 900), GameManager.Faction.ENEMY_1, 80)
+	var player := _make_base(Vector2(800, 500), GameManager.Faction.PLAYER, 5)
+	var neutral := _make_base(Vector2(400, 900), GameManager.Faction.NEUTRAL, 5)
+	battle.bases.append_array([src, src2, player, neutral])
+	battle.battle_time = 21.0
+	ai._evaluate_and_execute()
+	assert_equals(battle.active_troops.size(), 1, "Europa limita la IA a una orden por ciclo")
+	assert_true(battle.active_troops.all(func(t): return t.target_base != player), "No hay ataques al jugador durante la apertura")
+	assert_equals(ai._joint_sources([src, src2], player).size(), 0, "Europa no usa ataques coordinados")
+	for t in battle.active_troops: t.free()
+	for n in [src, src2, player, neutral, ai, battle]: n.free()
+	var fourth := LevelDatabase.get_level_data("europe_4")
+	assert_true(not fourth["bases"].any(func(b): return b.get("type") == "fortress"), "Nivel 4 enseña economía sin una fortaleza de 50 de defensa")
+	var fifth := LevelDatabase.get_level_data("europe_5")
+	assert_equals(fifth["bases"].filter(func(b): return b["faction"] > GameManager.Faction.PLAYER).size(), 1, "Primer jefe con un solo rival")
+	assert_true(fifth["bases"].any(func(b): return b.get("boss", false) and b["troops"] <= 40), "Primer jefe con guarnición accesible")
+	for id in LevelDatabase.get_level_ids():
+		var before := LevelDatabase.get_balance(id)
+		GameManager.upgrades["production_rate"] = 10
+		assert_equals(LevelDatabase.get_balance(id), before, "Comprar no endurece al enemigo de " + id)
+		GameManager.upgrades["production_rate"] = 0
+		if LevelDatabase.get_level_number(id) == 1 and id != "europe_1":
+			var ids := LevelDatabase.get_level_ids()
+			assert_true(before["cadence"] > LevelDatabase.get_balance(ids[ids.find(id) - 1])["cadence"], "Respiro después del jefe: " + id)
+	assert_true(LevelDatabase.get_balance("conquest_5")["cadence"] > LevelDatabase.get_balance("conquest_4")["cadence"], "Respiro al empezar otra expedición")
+	assert_equals(GameManager.recommended_combat_upgrade(true), "production_rate", "Con saldo inicial, recomendar reclutar")
+	GameManager.buy_upgrade("production_rate")
+	assert_equals(GameManager.recommended_combat_upgrade(true), "starting_troops", "Después, abrir territorio con más tropas")
+	assert_true(GameManager.can_suggest_combat_upgrade(), "La sugerencia continúa después de la primera compra")
+	GameManager.coins = 1000
+	GameManager.upgrades = {"production_rate": 10, "starting_troops": 10, "troop_speed": 10, "gold_bonus": 0}
+	assert_equals(GameManager.recommended_combat_upgrade(true), "", "Botín no se recomienda para superar un combate")
+	GameManager.reset_save()
+	GameManager.coins = 1000
+	GameManager.play_level(DailyRewards.challenge_id(20000))
+	assert_true(not GameManager.can_suggest_combat_upgrade(), "El diario no invita a comprar ventajas que no aplica")
+	GameManager.play_level("europe_4")
+	var full := GameManager.calculate_victory_gold("europe_5", 3, 100)
+	GameManager.completed_levels["europe_5"] = 3
+	assert_equals(GameManager.calculate_victory_gold("europe_5", 3, 100), 37, "Repetir jefe no vuelve a pagar el bonus de 150")
+	assert_equals(full, 298, "Primera victoria del jefe incluye escala y bonus")
+	assert_true(GameManager.calculate_victory_gold("asia_4", 3, 100) > GameManager.calculate_victory_gold("europe_4", 3, 100), "El oro de victoria crece con la campaña")
+	assert_equals(GameManager.award_defeat_gold("europe_4", 0, 60), 0, "Sin capturas no se cobra consuelo")
+	assert_equals(GameManager.award_defeat_gold("europe_4", 2, 10), 0, "Perder inmediatamente no paga")
+	assert_equals(GameManager.award_defeat_gold("daily_20000", 2, 60), 0, "Sin consuelo ni ayudas en diario")
+	var reward := GameManager.award_defeat_gold("europe_4", 1, 30)
+	assert_equals(reward, 19, "Avance real deja un pequeño premio")
+	GameManager.save_game()
+	GameManager.load_game()
+	assert_equals(GameManager.defeat_rewards["europe_4"], 1, "El límite persiste entre sesiones")
+	assert_equals(GameManager.award_defeat_gold("europe_4", 20, 60), reward, "Recapturas o duración no multiplican el premio")
+	assert_equals(GameManager.award_defeat_gold("europe_4", 1, 60), 0, "Sólo dos recompensas por nivel")
+	GameManager.completed_levels["europe_3"] = 1
+	assert_equals(GameManager.award_defeat_gold("europe_3", 1, 60), 0, "Un nivel superado no permite farmear derrotas")
+	GameManager._apply_save({"version": 5, "coins": 333, "upgrades": {"starting_troops": 4},
+		"completed_levels": {"europe_1": 3}, "defeat_rewards": {"europe_4": 99, "invalid": 1},
+		"daily_best": {"day": 20000, "stars": 3, "time": 10, "normalized": true}})
+	assert_equals(GameManager.coins, 333, "Migración conserva las monedas")
+	assert_equals(GameManager.upgrades["starting_troops"], 4, "Migración conserva cada compra")
+	assert_equals(GameManager.defeat_rewards, {"europe_4": 2}, "Datos importados no saltan los límites")
+	assert_equals(GameManager.daily_best["time"], 10.0, "La marca anterior se conserva sin borrarla")
+	assert_equals(GameManager.daily_best["balance_version"], 1, "La marca anterior identifica su balance original")
+	var result := {"level_id": "daily_20000", "is_daily_challenge": true, "stars": 3, "time": 30.0}
+	GameManager.record_battle_result(result, true)
+	assert_equals(GameManager.daily_best["balance_version"], DailyRewards.BALANCE_VERSION, "Nueva marca identifica su balance")
+	assert_equals(GameManager.daily_best["time"], 30.0, "Nuevo balance no compara sus tiempos con marcas anteriores")
+	assert_true(DailyShare.text(GameManager.daily_best).contains("v2"), "Tarjeta compartida identifica el balance")
 	GameManager.reset_save()
 
 func test_light_and_dark_mode() -> void:

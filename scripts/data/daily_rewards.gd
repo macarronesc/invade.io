@@ -11,6 +11,8 @@ const STREAK_GRACE_DAYS := 1
 const DAILY_CHALLENGE_PREFIX := "daily_"
 ## Dificultad fija del desafío (mitad de la campaña: IA media y algunos neutrales extra)
 const CHALLENGE_DIFFICULTY := 0.5
+## No comparar marcas de distintas reglas de IA aunque sean del mismo día.
+const BALANCE_VERSION := 2
 
 ## Día local actual (cambia a medianoche en la zona horaria del dispositivo)
 static func today() -> int:

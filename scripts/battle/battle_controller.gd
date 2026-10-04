@@ -61,6 +61,8 @@ var _info_timer: float = 0.0
 ## Medalla de dominio: ganar sin perder ninguna base
 var lost_a_base: bool = false
 var _captures: int = 0
+var _captured_bases: Array[BaseNode] = []
+var defeat_gold: int = 0
 ## La última base del jugador cayó mientras tenía tropas en marcha
 var _fell_with_troops_out: bool = false
 var _objective_held: float = 0.0
@@ -118,7 +120,8 @@ func load_level(p_level_id: String) -> void:
 	target_time = level_data.get("target_time", 45.0)
 
 	# Curva de dificultad: los enemigos producen más rápido a medida que avanza la campaña
-	GameManager.enemy_production_multiplier = lerpf(0.9, 1.35, LevelDatabase.get_difficulty(level_id))
+	GameManager.enemy_production_multiplier = LevelDatabase.get_balance(level_id)["production"]
+	_boss_timer = float(level_data.get("boss_interval", BOSS_INTERVAL))
 
 	# Instanciar bases según los datos del nivel
 	var enemy_factions_present: Array[int] = []
@@ -254,20 +257,22 @@ func _refresh_colors() -> void:
 			cell.start_color = cell.current_color
 		territory_map.queue_redraw()
 
-## El jefe recibe refuerzos cada BOSS_INTERVAL s mientras siga en manos de su dueño original;
+## El jefe recibe los refuerzos de su mapa mientras conserve su dueño original;
 ## un arco sobre la base anuncia la próxima oleada
 func _process_boss(delta: float) -> void:
+	var interval := float(level_data.get("boss_interval", BOSS_INTERVAL))
+	var reinforcement := int(level_data.get("boss_reinforcement", BOSS_REINFORCEMENT))
 	_boss_timer -= delta
 	var wave := _boss_timer <= 0.0
 	if wave:
-		_boss_timer += BOSS_INTERVAL
+		_boss_timer += interval
 	for base in bases:
 		var active := base.is_boss and base.faction == GameManager.Faction.ENEMY_1
-		base.reinforce_progress = 1.0 - _boss_timer / BOSS_INTERVAL if active else -1.0
+		base.reinforce_progress = clampf(1.0 - _boss_timer / interval, 0.0, 1.0) if active else -1.0
 		if wave and active and base.troops < base.max_capacity:
-			base.troops = mini(base.max_capacity, base.troops + BOSS_REINFORCEMENT)
+			base.troops = mini(base.max_capacity, base.troops + reinforcement)
 			base._update_label()
-			base.float_text("+%d" % BOSS_REINFORCEMENT, BaseNode.MARKER_GOLD)
+			base.float_text("+%d" % reinforcement, BaseNode.MARKER_GOLD)
 			base.queue_redraw()
 
 func can_dispatch(from_base: BaseNode, to_base: BaseNode) -> bool:
@@ -607,6 +612,8 @@ func _on_base_captured(base: BaseNode, prev_faction: int, new_faction: int) -> v
 			shake_camera(9.0)
 	if new_faction == GameManager.Faction.PLAYER:
 		_captures += 1
+		if not _captured_bases.has(base):
+			_captured_bases.append(base)
 	if prev_faction == GameManager.Faction.PLAYER:
 		lost_a_base = true
 		if not bases.any(func(b): return b.faction == GameManager.Faction.PLAYER):
@@ -665,6 +672,7 @@ func _trigger_victory() -> void:
 	var total_gold: int
 	var new_medal := false
 	var new_continent := false
+	var boss_gold := 0
 	if is_challenge:
 		# Los desafíos diarios no cuentan para la campaña ni para las estrellas
 		is_replay = GameManager.is_daily_challenge_done(DailyRewards.challenge_day(level_id))
@@ -677,6 +685,8 @@ func _trigger_victory() -> void:
 		var continent := LevelDatabase.get_continent_of(level_id)
 		new_continent = not GameManager.is_continent_complete(continent)
 		var previous_stars: int = int(GameManager.completed_levels.get(level_id, 0))
+		if previous_stars == 0 and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT:
+			boss_gold = roundi(GameManager.FIRST_BOSS_GOLD * GameManager.get_gold_multiplier())
 		is_replay = previous_stars > 0 and stars <= previous_stars
 		total_gold = GameManager.calculate_victory_gold(level_id, stars, 60 + player_bases_count * 15)
 		new_medal = not lost_a_base and not GameManager.medals.has(level_id)
@@ -707,6 +717,7 @@ func _trigger_victory() -> void:
 		"is_conquest": is_conquest,
 		"new_medal": new_medal,
 		"new_continent": new_continent,
+		"boss_gold": boss_gold,
 		"expedition_finale": is_conquest and LevelGenerator.is_expedition_finale(LevelGenerator.conquest_index(level_id)),
 		"xp_before": GameManager.experience,
 	}
@@ -744,6 +755,7 @@ func _trigger_defeat() -> void:
 		return
 	reset_time_scale()
 	is_game_over = true
+	defeat_gold = GameManager.award_defeat_gold(level_id, _captured_bases.size(), battle_time)
 	AudioManager.stop_music()
 	AudioManager.play_defeat()
 	GameManager.haptic(120)

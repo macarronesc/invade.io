@@ -87,7 +87,7 @@ func _upgrade_card(id: String) -> PanelContainer:
 		effect += "  ›  " + fmt % ((level + 1) * step)
 	effect += " " + LocaleStrings.text("upg_%s_unit" % id)
 	# La mejora más barata se recomienda: siempre hay un siguiente paso claro
-	var recommended := id == GameManager.cheapest_upgrade() and GameManager.coins >= GameManager.get_upgrade_cost(id)
+	var recommended := GameManager.can_suggest_combat_upgrade() and id == GameManager.recommended_combat_upgrade(true)
 	var badge := UIThemeHelper.chip(LocaleStrings.text("recommended") if recommended else LocaleStrings.text("level_short") % [level, max_level],
 		"star" if recommended else "", UIThemeHelper.colors.gold if recommended else UIThemeHelper.colors.text)
 	column.add_child(UIThemeHelper.item_row(UIThemeHelper.round_badge(Icons.rect(cfg["icon"], 52, tint), tint),

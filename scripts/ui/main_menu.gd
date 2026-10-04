@@ -138,7 +138,7 @@ func show_tab(id: String) -> void:
 func _refresh_badges() -> void:
 	_badges["challenges"].visible = GameManager.get_daily_reward_state()["can_claim"] or GameManager.claimable_mission_count() > 0
 	_badges["progress"].visible = GameManager.get_claimable_achievement_count() + GameManager.claimable_collection_count() > 0
-	_badges["army"].visible = GameManager.should_suggest_first_upgrade()
+	_badges["army"].visible = GameManager.can_suggest_combat_upgrade()
 
 func _update_coins(amount: int) -> void:
 	coins_label.text = str(amount)

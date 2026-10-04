@@ -17,7 +17,9 @@ static func text() -> String:
 	return ""
 
 static func _upgrade() -> String:
-	var id := GameManager.cheapest_upgrade()
+	if DailyRewards.is_challenge(GameManager.get_battle_level_id()):
+		return ""
+	var id := GameManager.recommended_combat_upgrade(GameManager.can_suggest_combat_upgrade())
 	if id == "":
 		return ""
 	var cost := GameManager.get_upgrade_cost(id)

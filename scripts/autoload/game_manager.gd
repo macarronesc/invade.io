@@ -55,7 +55,7 @@ const UPGRADE_COST_QUADRATIC := 0.25
 const MAX_UPGRADE_LEVEL = 10
 const DEFAULT_COINS = 150
 const FIRST_LEVEL_ID := "europe_1"
-const SAVE_VERSION = 5
+const SAVE_VERSION = 6
 const DEFAULT_SETTINGS := {"volume": 0.8, "music_volume": 0.8, "vibration": true, "speed": 1.0, "colorblind": false,
 	"light_mode": false, "reduced_motion": false}
 const GAME_SPEEDS := [0.75, 1.0, 1.5, 2.0]
@@ -67,6 +67,8 @@ const DEFAULT_COSMETICS_EQUIPPED := {"army_color": "color_blue", "troop_style": 
 ## Fracción de oro que se concede al repetir un nivel ya superado sin mejorar estrellas
 const REPLAY_GOLD_FACTOR = 0.25
 const DEFEAT_XP := 10
+const MAX_DEFEAT_REWARDS := 2
+const FIRST_BOSS_GOLD := 150
 ## Oro al completar la colección de ciudades de un continente
 const COLLECTION_GOLD := 200
 ## Regiones por expedición en la conquista libre; la última es un jefe con premio doble
@@ -114,6 +116,8 @@ var campaign_best: Dictionary = {}
 var medals: Array[String] = []
 ## Continentes cuya colección del atlas ya se ha cobrado
 var collections_claimed: Array[String] = []
+## Intentos con recompensa de consuelo por nivel pendiente (máximo dos).
+var defeat_rewards: Dictionary = {}
 ## Batalla en curso sin mejoras de combate (desafío diario, comparable entre jugadores)
 var normalized_battle: bool = false
 
@@ -175,19 +179,27 @@ func get_upgrade_cost(upgrade_id: String) -> int:
 	var base_cost: int = UPGRADE_BASE_COSTS[upgrade_id]
 	return int(round(base_cost * (1.0 + lvl + lvl * lvl * UPGRADE_COST_QUADRATIC)))
 
-## Mejora más barata que aún se puede subir ("" si están todas al máximo)
-func cheapest_upgrade() -> String:
+## Primero reclutar y abrir territorio; marcha después. Nunca recomendar oro
+## para resolver un combate. El filtro de saldo permite ofrecer una compra real.
+func recommended_combat_upgrade(affordable_only: bool = false) -> String:
 	var best := ""
-	for id in UPGRADE_BASE_COSTS:
+	var best_score := INF
+	for id in ["production_rate", "starting_troops", "troop_speed"]:
 		var cost := get_upgrade_cost(id)
-		if cost >= 0 and (best == "" or cost < get_upgrade_cost(best)):
+		if cost < 0 or (affordable_only and cost > coins):
+			continue
+		var score := float(upgrades.get(id, 0)) + (2.0 if id == "troop_speed" else 0.0)
+		if score < best_score:
 			best = id
+			best_score = score
 	return best
+
+func can_suggest_combat_upgrade() -> bool:
+	return not DailyRewards.is_challenge(get_battle_level_id()) and recommended_combat_upgrade(true) != ""
 
 ## Primera compra guiada: aún no ha mejorado nada y ya puede permitírselo
 func should_suggest_first_upgrade() -> bool:
-	var id := cheapest_upgrade()
-	return id != "" and upgrades.values().max() == 0 and coins >= get_upgrade_cost(id)
+	return upgrades.values().max() == 0 and can_suggest_combat_upgrade()
 
 func buy_upgrade(upgrade_id: String) -> bool:
 	var cost := get_upgrade_cost(upgrade_id)
@@ -212,7 +224,25 @@ func calculate_victory_gold(level_id: String, stars: int, base_amount: int) -> i
 	var factor := 1.0
 	if previous > 0:
 		factor = 0.5 if stars > previous else REPLAY_GOLD_FACTOR
+	var index := LevelDatabase.get_level_ids().find(level_id)
+	if index >= 0:
+		base_amount += index * 12
+		if previous == 0 and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT:
+			base_amount += FIRST_BOSS_GOLD
 	return int(round(base_amount * factor * get_gold_multiplier()))
+
+## No recompensa abandonar, perder enseguida, repetir un nivel ganado ni
+## capturar la misma base varias veces. No depende de las mejoras de botín.
+func award_defeat_gold(level_id: String, unique_captures: int, seconds: float) -> int:
+	if not _is_campaign_level(level_id) or completed_levels.has(level_id) or unique_captures < 1 or seconds < 15.0:
+		return 0
+	var claims := int(defeat_rewards.get(level_id, 0))
+	if claims >= MAX_DEFEAT_REWARDS:
+		return 0
+	var amount := roundi((60 + LevelDatabase.get_level_ids().find(level_id) * 12) * 0.2)
+	defeat_rewards[level_id] = claims + 1
+	add_coins(amount)
+	return amount
 
 func complete_level(level_id: String, stars: int, medal: bool = false) -> void:
 	var current_stars: int = int(completed_levels.get(level_id, 0))
@@ -526,9 +556,9 @@ func record_battle_result(result: Dictionary, flawless: bool) -> void:
 		advance_mission("daily")
 		var day := DailyRewards.challenge_day(str(result["level_id"]))
 		var seconds := float(result.get("time", 0.0))
-		if day > int(daily_best.get("day", -1)) or (day == int(daily_best.get("day", -1)) and (stars > int(daily_best["stars"]) or (stars == int(daily_best["stars"]) and seconds < float(daily_best["time"])))):
+		if int(daily_best.get("balance_version", 0)) != DailyRewards.BALANCE_VERSION or day > int(daily_best.get("day", -1)) or (day == int(daily_best.get("day", -1)) and (stars > int(daily_best["stars"]) or (stars == int(daily_best["stars"]) and seconds < float(daily_best["time"])))):
 			result["new_record"] = true
-			daily_best = {"day": day, "stars": stars, "time": seconds, "speed": result.get("speed", 1.0), "normalized": true}
+			daily_best = {"day": day, "stars": stars, "time": seconds, "speed": result.get("speed", 1.0), "normalized": true, "balance_version": DailyRewards.BALANCE_VERSION}
 	elif _is_campaign_level(result.get("level_id", "")):
 		var id: String = result["level_id"]
 		var seconds := float(result.get("time", INF))
@@ -561,6 +591,7 @@ func save_data() -> Dictionary:
 		"settings": settings, "experience": experience, "missions": missions, "daily_best": daily_best,
 		"medals": medals, "collections_claimed": collections_claimed,
 		"campaign_best": campaign_best,
+		"defeat_rewards": defeat_rewards,
 	}
 
 func save_game() -> void:
@@ -654,7 +685,7 @@ func _apply_save(data: Dictionary) -> void:
 	if best.get("normalized", false) == true and (best.get("time") is float or best.get("time") is int):
 		var seconds := float(best["time"])
 		if is_finite(seconds) and seconds >= 0 and _as_int(best.get("day"), -1) >= 0:
-			daily_best = {"day": int(best["day"]), "stars": clampi(_as_int(best.get("stars"), 1), 1, 3), "time": seconds, "speed": _setting_number("speed", best.get("speed", 1.0)), "normalized": true}
+			daily_best = {"day": int(best["day"]), "stars": clampi(_as_int(best.get("stars"), 1), 1, 3), "time": seconds, "speed": _setting_number("speed", best.get("speed", 1.0)), "normalized": true, "balance_version": maxi(1, _as_int(best.get("balance_version"), 1))}
 	campaign_best = {}
 	var times := _as_dict(data.get("campaign_best"))
 	for id in times:
@@ -672,6 +703,11 @@ func _apply_save(data: Dictionary) -> void:
 		var stars := _as_int(saved_levels[key], 0)
 		if stars > 0 and _is_campaign_level(key):
 			completed_levels[key] = mini(stars, 3)
+	defeat_rewards = {}
+	var saved_defeats := _as_dict(data.get("defeat_rewards"))
+	for id in saved_defeats:
+		if _is_campaign_level(id):
+			defeat_rewards[id] = clampi(_as_int(saved_defeats[id], 0), 0, MAX_DEFEAT_REWARDS)
 	unlocked_levels = [FIRST_LEVEL_ID]
 	for l in _as_array(data.get("unlocked_levels")):
 		if _is_campaign_level(l) and not unlocked_levels.has(l):

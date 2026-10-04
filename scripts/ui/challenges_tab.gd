@@ -70,11 +70,13 @@ func _build_daily_challenge() -> void:
 	card.add_child(UIThemeHelper.item_row(Icons.rect("check" if done else "target", 64, UIThemeHelper.colors.success if done else UIThemeHelper.colors.gold),
 		LocaleStrings.text("daily"), data["name"]))
 	var best := GameManager.daily_best
-	var has_best := not best.is_empty() and int(best["day"]) == day
+	var has_best := not best.is_empty() and int(best["day"]) == day and int(best.get("balance_version", 0)) == DailyRewards.BALANCE_VERSION
 	var status := LocaleStrings.text("daily_row") % DailyRewards.DAILY_CHALLENGE_GOLD
 	if has_best:
 		status = LocaleStrings.text("daily_best") % ["★".repeat(int(best["stars"])), ceili(float(best["time"]))]
 	card.add_child(UIThemeHelper.label(status, "", UIThemeHelper.colors.success if done else UIThemeHelper.colors.text))
+	if not best.is_empty() and int(best["day"]) == day and not has_best:
+		card.add_child(UIThemeHelper.paragraph(LocaleStrings.text("daily_legacy_best") % ceili(float(best["time"]))))
 	# Cada día rota una regla de continente: se anuncia antes de jugar
 	var twist := CampaignRules.description(data).strip_edges()
 	if twist != "":

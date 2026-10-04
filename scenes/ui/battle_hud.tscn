@@ -359,6 +359,12 @@ layout_mode = 2
 theme_type_variation = &"Caption"
 autowrap_mode = 3
 
+[node name="BtnEquipReward" type="Button" parent="VictoryPanel/VBox/Progress"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+autowrap_mode = 3
+
 [node name="BtnClaimMissions" type="Button" parent="VictoryPanel/VBox"]
 unique_name_in_owner = true
 visible = false
@@ -438,6 +444,7 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Caption"
 horizontal_alignment = 1
+autowrap_mode = 3
 
 [node name="BtnRetry" type="Button" parent="DefeatPanel/VBox"]
 unique_name_in_owner = true
@@ -449,6 +456,8 @@ text = "Reintentar"
 [node name="BtnDefeatUpgrade" type="Button" parent="DefeatPanel/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"GoldButton"
+autowrap_mode = 3
 text = "Mejorar ejército"
 
 [node name="BtnDefeatMap" type="Button" parent="DefeatPanel/VBox"]

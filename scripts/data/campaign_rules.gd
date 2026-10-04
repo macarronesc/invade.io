@@ -23,12 +23,19 @@ static func apply(level: Dictionary) -> void:
 	match continent:
 		"europe", "africa":
 			var capital: Dictionary = bases[mini(1 if continent == "europe" else 2, bases.size() - 1)]
+			if continent == "africa" and LevelDatabase.get_level_ids().has(id):
+				for base in bases:
+					if base["faction"] == GameManager.Faction.NEUTRAL:
+						capital = base
+						break
 			capital["capital"] = true
 			capital["production_bonus"] = 1.5 if continent == "europe" else 1.75
 		"north_america", "asia":
 			for base in bases:
 				if base["faction"] == GameManager.Faction.NEUTRAL:
 					base["type"] = "factory" if continent == "north_america" else "fortress"
+					if continent == "asia" and LevelDatabase.get_level_ids().has(id):
+						base["troops"] = mini(int(base["troops"]), 14)
 					break
 		"south_america":
 			level["travel_multiplier"] = 0.8
@@ -47,9 +54,13 @@ static func apply(level: Dictionary) -> void:
 	if LevelDatabase.get_level_ids().has(id) and LevelDatabase.get_level_number(id) == LevelDatabase.LEVELS_PER_CONTINENT:
 		for base in bases:
 			if base["faction"] == GameManager.Faction.ENEMY_1:
-				base.merge({"boss": true, "type": "fortress", "tier": 3, "troops": int(base["troops"]) + 25}, true)
+				base.merge({"boss": true, "type": "fortress", "tier": 3}, true)
 				level["target_time"] += 25
 				break
+	if bases.any(func(base): return base.get("boss", false)):
+		var balance := LevelDatabase.get_balance(id)
+		level["boss_interval"] = balance["boss_interval"]
+		level["boss_reinforcement"] = balance["boss_reinforcement"]
 
 ## ponytail: árbol de rutas O(n³), n≤16; Prim con heap si se añaden mapas masivos.
 ## Siempre conectado: ninguna isla ni facción queda aislada.
@@ -76,5 +87,5 @@ static func sea_lanes(bases: Array) -> Array[Vector2i]:
 static func description(level: Dictionary) -> String:
 	var text := LocaleStrings.text(level["rule_key"]) if level.has("rule_key") else ""
 	if level.get("bases", []).any(func(base): return base.get("boss", false)):
-		text += "\n" + LocaleStrings.text("boss_rule")
+		text += "\n" + LocaleStrings.text("boss_rule") % [level.get("boss_reinforcement", 10), roundi(level.get("boss_interval", 18.0))]
 	return text
