@@ -113,6 +113,32 @@ pruebas de retención con nuevos jugadores.
 
 ## Integración móvil
 
+### IPA para pruebas con SideStore
+
+El workflow `.github/workflows/build-ios.yml` genera una **IPA sin firmar** para iPhone
+usando Godot 4.7.2 y Xcode en un runner macOS de GitHub. No requiere un Mac propio,
+cuenta Apple en GitHub, certificados ni secretos. Ejecuta las pruebas rápidas antes de compilar.
+
+1. Sube estos archivos a la rama principal del repositorio.
+2. Abre **Actions → Build iOS IPA (SideStore) → Run workflow**.
+3. Cuando termine correctamente, descarga **invade.io.ipa** desde **Artifacts**.
+   Se descarga directamente como IPA, sin un ZIP adicional, y se conserva durante 7 días.
+4. Guarda el archivo en **Archivos** del iPhone. Con Wi-Fi y LocalDevVPN activos,
+   abre **SideStore → My Apps → +** y selecciona la IPA.
+
+La compilación es manual para no generar una IPA con cada cambio. Los runners estándar
+son gratuitos en repositorios públicos; en privados se aplican las cuotas de GitHub Actions.
+La IPA no sirve para el App Store, TestFlight ni para instalarla directamente sin firma:
+SideStore la firma con tu cuenta y gestiona su renovación. La renovación no exige recompilar.
+
+El identificador estable es `io.github.macarronesc.invadeio`. Para actualizar el juego,
+importa la nueva IPA con la misma cuenta de SideStore sin desinstalar la anterior.
+`0000000000` es sólo un marcador en el preset, no un Team ID real. Al actualizar Godot,
+actualiza también los dos SHA-256 de sus descargas en el workflow.
+
+Una compilación correcta no sustituye probar controles, audio, zonas seguras y guardado
+en un iPhone real. Los servicios de tienda siguen pendientes:
+
 La propuesta 11 está **pendiente de plugins, configuración de las tiendas y móvil real**.
 Las copias manuales no son guardado en la nube ni las estadísticas locales son
 clasificaciones online. Ver [requisitos de integración](docs/PLATFORM_INTEGRATION.md).

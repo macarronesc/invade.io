@@ -1,0 +1,90 @@
+name: Build iOS IPA (SideStore)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build-ios:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - name: Descargar el proyecto
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Instalar Godot y su plantilla iOS
+        run: |
+          cd "$RUNNER_TEMP"
+          release="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_macos.universal.zip" -o godot.zip
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o templates.tpz
+          echo "c58a24e31d720be9d62f60cb5627c4e695fb72f21b0cfe1bc9ccaa9a3b3ba63e  godot.zip" | shasum -a 256 -c -
+          echo "f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011  templates.tpz" | shasum -a 256 -c -
+          unzip -q godot.zip
+          mkdir -p "$RUNNER_TEMP/bin"
+          ln -s "$RUNNER_TEMP/Godot.app/Contents/MacOS/Godot" "$RUNNER_TEMP/bin/godot"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          templates="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$templates"
+          unzip -q -j templates.tpz templates/ios.zip -d "$templates"
+
+      - name: Importar recursos
+        run: godot --headless --path . --editor --import
+
+      - name: Ejecutar las pruebas rápidas
+        run: godot --headless --path . res://scenes/tests/test_runner.tscn -- --quick
+
+      - name: Exportar el proyecto iOS
+        run: |
+          mkdir -p "$RUNNER_TEMP/ios"
+          godot --headless --path . --export-release "iOS" "$RUNNER_TEMP/ios/invadeio.xcodeproj"
+
+      - name: Compilar para iPhone sin firma
+        run: |
+          xcodebuild -version
+          xcodebuild archive -quiet \
+            -project "$RUNNER_TEMP/ios/invadeio.xcodeproj" \
+            -scheme invadeio \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/ios/invadeio.xcarchive" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
+
+      - name: Empaquetar y comprobar la IPA
+        run: |
+          cd "$RUNNER_TEMP/ios"
+          mkdir -p Payload
+          cp -R invadeio.xcarchive/Products/Applications/invadeio.app Payload/
+          test -s Payload/invadeio.app/invadeio
+          test -s Payload/invadeio.app/invadeio.pck
+          test ! -e Payload/invadeio.app/embedded.mobileprovision
+          plutil -lint Payload/invadeio.app/Info.plist
+          lipo -verify_arch arm64 Payload/invadeio.app/invadeio
+          zip -q -r invade.io.ipa Payload
+          unzip -tq invade.io.ipa
+
+      - name: Publicar la IPA descargable
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          path: ${{ runner.temp }}/ios/invade.io.ipa
+          archive: false
+          if-no-files-found: error
+          retention-days: 7

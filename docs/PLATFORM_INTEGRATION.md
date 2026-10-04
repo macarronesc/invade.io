@@ -2,8 +2,9 @@
 
 ## Estado real
 
-Este repositorio no contiene plugins nativos, presets de exportación móvil,
-identificadores de aplicación, credenciales ni configuración de servicios de tienda.
+El preset iOS y `.github/workflows/build-ios.yml` generan una IPA sin firmar para SideStore,
+con identificador `io.github.macarronesc.invadeio`; el Team ID es un marcador, no una credencial.
+No contiene plugins nativos, credenciales ni configuración de servicios de tienda.
 No se muestran botones de conexión que simulen servicios inexistentes.
 El panel de ajustes indica que nube, clasificaciones y notificaciones no están conectadas.
 
