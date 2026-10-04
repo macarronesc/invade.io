@@ -16,6 +16,9 @@ func _ready() -> void:
 	print("  INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS: INVADE.IO  ")
 	print("=======================================================\n")
 
+	assert_true(bool(ProjectSettings.get_setting("rendering/textures/vram_compression/import_etc2_astc", false)),
+		"La exportación iOS habilita ETC2/ASTC explícitamente, sin depender del equipo")
+
 	if "--quick" in OS.get_cmdline_user_args():
 		test_packets_and_battle_feedback()
 		test_progression_overhaul()
