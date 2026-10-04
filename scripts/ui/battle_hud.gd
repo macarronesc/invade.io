@@ -66,6 +66,7 @@ const XP_BAR_SECONDS := 0.8
 @onready var btn_settings: Button = %BtnSettings
 @onready var btn_pause_map: Button = %BtnPauseMap
 @onready var pause_rule: Label = %PauseRule
+@onready var pause_hint: Label = %PauseHint
 
 var confetti_pieces: Array = []
 var _star_tweens: Array[Tween] = []
@@ -90,8 +91,7 @@ func _notification(what: int) -> void:
 			_on_back_requested()
 		NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED:
 			# Pausa automática al salir de la app (llamada entrante, cambio de app...)
-			if _can_pause():
-				_on_pause_pressed()
+			_on_pause_pressed(true)
 
 func _exit_tree() -> void:
 	_cleanup_time_scale()
@@ -152,6 +152,7 @@ func _apply_texts() -> void:
 	btn_defeat_upgrade.text = LocaleStrings.text("improve")
 	btn_defeat_map.text = LocaleStrings.text("exit")
 	pause_panel.get_node("VBox/Title").text = LocaleStrings.text("pause")
+	pause_hint.text = LocaleStrings.text("pause_auto_hint")
 	btn_resume.text = LocaleStrings.text("resume")
 	btn_pause_retry.text = LocaleStrings.text("restart_battle")
 	btn_how_to_play.text = LocaleStrings.text("how_to_play")
@@ -598,17 +599,30 @@ func _on_back_requested() -> void:
 		_on_pause_pressed()
 
 ## También se llama al perder el foco la app, sin clic
-func _on_pause_pressed() -> void:
+func _on_pause_pressed(automatic: bool = false) -> void:
 	_cleanup_time_scale()
+	if not is_inside_tree() or victory_panel.visible or defeat_panel.visible \
+		or (is_instance_valid(battle_controller) and battle_controller.is_game_over):
+		return
+	if is_instance_valid(battle_controller):
+		battle_controller._cancel_gesture()
+	if not automatic:
+		GameManager.save_game()
 	_refresh_audio_buttons()
+	pause_hint.visible = automatic
 	dim_overlay.visible = true
 	UIThemeHelper.animate_modal_pop_in(pause_panel)
 	get_tree().paused = true
 
 func _on_resume_pressed() -> void:
+	if not pause_panel.visible or not GameManager.application_active or is_instance_valid(_tip_panel) or is_instance_valid(_utility_panel):
+		return
 	AudioManager.play_click()
 	_cleanup_time_scale()
 	UIThemeHelper.animate_modal_pop_out(pause_panel, func():
+		if not GameManager.application_active:
+			_on_pause_pressed(true)
+			return
 		dim_overlay.visible = false
 		get_tree().paused = false
 	)
@@ -628,8 +642,8 @@ func _close_tip_card() -> void:
 	if is_instance_valid(_tip_panel):
 		_tip_panel.queue_free()
 	_tip_panel = null
-	dim_overlay.visible = false
-	get_tree().paused = false
+	dim_overlay.visible = pause_panel.visible
+	get_tree().paused = pause_panel.visible or not GameManager.application_active
 	var cb = _tip_on_close
 	_tip_on_close = Callable()
 	if cb.is_valid():
@@ -637,6 +651,7 @@ func _close_tip_card() -> void:
 
 func _leave_battle(scene_path: String = "") -> void:
 	AudioManager.play_click()
+	GameManager.save_game()
 	_cleanup_time_scale()
 	get_tree().paused = false
 	if scene_path == "":

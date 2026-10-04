@@ -7,9 +7,14 @@ var allow_backups: bool = true
 var _content: VBoxContainer
 var _group: VBoxContainer
 var _status: Label
+var _save_status: Label
+var _save_retry: Button
+var _vibration_slider: HSlider
+var _vibration_test: Button
 
 func _ready() -> void:
 	_build()
+	GameManager.save_status_changed.connect(_refresh_save_status)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
@@ -47,18 +52,51 @@ func _build() -> void:
 	for key in ["volume", "music_volume"]:
 		_slider(key)
 
+	_section("section_feedback")
+	_toggle("vibration", GameManager.settings["vibration"], func(value):
+		GameManager.set_setting("vibration", value)
+		_refresh_vibration_controls())
+	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("vibration_note")))
+	_vibration_slider = _slider("vibration_intensity")
+	_vibration_test = _button("vibration_test", func(): GameManager.haptic(60))
+	if not OS.has_feature("mobile"):
+		_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("vibration_mobile_only")))
+	_refresh_vibration_controls()
+
 	_section("section_access")
-	for key in ["vibration", "colorblind", "reduced_motion"]:
+	for key in ["colorblind", "reduced_motion"]:
 		_toggle(key, GameManager.settings[key], func(value): GameManager.set_setting(key, value))
 
+	_section("section_data")
+	_group.add_child(UIThemeHelper.label(LocaleStrings.text("save_auto"), "Heading"))
+	_save_status = UIThemeHelper.paragraph("")
+	_save_status.name = "LocalSaveStatus"
+	_group.add_child(_save_status)
+	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("save_local_note")))
+	_save_retry = _button("save_retry", func(): GameManager.save_game(), "retry")
+	_refresh_save_status()
 	if allow_backups:
-		_section("section_data")
 		_button("backup_export", _choose_file.bind(false), "share")
 		_button("backup_import", _choose_file.bind(true), "retry")
 		_button("reset", _confirm_reset, "close")
 		_status = UIThemeHelper.paragraph("")
 		_group.add_child(_status)
-	_content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("platform_pending")))
+
+func _refresh_save_status() -> void:
+	var key := "save_local_ok"
+	if GameManager.save_error == ERR_UNAVAILABLE:
+		key = "save_newer_version"
+	elif GameManager.save_error != OK:
+		key = "save_local_error"
+	elif GameManager.save_recovered:
+		key = "save_recovered"
+	_save_status.text = LocaleStrings.text(key)
+	_save_status.add_theme_color_override("font_color", UIThemeHelper.colors.success if GameManager.save_error == OK else UIThemeHelper.colors.danger)
+	_save_retry.visible = GameManager.save_error not in [OK, ERR_UNAVAILABLE]
+
+func _refresh_vibration_controls() -> void:
+	_vibration_slider.editable = GameManager.settings["vibration"]
+	_vibration_test.disabled = not OS.has_feature("mobile") or not GameManager.settings["vibration"] or GameManager.settings["vibration_intensity"] <= 0.0
 
 func _section(key: String) -> void:
 	_content.add_child(UIThemeHelper.label(LocaleStrings.text(key), "Caption"))
@@ -69,39 +107,50 @@ func _label(text: String) -> void:
 
 func _options(items: Array, selected: int, on_select: Callable) -> OptionButton:
 	var options := OptionButton.new()
+	options.custom_minimum_size.y = 128
 	for item in items:
 		options.add_item(item)
 	options.selected = selected
 	options.item_selected.connect(on_select)
 	return options
 
-func _button(key: String, callback: Callable, icon: String = "") -> void:
+func _button(key: String, callback: Callable, icon: String = "") -> Button:
 	var button := UIThemeHelper.button(LocaleStrings.text(key), "", icon)
+	button.custom_minimum_size.y = 128
+	button.name = key.to_pascal_case()
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.pressed.connect(callback)
 	_group.add_child(button)
+	return button
 
 func _toggle(key: String, value: bool, callback: Callable) -> void:
 	var check := CheckButton.new()
+	check.custom_minimum_size.y = 128
+	check.name = key.to_pascal_case()
 	check.text = LocaleStrings.text(key)
 	check.button_pressed = value
 	check.toggled.connect(callback)
 	_group.add_child(check)
 
-func _slider(key: String) -> void:
+func _slider(key: String) -> HSlider:
 	var label := UIThemeHelper.label("", "Caption")
 	var update := func(value: float): label.text = "%s · %d%%" % [LocaleStrings.text(key), roundi(value * 100)]
 	update.call(float(GameManager.settings[key]))
 	_group.add_child(label)
 	var slider := HSlider.new()
+	slider.name = key.to_pascal_case()
 	slider.max_value = 1
 	slider.step = 0.05
 	slider.value = GameManager.settings[key]
-	slider.custom_minimum_size.y = 56
+	slider.custom_minimum_size.y = 128
 	slider.value_changed.connect(func(value):
 		GameManager.set_setting(key, value)
-		update.call(value))
+		update.call(value)
+		if key == "vibration_intensity":
+			_refresh_vibration_controls()
+			GameManager.haptic(30))
 	_group.add_child(slider)
+	return slider
 
 func _choose_file(importing: bool) -> void:
 	var dialog := FileDialog.new()
@@ -130,9 +179,11 @@ func _confirm_import(path: String) -> void:
 
 func _confirm_reset() -> void:
 	_confirm(LocaleStrings.text("reset_confirm"), func():
-		GameManager.reset_save()
+		var error := GameManager.reset_save()
 		AudioManager.apply_volumes()
-		_build())
+		_build()
+		if error != OK:
+			_show_result(error))
 
 func _confirm(text: String, action: Callable) -> void:
 	var dialog := ConfirmationDialog.new()

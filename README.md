@@ -55,6 +55,12 @@ Juego vertical de estrategia territorial en Godot 4.7.
   comprados y las misiones del día se conservan. Al día siguiente entran los nuevos objetivos.
 - Ajustes desde el menú y la pausa: idioma, sonido, música, volúmenes, vibración,
   velocidad y paleta accesible. La velocidad afecta a ambos bandos y no acelera el reloj diario.
+- Respuesta táctil con intensidad persistente y botón de prueba en móviles compatibles,
+  un pulso por asalto y límite de repetición. No requiere plugins nativos.
+- Guardado automático local con copia de recuperación `.previous`, aviso de errores y reintento
+  desde Ajustes. Las versiones futuras se protegen contra sobrescritura. No hay nube.
+- Al cambiar de app se guardan los datos, se suspende el audio y se cancela el gesto activo.
+  La batalla queda en pausa hasta tocar Reanudar; cerrar el proceso no conserva el combate.
 - Copias JSON exportables/restaurables desde ajustes del menú. Una restauración
   pide confirmación y conserva la partida sustituida en `invade_save.json.backup`.
 - No hay poderes activos (propuesta 9).
@@ -95,6 +101,12 @@ Para verificar únicamente las nuevas funcionalidades, sin ejecutar la suite lar
 godot --headless --path . res://scenes/tests/test_runner.tscn -- --quick
 ```
 
+Para comprobar únicamente guardado, hápticos, pausa y ajustes:
+
+```sh
+godot --headless --path . res://scenes/tests/test_runner.tscn -- --mobile
+```
+
 El modo rápido cubre paquetes, choques con distintos deltas, migración, economía, medallas,
 colecciones, rangos, objetivos diarios, ritmo de IA y cambio de tema sin perder la selección.
 
@@ -113,21 +125,28 @@ pruebas de retención con nuevos jugadores.
 
 ## Integración móvil
 
+El preset Android habilita `VIBRATE` y target SDK 36. Instala el SDK Android, las plantillas
+de Godot 4.7.2 y la plantilla Gradle desde **Proyecto → Instalar plantilla de compilación Android**
+antes de exportar. La firma de publicación sigue pendiente. El guardado usa `user://` en ambas
+plataformas y no necesita acceso general al almacenamiento del teléfono.
+
 ### IPA para pruebas con SideStore
 
 El workflow `.github/workflows/build-ios.yml` genera una **IPA sin firmar** para iPhone
 usando Godot 4.7.2 y Xcode en un runner macOS de GitHub. No requiere un Mac propio,
 cuenta Apple en GitHub, certificados ni secretos. Ejecuta las pruebas rápidas antes de compilar.
 
-1. Sube estos archivos a la rama principal del repositorio.
-2. Abre **Actions → Build iOS IPA (SideStore) → Run workflow**.
+1. Haz commit de los cambios y súbelos con `git push`.
+2. Cada push a cualquier rama o etiqueta inicia la compilación del último commit automáticamente.
+   También puedes iniciarla desde **Actions → Build iOS IPA (SideStore) → Run workflow**.
 3. Cuando termine correctamente, descarga **invade.io.ipa** desde **Artifacts**.
    Se descarga directamente como IPA, sin un ZIP adicional, y se conserva durante 7 días.
 4. Guarda el archivo en **Archivos** del iPhone. Con Wi-Fi y LocalDevVPN activos,
    abre **SideStore → My Apps → +** y selecciona la IPA.
 
-La compilación es manual para no generar una IPA con cada cambio. Los runners estándar
-son gratuitos en repositorios públicos; en privados se aplican las cuotas de GitHub Actions.
+Los commits locales no activan GitHub Actions hasta hacer push. Un push con varios commits
+genera una IPA del último, no una IPA por cada commit intermedio. Los runners estándar son
+gratuitos en repositorios públicos; en privados se aplican las cuotas de GitHub Actions.
 La IPA no sirve para el App Store, TestFlight ni para instalarla directamente sin firma:
 SideStore la firma con tu cuenta y gestiona su renovación. La renovación no exige recompilar.
 

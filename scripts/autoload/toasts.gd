@@ -20,6 +20,16 @@ func _ready() -> void:
 	EventBus.achievement_unlocked.connect(_on_achievement_unlocked)
 	EventBus.battle_won.connect(_flush.unbind(1), CONNECT_DEFERRED)
 	EventBus.battle_lost.connect(_flush, CONNECT_DEFERRED)
+	GameManager.save_status_changed.connect(_on_save_status_changed)
+	if GameManager.save_error != OK or GameManager.save_recovered:
+		_on_save_status_changed.call_deferred()
+
+func _on_save_status_changed() -> void:
+	if GameManager.save_error != OK:
+		var key := "save_newer_version" if GameManager.save_error == ERR_UNAVAILABLE else "save_local_error"
+		show_toast("⚠", LocaleStrings.text("save_auto"), LocaleStrings.text(key), true)
+	elif GameManager.save_recovered:
+		show_toast("✓", LocaleStrings.text("save_auto"), LocaleStrings.text("save_recovered"), true)
 
 func _on_achievement_unlocked(id: String) -> void:
 	var a := AchievementDatabase.get_by_id(id)

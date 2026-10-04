@@ -6,7 +6,7 @@ class_name Icons
 
 const COLORED := ["coin", "star"]
 ## Iconos con colores de la paleta activa (se generan de nuevo al cambiar de modo)
-const THEMED := ["toggle_on", "toggle_off"]
+const THEMED := ["toggle_on", "toggle_off", "knob", "chevron_down"]
 
 const SVG := {
 	"play": '<path d="M8 5v14l11-7z" fill="#fff" stroke="none"/>',
@@ -36,8 +36,8 @@ const SVG := {
 	"close": '<path d="M6 6l12 12M18 6L6 18" stroke-width="2.6"/>',
 	"toggle_on": '<rect x="1" y="5" width="22" height="14" rx="7" fill="{primary}" stroke="none"/><circle cx="16" cy="12" r="5" fill="#fff" stroke="none"/>',
 	"toggle_off": '<rect x="1" y="5" width="22" height="14" rx="7" fill="{track}" stroke="none"/><circle cx="8" cy="12" r="5" fill="{muted}" stroke="none"/>',
-	"knob": '<circle cx="12" cy="12" r="10" fill="#fff" stroke="none"/>',
-	"chevron_down": '<path d="M6 9l6 6 6-6" stroke-width="2.6"/>',
+	"knob": '<circle cx="12" cy="12" r="10" fill="{text}" stroke="none"/>',
+	"chevron_down": '<path d="M6 9l6 6 6-6" stroke="{muted}" stroke-width="2.6"/>',
 }
 
 static var _cache: Dictionary = {}
@@ -50,7 +50,8 @@ static func texture(name: String, size: int = 48) -> Texture2D:
 		var body: String = SVG[name]
 		if themed:
 			body = body.format({"primary": "#" + UIThemeHelper.colors.primary.to_html(false),
-				"track": "#" + UIThemeHelper.colors.line.to_html(false), "muted": "#" + UIThemeHelper.colors.muted.to_html(false)})
+				"track": "#" + UIThemeHelper.colors.line.to_html(false), "muted": "#" + UIThemeHelper.colors.muted.to_html(false),
+				"text": "#" + UIThemeHelper.colors.text.to_html(false)})
 		var svg := '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">%s</svg>' % body
 		var image := Image.new()
 		image.load_svg_from_string(svg, size / 24.0)

@@ -76,9 +76,8 @@ var _remate_used := false
 @onready var camera: Camera2D = get_node_or_null("Camera2D")
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED]:
 		_cancel_gesture()
-		GameManager.save_game()
 
 func _exit_tree() -> void:
 	reset_time_scale()
@@ -561,6 +560,7 @@ func _handle_release(pos: Vector2) -> void:
 			if src.faction == GameManager.Faction.PLAYER and dispatch_troops(src, target):
 				launched += 1
 		if launched > 0:
+			GameManager.haptic(25)
 			EventBus.player_assault.emit(launched)
 
 	_cancel_gesture()
@@ -597,7 +597,6 @@ func dispatch_troops(from_base: BaseNode, to_base: BaseNode) -> bool:
 
 	if from_base.faction == GameManager.Faction.PLAYER:
 		AudioManager.play_launch()
-		GameManager.haptic(10)
 	EventBus.troops_dispatched.emit(from_base, to_base, count, from_base.faction)
 	return true
 

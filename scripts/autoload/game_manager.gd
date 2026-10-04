@@ -2,6 +2,8 @@ extends Node
 
 ## GameManager: Gestor central de estado, economía, mejoras y persistencia
 
+signal save_status_changed()
+
 enum Faction {
 	NEUTRAL = 0,
 	PLAYER = 1,
@@ -57,7 +59,9 @@ const DEFAULT_COINS = 150
 const FIRST_LEVEL_ID := "europe_1"
 const SAVE_VERSION = 6
 const DEFAULT_SETTINGS := {"volume": 0.8, "music_volume": 0.8, "vibration": true, "speed": 1.0, "colorblind": false,
-	"light_mode": false, "reduced_motion": false}
+	"light_mode": false, "reduced_motion": false, "vibration_intensity": 0.55}
+const MAX_SAVE_BYTES := 2_000_000
+const HAPTIC_INTERVAL_MS := 80
 const GAME_SPEEDS := [0.75, 1.0, 1.5, 2.0]
 const ACCESSIBLE_FACTION_COLORS := [Color("8796a5"), Color("0072b2"), Color("d55e00"), Color("f0e442"), Color("cc79a7")]
 const SUPPORTED_LANGUAGES := ["es", "en"]
@@ -128,12 +132,34 @@ const ACHIEVEMENT_CLAIMED := "claimed"
 var enemy_production_multiplier: float = 1.0
 
 var save_path: String = "user://invade_save.json"
+var save_error: Error = OK
+var save_recovered := false
+var application_active := true
+var _last_haptic_ms := -HAPTIC_INTERVAL_MS
+var _last_haptic_duration := 0
+var _save_blocked := false
 
 func _init() -> void:
 	_apply_save({})
 
 func _ready() -> void:
 	load_game()
+	if save_error == OK and not FileAccess.file_exists(save_path):
+		save_game()
+
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED:
+			if application_active:
+				application_active = false
+				save_game()
+		NOTIFICATION_APPLICATION_FOCUS_IN, NOTIFICATION_APPLICATION_RESUMED:
+			if not application_active:
+				application_active = true
+				if save_error != OK:
+					save_status_changed.emit()
+		NOTIFICATION_WM_CLOSE_REQUEST, NOTIFICATION_WM_GO_BACK_REQUEST:
+			save_game()
 
 func get_total_stars() -> int:
 	var total := 0
@@ -478,8 +504,22 @@ func equip_cosmetic(id: String) -> bool:
 
 ## Vibración háptica breve en dispositivos móviles (no hace nada en escritorio)
 func haptic(duration_ms: int) -> void:
-	if settings["vibration"] and OS.has_feature("mobile"):
-		Input.vibrate_handheld(duration_ms)
+	if OS.has_feature("mobile"):
+		var effect := _haptic_parameters(duration_ms, Time.get_ticks_msec())
+		if effect != Vector2.ZERO:
+			Input.vibrate_handheld(int(effect.x), effect.y)
+
+## Un pulso fuerte puede sustituir a uno corto; los repetidos no saturan el motor.
+func _haptic_parameters(duration_ms: int, now_ms: int) -> Vector2:
+	var intensity: float = settings["vibration_intensity"]
+	if not settings["vibration"] or not application_active or intensity <= 0.0 or duration_ms <= 0:
+		return Vector2.ZERO
+	var duration := clampi(duration_ms, 20, 120)
+	if now_ms - _last_haptic_ms < HAPTIC_INTERVAL_MS and duration <= _last_haptic_duration:
+		return Vector2.ZERO
+	_last_haptic_ms = now_ms
+	_last_haptic_duration = duration
+	return Vector2(duration, intensity)
 
 func set_setting(key: String, value: Variant) -> void:
 	if not DEFAULT_SETTINGS.has(key):
@@ -594,8 +634,41 @@ func save_data() -> Dictionary:
 		"defeat_rewards": defeat_rewards,
 	}
 
-func save_game() -> void:
-	write_save(save_path, save_data())
+func save_game() -> Error:
+	if _save_blocked:
+		return _set_save_status(ERR_UNAVAILABLE)
+	if FileAccess.file_exists(save_path):
+		var previous := _read_save(save_path)
+		if previous["error"] != OK:
+			return _set_save_status(previous["error"])
+		var error := write_save(save_path + ".previous", previous["data"])
+		if error != OK:
+			return _set_save_status(error)
+	return _set_save_status(write_save(save_path, save_data()))
+
+func _set_save_status(error: Error) -> Error:
+	if save_error != error:
+		save_error = error
+		save_status_changed.emit()
+	return error
+
+## La carga local acepta campos antiguos; la importación exige además la estructura del juego.
+func _read_save(path: String) -> Dictionary:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if not file:
+		return {"error": FileAccess.get_open_error()}
+	if file.get_length() > MAX_SAVE_BYTES:
+		return {"error": ERR_INVALID_DATA}
+	var json := JSON.new()
+	if json.parse(file.get_as_text()) != OK or not json.data is Dictionary:
+		return {"error": ERR_PARSE_ERROR}
+	if json.data.has("version"):
+		var version: Variant = json.data["version"]
+		if not (version is int or version is float) or not is_finite(float(version)) or float(version) < 0.0 or float(version) != floorf(float(version)):
+			return {"error": ERR_INVALID_DATA}
+		if float(version) > SAVE_VERSION:
+			return {"error": ERR_UNAVAILABLE}
+	return {"error": OK, "data": json.data}
 
 ## También utilizado por la copia manual; nunca truncar el archivo de destino.
 func write_save(path: String, data: Dictionary) -> Error:
@@ -613,48 +686,77 @@ func write_save(path: String, data: Dictionary) -> Error:
 	return DirAccess.rename_absolute(tmp_path, path)
 
 func import_save(path: String) -> Error:
-	var file := FileAccess.open(path, FileAccess.READ)
-	if not file:
+	if _save_blocked:
+		return ERR_UNAVAILABLE
+	var loaded := _read_save(path)
+	if loaded["error"] != OK:
 		return ERR_INVALID_DATA
-	if file.get_length() > 2_000_000:
-		file.close()
-		return ERR_INVALID_DATA
-	var text := file.get_as_text()
-	file.close()
-	var json := JSON.new()
-	if json.parse(text) != OK or not json.data is Dictionary:
-		return ERR_PARSE_ERROR
-	var data: Dictionary = json.data
-	if not data.get("upgrades") is Dictionary or not data.get("completed_levels") is Dictionary or _as_int(data.get("version"), 0) > SAVE_VERSION:
+	var data: Dictionary = loaded["data"]
+	if not data.get("upgrades") is Dictionary or not data.get("completed_levels") is Dictionary:
 		return ERR_INVALID_DATA
 	var error := write_save(save_path + ".backup", save_data())
 	if error != OK:
 		return error
 	var previous := save_data().duplicate(true)
 	_apply_save(data)
-	error = write_save(save_path, save_data())
+	error = save_game()
 	if error != OK:
 		_apply_save(previous)
 	EventBus.settings_changed.emit()
 	return error
 
-func load_game() -> void:
-	if not FileAccess.file_exists(save_path):
-		return
-	var json = JSON.new()
-	if json.parse(FileAccess.get_file_as_string(save_path)) != OK or not json.data is Dictionary:
-		# Se aparta la partida ilegible para no sobrescribirla en el próximo guardado
-		DirAccess.rename_absolute(save_path, save_path + ".corrupt")
-		return
-	_apply_save(json.data)
+func load_game() -> Error:
+	_save_blocked = false
+	save_recovered = false
+	var loaded := _read_save(save_path)
+	if loaded["error"] == OK:
+		_apply_save(loaded["data"])
+		return _set_save_status(OK)
+	if loaded["error"] == ERR_UNAVAILABLE:
+		_save_blocked = true # Una versión antigua nunca sobrescribe una partida más nueva.
+		return _set_save_status(ERR_UNAVAILABLE)
+	if loaded["error"] in [ERR_PARSE_ERROR, ERR_INVALID_DATA]:
+		var corrupt_path := save_path + ".corrupt"
+		if FileAccess.file_exists(corrupt_path):
+			corrupt_path += ".%d" % Time.get_ticks_usec()
+		var error := DirAccess.rename_absolute(save_path, corrupt_path)
+		if error != OK:
+			return _set_save_status(error)
+	elif loaded["error"] != ERR_FILE_NOT_FOUND:
+		return _set_save_status(loaded["error"])
+	var previous := _read_save(save_path + ".previous")
+	if previous["error"] == OK:
+		_apply_save(previous["data"])
+		save_recovered = true
+		var error := write_save(save_path, save_data())
+		save_error = error
+		save_status_changed.emit()
+		return error
+	if previous["error"] == ERR_UNAVAILABLE:
+		_save_blocked = true
+		return _set_save_status(ERR_UNAVAILABLE)
+	if loaded["error"] == ERR_FILE_NOT_FOUND:
+		return _set_save_status(OK if previous["error"] == ERR_FILE_NOT_FOUND else previous["error"])
+	return _set_save_status(loaded["error"])
 
-func reset_save() -> void:
+func reset_save() -> Error:
+	if _save_blocked:
+		return ERR_UNAVAILABLE
+	var previous := save_data().duplicate(true)
 	_apply_save({})
+	var error := save_game()
+	if error != OK:
+		_apply_save(previous)
+		return error
 	special_level_id = ""
 	normalized_battle = false
-	save_game()
+	save_recovered = false
+	# Tras reiniciar, la recuperación tampoco debe resucitar el progreso borrado.
+	if FileAccess.file_exists(save_path + ".previous"):
+		DirAccess.remove_absolute(save_path + ".previous")
 	EventBus.coins_updated.emit(coins)
 	EventBus.settings_changed.emit()
+	return OK
 
 ## Aplica un guardado validando cada campo: lo que falta o no es válido toma su valor inicial.
 ## Con un diccionario vacío deja la partida nueva.

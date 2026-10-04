@@ -1,6 +1,7 @@
 name: Build iOS IPA (SideStore)
 
 on:
+  push:
   workflow_dispatch:
 
 permissions:

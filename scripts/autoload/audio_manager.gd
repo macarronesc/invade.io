@@ -72,6 +72,16 @@ func toggle_mute() -> bool:
 	set_muted(not is_muted)
 	return is_muted
 
+func _notification(what: int) -> void:
+	if what not in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED,
+		NOTIFICATION_APPLICATION_FOCUS_IN, NOTIFICATION_APPLICATION_RESUMED]:
+		return
+	var suspended := what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED]
+	if _player:
+		_player.stream_paused = suspended
+	if _music_player:
+		_music_player.stream_paused = suspended
+
 func apply_volumes() -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(float(GameManager.settings["volume"])))
 	var music_bus := AudioServer.get_bus_index("Music")
@@ -136,6 +146,7 @@ func _fade_music_to(stream: AudioStream) -> void:
 		if stream:
 			_music_player.stream = stream
 			_music_player.play()
+			_music_player.stream_paused = not GameManager.application_active
 	)
 	if stream:
 		_music_tween.tween_property(_music_player, "volume_db", MUSIC_VOLUME_DB, MUSIC_FADE)
@@ -216,7 +227,7 @@ func play_defeat() -> void:
 # =========================================================================
 
 func _play(key: String, render: Callable) -> void:
-	if is_muted or _playback == null:
+	if is_muted or not GameManager.application_active or _playback == null:
 		return
 	_playback.play_stream(_get_stream(key, render))
 

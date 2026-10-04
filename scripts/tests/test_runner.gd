@@ -12,6 +12,7 @@ const TEST_SAVE_PATH = "user://test_save.json"
 func _ready() -> void:
 	# Los tests nunca deben tocar la partida real del jugador
 	GameManager.save_path = TEST_SAVE_PATH
+	GameManager.load_game()
 	print("\n=======================================================")
 	print("  INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS: INVADE.IO  ")
 	print("=======================================================\n")
@@ -19,7 +20,10 @@ func _ready() -> void:
 	assert_true(bool(ProjectSettings.get_setting("rendering/textures/vram_compression/import_etc2_astc", false)),
 		"La exportación iOS habilita ETC2/ASTC explícitamente, sin depender del equipo")
 
-	if "--quick" in OS.get_cmdline_user_args():
+	await test_mobile_experience()
+	if "--mobile" in OS.get_cmdline_user_args():
+		test_settings_and_backups()
+	elif "--quick" in OS.get_cmdline_user_args():
 		test_packets_and_battle_feedback()
 		test_progression_overhaul()
 		test_light_and_dark_mode()
@@ -41,6 +45,7 @@ func _ready() -> void:
 
 	print("\n-------------------------------------------------------")
 	DirAccess.remove_absolute(TEST_SAVE_PATH)
+	DirAccess.remove_absolute(TEST_SAVE_PATH + ".previous")
 	print("RESULTADOS: %d Pasadas, %d Falladas (Total: %d)" % [passed_tests, failed_tests, total_tests])
 	print("=======================================================\n")
 
@@ -145,6 +150,196 @@ func run_all_tests() -> void:
 	test_new_ui_flows()
 	test_packet_combat_and_migration()
 	test_campaign_balance_and_rewards()
+
+func test_mobile_experience() -> void:
+	print("\n-> Test: Guardado Local, Hápticos y Ciclo de Vida Móvil")
+	var manager = load("res://scripts/autoload/game_manager.gd").new()
+	var path := "user://test_mobile_save.json"
+	manager.save_path = path
+	manager.coins = 321
+	assert_equals(manager.save_game(), OK, "El guardado local devuelve un resultado comprobable")
+	manager.coins = 654
+	manager.save_game()
+	assert_equals(int(manager._read_save(path + ".previous")["data"]["coins"]), 321, "La copia automática conserva el guardado anterior")
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string("{interrumpido")
+	file.close()
+	assert_equals(manager.load_game(), OK, "Un guardado ilegible se recupera automáticamente")
+	assert_equals(manager.coins, 321, "La recuperación devuelve la economía de la copia válida")
+	assert_true(manager.save_recovered and FileAccess.file_exists(path + ".corrupt"), "Se informa de la recuperación sin destruir el archivo ilegible")
+	assert_equals(int(manager._read_save(path)["data"]["coins"]), 321, "La partida recuperada vuelve a estar en disco")
+	DirAccess.remove_absolute(path)
+	assert_equals(manager.load_game(), OK, "La copia también recupera un archivo principal ausente")
+
+	var future: Dictionary = manager.save_data()
+	future["version"] = GameManager.SAVE_VERSION + 1
+	manager.write_save(path, future)
+	var original := FileAccess.get_file_as_string(path)
+	assert_equals(manager.load_game(), ERR_UNAVAILABLE, "La carga local rechaza versiones futuras")
+	manager.coins = 999
+	assert_equals(manager.save_game(), ERR_UNAVAILABLE, "El autoguardado no sustituye una partida más nueva")
+	assert_equals(manager.reset_save(), ERR_UNAVAILABLE, "El reinicio tampoco sobrescribe un formato desconocido")
+	assert_equals(FileAccess.get_file_as_string(path), original, "El archivo futuro permanece intacto")
+	manager.write_save(path, manager.save_data())
+	manager.load_game()
+
+	# Una ruta temporal bloqueada reproduce un fallo de escritura sin permisos especiales.
+	original = FileAccess.get_file_as_string(path)
+	DirAccess.make_dir_absolute(path + ".tmp")
+	manager.coins = 777
+	assert_true(manager.save_game() != OK and manager.save_error != OK, "Los fallos de escritura no se anuncian como éxito")
+	assert_equals(FileAccess.get_file_as_string(path), original, "Un fallo al escribir el temporal conserva la partida anterior")
+	assert_true(manager.reset_save() != OK and manager.coins == 777, "Un reinicio fallido conserva el progreso en memoria")
+	manager.write_save(path + ".import", {"upgrades": {}, "completed_levels": {}, "coins": 42})
+	assert_true(manager.import_save(path + ".import") != OK and manager.coins == 777, "Una restauración fallida revierte el estado en memoria")
+	DirAccess.remove_absolute(path + ".tmp")
+	assert_equals(manager.save_game(), OK, "Se puede reintentar tras resolver el fallo de escritura")
+	assert_equals(manager.save_error, OK, "El estado de error desaparece cuando se guarda de verdad")
+	assert_equals(manager.reset_save(), OK, "Reiniciar funciona después de resolver el fallo")
+	assert_true(not FileAccess.file_exists(path + ".previous"), "La copia automática no resucita el progreso reiniciado")
+	manager.write_save(path + ".import", {"version": 6.5, "upgrades": {}, "completed_levels": {}})
+	assert_equals(manager.import_save(path + ".import"), ERR_INVALID_DATA, "La versión del formato debe ser un entero válido")
+	file = FileAccess.open(path + ".import", FileAccess.WRITE)
+	file.store_string("x".repeat(GameManager.MAX_SAVE_BYTES + 1))
+	file.close()
+	assert_equals(manager.import_save(path + ".import"), ERR_INVALID_DATA, "Se rechazan copias que exceden el límite de tamaño")
+
+	assert_true(manager._haptic_parameters(8, 1000).is_equal_approx(Vector2(20, 0.55)), "Los pulsos muy breves usan una duración mínima y la intensidad elegida")
+	assert_equals(manager._haptic_parameters(10, 1010), Vector2.ZERO, "Los pulsos repetidos se agrupan, sin saturar el motor")
+	assert_true(manager._haptic_parameters(80, 1020).x == 80, "Una victoria puede sustituir a un pulso de selección")
+	assert_true(manager._haptic_parameters(999, 1200).x == 120, "La duración máxima se limita a un pulso breve")
+	manager.settings["vibration"] = false
+	assert_equals(manager._haptic_parameters(60, 1400), Vector2.ZERO, "Desactivar vibración suprime todos los efectos")
+	manager.settings["vibration"] = true
+	manager.application_active = false
+	assert_equals(manager._haptic_parameters(60, 1500), Vector2.ZERO, "No hay vibración cuando la aplicación está en segundo plano")
+	manager.application_active = true
+	manager.settings["vibration_intensity"] = 0.0
+	assert_equals(manager._haptic_parameters(60, 1600), Vector2.ZERO, "La intensidad cero no genera vibración")
+	assert_equals(manager._haptic_parameters(-5, 1700), Vector2.ZERO, "Una duración inválida no llega al dispositivo")
+	manager.free()
+	for suffix in ["", ".previous", ".corrupt", ".backup", ".import", ".tmp"]:
+		if FileAccess.file_exists(path + suffix):
+			DirAccess.remove_absolute(path + suffix)
+
+	GameManager.reset_save()
+	GameManager.set_setting("vibration_intensity", 5.0)
+	assert_equals(GameManager.settings["vibration_intensity"], 1.0, "La intensidad se valida en el límite de entrada")
+	GameManager.load_game()
+	assert_equals(GameManager.settings["vibration_intensity"], 1.0, "La intensidad háptica persiste entre sesiones")
+	var settings = load("res://scripts/ui/settings_panel.gd").new()
+	settings.allow_backups = false
+	add_child(settings)
+	assert_true(settings.find_child("LocalSaveStatus", true, false).text == LocaleStrings.text("save_local_ok"), "Ajustes muestra el guardado local incluso desde la pausa")
+	assert_true(settings.find_child("BackupImport", true, false) == null, "Durante la batalla no se ofrece sustituir la partida")
+	var vibration: CheckButton = settings.find_child("Vibration", true, false)
+	vibration.set_pressed(false)
+	assert_true(not settings._vibration_slider.editable and settings._vibration_test.disabled, "Desactivar vibración deshabilita intensidad y prueba")
+	vibration.set_pressed(true)
+	assert_true(settings._vibration_slider.editable, "Activar vibración vuelve a habilitar la intensidad")
+	assert_true(settings._vibration_test.disabled == not OS.has_feature("mobile"), "La prueba no promete vibración en escritorio")
+	assert_true(settings.find_children("*", "BaseButton", true, false).filter(func(b): return b is CheckButton or b is OptionButton).all(func(b): return b.custom_minimum_size.y >= 128), "Los controles de ajustes tienen una zona táctil amplia")
+	for lang in ["es", "en"]:
+		GameManager.set_language(lang)
+		for light in [false, true]:
+			GameManager.set_setting("light_mode", light)
+			settings._build()
+			await get_tree().process_frame
+			await get_tree().process_frame
+			var bounds: Rect2 = settings._content.get_global_rect()
+			assert_true(settings.find_children("*", "HSlider", true, false).all(func(s): return s.get_global_rect().position.x >= bounds.position.x and s.get_global_rect().end.x <= bounds.end.x + 1), "Los deslizadores caben en ajustes (%s, claro=%s)" % [lang, str(light)])
+			assert_equals(settings._save_status.text, LocaleStrings.text("save_local_ok"), "Estado de guardado traducido (%s, claro=%s)" % [lang, str(light)])
+			var knob := Icons.texture("knob", 44).get_image().get_pixel(22, 22)
+			assert_true(knob.is_equal_approx(UIThemeHelper.colors.text), "El control de intensidad conserva contraste en ambos temas")
+	GameManager.set_language("es")
+	GameManager.set_setting("light_mode", false)
+	settings._build()
+	var real_test_path := GameManager.save_path
+	GameManager.save_path = "user://test_mobile_missing_dir/save.json"
+	GameManager.save_game()
+	assert_true(settings._save_retry.visible and settings._save_status.text == LocaleStrings.text("save_local_error"), "Un fallo muestra un mensaje claro y una acción de reintento")
+	GameManager.save_path = real_test_path
+	settings._save_retry.pressed.emit()
+	assert_true(not settings._save_retry.visible and settings._save_status.text == LocaleStrings.text("save_local_ok"), "Reintentar actualiza el estado sólo después del éxito")
+	remove_child(settings)
+	settings.free()
+
+	GameManager.play_level("europe_4")
+	GameManager.mark_tip_seen("factory")
+	var battle: BattleController = load("res://scenes/battle/battle_field.tscn").instantiate()
+	add_child(battle)
+	var hud: BattleHUD = battle.get_node("BattleHUD")
+	var base: BaseNode = battle.bases.filter(func(b): return b.faction == GameManager.Faction.PLAYER)[0]
+	assert_true(battle.dispatch_troops(base, battle.bases[-1]), "Hay tropas en marcha antes de cambiar de app")
+	var stream: Troop = battle.active_troops[0]
+	GameManager.coins = 876
+	hud._on_pause_pressed()
+	assert_equals(int(GameManager._read_save(real_test_path)["data"]["coins"]), 876, "La pausa manual también guarda el progreso pendiente")
+	hud._on_resume_pressed()
+	await hud.pause_panel.get_meta("_modal_tween").finished
+	battle._handle_press(base.position)
+	assert_true(battle.is_dragging, "Hay un gesto real en curso antes de cambiar de app")
+	GameManager.coins = 987
+	var muted := AudioManager.is_muted
+	var sfx_was_playing := AudioManager._player.playing
+	var silent_loop := MusicSynth.to_wav(PackedFloat32Array([0.0, 0.0]), true)
+	AudioManager._music_player.stream = silent_loop
+	AudioManager._music_player.play()
+	if not sfx_was_playing:
+		AudioManager._player.play()
+	get_tree().root.propagate_notification(NOTIFICATION_APPLICATION_FOCUS_OUT)
+	get_tree().root.propagate_notification(NOTIFICATION_APPLICATION_PAUSED)
+	assert_true(AudioManager._music_player.stream_paused and AudioManager._player.stream_paused, "La música y los efectos se suspenden al salir de la app")
+	AudioManager._fade_music_to(silent_loop)
+	assert_true(get_tree().paused and hud.pause_panel.visible and hud.pause_hint.visible, "Salir de la app pausa la batalla y explica cómo volver")
+	assert_true(not battle.is_dragging and battle.selected_sources.is_empty(), "La pausa cancela el gesto sin enviar una orden accidental")
+	assert_equals(int(GameManager._read_save(real_test_path)["data"]["coins"]), 987, "Salir de la app guarda también cambios todavía no persistidos")
+	var elapsed := battle.battle_time
+	var troops := base.troops
+	var distance := stream.head_dist
+	await get_tree().create_timer(0.5, true, false, true).timeout
+	assert_true(battle.battle_time == elapsed and base.troops == troops, "El reloj y la producción permanecen congelados en segundo plano")
+	assert_equals(stream.head_dist, distance, "Las tropas en marcha también se detienen al cambiar de app")
+	assert_true(AudioManager._music_player.stream_paused, "Un fundido pendiente no reinicia la música en segundo plano")
+	hud._on_resume_pressed()
+	assert_true(get_tree().paused, "No se reanuda mientras la aplicación sigue inactiva")
+	get_tree().root.propagate_notification(NOTIFICATION_APPLICATION_FOCUS_IN)
+	get_tree().root.propagate_notification(NOTIFICATION_APPLICATION_RESUMED)
+	assert_true(not AudioManager._music_player.stream_paused and not AudioManager._player.stream_paused, "Los reproductores recuperan su estado al regresar")
+	assert_true(get_tree().paused, "Volver a la app no reanuda el combate por sorpresa")
+	assert_equals(AudioManager.is_muted, muted, "Cambiar de app no altera las preferencias de sonido")
+	hud._on_resume_pressed()
+	get_tree().root.propagate_notification(NOTIFICATION_APPLICATION_FOCUS_OUT)
+	await get_tree().create_timer(0.2, true, false, true).timeout
+	assert_true(get_tree().paused and hud.pause_panel.visible, "Perder el foco durante Reanudar cancela su callback de salida")
+	get_tree().root.propagate_notification(NOTIFICATION_APPLICATION_FOCUS_IN)
+	hud._on_resume_pressed()
+	await hud.pause_panel.get_meta("_modal_tween").finished
+	assert_true(not get_tree().paused and not hud.pause_panel.visible, "Reanudar explícitamente devuelve el control al jugador")
+	hud.show_tip_card("Ayuda", "Gesto de prueba")
+	get_tree().root.propagate_notification(NOTIFICATION_APPLICATION_PAUSED)
+	get_tree().root.propagate_notification(NOTIFICATION_APPLICATION_RESUMED)
+	hud._close_tip_card()
+	assert_true(get_tree().paused and hud.pause_panel.visible, "Cerrar una ayuda después de volver no salta la pausa automática")
+	await get_tree().process_frame
+	hud._on_resume_pressed()
+	await hud.pause_panel.get_meta("_modal_tween").finished
+	assert_true(not get_tree().paused, "La pausa sigue siendo reanudable después de cerrar una ayuda")
+	battle.is_game_over = true
+	hud.victory_panel.visible = true
+	get_tree().root.propagate_notification(NOTIFICATION_APPLICATION_PAUSED)
+	assert_true(hud.victory_panel.visible and not hud.pause_panel.visible, "La pausa automática no tapa una pantalla de resultado")
+	get_tree().root.propagate_notification(NOTIFICATION_APPLICATION_RESUMED)
+	remove_child(battle)
+	battle.free()
+	AudioManager._music_player.stop()
+	if not sfx_was_playing:
+		AudioManager._player.stop()
+	get_tree().paused = false
+	GameManager.reset_save()
+	var presets := ConfigFile.new()
+	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets móviles se pueden leer")
+	assert_true(presets.get_value("preset.1.options", "permissions/vibrate", false), "Android exporta el permiso de vibración sin pedir permisos de usuario")
 
 func test_base_production_mechanics() -> void:
 	print("-> Test: Producción de Tropas y Límites de Capacidad")
@@ -2230,6 +2425,7 @@ func test_save_robustness_and_replay_rewards() -> void:
 	assert_equals(GameManager.upgrades["troop_speed"], 3, "Mejora guardada restaurada como entero")
 	assert_equals(GameManager.upgrades["gold_bonus"], 0, "Mejora ausente en el guardado toma su valor por defecto")
 	assert_equals(GameManager.completed_levels["europe_1"], 2, "Estrellas restauradas como entero")
+	GameManager.save_game()
 
 	# 2. Guardado corrupto no rompe el estado
 	f = FileAccess.open(TEST_SAVE_PATH, FileAccess.WRITE)
@@ -2237,8 +2433,8 @@ func test_save_robustness_and_replay_rewards() -> void:
 	f.close()
 	GameManager.load_game()
 	assert_equals(GameManager.coins, 321, "Un guardado corrupto se ignora sin perder el estado en memoria")
-	assert_true(FileAccess.file_exists(TEST_SAVE_PATH + ".corrupt") and not FileAccess.file_exists(TEST_SAVE_PATH),
-		"El guardado ilegible se aparta en lugar de sobrescribirse")
+	assert_true(FileAccess.file_exists(TEST_SAVE_PATH + ".corrupt") and FileAccess.file_exists(TEST_SAVE_PATH) and GameManager.save_recovered,
+		"El guardado ilegible se aparta y se recupera la copia local válida")
 	DirAccess.remove_absolute(TEST_SAVE_PATH + ".corrupt")
 
 	# 2b. Tipos inesperados y datos imposibles: cada campo vuelve a un valor válido
@@ -3008,7 +3204,7 @@ func test_settings_and_backups() -> void:
 	assert_equals(GameManager.settings["speed"], 0.75, "Velocidad mínima validada")
 	var panel = load("res://scripts/ui/settings_panel.gd").new()
 	add_child(panel)
-	assert_equals(panel.find_children("*", "HSlider", true, false).size(), 2, "Dos controles nativos de volumen")
+	assert_equals(panel.find_children("*", "HSlider", true, false).size(), 3, "Volúmenes e intensidad háptica con controles nativos")
 	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 5, "Sonido, música, vibración, paleta y reducir movimiento")
 	assert_equals(panel.find_children("*", "OptionButton", true, false).size(), 3, "Apariencia, idioma y velocidad")
 	remove_child(panel)

@@ -489,6 +489,14 @@ theme_type_variation = &"Title"
 text = "Pausa"
 horizontal_alignment = 1
 
+[node name="PauseHint" type="Label" parent="PausePanel/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"Caption"
+horizontal_alignment = 1
+autowrap_mode = 3
+
 [node name="PauseRule" type="Label" parent="PausePanel/VBox"]
 unique_name_in_owner = true
 visible = false
