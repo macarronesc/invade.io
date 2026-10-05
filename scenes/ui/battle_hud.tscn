@@ -2,6 +2,13 @@
 
 [ext_resource type="Script" path="res://scripts/ui/battle_hud.gd" id="1_hud_script"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_forces"]
+bg_color = Color(0.04, 0.06, 0.1, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+
 [node name="BattleHUD" type="CanvasLayer"]
 process_mode = 3
 script = ExtResource("1_hud_script")
@@ -25,7 +32,7 @@ theme_type_variation = &"HudBar"
 [node name="VBox" type="VBoxContainer" parent="TopBar/Card"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 16
 
 [node name="Row" type="HBoxContainer" parent="TopBar/Card/VBox"]
 layout_mode = 2
@@ -54,13 +61,13 @@ text = "Nivel 1"
 horizontal_alignment = 1
 text_overrun_behavior = 3
 
-[node name="RuleLabel" type="Label" parent="TopBar/Card/VBox/Row/Titles"]
+[node name="ObjectiveLabel" type="Label" parent="TopBar/Card/VBox/Row/Titles"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_type_variation = &"Caption"
 horizontal_alignment = 1
-autowrap_mode = 3
+text_overrun_behavior = 3
 
 [node name="TargetTimeChip" type="PanelContainer" parent="TopBar/Card/VBox/Row"]
 layout_mode = 2
@@ -76,79 +83,90 @@ theme_type_variation = &"Heading"
 text = "★★★ 45s"
 horizontal_alignment = 1
 
-[node name="StatusRow" type="HBoxContainer" parent="TopBar/Card/VBox"]
+[node name="ForcesBar" type="PanelContainer" parent="TopBar/Card/VBox"]
+clip_children = 2
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 16
+theme_override_styles/panel = SubResource("StyleBoxFlat_forces")
 
-[node name="BasesLabel" type="Label" parent="TopBar/Card/VBox/StatusRow"]
+[node name="DominanceBarContainer" type="HBoxContainer" parent="TopBar/Card/VBox/ForcesBar"]
 unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_type_variation = &"Caption"
-text = "Bases 1/4"
-
-[node name="ObjectiveLabel" type="Label" parent="TopBar/Card/VBox/StatusRow"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-theme_type_variation = &"Caption"
-horizontal_alignment = 2
-
-[node name="DominanceBarContainer" type="HBoxContainer" parent="TopBar/Card/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 10)
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 3
 
-[node name="BarPlayer" type="ColorRect" parent="TopBar/Card/VBox/DominanceBarContainer"]
+[node name="BarPlayer" type="ColorRect" parent="TopBar/Card/VBox/ForcesBar/DominanceBarContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 color = Color(0.13, 0.59, 0.95, 1)
 
-[node name="BarNeutral" type="ColorRect" parent="TopBar/Card/VBox/DominanceBarContainer"]
+[node name="LabelCountPlayer" type="Label" parent="TopBar/Card/VBox/ForcesBar/DominanceBarContainer/BarPlayer"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.45)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 26
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="BarNeutral" type="ColorRect" parent="TopBar/Card/VBox/ForcesBar/DominanceBarContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 color = Color(0.47, 0.56, 0.61, 1)
 
-[node name="BarEnemy" type="ColorRect" parent="TopBar/Card/VBox/DominanceBarContainer"]
+[node name="LabelCountNeutral" type="Label" parent="TopBar/Card/VBox/ForcesBar/DominanceBarContainer/BarNeutral"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.45)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 26
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="BarEnemy" type="ColorRect" parent="TopBar/Card/VBox/ForcesBar/DominanceBarContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 color = Color(0.96, 0.26, 0.21, 1)
 
-[node name="FactionCountsContainer" type="HBoxContainer" parent="TopBar/Card/VBox"]
+[node name="LabelCountEnemy" type="Label" parent="TopBar/Card/VBox/ForcesBar/DominanceBarContainer/BarEnemy"]
 unique_name_in_owner = true
-layout_mode = 2
-mouse_filter = 2
-theme_override_constants/separation = 28
-
-[node name="LabelCountPlayer" type="Label" parent="TopBar/Card/VBox/FactionCountsContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"Caption"
-text = "Tú 0"
-
-[node name="LabelCountNeutral" type="Label" parent="TopBar/Card/VBox/FactionCountsContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_type_variation = &"Caption"
-text = "Neutral 0"
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.45)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 26
+text = "0"
 horizontal_alignment = 1
-
-[node name="LabelCountEnemy" type="Label" parent="TopBar/Card/VBox/FactionCountsContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"Caption"
-text = "Rojo 0"
-horizontal_alignment = 2
+vertical_alignment = 1
+clip_text = true
 
 [node name="DimOverlay" type="ColorRect" parent="."]
 unique_name_in_owner = true

@@ -18,6 +18,17 @@ const DEFAULT_TIER_PARAMS = {"radius": 60.0, "capacity": 70, "rate": 1.0}
 ## Colores del mapa: no dependen del modo claro/oscuro de la interfaz
 const MARKER_GOLD := Color("ffc83d")
 const FLOAT_TEXT_SECONDS := 1.6
+## Radianes por segundo de órbita por cada tropa/s producida (la fábrica gira 2,5× más rápido)
+const ORBIT_SPEED := 1.3
+const RING_GAP := 12.0
+const BADGE_RADIUS := 23.0
+## Insignia de cada ventaja: icono, fondo y tinte del icono
+const BADGES := {
+	"boss": ["", Color("7a1f2b"), Color.WHITE],
+	"capital": ["star", Color("1b2638"), Color.WHITE],
+	"factory": ["bolt", MARKER_GOLD, Color("5a3c00")],
+	"fortress": ["shield", Color("3d4f66"), Color.WHITE],
+}
 
 @export var base_name: String = "Territorio"
 @export var faction: int = GameManager.Faction.NEUTRAL
@@ -31,7 +42,8 @@ var is_capital: bool = false
 var is_boss: bool = false
 
 var fortress_absorbed_damage: int = 0
-var factory_gear_angle: float = 0.0
+## Ángulo de los puntos que orbitan el anillo: giran a la velocidad de producción
+var orbit_angle: float = 0.0
 
 var radius: float = 60.0
 var max_capacity: int = 60
@@ -119,6 +131,10 @@ func defense_after(seconds: float) -> float:
 func is_full() -> bool:
 	return faction != GameManager.Faction.NEUTRAL and troops >= max_capacity
 
+## Recluta ahora mismo (con dueño, en juego y con sitio libre)
+func is_producing() -> bool:
+	return is_active and faction != GameManager.Faction.NEUTRAL and not is_full()
+
 ## Texto breve que sube y se desvanece sobre la base (conquistas especiales, refuerzos...)
 func float_text(text: String, color: Color = Color.WHITE) -> void:
 	_float_texts.append({"text": text, "color": color, "t": 0.0})
@@ -190,7 +206,7 @@ func _update_tier_parameters() -> void:
 	radius = params["radius"]
 	max_capacity = params["capacity"]
 	if label_name:
-		label_name.position.y = radius + 6.0
+		label_name.position.y = radius + 20.0
 	_dirty = true
 
 func _process(delta: float) -> void:
@@ -216,8 +232,8 @@ func _process(delta: float) -> void:
 ## Avanza las animaciones y devuelve true mientras alguna siga activa
 func _animate(delta: float) -> bool:
 	var animating := false
-	if base_type == BaseType.FACTORY and not GameManager.settings["reduced_motion"]:
-		factory_gear_angle += delta * 2.4
+	if is_producing() and not GameManager.settings["reduced_motion"]:
+		orbit_angle = fmod(orbit_angle + delta * get_production_rate() * ORBIT_SPEED, TAU)
 		animating = true
 
 	# Simulación de muelle elástico (Squash & Stretch) con sim_delta acotado para estabilidad
@@ -364,13 +380,9 @@ func _update_label() -> void:
 func _draw() -> void:
 	var color = GameManager.faction_color(faction)
 	var current_radius = radius * pulse_scale
-	if is_boss:
-		_draw_crown(Vector2(0, -current_radius - 34), 15.0)
-	elif is_capital:
-		_draw_star(Vector2(0, -current_radius - 34), 15.0)
 	# Refuerzos del jefe: el arco se llena hasta la próxima oleada
 	if reinforce_progress >= 0.0:
-		draw_arc(Vector2.ZERO, current_radius + 20.0, -PI * 0.5, -PI * 0.5 + TAU * reinforce_progress, 48, Color(MARKER_GOLD, 0.85), 4.0, true)
+		draw_arc(Vector2.ZERO, current_radius + RING_GAP + 10.0, -PI * 0.5, -PI * 0.5 + TAU * reinforce_progress, 48, Color(MARKER_GOLD, 0.85), 4.0, true)
 
 	# 1. Onda expansiva de impacto y conquista
 	if shockwave_alpha > 0.0:
@@ -384,69 +396,76 @@ func _draw() -> void:
 	# 2. Sombra suave (una sola capa)
 	draw_circle(Vector2(0, 6), current_radius + 5.0, Color(0, 0, 0, 0.22))
 
-	# 3. Anillo de selección exterior si está seleccionada
+	# 3. Halo de selección por fuera del anillo de capacidad
 	if is_selected:
-		draw_circle(Vector2.ZERO, current_radius + 14.0, Color(1, 1, 1, 0.22))
-		draw_arc(Vector2.ZERO, current_radius + 11.0, 0, TAU, 48, Color.WHITE, 4.0, true)
+		draw_circle(Vector2.ZERO, current_radius + RING_GAP + 12.0, Color(1, 1, 1, 0.18))
+		draw_arc(Vector2.ZERO, current_radius + RING_GAP + 9.0, 0, TAU, 48, Color.WHITE, 4.0, true)
 
-	# 4. Borde exterior y elementos tácticos distintivos según BaseType
-	if base_type == BaseType.FORTRESS:
-		# Borde reforzado con almenas de bastión defensivo
-		draw_circle(Vector2.ZERO, current_radius + 6.5, Color(0.2, 0.22, 0.26))
-		draw_circle(Vector2.ZERO, current_radius + 5.0, Color.WHITE)
-		for i in 8:
-			var c_pos = Vector2.from_angle(i * TAU / 8.0) * (current_radius + 5.0)
-			draw_circle(c_pos, 4.8, Color.WHITE)
-			draw_circle(c_pos, 3.0, Color(0.3, 0.35, 0.4))
-	elif base_type == BaseType.FACTORY:
-		# Engranaje industrial perimetral giratorio
-		draw_circle(Vector2.ZERO, current_radius + 5.0, Color.WHITE)
-		for i in 8:
-			var t_pos = Vector2.from_angle(i * TAU / 8.0 + factory_gear_angle) * (current_radius + 4.5)
-			draw_circle(t_pos, 4.8, Color(1.0, 0.8, 0.2, 0.95))
-			draw_circle(t_pos, 2.5, Color(0.25, 0.2, 0.1))
-	else:
-		draw_frame(self, Vector2.ZERO, current_radius, GameManager.base_shape())
-
-	# 5. Cuerpo principal con color de la facción
+	# 4. Marco y cuerpo: el tamaño ya indica el nivel; las ventajas van en insignias
+	draw_frame(self, Vector2.ZERO, current_radius, GameManager.base_shape())
 	draw_circle(Vector2.ZERO, current_radius, color)
 
-	# 6. Emblema distintivo procedural
-	if base_type == BaseType.FORTRESS:
-		var shield_y = current_radius * 0.44
-		var s_pts = PackedVector2Array([
-			Vector2(-8, shield_y - 6),
-			Vector2(8, shield_y - 6),
-			Vector2(8, shield_y + 1),
-			Vector2(0, shield_y + 8),
-			Vector2(-8, shield_y + 1)
-		])
-		draw_colored_polygon(s_pts, Color(1, 1, 1, 0.35))
-		draw_polyline(s_pts, Color.WHITE, 1.6, true)
-	elif base_type == BaseType.FACTORY:
-		var gear_y = current_radius * 0.44
-		draw_arc(Vector2(0, gear_y), 6.0, 0, TAU, 16, Color(1, 1, 1, 0.45), 2.0, true)
-		draw_circle(Vector2(0, gear_y), 2.2, Color(1, 1, 1, 0.55))
+	# 5. Símbolo de facción sólo en modo daltónico (el color ya distingue los bandos)
+	if GameManager.settings.get("colorblind", false):
+		draw_faction_symbol(self, Vector2(0, -current_radius * 0.62), 5.5, faction)
 
-	# 7. Símbolo de facción (accesibilidad para daltonismo: no depender sólo del color)
-	draw_faction_symbol(self, Vector2(0, -current_radius * 0.62), 5.5, faction)
+	# 6. Anillo de capacidad (se cierra al llenarse) y producción en órbita
+	if faction != GameManager.Faction.NEUTRAL:
+		_draw_capacity_ring(current_radius + RING_GAP)
 
-	# 8. Indicadores de Tier (pips redondeados en la parte superior)
-	var pip_spacing = 16.0
-	var start_x = -((tier - 1) * pip_spacing) / 2.0
-	for i in tier:
-		draw_circle(Vector2(start_x + i * pip_spacing, -current_radius - 12.0), 4.5, Color.WHITE)
+	# 7. Insignias de ventaja en el borde superior derecho
+	var badge_angle := -PI * 0.25
+	var badge_step: float = (BADGE_RADIUS * 2.0 + 10.0) / (current_radius + 4.0)
+	for key in _badge_keys():
+		_draw_badge(Vector2.from_angle(badge_angle) * (current_radius + 4.0), key)
+		badge_angle += badge_step
 
-	# 9. Base llena: deja de reclutar, anillo completo para que se note
-	if is_full():
-		draw_arc(Vector2.ZERO, current_radius + 2.5, 0, TAU, 48, Color(1, 1, 1, 0.9), 3.0, true)
-
-	# 10. Alerta Visual de Asedio Inminente
+	# 8. Alerta Visual de Asedio Inminente
 	if is_under_siege:
 		_draw_siege_alert(current_radius)
 
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	_draw_float_texts()
+
+func _draw_capacity_ring(r: float) -> void:
+	var fill := clampf(troops / float(max_capacity), 0.0, 1.0)
+	draw_arc(Vector2.ZERO, r, 0, TAU, 56, Color(1, 1, 1, 0.16), 4.0, true)
+	if fill >= 1.0:
+		draw_arc(Vector2.ZERO, r, 0, TAU, 56, Color(1, 1, 1, 0.22), 10.0, true)
+		draw_arc(Vector2.ZERO, r, 0, TAU, 56, Color.WHITE, 4.0, true)
+	elif fill > 0.0:
+		draw_arc(Vector2.ZERO, r, -PI * 0.5, -PI * 0.5 + TAU * fill, 56, Color(1, 1, 1, 0.85), 4.0, true)
+	if is_producing():
+		var color := GameManager.faction_color(faction)
+		for k in 2:
+			var p := Vector2.from_angle(orbit_angle + k * PI) * r
+			draw_circle(p, 9.0, Color(0, 0, 0, 0.35))
+			draw_circle(p, 7.5, Color.WHITE)
+			draw_circle(p, 4.0, color)
+
+func _badge_keys() -> PackedStringArray:
+	var keys: PackedStringArray = []
+	if is_boss:
+		keys.append("boss")
+	if is_capital:
+		keys.append("capital")
+	match base_type:
+		BaseType.FACTORY:
+			keys.append("factory")
+		BaseType.FORTRESS:
+			keys.append("fortress")
+	return keys
+
+func _draw_badge(c: Vector2, key: String) -> void:
+	var style: Array = BADGES[key]
+	draw_circle(c + Vector2(0, 3), BADGE_RADIUS + 3.0, Color(0, 0, 0, 0.3))
+	draw_circle(c, BADGE_RADIUS + 3.0, Color.WHITE)
+	draw_circle(c, BADGE_RADIUS, style[1])
+	if key == "boss":
+		_draw_crown(c + Vector2(0, 2), 13.0)
+	else:
+		var size := BADGE_RADIUS * 1.35
+		draw_texture_rect(Icons.texture(style[0], 32), Rect2(c - Vector2(size, size) * 0.5, Vector2(size, size)), false, style[2])
 
 func _draw_float_texts() -> void:
 	var font := UIThemeHelper.bold_font()
@@ -456,12 +475,6 @@ func _draw_float_texts() -> void:
 		var alpha := 1.0 - smoothstep(0.6, 1.0, k)
 		draw_string_outline(font, pos, ft["text"], HORIZONTAL_ALIGNMENT_CENTER, 400, 28, 8, Color(0, 0, 0, 0.75 * alpha))
 		draw_string(font, pos, ft["text"], HORIZONTAL_ALIGNMENT_CENTER, 400, 28, Color(ft["color"], alpha))
-
-func _draw_star(c: Vector2, r: float) -> void:
-	var pts := PackedVector2Array()
-	for i in 10:
-		pts.append(c + Vector2.from_angle(-PI * 0.5 + i * PI / 5.0) * (r if i % 2 == 0 else r * 0.45))
-	draw_colored_polygon(pts, MARKER_GOLD)
 
 func _draw_crown(c: Vector2, r: float) -> void:
 	var pts := PackedVector2Array([c + Vector2(-r, r * 0.6), c + Vector2(-r, -r * 0.5), c + Vector2(-r * 0.5, 0),

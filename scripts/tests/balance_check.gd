@@ -203,6 +203,14 @@ func _check_ui() -> void:
 			add_child(battle)
 			battle.set_simulation_paused(true)
 			await _snapshot("battle_%s_%s" % [lang, str(light)])
+			# Columnas en marcha: un ataque propio y un contraataque enemigo
+			var home: BaseNode = battle.bases.filter(func(b): return b.faction == GameManager.Faction.PLAYER)[0]
+			var rival: BaseNode = battle.bases.filter(func(b): return b.faction == GameManager.Faction.ENEMY_1)[0]
+			var neutral: BaseNode = battle.bases.filter(func(b): return b.faction == GameManager.Faction.NEUTRAL)[0]
+			_require(battle.dispatch_troops(home, neutral) and battle.dispatch_troops(rival, home), "Se lanzan columnas para la captura")
+			for t in battle.active_troops:
+				t.advance(0.55)
+			await _snapshot("march_%s_%s" % [lang, str(light)])
 			var hud: BattleHUD = battle.get_node("BattleHUD")
 			hud.dim_overlay.show()
 			hud.pause_panel.show()

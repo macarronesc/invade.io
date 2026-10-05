@@ -2067,7 +2067,7 @@ func test_hud_force_counters() -> void:
 	battle.bases.append_array([b_player, b_enemy, b_neutral])
 
 	hud._update_dominance_bar()
-	assert_true(hud.label_count_player.text.contains("35") and hud.label_count_player.text.contains(GameManager.faction_name(GameManager.Faction.PLAYER)), "El jugador se ve como 'Tú' con sus tropas")
+	assert_equals(hud.label_count_player.text, "35", "Las tropas del jugador se ven dentro de su segmento")
 	assert_true(hud.label_count_enemy.text.contains("20"), "Contador enemigo en vivo")
 	assert_true(hud.label_count_neutral.text.contains("15"), "Contador neutral en vivo")
 	assert_equals(hud.bar_player.size_flags_stretch_ratio, 35.0, "El segmento del jugador es proporcional a sus tropas")
@@ -2077,7 +2077,7 @@ func test_hud_force_counters() -> void:
 	var b_enemy2 = _make_base(Vector2.ZERO, GameManager.Faction.ENEMY_2, 12)
 	battle.bases.append(b_enemy2)
 	hud._update_dominance_bar()
-	assert_true(hud.label_count_enemy.text.contains("20") and hud.label_count_enemy.text.contains("12"), "Se listan todos los rivales activos")
+	assert_true(hud.label_count_enemy.text.contains("20") and hud._faction_labels[GameManager.Faction.ENEMY_2].text.contains("12"), "Cada rival activo muestra sus tropas")
 	assert_true(hud._faction_bars[GameManager.Faction.ENEMY_2].visible, "Un nuevo rival aparece en la barra")
 
 	remove_child(hud)

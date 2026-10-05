@@ -195,16 +195,7 @@ func _draw() -> void:
 	for poly in land:
 		draw_polyline(_closed(poly), coast_color, 2.0, true)
 
-	# 4. Auras de influencia de las capitales territoriales
-	for cell in cells:
-		if cell.pieces.is_empty():
-			continue
-		var fill_col = cell.current_color
-		var r = cell.base_node.radius
-		draw_circle(cell.capital_pos, r * 2.1, Color(fill_col, 0.08))
-		draw_arc(cell.capital_pos, r * 1.6, 0, TAU, 32, Color(1, 1, 1, 0.10), 1.5, true)
-
-	# 5. Fronteras territoriales por pasadas (sombra, trazo nítido y acento de facción) para que
+	# 4. Fronteras territoriales por pasadas (sombra, trazo nítido y acento de facción) para que
 	#    la sombra de una celda no tape el borde de su vecina
 	for cell in cells:
 		for piece in cell.pieces:
@@ -217,7 +208,7 @@ func _draw() -> void:
 		for piece in cell.pieces:
 			draw_polyline(_closed(piece), accent_col, 1.4, true)
 
-	# 6. Marco perimetral (sólo en el mapa abstracto sin geografía)
+	# 5. Marco perimetral (sólo en el mapa abstracto sin geografía)
 	if land.is_empty():
 		draw_rect(map_bounds, Color(1.0, 1.0, 1.0, 0.15), false, 2.5)
 

@@ -14,9 +14,13 @@ const PACKET_UNITS: int = 5
 const MAX_PACKETS: int = 8
 const BASE_SPEED: float = 380.0
 const DOT_RADIUS: float = 5.5
-## Puntos de un paquete: centro y un anillo algo irregular (se llenan en este orden)
-const DOT_LAYOUT: Array[Vector2] = [Vector2(0, 0), Vector2(11, -2), Vector2(3, 10), Vector2(-9, 6),
-	Vector2(-10, -5), Vector2(-2, -11), Vector2(9, -10)]
+## Cada paquete se dibuja repartido por todo su hueco de PACKET_SPACING en varias filas
+## paralelas: los paquetes consecutivos se leen como una sola columna continua.
+## Puntos dibujados por unidad y por paquete (el número exacto lo da la insignia de cabeza):
+## los ejércitos grandes forman columnas más densas y anchas (hasta 5 filas).
+const DOTS_PER_UNIT: int = 2
+const MAX_DOTS: int = 18
+const ROW_GAP: float = 13.0
 
 var origin_base: BaseNode
 var target_base: BaseNode
@@ -253,41 +257,84 @@ func _draw() -> void:
 	if pending > 0 and not is_retreating and is_instance_valid(origin_base):
 		var r := origin_base.radius + 10.0
 		draw_arc(origin_local, r, -PI * 0.5, -PI * 0.5 + TAU * pending / float(_launched), 40, Color(color, 0.9), 5.0, true)
+	# Las unidades brotan del borde de la base y la columna se estrecha al entrar en el objetivo
+	var emerge := origin_base.radius if is_instance_valid(origin_base) else 40.0
+	var side := Vector2(-move_dir.y, move_dir.x) * (1.25 if style == "troop_big" else 1.0)
+	var bob := 0.0 if GameManager.settings["reduced_motion"] else head_dist * 0.06
 	for i in range(f, packets.size()):
 		var v := packets[i]
 		if v <= 0:
 			continue
 		var dist := packet_dist(i)
-		if dist < 0.0:
+		if dist + PACKET_SPACING * 0.5 < emerge:
 			break
-		# Aparece al salir y se encoge al llegar
-		var s := 1.0
-		if dist < 25.0:
-			s = clampf(dist / 25.0, 0.3, 1.0)
-		elif dist > arrival_dist - 15.0:
-			s = clampf((arrival_dist - dist) / 15.0, 0.2, 1.0)
-		var center := origin_local + move_dir * dist
-		draw_packet(self, center, v, color, style, s, i * 1.1)
-		BaseNode.draw_faction_symbol(self, center, 3.5 * s, faction)
-		# Las cantidades grandes se representan con pocos puntos y su cantidad real.
-		if v > DOT_LAYOUT.size():
-			var pos := center + Vector2(-24, -26)
-			var font := UIThemeHelper.bold_font()
-			draw_string_outline(font, pos, str(v), HORIZONTAL_ALIGNMENT_CENTER, 48, 22, 5, Color(0, 0, 0, 0.85))
-			draw_string(font, pos, str(v), HORIZONTAL_ALIGNMENT_CENTER, 48, 22, Color.WHITE)
+		var dots := dots_for(v)
+		for j in dots:
+			var o := formation_offset(j, dots, i)
+			var d := dist + o.x
+			if d < emerge or d > arrival_dist:
+				continue
+			var s := clampf(minf(d - emerge, arrival_dist - d) / 30.0, 0.35, 1.0)
+			var lateral := o.y * s + sin(bob + j * 1.7 + i) * 1.4
+			draw_unit(self, origin_local + move_dir * d + side * lateral, DOT_RADIUS * s, color, style)
+	# Una sola insignia, por delante de la columna, con el total de la orden
+	var head := clampf(packet_dist(f) + PACKET_SPACING * 0.5 + 30.0, emerge + 30.0, arrival_dist)
+	draw_count_badge(self, origin_local + move_dir * head, count, color, faction)
 
-## Paquete con el estilo de la tienda (también lo usa la vista previa de Ejército).
-## Hasta 7 puntos; los paquetes con más unidades tienen puntos algo más grandes.
-static func draw_packet(canvas: CanvasItem, pos: Vector2, units: int, color: Color, style: String, s: float = 1.0, angle: float = 0.0) -> void:
-	var r := DOT_RADIUS * s * (1.0 + 0.06 * clampi(units - DOT_LAYOUT.size(), 0, 10))
-	var spread := s * (1.2 if style == "troop_big" else 1.0)
+static func dots_for(units: int) -> int:
+	return mini(units * DOTS_PER_UNIT, MAX_DOTS)
+
+## Posición del punto j de un paquete con `dots` puntos: (avance, desplazamiento lateral).
+## Ocupan todo el hueco del paquete y se reparten en 2–5 filas según cuántos sean.
+static func formation_offset(j: int, dots: int, seed: int = 0) -> Vector2:
+	var rows := clampi(roundi(dots / 3.5), mini(dots, 3), 5)
+	var row := j % rows
+	@warning_ignore("integer_division")
+	var k := j / rows
+	# Cada fila reparte sus puntos a paso constante por todo el hueco (sin huecos entre paquetes);
+	# las filas alternas van al tresbolillo para que parezca una tropa compacta
+	var in_row := ceili((dots - row) / float(rows))
+	var phase := 0.5 if row % 2 == 0 else 0.0
+	var axial := PACKET_SPACING * (0.5 - (k + phase) / in_row)
+	var lateral := (row - (rows - 1) * 0.5) * ROW_GAP
+	# Pequeña irregularidad fija por punto para que no parezca una rejilla perfecta
+	var h := hash(seed * 31 + j)
+	return Vector2(axial + (h % 5 - 2) * 0.7, lateral + ((h >> 3) % 3 - 1) * 0.7)
+
+static func draw_unit(canvas: CanvasItem, p: Vector2, r: float, color: Color, style: String) -> void:
 	if style == "troop_big":
 		r *= 1.3
 	if style == "troop_halo":
-		canvas.draw_circle(pos, (PACKET_RADIUS + 4.0) * s, Color(color, 0.22))
-	var dots := mini(units, DOT_LAYOUT.size())
-	for i in dots:
-		var p := pos + DOT_LAYOUT[i].rotated(angle) * spread
-		canvas.draw_circle(p + Vector2(0, 2.0), r, Color(0, 0, 0, 0.25))
-		canvas.draw_circle(p, r + 1.4, Color.WHITE)
-		canvas.draw_circle(p, r, color)
+		canvas.draw_circle(p, r * 2.0, Color(color, 0.2))
+	canvas.draw_circle(p, r + 1.3, Color.WHITE)
+	canvas.draw_circle(p, r, color)
+
+static var _badge_box: StyleBoxFlat
+
+## Píldora con el número de tropas de la columna (y el símbolo del bando en modo daltónico)
+static func draw_count_badge(canvas: CanvasItem, center: Vector2, n: int, color: Color, owner: int) -> void:
+	if _badge_box == null:
+		_badge_box = UIThemeHelper.box(Color.WHITE, 17, 0)
+		_badge_box.set_border_width_all(3)
+		_badge_box.border_color = Color.WHITE
+	_badge_box.bg_color = color.darkened(0.15)
+	var font := UIThemeHelper.bold_font()
+	var text := str(n)
+	var symbol: bool = GameManager.settings.get("colorblind", false)
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + (46.0 if symbol else 26.0)
+	var rect := Rect2(center - Vector2(w * 0.5, 17.0), Vector2(w, 34.0))
+	canvas.draw_style_box(_badge_box, rect)
+	var x := rect.position.x
+	if symbol:
+		BaseNode.draw_faction_symbol(canvas, Vector2(x + 18.0, center.y), 6.0, owner)
+		x += 18.0
+	var baseline := center.y + (font.get_ascent(24) - font.get_descent(24)) * 0.5
+	canvas.draw_string(font, Vector2(x, baseline), text, HORIZONTAL_ALIGNMENT_CENTER, rect.end.x - x, 24, Color.WHITE)
+
+## Paquete en formación con el estilo de la tienda (vista previa de Ejército)
+static func draw_packet(canvas: CanvasItem, pos: Vector2, units: int, color: Color, style: String, s: float = 1.0, angle: float = 0.0) -> void:
+	var dots := dots_for(units)
+	var spread := 1.25 if style == "troop_big" else 1.0
+	for j in dots:
+		var o := formation_offset(j, dots)
+		draw_unit(canvas, pos + Vector2(o.x, o.y * spread).rotated(angle) * s, DOT_RADIUS * s, color, style)

@@ -186,7 +186,7 @@ class CosmeticPreview extends Control:
 			_:
 				var style: String = item["id"] if item["category"] == "troop_style" else GameManager.troop_style()
 				_base(c + Vector2(-60, 0), 30.0, player, GameManager.base_shape())
-				Troop.draw_packet(self, c + Vector2(30, 0), 7, player, style, 1.3)
+				Troop.draw_packet(self, c + Vector2(30, 0), 12, player, style, 1.3)
 
 	func _base(pos: Vector2, r: float, color: Color, shape: String) -> void:
 		BaseNode.draw_frame(self, pos, r, shape)

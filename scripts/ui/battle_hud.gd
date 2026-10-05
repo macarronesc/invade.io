@@ -1,19 +1,21 @@
 extends CanvasLayer
 class_name BattleHUD
 
-## BattleHUD: cabecera de batalla (pausa, nivel, reloj de estrellas, bases controladas, objetivo
-## de medalla y fuerza de cada bando) y las capas de pausa, victoria y derrota. La victoria
+## BattleHUD: cabecera de batalla en dos filas (pausa, nivel con una línea de contexto y reloj de
+## estrellas; debajo, la barra de fuerzas con las tropas de cada bando) y las capas de pausa, victoria y derrota. La victoria
 ## cierra con el progreso ganado y un único siguiente objetivo.
 
 const DOMINANCE_UPDATE_INTERVAL := 0.1
-const ENEMY_FACTIONS = [GameManager.Faction.ENEMY_1, GameManager.Faction.ENEMY_2, GameManager.Faction.ENEMY_3]
 const XP_BAR_SECONDS := 0.8
+## Segundos iniciales en los que la regla del nivel tiene prioridad sobre la cuenta atrás de apertura
+const RULE_INTRO_SECONDS := 8.0
+## Un segmento más estrecho que esta fracción de la barra no muestra su número
+const MIN_LABEL_SHARE := 0.08
 
 @export var battle_controller: BattleController
 
 @onready var top_bar: Control = $TopBar
 @onready var label_level_name: Label = %LevelNameLabel
-@onready var label_rule: Label = %RuleLabel
 @onready var label_target_time: Label = %TargetTimeLabel
 @onready var bar_player: ColorRect = %BarPlayer
 @onready var bar_enemy: ColorRect = %BarEnemy
@@ -21,7 +23,6 @@ const XP_BAR_SECONDS := 0.8
 @onready var label_count_player: Label = %LabelCountPlayer
 @onready var label_count_enemy: Label = %LabelCountEnemy
 @onready var label_count_neutral: Label = %LabelCountNeutral
-@onready var bases_label: Label = %BasesLabel
 @onready var objective_label: Label = %ObjectiveLabel
 @onready var dim_overlay: ColorRect = %DimOverlay
 
@@ -71,6 +72,9 @@ const XP_BAR_SECONDS := 0.8
 var confetti_pieces: Array = []
 var _star_tweens: Array[Tween] = []
 var _faction_bars: Dictionary = {}
+var _faction_labels: Dictionary = {}
+## Regla o pista del nivel (se muestra en la línea de contexto y en la pausa)
+var _rule_text := ""
 var _dominance_timer: float = 0.0
 var _tip_panel: Control = null
 var _tip_on_close: Callable = Callable()
@@ -160,31 +164,34 @@ func _apply_texts() -> void:
 	btn_pause_map.text = LocaleStrings.text("exit")
 	btn_pause.tooltip_text = LocaleStrings.text("pause")
 
-## Un segmento de la barra de fuerzas por facción (las enemigas 2 y 3 se crean aquí).
-## Cada segmento ocupa una parte del ancho proporcional a sus tropas (stretch ratio).
+## Un segmento de la barra de fuerzas por facción con sus tropas dentro (las enemigas 2 y 3 se
+## crean aquí). Cada segmento ocupa una parte del ancho proporcional a sus tropas (stretch ratio).
 func _build_faction_bars() -> void:
 	_faction_bars = {
 		GameManager.Faction.PLAYER: bar_player,
 		GameManager.Faction.NEUTRAL: bar_neutral,
 		GameManager.Faction.ENEMY_1: bar_enemy,
 	}
+	_faction_labels = {
+		GameManager.Faction.PLAYER: label_count_player,
+		GameManager.Faction.NEUTRAL: label_count_neutral,
+		GameManager.Faction.ENEMY_1: label_count_enemy,
+	}
 	for f in [GameManager.Faction.ENEMY_2, GameManager.Faction.ENEMY_3]:
-		var bar := ColorRect.new()
+		var bar := bar_enemy.duplicate() as ColorRect
 		bar.name = "BarEnemy%d" % f
-		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bar.unique_name_in_owner = false
+		bar.get_child(0).unique_name_in_owner = false
 		bar.visible = false
 		bar_enemy.get_parent().add_child(bar)
 		_faction_bars[f] = bar
+		_faction_labels[f] = bar.get_child(0)
 	_refresh_palette()
 
 ## Colores que no vienen del tema (se repite al cambiar a modo claro u oscuro)
 func _refresh_palette() -> void:
 	for faction in _faction_bars:
 		_faction_bars[faction].color = GameManager.faction_color(faction)
-	label_count_player.add_theme_color_override("font_color", UIThemeHelper.colors.text)
-	label_count_enemy.add_theme_color_override("font_color", UIThemeHelper.colors.text)
-	label_rule.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
 	victory_reward_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
 	stat_cities_value.add_theme_color_override("font_color", UIThemeHelper.colors.primary)
 	medal_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
@@ -249,10 +256,9 @@ func _on_battle_started(level_id: String) -> void:
 	var data := LevelDatabase.get_level_data(level_id)
 	_opening_grace = LevelDatabase.get_balance(level_id)["grace"]
 	label_level_name.text = data["name"]
-	label_rule.text = CampaignRules.description(data).strip_edges().get_slice("\n", 0)
+	_rule_text = CampaignRules.description(data).strip_edges().get_slice("\n", 0)
 	if level_id == "europe_4":
-		label_rule.text = LocaleStrings.text("hint_factory")
-	label_rule.visible = label_rule.text != ""
+		_rule_text = LocaleStrings.text("hint_factory")
 	pause_rule.text = CampaignRules.description(data).strip_edges()
 	if data.has("objective"):
 		pause_rule.text += "\n" + LocaleStrings.text("daily_objective") % (LocaleStrings.text(data["objective"]) % int(data["hold_seconds"]))
@@ -273,26 +279,30 @@ func _introduce_rivals() -> void:
 			GameManager.mark_tip_seen(tip)
 			Toasts.show_toast("⚔️", "%s · %s" % [GameManager.faction_name(ai.faction), LocaleStrings.text(tip + "_t")], LocaleStrings.text(tip + "_b"), true)
 
-## Objetivo secundario seguido: la medalla de dominio (no perder ninguna base)
+## Una sola línea de contexto bajo el nombre del nivel, por prioridad: objetivo del diario,
+## regla del nivel al empezar, ventana de apertura, regla y, por último, la medalla de dominio
 func _update_objective() -> void:
-	if is_instance_valid(battle_controller) and battle_controller.level_data.has("objective"):
-		objective_label.visible = true
-		objective_label.text = battle_controller.objective_text()
-		objective_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
-		return
-	if is_instance_valid(battle_controller) and not battle_controller.is_game_over and not battle_controller.ai_controllers.is_empty():
-		var remaining := ceili(_opening_grace - battle_controller.battle_time)
-		if remaining > 0:
-			objective_label.visible = true
-			objective_label.text = LocaleStrings.text("opening_window") % remaining
-			objective_label.add_theme_color_override("font_color", UIThemeHelper.colors.success)
-			return
-	objective_label.visible = _medal_tracked
-	if not _medal_tracked:
-		return
-	var lost := is_instance_valid(battle_controller) and battle_controller.lost_a_base
-	objective_label.text = LocaleStrings.text("medal_lost" if lost else "medal_goal")
-	objective_label.add_theme_color_override("font_color", UIThemeHelper.colors.muted if lost else UIThemeHelper.colors.gold)
+	var valid := is_instance_valid(battle_controller)
+	var elapsed := battle_controller.battle_time if valid else 0.0
+	var remaining := 0
+	if valid and not battle_controller.is_game_over and not battle_controller.ai_controllers.is_empty():
+		remaining = ceili(_opening_grace - elapsed)
+	var text := ""
+	var color: Color = UIThemeHelper.colors.gold
+	if valid and battle_controller.level_data.has("objective"):
+		text = battle_controller.objective_text()
+	elif _rule_text != "" and (elapsed < RULE_INTRO_SECONDS or remaining <= 0):
+		text = _rule_text
+	elif remaining > 0:
+		text = LocaleStrings.text("opening_window") % remaining
+		color = UIThemeHelper.colors.success
+	elif _medal_tracked:
+		var lost := valid and battle_controller.lost_a_base
+		text = LocaleStrings.text("medal_lost" if lost else "medal_goal")
+		color = UIThemeHelper.colors.muted if lost else UIThemeHelper.colors.gold
+	objective_label.visible = text != ""
+	objective_label.text = text
+	objective_label.add_theme_color_override("font_color", color)
 
 func _process(delta: float) -> void:
 	if battle_controller:
@@ -321,23 +331,18 @@ func _update_target_time() -> void:
 	label_target_time.text = "★".repeat(stars) + (" %ds" % remaining if remaining >= 0 else "")
 	label_target_time.add_theme_color_override("font_color", UIThemeHelper.colors.gold if stars == 3 else UIThemeHelper.colors.gold.lerp(UIThemeHelper.colors.muted, 0.5 if stars == 2 else 1.0))
 
-## Bases controladas (el avance real) y reparto de tropas en juego de cada bando (las fuerzas)
+## Reparto de tropas en juego de cada bando, con el número dentro de su segmento
 func _update_dominance_bar() -> void:
-	var mine: int = battle_controller.bases.filter(func(b): return b.faction == GameManager.Faction.PLAYER).size()
-	bases_label.text = LocaleStrings.text("hud_bases") % [mine, battle_controller.bases.size()]
 	var counts: Dictionary = battle_controller.get_faction_troop_counts()
+	var total := 0
+	for f in _faction_bars:
+		total += counts.get(f, 0)
 	for f in _faction_bars:
 		var n: int = counts.get(f, 0)
 		_faction_bars[f].visible = n > 0
 		_faction_bars[f].size_flags_stretch_ratio = maxf(n, 0.001)
-	var player_count: int = counts.get(GameManager.Faction.PLAYER, 0)
-	label_count_player.text = LocaleStrings.text("forces_count") % [GameManager.faction_name(GameManager.Faction.PLAYER), player_count]
-	label_count_neutral.text = "%s %d" % [GameManager.faction_name(GameManager.Faction.NEUTRAL), counts.get(GameManager.Faction.NEUTRAL, 0)]
-	var enemy_parts: PackedStringArray = []
-	for f in ENEMY_FACTIONS:
-		if counts.get(f, 0) > 0 or f == GameManager.Faction.ENEMY_1:
-			enemy_parts.append("%s %d" % [GameManager.faction_name(f), counts.get(f, 0)])
-	label_count_enemy.text = " · ".join(enemy_parts)
+		_faction_labels[f].text = str(n)
+		_faction_labels[f].visible = n >= total * MIN_LABEL_SHARE
 
 func _update_confetti(delta: float) -> void:
 	if confetti_pieces.is_empty():

@@ -13,6 +13,7 @@ const SLOW_MOTION_TARGET: float = 0.28
 const SLOW_MOTION_SPEED: float = 2.5
 const SLICE_WIDTH := 6.5
 const CUT_FLASH_TIME := 0.35
+const CLASH_FLASH_TIME := 0.3
 const BOSS_INTERVAL := 18.0
 const BOSS_REINFORCEMENT := 10
 ## Segundos que se muestra la ficha de una base tras tocarla
@@ -38,6 +39,8 @@ var is_slicing: bool = false
 var slice_points: Array[Vector2] = []
 var slice_trail_segments: Array[Dictionary] = []
 var slice_cut_flash_effects: Array[Dictionary] = []
+## Chispas donde chocan columnas enemigas: {"pos", "timer"}
+var clash_flashes: Array[Dictionary] = []
 
 var is_game_over: bool = false
 var simulation_paused: bool = false
@@ -227,9 +230,13 @@ func _process(delta: float) -> void:
 		slice_cut_flash_effects[j]["timer"] -= delta
 		if slice_cut_flash_effects[j]["timer"] <= 0.0:
 			slice_cut_flash_effects.remove_at(j)
+	for k in range(clash_flashes.size() - 1, -1, -1):
+		clash_flashes[k]["timer"] -= delta
+		if clash_flashes[k]["timer"] <= 0.0:
+			clash_flashes.remove_at(k)
 
 	# Redibujar la capa de flechas sólo mientras haya algo que mostrar (y un último frame para limpiarla)
-	var overlay_active = is_dragging or is_slicing or _info_timer > 0.0 or not slice_trail_segments.is_empty() or not slice_cut_flash_effects.is_empty()
+	var overlay_active = is_dragging or is_slicing or _info_timer > 0.0 or not slice_trail_segments.is_empty() or not slice_cut_flash_effects.is_empty() or not clash_flashes.is_empty()
 	if overlay_active or _overlay_was_active:
 		if arrow_overlay:
 			arrow_overlay.queue_redraw()
@@ -402,6 +409,7 @@ func _resolve_crossing(t1: Troop, t2: Troop) -> void:
 
 func _clash(t1: Troop, i1: int, t2: Troop, i2: int) -> void:
 	var dmg = mini(t1.packets[i1], t2.packets[i2])
+	clash_flashes.append({"pos": (t1.packet_position(i1) + t2.packet_position(i2)) * 0.5, "timer": CLASH_FLASH_TIME})
 	t1.damage_packet(i1, dmg)
 	t2.damage_packet(i2, dmg)
 	AudioManager.play_troop_absorb(false)
@@ -832,6 +840,14 @@ func _draw_slice_overlay(canvas: CanvasItem) -> void:
 		canvas.draw_circle(f_pos, f_r * 0.5, Color(0.2, 0.85, 1.0, ratio * 0.9))
 		canvas.draw_line(f_pos - Vector2(f_r * 1.3, 0), f_pos + Vector2(f_r * 1.3, 0), Color.WHITE, 2.0, true)
 		canvas.draw_line(f_pos - Vector2(0, f_r * 1.3), f_pos + Vector2(0, f_r * 1.3), Color.WHITE, 2.0, true)
+
+	for clash in clash_flashes:
+		var c_pos = canvas.to_local(clash["pos"])
+		var k = 1.0 - clash["timer"] / CLASH_FLASH_TIME
+		canvas.draw_arc(c_pos, 10.0 + k * 26.0, 0, TAU, 24, Color(1.0, 0.9, 0.6, 1.0 - k), 3.0, true)
+		for s in 6:
+			var dir = Vector2.from_angle(s * TAU / 6.0 + 0.4)
+			canvas.draw_line(c_pos + dir * (6.0 + k * 18.0), c_pos + dir * (14.0 + k * 26.0), Color(1, 1, 1, 1.0 - k), 3.0, true)
 
 func _draw() -> void:
 	_draw_sea_lanes()

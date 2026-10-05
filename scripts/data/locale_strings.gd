@@ -190,8 +190,6 @@ const STRINGS := {
 	"perk_factory": ["Fábrica ×2,5 producción", "Factory ×2.5 production"],
 	"perk_fortress": ["Fortaleza ×2 defensa", "Fortress ×2 defense"],
 	"base_lost": ["Base perdida", "Base lost"],
-	"hud_bases": ["Bases %d/%d", "Bases %d/%d"],
-	"forces_count": ["Tropas: %s %d", "Troops: %s %d"],
 	"medal_goal": ["💎 Medalla: no pierdas bases", "💎 Medal: lose no bases"],
 	"medal_lost": ["💎 Medalla perdida", "💎 Medal lost"],
 	"medal_won": ["💎 Medalla de dominio", "💎 Domination medal"],
