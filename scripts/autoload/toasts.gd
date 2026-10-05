@@ -7,7 +7,7 @@ extends CanvasLayer
 const SHOW_SECONDS := 2.6
 const SLIDE_SECONDS := 0.25
 const TOP_MARGIN := 36.0
-const WIDTH := 880.0
+const WIDTH := 680.0
 
 var _queue: Array[Dictionary] = []
 var _showing: bool = false
@@ -18,8 +18,8 @@ func _ready() -> void:
 	layer = 100
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	EventBus.achievement_unlocked.connect(_on_achievement_unlocked)
-	EventBus.battle_won.connect(_flush.unbind(1), CONNECT_DEFERRED)
-	EventBus.battle_lost.connect(_flush, CONNECT_DEFERRED)
+	EventBus.battle_won.connect(flush.unbind(1), CONNECT_DEFERRED)
+	EventBus.battle_lost.connect(flush, CONNECT_DEFERRED)
 	GameManager.save_status_changed.connect(_on_save_status_changed)
 	if GameManager.save_error != OK or GameManager.save_recovered:
 		_on_save_status_changed.call_deferred()
@@ -33,7 +33,7 @@ func _on_save_status_changed() -> void:
 
 func _on_achievement_unlocked(id: String) -> void:
 	var a := AchievementDatabase.get_by_id(id)
-	show_toast(a.get("icon", "🏆"), LocaleStrings.text("toast_achievement"), AchievementDatabase.achievement_title(a))
+	show_toast("trophy", LocaleStrings.text("toast_achievement"), AchievementDatabase.achievement_title(a))
 
 func show_toast(icon: String, title: String, body: String, during_battle: bool = false) -> void:
 	_queue.append({"icon": icon, "title": title, "body": body})
@@ -43,7 +43,7 @@ func show_toast(icon: String, title: String, body: String, during_battle: bool =
 	if not _showing:
 		_show_next()
 
-func _flush() -> void:
+func flush() -> void:
 	if not _showing:
 		_show_next()
 
@@ -53,16 +53,19 @@ func _show_next() -> void:
 		return
 	_showing = true
 	var data: Dictionary = _queue.pop_front()
-	var card := _build_card(data)
+	var view_w := get_viewport().get_visible_rect().size.x
+	var width := minf(WIDTH, view_w - UIThemeHelper.PAGE_MARGIN * 2)
+	var card := _build_card(data, width)
 	add_child(card)
 	if DisplayServer.get_name() == "headless":
 		card.queue_free()
 		_show_next.call_deferred()
 		return
 	AudioManager.play_star_reveal(2)
-	var view_w := card.get_viewport_rect().size.x
+	card.custom_minimum_size.x = width
+	card.size = card.get_combined_minimum_size()
 	var top := TOP_MARGIN + UIThemeHelper.get_safe_area_top(card)
-	card.position = Vector2((view_w - WIDTH) * 0.5, -220.0)
+	card.position = Vector2((view_w - width) * 0.5, -220.0)
 	if GameManager.settings["reduced_motion"]:
 		card.position.y = top
 	var t := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -76,21 +79,23 @@ func _show_next() -> void:
 		_show_next()
 	)
 
-func _build_card(data: Dictionary) -> PanelContainer:
+func _build_card(data: Dictionary, width: float = WIDTH) -> PanelContainer:
 	var card := PanelContainer.new()
-	card.theme_type_variation = "Sheet"
-	card.custom_minimum_size = Vector2(WIDTH, 0)
+	card.theme_type_variation = "Tile"
+	card.custom_minimum_size = Vector2(width, 0)
 	var row := UIThemeHelper.hbox(28)
 	card.add_child(row)
-	var icon := UIThemeHelper.label(data["icon"], "Title")
-	icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var icon: Control = Icons.rect("trophy", 48, UIThemeHelper.colors.gold) if data["icon"] == "trophy" else UIThemeHelper.label(data["icon"], "Heading")
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(icon)
 	var texts := UIThemeHelper.vbox(4)
 	texts.alignment = BoxContainer.ALIGNMENT_CENTER
 	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(texts)
 	texts.add_child(UIThemeHelper.label(data["title"], "Caption", UIThemeHelper.colors.gold))
-	texts.add_child(UIThemeHelper.paragraph(data["body"], "Heading"))
+	var body := UIThemeHelper.paragraph(data["body"], "Heading")
+	body.custom_minimum_size.x = width - 116
+	texts.add_child(body)
 	# El aviso nunca debe tapar botones (p. ej. la pausa, justo debajo)
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for c in card.find_children("*", "Control", true, false):

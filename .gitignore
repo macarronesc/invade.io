@@ -2,6 +2,8 @@
 .godot/
 /android/
 /build/
+ios/plugins/backup_file_picker/BackupFilePicker.a
+ios/plugins/backup_file_picker/BackupFilePicker.gdip
 docs/PLAN_MAESTRO_STATE_IO.md
 
 # Caché de descargas de tools/build_geo_data.py

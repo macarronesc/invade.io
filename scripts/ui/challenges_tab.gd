@@ -18,7 +18,6 @@ func _ready() -> void:
 
 func _build() -> void:
 	GameManager.ensure_missions()
-	GameManager.save_game()
 	_day = int(GameManager.missions["day"])
 	UIThemeHelper.section(content, LocaleStrings.text("tab_challenges"), LocaleStrings.text("challenges_sub"))
 	_build_reward()

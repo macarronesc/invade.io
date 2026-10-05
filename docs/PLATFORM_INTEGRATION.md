@@ -4,7 +4,7 @@
 
 El preset iOS y `.github/workflows/build-ios.yml` generan una IPA sin firmar para SideStore,
 con identificador `io.github.macarronesc.invadeio`; el Team ID es un marcador, no una credencial.
-No contiene plugins nativos, credenciales ni configuración de servicios de tienda.
+El único plugin nativo es el selector de copias iOS; no hay credenciales ni servicios de tienda.
 No se muestran botones de conexión que simulen servicios inexistentes.
 El lanzamiento previsto es Android e iOS, sin backend. Ajustes muestra el estado real del
 guardado local, su alcance y la posibilidad de perderlo al desinstalar; no promete nube.
@@ -26,6 +26,8 @@ Sí está implementada la base de persistencia:
   valida los campos, conserva una copia del progreso anterior y revierte el estado
   en memoria si falla la escritura. La interfaz exige confirmación.
 - La restauración está deshabilitada durante una batalla para no mezclar dos partidas.
+- Las copias manuales usan el selector SAF nativo de Android y `UIDocumentPicker` en iOS.
+  En macOS, ejecuta `bash scripts/build_ios_backup_picker.sh` antes de exportar el preset iOS.
 
 La vibración usa `Input.vibrate_handheld()` con intensidad validada y persistente, pulsos
 de 20–120 ms y un límite de repetición. Una acción combinada emite un solo pulso; uno más
@@ -45,7 +47,7 @@ son una autoridad segura para clasificaciones competitivas.
 1. Confirmar los identificadores de publicación Android/iOS y configurar su firma real.
 2. Configurar las aplicaciones en Google Play Console y App Store Connect, con
    cuentas de prueba, firma y habilitación de Play Games / Game Center.
-3. Elegir plugins compatibles con **Godot 4.7 y los SDK móviles actuales**, fijar sus
+3. Elegir plugins online compatibles con **Godot 4.7 y los SDK móviles actuales**, fijar sus
    versiones y validar sus APIs antes de escribir adaptadores. No se han añadido
    clases genéricas ni métodos imaginarios para plugins aún no elegidos.
 4. Crear los identificadores reales de clasificación y acordar la puntuación.
@@ -81,8 +83,7 @@ Para futuras integraciones online (fuera de esta versión):
 - Guardado en dos dispositivos, conflicto, versión antigua y descarga interrumpida.
 - Permiso de avisos denegado/revocado, cambio de huso horario y reinstalación.
 - Abrir la app desde un aviso y no reclamar recompensas automáticamente.
-- Compartir mediante portapapeles y probar acceso a archivos/exportación en el
-  sandbox Android/iOS (los diálogos de archivos se han validado sólo en escritorio).
+- Probar acceso y escritura de copias en el sandbox Android/iOS en dispositivos reales.
 
-Hasta disponer de estos datos y dispositivos, el punto 11 sigue pendiente; el juego
-permanece funcional offline y sin dependencias nativas nuevas.
+Hasta disponer de estos datos y dispositivos, las integraciones online siguen pendientes;
+el juego permanece funcional offline.

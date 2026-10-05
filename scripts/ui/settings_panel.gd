@@ -12,6 +12,10 @@ var _save_retry: Button
 var _vibration_slider: HSlider
 var _vibration_test: Button
 
+const BACKUP_FILTER := "*.json ; invade.io ; application/json"
+const IOS_IMPORT_PATH := "user://backup_import.json"
+const IOS_EXPORT_PATH := "user://backup_export.json"
+
 func _ready() -> void:
 	_build()
 	GameManager.save_status_changed.connect(_refresh_save_status)
@@ -81,6 +85,7 @@ func _build() -> void:
 		_button("reset", _confirm_reset, "close")
 		_status = UIThemeHelper.paragraph("")
 		_group.add_child(_status)
+	UIThemeHelper.pass_scroll_events(_content)
 
 func _refresh_save_status() -> void:
 	var key := "save_local_ok"
@@ -153,11 +158,26 @@ func _slider(key: String) -> HSlider:
 	return slider
 
 func _choose_file(importing: bool) -> void:
+	if OS.has_feature("ios"):
+		_choose_ios_file(importing)
+		return
+	if OS.has_feature("android"):
+		var title := LocaleStrings.text("backup_import" if importing else "backup_export")
+		var mode := DisplayServer.FILE_DIALOG_MODE_OPEN_FILE if importing else DisplayServer.FILE_DIALOG_MODE_SAVE_FILE
+		var path := "" if importing else "invade-backup.json"
+		var error := DisplayServer.file_dialog_show(title, OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS), path, false, mode,
+			PackedStringArray(["application/json"]), _on_android_file_selected.bind(importing))
+		if error != OK:
+			_show_result(error)
+		return
+	_choose_desktop_file(importing)
+
+func _choose_desktop_file(importing: bool) -> void:
 	var dialog := FileDialog.new()
-	dialog.use_native_dialog = true
 	dialog.access = FileDialog.ACCESS_FILESYSTEM
+	dialog.use_native_dialog = true
 	dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE if importing else FileDialog.FILE_MODE_SAVE_FILE
-	dialog.filters = PackedStringArray(["*.json ; invade.io"])
+	dialog.filters = PackedStringArray([BACKUP_FILTER])
 	dialog.current_file = "invade-backup.json"
 	dialog.file_selected.connect(func(path):
 		if importing:
@@ -169,13 +189,65 @@ func _choose_file(importing: bool) -> void:
 	add_child(dialog)
 	dialog.popup_centered_ratio(0.8)
 
-func _confirm_import(path: String) -> void:
+func _on_android_file_selected(ok: bool, paths: PackedStringArray, _filter: int, importing: bool) -> void:
+	if not ok or paths.is_empty():
+		return
+	if importing:
+		_confirm_import(paths[0])
+	else:
+		_show_result(_write_backup(paths[0]))
+
+func _choose_ios_file(importing: bool) -> void:
+	if not Engine.has_singleton("BackupFilePicker"):
+		_show_result(ERR_UNAVAILABLE)
+		return
+	var picker: Object = Engine.get_singleton("BackupFilePicker")
+	if importing:
+		var path := ProjectSettings.globalize_path(IOS_IMPORT_PATH)
+		DirAccess.remove_absolute(path)
+		picker.connect("file_selected", func(selected_path): _confirm_import(selected_path, true), CONNECT_ONE_SHOT)
+		picker.connect("canceled", func(): DirAccess.remove_absolute(path), CONNECT_ONE_SHOT)
+		picker.connect("failed", func():
+			DirAccess.remove_absolute(path)
+			_show_result(ERR_CANT_OPEN), CONNECT_ONE_SHOT)
+		picker.call("pick_open", path)
+		return
+
+	var path := ProjectSettings.globalize_path(IOS_EXPORT_PATH)
+	var error := GameManager.write_save(path, GameManager.save_data())
+	if error != OK:
+		_show_result(error)
+		return
+	picker.connect("exported", func():
+		DirAccess.remove_absolute(path)
+		_show_result(OK), CONNECT_ONE_SHOT)
+	picker.connect("canceled", func(): DirAccess.remove_absolute(path), CONNECT_ONE_SHOT)
+	picker.connect("failed", func():
+		DirAccess.remove_absolute(path)
+		_show_result(ERR_CANT_CREATE), CONNECT_ONE_SHOT)
+	picker.call("pick_export", path)
+
+func _write_backup(path: String) -> Error:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if not file:
+		return FileAccess.get_open_error()
+	file.store_string(JSON.stringify(GameManager.save_data()))
+	file.flush()
+	var error := file.get_error()
+	file.close()
+	return error
+
+func _confirm_import(path: String, temporary: bool = false) -> void:
 	_confirm(LocaleStrings.text("backup_confirm"), func():
 		var error := GameManager.import_save(path)
+		if temporary:
+			DirAccess.remove_absolute(path)
 		if error == OK:
 			AudioManager.apply_volumes()
 			_build()
-		_show_result(error))
+		_show_result(error), func():
+			if temporary:
+				DirAccess.remove_absolute(path))
 
 func _confirm_reset() -> void:
 	_confirm(LocaleStrings.text("reset_confirm"), func():
@@ -185,14 +257,17 @@ func _confirm_reset() -> void:
 		if error != OK:
 			_show_result(error))
 
-func _confirm(text: String, action: Callable) -> void:
+func _confirm(text: String, action: Callable, on_cancel: Callable = Callable()) -> void:
 	var dialog := ConfirmationDialog.new()
 	dialog.dialog_text = text
 	dialog.get_label().autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	dialog.confirmed.connect(func():
 		action.call()
 		dialog.queue_free())
-	dialog.canceled.connect(dialog.queue_free)
+	dialog.canceled.connect(func():
+		if on_cancel.is_valid():
+			on_cancel.call()
+		dialog.queue_free())
 	add_child(dialog)
 	dialog.popup_centered_ratio(0.8)
 

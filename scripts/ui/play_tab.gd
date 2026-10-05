@@ -130,6 +130,7 @@ func _build() -> void:
 	daily_sub += "\n" + LocaleStrings.text("daily_short_rules")
 	btn_daily = UIThemeHelper.row_button("check" if done else "target", LocaleStrings.text("daily"), daily_sub, "play",
 		UIThemeHelper.colors.success if done else UIThemeHelper.colors.gold)
+	btn_daily.custom_minimum_size.y = 176
 	btn_daily.pressed.connect(UIThemeHelper.start_battle.bind(self, DailyRewards.challenge_id(DailyRewards.today())))
 	shortcuts.add_child(btn_daily)
 

@@ -30,6 +30,7 @@ const RADIUS := 28
 const SPACE := 24
 const PAGE_MARGIN := 40
 const FONT_BODY := 30
+const TOUCH_SCROLL_DEADZONE := 20
 const FONT_WEIGHT_TAG := 2003265652 # 'wght'
 
 static var _bold: FontVariation
@@ -391,6 +392,14 @@ static func clear(container: Node) -> void:
 		container.remove_child(child)
 		child.queue_free()
 
+## Deja que los gestos iniciados sobre controles lleguen al ScrollContainer padre.
+static func pass_scroll_events(control: Control) -> void:
+	if control.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+		control.mouse_filter = Control.MOUSE_FILTER_PASS
+	for child in control.get_children():
+		if child is Control:
+			pass_scroll_events(child)
+
 # =========================================================================
 # Navegación, zonas seguras y capas
 # =========================================================================
@@ -453,6 +462,7 @@ static func overlay_page(root: Control, title: String, close: Callable) -> VBoxC
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE
 	column.add_child(scroll)
 	var content := vbox(SPACE)
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -40,6 +40,9 @@ jobs:
           mkdir -p "$templates"
           unzip -q -j templates.tpz templates/ios.zip -d "$templates"
 
+      - name: Compilar el selector nativo de copias
+        run: bash scripts/build_ios_backup_picker.sh
+
       - name: Importar recursos
         run: godot --headless --path . --editor --import
 

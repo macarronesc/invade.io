@@ -115,7 +115,7 @@ colecciones, rangos, objetivos diarios, ritmo de IA y cambio de tema sin perder 
 godot --headless --path . res://scenes/tests/balance_check.tscn
 # Botones reales: victoria → compra → siguiente nivel; derrota → compra → reintento.
 godot --headless --path . res://scenes/tests/balance_check.tscn -- --flow
-# En escritorio: 24 capturas ES/EN, claro/oscuro y comprobación de límites de pantalla.
+# En escritorio: 53 capturas ES/EN, claro/oscuro, interacción y límites de pantalla.
 godot --path . res://scenes/tests/balance_check.tscn -- --ui
 ```
 

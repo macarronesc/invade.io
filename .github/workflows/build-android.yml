@@ -1,0 +1,85 @@
+name: Build Android APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Descargar el proyecto
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Instalar Java
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Instalar herramientas Android
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+
+      - name: Instalar los componentes Android requeridos
+        run: |
+          sdkmanager --sdk_root="$ANDROID_HOME" \
+            "build-tools;36.1.0" \
+            "platforms;android-36" \
+            "ndk;29.0.14206865"
+
+      - name: Instalar Godot y su plantilla Android
+        run: |
+          cd "$RUNNER_TEMP"
+          release="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o godot.zip
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o templates.tpz
+          echo "9aa00f7a605200940bce3027a567b782f49bd8e940dd06ae9e987bd65aee1b1467edd56ed84fcdcbdd44354bf613bdbb4e5d2913e925850368e150c59ed54c65  godot.zip" | sha512sum --check -
+          echo "ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1648d2e5f40980c9adc28d23e1b92e732ee7bf3461997aa804af74ec2fcd7a93ccb84079  templates.tpz" | sha512sum --check -
+          unzip -q godot.zip
+          chmod +x "$RUNNER_TEMP/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          mkdir -p "$RUNNER_TEMP/bin"
+          ln -s "$RUNNER_TEMP/Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$RUNNER_TEMP/bin/godot"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          templates="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$templates"
+          unzip -q -j templates.tpz templates/android_source.zip -d "$templates"
+
+      - name: Configurar las rutas de Java y Android en Godot
+        run: |
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.7.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          EOF
+
+      - name: Exportar y comprobar el APK
+        run: |
+          mkdir -p build/android
+          godot --headless --path . --install-android-build-template --export-debug "Android" build/android/invadeio.apk
+          test -s build/android/invadeio.apk
+          unzip -tq build/android/invadeio.apk
+
+      - name: Publicar el APK descargable
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: invadeio-android
+          path: ${{ github.workspace }}/build/android/invadeio.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 7

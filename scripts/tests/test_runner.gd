@@ -36,6 +36,7 @@ func _ready() -> void:
 		test_voronoi_halfplane_clipping_geometry()
 		test_territory_map_generation_and_coverage()
 		test_theme_and_ui_helpers()
+		test_toast_notifications()
 		test_achievements_system()
 	else:
 		run_all_tests()
@@ -126,6 +127,7 @@ func run_all_tests() -> void:
 	test_army_tab_upgrades_and_looks()
 	test_battle_hud_modals_and_sound_toggle()
 	test_theme_and_ui_helpers()
+	test_toast_notifications()
 	test_crossing_streams_low_fps_and_huge_streams()
 	test_save_robustness_and_replay_rewards()
 	test_ai_projected_defense_and_difficulty()
@@ -340,6 +342,9 @@ func test_mobile_experience() -> void:
 	var presets := ConfigFile.new()
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets móviles se pueden leer")
 	assert_true(presets.get_value("preset.1.options", "permissions/vibrate", false), "Android exporta el permiso de vibración sin pedir permisos de usuario")
+	assert_true(presets.get_value("preset.0.options", "plugins/BackupFilePicker", false), "iOS habilita el selector nativo de copias")
+	var picker_plugin := ConfigFile.new()
+	assert_equals(picker_plugin.load("res://ios/plugins/backup_file_picker/BackupFilePicker.gdip.in"), OK, "La configuración del selector iOS se puede leer")
 
 func test_base_production_mechanics() -> void:
 	print("-> Test: Producción de Tropas y Límites de Capacidad")
@@ -2178,6 +2183,7 @@ func test_play_tab_campaign_route_and_briefing() -> void:
 	var labels: Array = play.btn_conquest.find_children("*", "Label", true, false).map(func(l): return l.text)
 	assert_true(labels.has(LocaleStrings.text("conquest")), "Conquista libre a un toque desde Jugar")
 	assert_true(play.btn_daily.find_children("*", "Label", true, false).any(func(l): return l.text == LocaleStrings.text("daily")), "Desafío diario a un toque desde Jugar")
+	assert_true(play.btn_daily.custom_minimum_size.y >= 176, "La tarjeta diaria reserva altura para sus dos líneas")
 	var initial_phase = play.marching_phase
 	play._process(0.1)
 	assert_true(play.marching_phase != initial_phase, "La frontera de la campaña se anima")
@@ -2332,6 +2338,15 @@ func test_theme_and_ui_helpers() -> void:
 	assert_equals(btn.get_signal_connection_list("button_down").size(), 1, "El feedback no se duplica")
 	remove_child(btn)
 	btn.free()
+	var scroll_content := UIThemeHelper.vbox()
+	var scroll_button := Button.new()
+	var ignored_icon := Icons.rect("coin")
+	scroll_content.add_child(scroll_button)
+	scroll_content.add_child(ignored_icon)
+	UIThemeHelper.pass_scroll_events(scroll_content)
+	assert_equals(scroll_button.mouse_filter, Control.MOUSE_FILTER_PASS, "Los botones dejan pasar el arrastre al ScrollContainer")
+	assert_equals(ignored_icon.mouse_filter, Control.MOUSE_FILTER_IGNORE, "Los iconos siguen dejando pasar el toque")
+	scroll_content.free()
 
 	# Iconos SVG: todos se generan, se cachean y la moneda conserva su color en botones
 	var broken := Icons.SVG.keys().filter(func(n): return Icons.texture(n, 48).get_height() != 48)
@@ -2360,6 +2375,19 @@ func test_theme_and_ui_helpers() -> void:
 	assert_true(help.is_queued_for_deletion(), "La tarjeta Cómo jugar se cierra con su botón")
 	remove_child(help)
 	help.free()
+
+func test_toast_notifications() -> void:
+	var card := Toasts._build_card({"icon": "trophy", "title": "Logro", "body": "Primera conquista"})
+	assert_equals(card.theme_type_variation, &"Tile", "El aviso de logro usa una tarjeta compacta")
+	assert_true(card.get_combined_minimum_size().y < 240, "El aviso no crece a la altura de toda la pantalla")
+	assert_equals(card.find_children("*", "TextureRect", true, false).size(), 1, "El logro muestra un icono vectorial")
+	card.free()
+	if DisplayServer.get_name() == "headless":
+		Toasts._queue.clear()
+		Toasts._showing = false
+		Toasts._queue.append({"icon": "trophy", "title": "Logro", "body": "Primera conquista"})
+		Toasts.flush()
+		assert_true(Toasts._queue.is_empty(), "El vaciado empieza a mostrar los avisos pendientes")
 
 func test_crossing_streams_low_fps_and_huge_streams() -> void:
 	print("\n-> Test: Cruce de Hileras Independiente de FPS y Hileras Masivas Agrupadas")
@@ -3204,9 +3232,17 @@ func test_settings_and_backups() -> void:
 	assert_equals(GameManager.settings["speed"], 0.75, "Velocidad mínima validada")
 	var panel = load("res://scripts/ui/settings_panel.gd").new()
 	add_child(panel)
+	var backup_path := "user://test_backup_export.json"
+	assert_equals(panel._write_backup(backup_path), OK, "La exportación prepara el archivo de copia")
+	var exported_data: Variant = JSON.parse_string(FileAccess.get_file_as_string(backup_path))
+	assert_true(exported_data is Dictionary and exported_data.has("completed_levels"), "La copia exportada conserva el formato del juego")
+	DirAccess.remove_absolute(backup_path)
 	assert_equals(panel.find_children("*", "HSlider", true, false).size(), 3, "Volúmenes e intensidad háptica con controles nativos")
 	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 5, "Sonido, música, vibración, paleta y reducir movimiento")
 	assert_equals(panel.find_children("*", "OptionButton", true, false).size(), 3, "Apariencia, idioma y velocidad")
+	assert_equals(panel.find_children("*", "ScrollContainer", true, false)[0].scroll_deadzone, UIThemeHelper.TOUCH_SCROLL_DEADZONE, "Ajustes distingue toques y arrastres")
+	assert_true(panel._content.find_children("*", "BaseButton", true, false).all(func(b): return b.mouse_filter == Control.MOUSE_FILTER_PASS), "Los botones de ajustes dejan pasar gestos de desplazamiento")
+	assert_true(panel.find_children("*", "HSlider", true, false).all(func(s): return s.mouse_filter == Control.MOUSE_FILTER_PASS), "Los deslizadores de ajustes dejan pasar gestos de desplazamiento")
 	remove_child(panel)
 	panel.free()
 	GameManager.reset_save()

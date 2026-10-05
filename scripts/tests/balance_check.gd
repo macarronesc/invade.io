@@ -144,17 +144,77 @@ func _check_ui() -> void:
 			await _snapshot("menu_%s_%s" % [lang, str(light)])
 			var play := menu._content.get_child(0)
 			_require(play.btn_daily.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y, "Accesos secundarios no quedan bajo la navegación")
+			for label in play.btn_daily.find_children("*", "Label", true, false):
+				_require(play.btn_daily.get_global_rect().grow(1).encloses(label.get_global_rect()), "El texto del desafío diario queda dentro de su tarjeta")
+			menu.show_tab("challenges")
+			await _snapshot("challenges_%s_%s" % [lang, str(light)])
+			var challenges: ScrollPage = menu._content.get_child(0)
+			var claim: Button = challenges.find_child("BtnClaimDaily", true, false)
+			var scroll_start := challenges.scroll_vertical
+			var claim_day := int(GameManager.daily["last_claim_day"])
+			var touch_pos := claim.get_global_rect().get_center() * Vector2(DisplayServer.window_get_size()) / get_viewport().get_visible_rect().size
+			var press := InputEventMouseButton.new()
+			press.button_index = MOUSE_BUTTON_LEFT
+			press.position = touch_pos
+			press.pressed = true
+			Input.parse_input_event(press)
+			await get_tree().process_frame
+			var drag := InputEventMouseMotion.new()
+			drag.position = touch_pos - Vector2(0, 160)
+			drag.relative = Vector2(0, -160)
+			drag.button_mask = MOUSE_BUTTON_MASK_LEFT
+			Input.parse_input_event(drag)
+			await get_tree().process_frame
+			var release := InputEventMouseButton.new()
+			release.button_index = MOUSE_BUTTON_LEFT
+			release.position = drag.position
+			Input.parse_input_event(release)
+			await get_tree().process_frame
+			_require(challenges.scroll_vertical > scroll_start, "Un arrastre sobre un botón desplaza Retos")
+			_require(int(GameManager.daily["last_claim_day"]) == claim_day, "Desplazarse sobre un botón no lo activa")
+			challenges.scroll_vertical = scroll_start
+			menu.show_tab("progress")
+			await _snapshot("progress_%s_%s" % [lang, str(light)])
 			menu.show_tab("army")
 			await _snapshot("army_%s_%s" % [lang, str(light)])
+			var army = menu._content.get_child(0)
+			var looks_button: Button = army.find_child("Segment_looks", true, false)
+			var looks_pos := looks_button.get_global_rect().get_center() * Vector2(DisplayServer.window_get_size()) / get_viewport().get_visible_rect().size
+			var looks_press := InputEventMouseButton.new()
+			looks_press.button_index = MOUSE_BUTTON_LEFT
+			looks_press.position = looks_pos
+			looks_press.pressed = true
+			Input.parse_input_event(looks_press)
+			await get_tree().process_frame
+			var looks_release := InputEventMouseButton.new()
+			looks_release.button_index = MOUSE_BUTTON_LEFT
+			looks_release.position = looks_pos
+			Input.parse_input_event(looks_release)
+			await get_tree().process_frame
+			_require(army.section == "looks", "Un toque en un botón desplazable sigue activándolo")
+			await _snapshot("army_looks_%s_%s" % [lang, str(light)])
+			menu._open_settings()
+			await _snapshot("settings_%s_%s" % [lang, str(light)])
+			menu._utility_panel._close()
+			await get_tree().process_frame
 			menu.free()
 			GameManager.seen_tips = ["factory", "fortress", "drag", "rival_0"]
 			var battle: BattleController = load(UIThemeHelper.BATTLE_SCENE).instantiate()
 			add_child(battle)
 			battle.set_simulation_paused(true)
 			await _snapshot("battle_%s_%s" % [lang, str(light)])
+			var hud: BattleHUD = battle.get_node("BattleHUD")
+			hud.dim_overlay.show()
+			hud.pause_panel.show()
+			await _snapshot("pause_%s_%s" % [lang, str(light)])
+			hud.pause_panel.hide()
+			hud.dim_overlay.hide()
+			var help := UIThemeHelper.how_to_play_card()
+			hud.add_child(help)
+			await _snapshot("help_%s_%s" % [lang, str(light)])
+			help.queue_free()
 			battle.is_game_over = true
 			battle.defeat_gold = 19
-			var hud: BattleHUD = battle.get_node("BattleHUD")
 			hud._on_battle_lost()
 			await _snapshot("defeat_%s_%s" % [lang, str(light)])
 			_require(hud.btn_defeat_upgrade.visible and hud.btn_defeat_upgrade.theme_type_variation == "GoldButton", "Compra útil visible tras perder")
@@ -164,6 +224,9 @@ func _check_ui() -> void:
 			await _snapshot("victory_%s_%s" % [lang, str(light)])
 			_require(hud.btn_result_action.visible and hud.btn_result_action.theme_type_variation == "GoldButton", "Mejorar y seguir visible tras ganar")
 			_require(hud.victory_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y, "Victoria cabe en pantalla")
+			hud.deploy_victory_modal({"stars": 2, "gold_earned": 150, "is_daily_challenge": true,
+				"level_id": DailyRewards.challenge_id(DailyRewards.today())})
+			await _snapshot("daily_result_%s_%s" % [lang, str(light)])
 			GameManager.experience = 160
 			GameManager.completed_levels.merge({"europe_4": 3, "europe_5": 3})
 			hud.deploy_victory_modal({"stars": 3, "gold_earned": 350, "xp_before": 80, "xp": 80,
@@ -179,6 +242,20 @@ func _check_ui() -> void:
 			GameManager.completed_levels.erase("europe_5")
 			GameManager.cosmetics_equipped = GameManager.DEFAULT_COSMETICS_EQUIPPED.duplicate()
 			battle.free()
+	GameManager.set_language("es")
+	GameManager.set_setting("light_mode", true)
+	var battle: BattleController = load(UIThemeHelper.BATTLE_SCENE).instantiate()
+	add_child(battle)
+	battle.is_game_over = true
+	var hud: BattleHUD = battle.get_node("BattleHUD")
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 170, "xp": 60, "level_id": "europe_4"})
+	Toasts.show_toast("trophy", LocaleStrings.text("toast_achievement"), AchievementDatabase.achievement_title(AchievementDatabase.get_by_id("first_victory")))
+	await _snapshot("achievement_toast")
+	var toast := Toasts.get_child(Toasts.get_child_count() - 1) as Control
+	var toast_rect := toast.get_global_rect()
+	_require(toast_rect.position.x >= 0 and toast_rect.end.x <= get_viewport().get_visible_rect().end.x, "El aviso de logro cabe en el ancho de pantalla")
+	_require(toast_rect.position.y >= 0 and toast_rect.end.y <= get_viewport().get_visible_rect().end.y, "El aviso de logro cabe en la altura de pantalla")
+	battle.free()
 	_completed = true
 
 ## Pulsar los botones reales recorre victoria → compra → siguiente batalla

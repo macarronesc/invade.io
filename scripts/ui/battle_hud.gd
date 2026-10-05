@@ -654,6 +654,7 @@ func _leave_battle(scene_path: String = "") -> void:
 	GameManager.save_game()
 	_cleanup_time_scale()
 	get_tree().paused = false
+	get_tree().scene_changed.connect(Toasts.flush, CONNECT_ONE_SHOT)
 	if scene_path == "":
 		get_tree().reload_current_scene()
 	else:

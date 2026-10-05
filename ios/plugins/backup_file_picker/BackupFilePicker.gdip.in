@@ -1,0 +1,13 @@
+[config]
+name="BackupFilePicker"
+binary="BackupFilePicker.a"
+initialization="backup_file_picker_init"
+deinitialization="backup_file_picker_deinit"
+
+[dependencies]
+linked=[]
+embedded=[]
+system=["Foundation.framework", "UIKit.framework", "UniformTypeIdentifiers.framework"]
+capabilities=[]
+files=[]
+linker_flags=["-ObjC"]
