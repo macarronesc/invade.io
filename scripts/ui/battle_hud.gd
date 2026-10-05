@@ -46,6 +46,9 @@ const MIN_LABEL_SHARE := 0.08
 @onready var unlock_label: Label = %UnlockLabel
 @onready var next_goal_label: Label = %NextGoalLabel
 @onready var btn_claim_missions: Button = %BtnClaimMissions
+@onready var reward_card: Control = %RewardCard
+@onready var gold_chip: Control = %GoldChip
+@onready var cities_chip: Control = %CitiesChip
 @onready var confetti_overlay: Control = %ConfettiOverlay
 @onready var btn_next_level: Button = %BtnNextLevel
 @onready var btn_victory_map: Button = %BtnVictoryMap
@@ -54,6 +57,7 @@ const MIN_LABEL_SHARE := 0.08
 @onready var defeat_panel: Control = %DefeatPanel
 @onready var btn_retry: Button = %BtnRetry
 @onready var defeat_xp_label: Label = %DefeatXpLabel
+@onready var defeat_tip: Label = %DefeatTip
 @onready var btn_defeat_upgrade: Button = %BtnDefeatUpgrade
 @onready var btn_defeat_map: Button = %BtnDefeatMap
 
@@ -112,6 +116,8 @@ func _ready() -> void:
 	for entry in [[btn_pause, "pause"], [btn_pause_sound, "sound"], [btn_pause_music, "music"], [btn_resume, "play"],
 			[btn_retry, "retry"], [btn_next_level, "play"], [btn_how_to_play, "help"], [btn_settings, "gear"], [btn_share, "share"]]:
 		entry[0].icon = Icons.texture(entry[1], 44)
+	for entry in [[%GoldIcon, "coin", 52], [%TimeIcon, "clock", 40], [%CitiesIcon, "globe", 40]]:
+		entry[0].texture = Icons.texture(entry[1], entry[2])
 	_build_faction_bars()
 
 	EventBus.battle_started.connect(_on_battle_started)
@@ -146,12 +152,9 @@ func _ready() -> void:
 func _apply_texts() -> void:
 	btn_share.text = LocaleStrings.text("share")
 	btn_victory_map.text = LocaleStrings.text("exit")
-	%StatTimeCaption.text = LocaleStrings.text("stat_time")
-	%StatGoldCaption.text = LocaleStrings.text("stat_gold")
-	%StatCitiesCaption.text = LocaleStrings.text("stat_new_cities")
 	defeat_panel.get_node("VBox/Title").text = LocaleStrings.text("defeat_title")
 	UIThemeHelper.set_icon(btn_claim_missions, "coin", 40)
-	defeat_panel.get_node("VBox/Subtitle").text = LocaleStrings.text("defeat_sub")
+	defeat_tip.text = LocaleStrings.text("defeat_sub")
 	btn_retry.text = LocaleStrings.text("retry")
 	btn_defeat_upgrade.text = LocaleStrings.text("improve")
 	btn_defeat_map.text = LocaleStrings.text("exit")
@@ -194,6 +197,12 @@ func _refresh_palette() -> void:
 		_faction_bars[faction].color = GameManager.faction_color(faction)
 	victory_reward_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
 	stat_cities_value.add_theme_color_override("font_color", UIThemeHelper.colors.primary)
+	%TimeIcon.modulate = UIThemeHelper.colors.muted
+	%CitiesIcon.modulate = UIThemeHelper.colors.primary
+	var reward_box := UIThemeHelper.box(Color.TRANSPARENT, 24, 20)
+	reward_box.set_border_width_all(3)
+	reward_box.border_color = Color(UIThemeHelper.colors.gold, 0.6)
+	reward_card.add_theme_stylebox_override("panel", reward_box)
 	medal_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
 	unlock_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
 	xp_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
@@ -400,6 +409,7 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 	stat_time_value.text = "%ds" % ceili(float(stats.get("time", 0.0)))
 	victory_reward_label.text = "+%d" % stats.get("gold_earned", 0)
 	stat_cities_value.text = "+%d" % stats.get("new_cities", 0)
+	cities_chip.visible = int(stats.get("new_cities", 0)) > 0
 	var city_names: Array = stats.get("city_names", [])
 	cities_label.text = " · ".join(city_names.slice(0, 3)) + (" +%d" % (city_names.size() - 3) if city_names.size() > 3 else "")
 	cities_label.visible = not city_names.is_empty()
@@ -416,6 +426,21 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 
 	trigger_confetti()
 	animate_stars(stats.get("stars", 1))
+	_pop_gold(stats.get("stars", 1))
+
+## El oro ganado aparece de un salto justo después de la última estrella
+func _pop_gold(stars_count: int) -> void:
+	gold_chip.scale = Vector2.ONE
+	if not is_inside_tree() or GameManager.settings["reduced_motion"]:
+		return
+	gold_chip.pivot_offset = gold_chip.size * 0.5
+	gold_chip.scale = Vector2.ZERO
+	var t := create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_star_tweens.append(t)
+	t.tween_interval(0.3 + mini(stars_count, 3) * 0.25)
+	t.tween_property(gold_chip, "scale", Vector2(1.15, 1.15), 0.22)
+	t.tween_property(gold_chip, "scale", Vector2.ONE, 0.12)
 
 func _refresh_result_title() -> void:
 	var title := ["victory", UIThemeHelper.colors.success]
@@ -468,7 +493,6 @@ func _show_progress(stats: Dictionary) -> void:
 func _refresh_next_goal() -> void:
 	var goal := NextGoal.text()
 	next_goal_label.text = LocaleStrings.text("next_goal") % goal
-	next_goal_label.visible = goal != ""
 	var claimable := GameManager.claimable_mission_count()
 	btn_claim_missions.visible = claimable > 0
 	btn_claim_missions.text = LocaleStrings.text("claim_missions") % claimable
@@ -476,9 +500,12 @@ func _refresh_next_goal() -> void:
 	btn_result_action.visible = guide
 	btn_result_action.theme_type_variation = "GoldButton"
 	btn_result_action.text = LocaleStrings.text("improve_continue")
+	# El botón de mejora ya dice lo mismo que el siguiente objetivo
+	next_goal_label.visible = goal != "" and not guide
 	btn_equip_reward.visible = _reward_to_equip != ""
 	if btn_equip_reward.visible:
 		btn_equip_reward.text = LocaleStrings.text("equip_reward") % CosmeticsDatabase.item_name(CosmeticsDatabase.get_by_id(_reward_to_equip))
+	reward_card.visible = unlock_label.visible or btn_equip_reward.visible or btn_claim_missions.visible
 
 func _on_result_action() -> void:
 	if GameManager.can_suggest_combat_upgrade() and not _result.get("is_daily_challenge", false):
@@ -569,7 +596,7 @@ func _on_battle_lost() -> void:
 	_cleanup_time_scale()
 	dim_overlay.visible = true
 	var tip := battle_controller.defeat_tip() if is_instance_valid(battle_controller) else ""
-	defeat_panel.get_node("VBox/Subtitle").text = tip if tip != "" else LocaleStrings.text("defeat_sub")
+	defeat_tip.text = tip if tip != "" else LocaleStrings.text("defeat_sub")
 	defeat_xp_label.text = LocaleStrings.text("defeat_xp") % [GameManager.DEFEAT_XP, PlayerRank.title(GameManager.player_level())]
 	if is_instance_valid(battle_controller) and battle_controller.defeat_gold > 0:
 		defeat_xp_label.text += "\n" + LocaleStrings.text("defeat_gold") % battle_controller.defeat_gold

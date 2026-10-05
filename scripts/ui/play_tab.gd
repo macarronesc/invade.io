@@ -283,8 +283,13 @@ func _update_briefing_card() -> void:
 			rivals[b["faction"]] = true
 	UIThemeHelper.clear(level_chips)
 	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("bases") % bases.size(), "flag", UIThemeHelper.colors.muted))
-	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("rival" if rivals.size() == 1 else "rivals") % rivals.size(), "shield", UIThemeHelper.colors.danger))
+	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("rival" if rivals.size() == 1 else "rivals") % rivals.size(), "target", UIThemeHelper.colors.danger))
 	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("target_time") % data.get("target_time", 45), "clock", UIThemeHelper.colors.gold))
+	# Bases especiales con el mismo icono que su insignia en batalla
+	for special in [["capital", "star", UIThemeHelper.colors.gold], ["factory", "bolt", UIThemeHelper.colors.gold], ["fortress", "shield", UIThemeHelper.colors.text]]:
+		var n := bases.filter(func(b): return b.get("type", "") == special[0] or (special[0] == "capital" and b.get("capital", false))).size()
+		if n > 0:
+			level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("chip_" + special[0]) % n, special[1], special[2]))
 	# Motivos para jugar (o repetir) este nivel: ciudades aún no coleccionadas y la medalla
 	var new_cities := bases.filter(func(b): return GeoDatabase.has_city(b.get("city", "")) and not GameManager.conquered_cities.has(b["city"])).size()
 	if new_cities > 0:

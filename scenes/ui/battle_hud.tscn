@@ -258,87 +258,98 @@ horizontal_alignment = 1
 [node name="Stats" type="HBoxContainer" parent="VictoryPanel/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
+alignment = 1
 
-[node name="TimeTile" type="PanelContainer" parent="VictoryPanel/VBox/Stats"]
+[node name="GoldChip" type="PanelContainer" parent="VictoryPanel/VBox/Stats"]
+unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
-theme_type_variation = &"Tile"
+theme_type_variation = &"Chip"
 
-[node name="VBox" type="VBoxContainer" parent="VictoryPanel/VBox/Stats/TimeTile"]
+[node name="Row" type="HBoxContainer" parent="VictoryPanel/VBox/Stats/GoldChip"]
 layout_mode = 2
-theme_override_constants/separation = 2
+theme_override_constants/separation = 12
 
-[node name="StatTimeValue" type="Label" parent="VictoryPanel/VBox/Stats/TimeTile/VBox"]
+[node name="GoldIcon" type="TextureRect" parent="VictoryPanel/VBox/Stats/GoldChip/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+stretch_mode = 5
+
+[node name="VictoryRewardLabel" type="Label" parent="VictoryPanel/VBox/Stats/GoldChip/Row"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Heading"
+theme_override_font_sizes/font_size = 46
+text = "+0"
+vertical_alignment = 1
+
+[node name="TimeChip" type="PanelContainer" parent="VictoryPanel/VBox/Stats"]
+layout_mode = 2
+theme_type_variation = &"Chip"
+
+[node name="Row" type="HBoxContainer" parent="VictoryPanel/VBox/Stats/TimeChip"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TimeIcon" type="TextureRect" parent="VictoryPanel/VBox/Stats/TimeChip/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+stretch_mode = 5
+
+[node name="StatTimeValue" type="Label" parent="VictoryPanel/VBox/Stats/TimeChip/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Heading"
+theme_override_font_sizes/font_size = 34
 text = "0s"
-horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="StatTimeCaption" type="Label" parent="VictoryPanel/VBox/Stats/TimeTile/VBox"]
+[node name="CitiesChip" type="PanelContainer" parent="VictoryPanel/VBox/Stats"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Caption"
-text = "Tiempo"
-horizontal_alignment = 1
+theme_type_variation = &"Chip"
 
-[node name="GoldTile" type="PanelContainer" parent="VictoryPanel/VBox/Stats"]
+[node name="Row" type="HBoxContainer" parent="VictoryPanel/VBox/Stats/CitiesChip"]
 layout_mode = 2
-size_flags_horizontal = 3
-theme_type_variation = &"Tile"
+theme_override_constants/separation = 12
 
-[node name="VBox" type="VBoxContainer" parent="VictoryPanel/VBox/Stats/GoldTile"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="VictoryRewardLabel" type="Label" parent="VictoryPanel/VBox/Stats/GoldTile/VBox"]
+[node name="CitiesIcon" type="TextureRect" parent="VictoryPanel/VBox/Stats/CitiesChip/Row"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Heading"
-text = "+0"
-horizontal_alignment = 1
+size_flags_vertical = 4
+mouse_filter = 2
+stretch_mode = 5
 
-[node name="StatGoldCaption" type="Label" parent="VictoryPanel/VBox/Stats/GoldTile/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"Caption"
-text = "Oro"
-horizontal_alignment = 1
-
-[node name="CitiesTile" type="PanelContainer" parent="VictoryPanel/VBox/Stats"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_type_variation = &"Tile"
-
-[node name="VBox" type="VBoxContainer" parent="VictoryPanel/VBox/Stats/CitiesTile"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="StatCitiesValue" type="Label" parent="VictoryPanel/VBox/Stats/CitiesTile/VBox"]
+[node name="StatCitiesValue" type="Label" parent="VictoryPanel/VBox/Stats/CitiesChip/Row"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Heading"
+theme_override_font_sizes/font_size = 34
 text = "+0"
-horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="StatCitiesCaption" type="Label" parent="VictoryPanel/VBox/Stats/CitiesTile/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"Caption"
-text = "Ciudades"
-horizontal_alignment = 1
-
-[node name="Progress" type="VBoxContainer" parent="VictoryPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="CitiesLabel" type="Label" parent="VictoryPanel/VBox/Progress"]
+[node name="VictoryNote" type="Label" parent="VictoryPanel/VBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_type_variation = &"Caption"
 horizontal_alignment = 1
 autowrap_mode = 3
+
+[node name="CitiesLabel" type="Label" parent="VictoryPanel/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"Caption"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Progress" type="VBoxContainer" parent="VictoryPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
 
 [node name="RankRow" type="HBoxContainer" parent="VictoryPanel/VBox/Progress"]
 layout_mode = 2
@@ -363,7 +374,17 @@ theme_type_variation = &"GoldBar"
 max_value = 1.0
 show_percentage = false
 
-[node name="UnlockLabel" type="Label" parent="VictoryPanel/VBox/Progress"]
+[node name="RewardCard" type="PanelContainer" parent="VictoryPanel/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"Tile"
+
+[node name="VBox" type="VBoxContainer" parent="VictoryPanel/VBox/RewardCard"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="UnlockLabel" type="Label" parent="VictoryPanel/VBox/RewardCard/VBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
@@ -371,27 +392,20 @@ theme_type_variation = &"Heading"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="NextGoalLabel" type="Label" parent="VictoryPanel/VBox/Progress"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"Caption"
-autowrap_mode = 3
-
-[node name="BtnEquipReward" type="Button" parent="VictoryPanel/VBox/Progress"]
+[node name="BtnEquipReward" type="Button" parent="VictoryPanel/VBox/RewardCard/VBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 autowrap_mode = 3
 
-[node name="BtnClaimMissions" type="Button" parent="VictoryPanel/VBox"]
+[node name="BtnClaimMissions" type="Button" parent="VictoryPanel/VBox/RewardCard/VBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_type_variation = &"GoldButton"
 
-[node name="VictoryNote" type="Label" parent="VictoryPanel/VBox"]
+[node name="NextGoalLabel" type="Label" parent="VictoryPanel/VBox"]
 unique_name_in_owner = true
-visible = false
 layout_mode = 2
 theme_type_variation = &"Caption"
 horizontal_alignment = 1
@@ -452,8 +466,14 @@ theme_type_variation = &"Display"
 text = "Derrota"
 horizontal_alignment = 1
 
-[node name="Subtitle" type="Label" parent="DefeatPanel/VBox"]
+[node name="TipCard" type="PanelContainer" parent="DefeatPanel/VBox"]
 layout_mode = 2
+theme_type_variation = &"Tile"
+
+[node name="DefeatTip" type="Label" parent="DefeatPanel/VBox/TipCard"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Heading"
 horizontal_alignment = 1
 autowrap_mode = 3
 

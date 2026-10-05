@@ -4,6 +4,9 @@ extends ScrollPage
 ## Nada aparece por sorpresa: todo lo pendiente se recoge aquí y se avisa con un punto en la barra.
 
 var _day := -1
+## Icono de cada regla de continente: el mismo que la insignia de las bases que la protagonizan
+const RULE_ICONS := {"rule_europe": "star", "rule_africa": "star", "rule_north_america": "bolt",
+	"rule_asia": "shield", "rule_south_america": "speed", "rule_oceania": "globe"}
 
 func _ready() -> void:
 	super()
@@ -76,13 +79,17 @@ func _build_daily_challenge() -> void:
 	card.add_child(UIThemeHelper.label(status, "", UIThemeHelper.colors.success if done else UIThemeHelper.colors.text))
 	if not best.is_empty() and int(best["day"]) == day and not has_best:
 		card.add_child(UIThemeHelper.paragraph(LocaleStrings.text("daily_legacy_best") % ceili(float(best["time"]))))
-	# Cada día rota una regla de continente: se anuncia antes de jugar
-	var twist := CampaignRules.description(data).strip_edges()
-	if twist != "":
-		card.add_child(UIThemeHelper.paragraph(LocaleStrings.text("daily_rule") % twist))
-	card.add_child(UIThemeHelper.paragraph(LocaleStrings.text("daily_normalized")))
+	# Cada día rota una regla de continente: se anuncia antes de jugar, en etiquetas breves
+	var tags := HFlowContainer.new()
+	tags.add_theme_constant_override("h_separation", 12)
+	tags.add_theme_constant_override("v_separation", 12)
+	var twist := CampaignRules.description(data).strip_edges().split("\n", false)
+	for i in twist.size():
+		tags.add_child(UIThemeHelper.chip(twist[i], RULE_ICONS.get(data.get("rule_key", ""), "") if i == 0 else "", UIThemeHelper.colors.gold))
 	if data.has("objective"):
-		card.add_child(UIThemeHelper.paragraph(LocaleStrings.text("daily_objective") % (LocaleStrings.text(data["objective"]) % int(data["hold_seconds"]))))
+		tags.add_child(UIThemeHelper.chip(LocaleStrings.text(data["objective"]) % int(data["hold_seconds"]), "target", UIThemeHelper.colors.success))
+	tags.add_child(UIThemeHelper.chip(LocaleStrings.text("daily_normalized"), "", UIThemeHelper.colors.muted))
+	card.add_child(tags)
 	var actions := UIThemeHelper.hbox(16)
 	var play := UIThemeHelper.button(LocaleStrings.text("replay" if done else "play"), "PrimaryButton", "retry" if done else "play")
 	play.name = "BtnPlayDaily"

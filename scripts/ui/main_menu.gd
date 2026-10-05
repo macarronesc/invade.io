@@ -26,6 +26,7 @@ var _nav: Dictionary = {}
 var _badges: Dictionary = {}
 var _utility_panel: Control = null
 var _background: ColorRect
+var _logo_io: Label
 var _appearance := ""
 
 func _notification(what: int) -> void:
@@ -69,10 +70,16 @@ func _build() -> void:
 
 	var bar := UIThemeHelper.hbox(16)
 	column.add_child(UIThemeHelper.page_margin(bar, 32 + UIThemeHelper.get_safe_area_top(self), 16))
-	var logo := UIThemeHelper.label("invade.io", "Title")
-	logo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	logo.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	bar.add_child(logo)
+	bar.add_child(_logo_tile())
+	var wordmark := UIThemeHelper.hbox(0)
+	wordmark.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wordmark.alignment = BoxContainer.ALIGNMENT_BEGIN
+	wordmark.add_child(UIThemeHelper.label("invade", "Title"))
+	_logo_io = UIThemeHelper.label(".io", "Title", UIThemeHelper.colors.primary)
+	wordmark.add_child(_logo_io)
+	for l in wordmark.get_children():
+		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.add_child(wordmark)
 	var coins := UIThemeHelper.chip("0", "coin")
 	coins.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	coins_label = coins.find_children("*", "Label", true, false)[0]
@@ -143,6 +150,22 @@ func _refresh_badges() -> void:
 func _update_coins(amount: int) -> void:
 	coins_label.text = str(amount)
 
+## Icono del juego como baldosa redondeada junto al nombre
+func _logo_tile() -> Control:
+	var tile := PanelContainer.new()
+	tile.custom_minimum_size = Vector2(84, 84)
+	tile.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tile.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+	tile.add_theme_stylebox_override("panel", UIThemeHelper.box(Color.WHITE, 20, 0))
+	var icon := TextureRect.new()
+	icon.texture = load("res://icon.svg")
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tile.add_child(icon)
+	return tile
+
 func _open_settings() -> void:
 	if is_instance_valid(_utility_panel):
 		return
@@ -160,6 +183,7 @@ func _refresh_appearance() -> void:
 		return
 	_appearance = _appearance_key()
 	_background.color = UIThemeHelper.colors.bg
+	_logo_io.add_theme_color_override("font_color", UIThemeHelper.colors.primary)
 	coins_label.add_theme_color_override("font_color", UIThemeHelper.colors.text)
 	btn_settings.tooltip_text = LocaleStrings.text("settings")
 	for id in TABS:
