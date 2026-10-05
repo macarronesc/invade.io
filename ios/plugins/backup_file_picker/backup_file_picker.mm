@@ -125,13 +125,13 @@ void BackupFilePicker::picker_failed() {
 	emit_signal("failed");
 }
 
-extern "C" __attribute__((visibility("default"))) void backup_file_picker_init() {
+__attribute__((visibility("default"))) void backup_file_picker_init() {
 	ClassDB::register_class<BackupFilePicker>();
 	backup_file_picker = memnew(BackupFilePicker);
 	Engine::get_singleton()->add_singleton(Engine::Singleton("BackupFilePicker", backup_file_picker));
 }
 
-extern "C" __attribute__((visibility("default"))) void backup_file_picker_deinit() {
+__attribute__((visibility("default"))) void backup_file_picker_deinit() {
 	if (backup_file_picker) {
 		Engine::get_singleton()->remove_singleton("BackupFilePicker");
 		memdelete(backup_file_picker);
