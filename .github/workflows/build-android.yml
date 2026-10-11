@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK and Play bundle
 
 on:
   push:
@@ -17,7 +17,11 @@ defaults:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
+    env:
+      # Con los tres secretos configurados se construye y verifica el paquete firmado
+      # para Play. Sin ellos, el flujo sigue publicando el APK de pruebas.
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
     steps:
       - name: Descargar el proyecto
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -68,18 +72,61 @@ jobs:
           export/android/android_sdk_path = "$ANDROID_HOME"
           EOF
 
-      - name: Exportar y comprobar el APK
+      - name: Importar recursos
+        run: godot --headless --path . --editor --import
+
+      - name: Ejecutar la suite completa de pruebas
+        run: godot --headless --path . res://scenes/tests/test_runner.tscn
+
+      - name: Exportar el APK de pruebas
         run: |
           mkdir -p build/android
           godot --headless --path . --install-android-build-template --export-debug "Android" build/android/invadeio.apk
           test -s build/android/invadeio.apk
           unzip -tq build/android/invadeio.apk
 
+      - name: Comprobar el APK (target y min SDK, arquitecturas y permisos)
+        run: bash scripts/verify_play_bundle.sh build/android/invadeio.apk
+
+      - name: Preparar la clave de subida de Play
+        if: env.KEYSTORE_BASE64 != ''
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+          test -s "$RUNNER_TEMP/upload.keystore"
+
+      - name: Exportar el paquete AAB firmado para Play
+        if: env.KEYSTORE_BASE64 != ''
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ runner.temp }}/upload.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_KEY_ALIAS }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          godot --headless --path . --install-android-build-template --export-release "Android AAB" build/android/invadeio.aab
+          test -s build/android/invadeio.aab
+
+      - name: Comprobar el paquete de Play (firma, 64 bits, 16 KB, permisos y contenido)
+        if: env.KEYSTORE_BASE64 != ''
+        run: bash scripts/verify_play_bundle.sh build/android/invadeio.aab build/android/invadeio.apk
+
+      - name: Borrar la clave del runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.keystore"
+
       - name: Publicar el APK descargable
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: invadeio-android
           path: ${{ github.workspace }}/build/android/invadeio.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publicar el paquete de Play
+        if: env.KEYSTORE_BASE64 != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: invadeio-play-bundle
+          path: ${{ github.workspace }}/build/android/invadeio.aab
           archive: false
           if-no-files-found: error
           retention-days: 7

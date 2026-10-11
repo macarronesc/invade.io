@@ -119,15 +119,26 @@ godot --headless --path . res://scenes/tests/balance_check.tscn -- --flow
 godot --path . res://scenes/tests/balance_check.tscn -- --ui
 ```
 
+Para la ficha de Google Play (necesita pantalla real o `xvfb-run`):
+
+```sh
+# Gráfico destacado 1024×500 y capturas ordenadas en docs/store_assets/
+godot --path . res://scenes/tests/store_assets.tscn
+# Antes de subir: firma, 64 bits, 16 KB, permisos y contenido del APK o del AAB
+bash scripts/verify_play_bundle.sh build/android/invadeio.aab build/android/invadeio.apk
+```
+
 Estos comprobadores usan guardados separados y devuelven error si falla una condición. Las capturas
 de escritorio no sustituyen las pruebas de ergonomía y rendimiento en un móvil real ni las
 pruebas de retención con nuevos jugadores.
 
 ## Integración móvil
 
-El preset Android habilita `VIBRATE` y target SDK 36. Instala el SDK Android, las plantillas
-de Godot 4.7.2 y la plantilla Gradle desde **Proyecto → Instalar plantilla de compilación Android**
-antes de exportar. La firma de publicación sigue pendiente. El guardado usa `user://` en ambas
+El preset Android habilita `VIBRATE` y target SDK 36; el preset **Android AAB** genera el paquete
+firmado que pide Google Play (ver [plan de publicación](docs/PLAY_STORE.md)). Instala el SDK Android,
+las plantillas de Godot 4.7.2 y la plantilla Gradle desde **Proyecto → Instalar plantilla de
+compilación Android** antes de exportar. La firma de publicación se toma de las variables
+`GODOT_ANDROID_KEYSTORE_RELEASE_*`, nunca del repositorio. El guardado usa `user://` en ambas
 plataformas y no necesita acceso general al almacenamiento del teléfono.
 
 ### IPA para pruebas con SideStore
@@ -150,14 +161,18 @@ gratuitos en repositorios públicos; en privados se aplican las cuotas de GitHub
 La IPA no sirve para el App Store, TestFlight ni para instalarla directamente sin firma:
 SideStore la firma con tu cuenta y gestiona su renovación. La renovación no exige recompilar.
 
-El identificador estable es `io.github.macarronesc.invadeio`. Para actualizar el juego,
-importa la nueva IPA con la misma cuenta de SideStore sin desinstalar la anterior.
+El identificador estable es `macarronesc.invadeio` (el mismo en Android). La primera IPA con este
+identificador se instala como una app nueva: el guardado de la instalación anterior
+(`io.github.macarronesc.invadeio`) no se hereda, así que conviene desinstalarla y empezar de cero.
+A partir de ahí, para actualizar el juego importa la nueva IPA con la misma cuenta de SideStore sin
+desinstalar la anterior.
 `0000000000` es sólo un marcador en el preset, no un Team ID real. Al actualizar Godot,
-actualiza también los dos SHA-256 de sus descargas en el workflow.
+actualiza también los dos SHA-256 de sus descargas en el workflow de iOS (el de Android comprueba SHA-512).
 
 Una compilación correcta no sustituye probar controles, audio, zonas seguras y guardado
 en un iPhone real. Los servicios de tienda siguen pendientes:
 
 La propuesta 11 está **pendiente de plugins, configuración de las tiendas y móvil real**.
 Las copias manuales no son guardado en la nube ni las estadísticas locales son
-clasificaciones online. Ver [requisitos de integración](docs/PLATFORM_INTEGRATION.md).
+clasificaciones online. Ver [requisitos de integración](docs/PLATFORM_INTEGRATION.md) y, para
+Android, el [plan de publicación en Google Play](docs/PLAY_STORE.md).

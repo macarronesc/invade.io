@@ -53,6 +53,26 @@ def slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", ascii_text.lower()).strip("_")
 
 
+## Fredoka (assets/fonts) cubre Latin-1: un nombre con caracteres fuera de ese rango
+## (Đ, İ, ł, ş, ș, ā...) se vería como un cuadro vacío en el mapa o en el atlas.
+## Se pliega a ASCII sólo en ese caso, conservando las tildes que sí existen (México, Bogotá).
+FOLD = {"Đ": "D", "đ": "d", "İ": "I", "ı": "i", "Ł": "L", "ł": "l", "Ş": "S", "ş": "s",
+        "Ș": "S", "ș": "s", "Ț": "T", "ț": "t", "Œ": "OE", "œ": "oe", "Æ": "AE", "æ": "ae"}
+
+
+def font_safe(text: str) -> str:
+    if all(ord(ch) < 0x100 for ch in text):
+        return text
+    out = []
+    for ch in text:
+        if ord(ch) < 0x100:
+            out.append(ch)
+            continue
+        folded = FOLD.get(ch, ch)
+        out.append(unicodedata.normalize("NFKD", folded).encode("ascii", "ignore").decode())
+    return "".join(out)
+
+
 def build_land(reader) -> list:
     out = []
     for shp in reader.shapes():
@@ -89,7 +109,7 @@ def build_cities(reader) -> list:
         if key in used:
             continue
         used.add(key)
-        out.append([key, r["NAME_ES"] or r["NAME"], r["NAME_EN"] or r["NAME"],
+        out.append([key, font_safe(r["NAME_ES"] or r["NAME"]), font_safe(r["NAME_EN"] or r["NAME"]),
                     round(r["LONGITUDE"], 3), round(r["LATITUDE"], 3), int(r["POP_MAX"])])
     return out
 

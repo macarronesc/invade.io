@@ -8,6 +8,8 @@ const SHOW_SECONDS := 2.6
 const SLIDE_SECONDS := 0.25
 const TOP_MARGIN := 36.0
 const WIDTH := 680.0
+## Margen bajo la cabecera de batalla si no se puede medir (nivel, regla y estrellas)
+const BATTLE_TOP_OFFSET := 260.0
 
 var _queue: Array[Dictionary] = []
 var _showing: bool = false
@@ -29,7 +31,7 @@ func _on_save_status_changed() -> void:
 		var key := "save_newer_version" if GameManager.save_error == ERR_UNAVAILABLE else "save_local_error"
 		show_toast("⚠", LocaleStrings.text("save_auto"), LocaleStrings.text(key), true)
 	elif GameManager.save_recovered:
-		show_toast("✓", LocaleStrings.text("save_auto"), LocaleStrings.text("save_recovered"), true)
+		show_toast("✅", LocaleStrings.text("save_auto"), LocaleStrings.text("save_recovered"), true)
 
 func _on_achievement_unlocked(id: String) -> void:
 	var a := AchievementDatabase.get_by_id(id)
@@ -64,7 +66,7 @@ func _show_next() -> void:
 	AudioManager.play_star_reveal(2)
 	card.custom_minimum_size.x = width
 	card.size = card.get_combined_minimum_size()
-	var top := TOP_MARGIN + UIThemeHelper.get_safe_area_top(card)
+	var top := TOP_MARGIN + UIThemeHelper.get_safe_area_top(card) + _battle_header_height()
 	card.position = Vector2((view_w - width) * 0.5, -220.0)
 	if GameManager.settings["reduced_motion"]:
 		card.position.y = top
@@ -78,6 +80,16 @@ func _show_next() -> void:
 		card.queue_free()
 		_show_next()
 	)
+
+## En batalla el aviso baja bajo la cabecera: nunca tapa el nivel, su regla ni el reloj de estrellas.
+func _battle_header_height() -> float:
+	var scene := get_tree().current_scene
+	if not scene is BattleController or scene.is_game_over:
+		return 0.0
+	var bar := scene.get_node_or_null("BattleHUD/TopBar")
+	if bar is Control and bar.size.y > 0.0:
+		return bar.position.y + bar.size.y + 24.0
+	return BATTLE_TOP_OFFSET
 
 func _build_card(data: Dictionary, width: float = WIDTH) -> PanelContainer:
 	var card := PanelContainer.new()

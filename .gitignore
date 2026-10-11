@@ -6,5 +6,10 @@ ios/plugins/backup_file_picker/BackupFilePicker.a
 ios/plugins/backup_file_picker/BackupFilePicker.gdip
 docs/PLAN_MAESTRO_STATE_IO.md
 
+# Claves de firma: viven fuera del repositorio (ver docs/PLAY_STORE.md)
+*.keystore
+*.jks
+*.b64
+
 # Caché de descargas de tools/build_geo_data.py
 tools/.ne_cache/

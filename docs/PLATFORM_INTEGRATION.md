@@ -3,7 +3,7 @@
 ## Estado real
 
 El preset iOS y `.github/workflows/build-ios.yml` generan una IPA sin firmar para SideStore,
-con identificador `io.github.macarronesc.invadeio`; el Team ID es un marcador, no una credencial.
+con identificador `macarronesc.invadeio`; el Team ID es un marcador, no una credencial.
 El único plugin nativo es el selector de copias iOS; no hay credenciales ni servicios de tienda.
 No se muestran botones de conexión que simulen servicios inexistentes.
 El lanzamiento previsto es Android e iOS, sin backend. Ajustes muestra el estado real del
@@ -44,7 +44,9 @@ son una autoridad segura para clasificaciones competitivas.
 
 ## Datos y dependencias que faltan
 
-1. Confirmar los identificadores de publicación Android/iOS y configurar su firma real.
+1. Confirmar los identificadores de publicación iOS y configurar su firma real. Android ya tiene
+   preset de AAB, firma por variables de entorno y comprobación automática: ver
+   [plan de publicación en Google Play](PLAY_STORE.md).
 2. Configurar las aplicaciones en Google Play Console y App Store Connect, con
    cuentas de prueba, firma y habilitación de Play Games / Game Center.
 3. Elegir plugins online compatibles con **Godot 4.7 y los SDK móviles actuales**, fijar sus

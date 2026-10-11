@@ -60,7 +60,9 @@ func _build_reward() -> void:
 		claim.pressed.connect(func():
 			if GameManager.claim_daily_reward() > 0:
 				AudioManager.play_star_reveal(2)
-				GameManager.haptic(30))
+				GameManager.haptic(30)
+			else:
+				rebuild()) # Un botón viejo (medianoche pasada) no puede quedarse en pantalla
 		card.add_child(claim)
 
 func _build_daily_challenge() -> void:

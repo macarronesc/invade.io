@@ -135,7 +135,9 @@ func _ready() -> void:
 	btn_pause_music.pressed.connect(_on_pause_music_pressed)
 	btn_how_to_play.pressed.connect(func():
 		AudioManager.play_click()
-		add_child(UIThemeHelper.how_to_play_card()))
+		# `_tip_panel`: el botón atrás de Android y Reanudar deben respetar la tarjeta abierta
+		_tip_panel = UIThemeHelper.how_to_play_card()
+		add_child(_tip_panel))
 	btn_settings.pressed.connect(_open_settings)
 	btn_next_level.pressed.connect(_on_next_level_pressed)
 	btn_victory_map.pressed.connect(_on_map_pressed)

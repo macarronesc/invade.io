@@ -26,6 +26,8 @@ const TIP_CARDS = {
 }
 
 const HAND_CYCLE := 1.8
+## El primer gesto congela la batalla: si el jugador no lo hace, se descongela solo.
+const DRAG_TIMEOUT := 20.0
 const CHAIN_TIMEOUT := 14.0
 const SLICE_TIMEOUT := 6.0
 const SLICE_TIME_SCALE := 0.3
@@ -146,6 +148,8 @@ func _process(delta: float) -> void:
 		"drag":
 			if _hand_path.is_empty():
 				_hand_path = _build_drag_path()
+			elif _step_time > DRAG_TIMEOUT:
+				_complete_current(false)
 		"chain":
 			if _hand_path.is_empty():
 				_hand_path = _build_chain_path()
@@ -255,11 +259,13 @@ func _draw_hand() -> void:
 	var font = UIThemeHelper.bold_font()
 	draw_string(font, pos + Vector2(-38, 72), "👆", HORIZONTAL_ALIGNMENT_LEFT, -1, 72, Color(1, 1, 1, alpha))
 
+## El aviso se centra en el ancho real del lienzo (en tabletas es más ancho que 1080).
 func _draw_banner() -> void:
 	var font = UIThemeHelper.bold_font()
 	var font_size = 34
 	var width = 880.0
 	var text_size = font.get_multiline_string_size(_hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size)
-	var rect = Rect2(Vector2(540.0 - width * 0.5 - 36.0, 1680.0), Vector2(width + 72.0, text_size.y + 56.0))
+	var center_x := get_viewport_rect().size.x * 0.5
+	var rect = Rect2(Vector2(center_x - width * 0.5 - 36.0, 1680.0), Vector2(width + 72.0, text_size.y + 56.0))
 	draw_style_box(_banner_style, rect)
 	draw_multiline_string(font, rect.position + Vector2(36.0, 28.0 + font.get_ascent(font_size)), _hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size, -1, UIThemeHelper.colors.text)

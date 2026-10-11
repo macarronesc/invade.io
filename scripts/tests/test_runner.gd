@@ -36,6 +36,7 @@ func _ready() -> void:
 		test_voronoi_halfplane_clipping_geometry()
 		test_territory_map_generation_and_coverage()
 		test_theme_and_ui_helpers()
+		test_ui_glyph_coverage()
 		test_toast_notifications()
 		test_achievements_system()
 	else:
@@ -64,6 +65,62 @@ func _ready() -> void:
 	else:
 		print("✅ Todas las verificaciones ejecutadas han pasado.")
 		get_tree().quit(0)
+
+## Las fuentes incluyen subconjuntos (4 y 45 glifos), así que un emoji fuera de ellos se
+## dibuja como un cuadro vacío. Este test recorre todo texto visible y comprueba su glifo.
+func test_ui_glyph_coverage() -> void:
+	print("\n-> Test: Glifos de la Interfaz Cubiertos por las Fuentes Incluidas")
+	var font := UIThemeHelper.bold_font()
+	var missing: Dictionary = {}
+	var check = func(text: String, source: String):
+		for i in text.length():
+			var code := text.unicode_at(i)
+			# Los selectores de variación y el ZWJ no son glifos sueltos: acompañan al anterior
+			if code <= 127 or code in [0x200B, 0x200C, 0x200D, 0x200E, 0x200F] or (code >= 0xFE00 and code <= 0xFE0F):
+				continue
+			if not font.has_char(code):
+				missing["U+%04X (%s) en %s" % [code, text.substr(0, 32), source]] = true
+	for entry in _player_visible_text():
+		check.call(entry["text"], entry["source"])
+	assert_equals(missing.keys(), [] as Array, "Ningún texto visible acaba en cuadro vacío")
+
+## Todo texto que puede acabar en pantalla: literales de los scripts que se exportan,
+## escenas, nombres de ciudades del atlas y el texto compartido del desafío diario.
+func _player_visible_text() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for path in _exported_text_files():
+		var file := FileAccess.open(path, FileAccess.READ)
+		if file == null:
+			continue
+		for line in file.get_as_text().split("\n"):
+			var parts := line.split("\"")
+			for i in range(1, parts.size(), 2):
+				out.append({"text": parts[i], "source": path.get_file()})
+	for city in GeoDatabase.get_cities():
+		out.append({"text": str(city.get("name_es", "")), "source": "geo.json name_es"})
+		out.append({"text": str(city.get("name_en", "")), "source": "geo.json name_en"})
+	out.append({"text": DailyShare.text({"day": 20000, "stars": 3, "time": 42.0, "speed": 1.0}),
+		"source": "DailyShare.text"})
+	return out
+
+## Scripts y escenas que llegan al jugador (los tests no se exportan).
+func _exported_text_files() -> Array[String]:
+	var out: Array[String] = []
+	var pending: Array[String] = ["res://scripts", "res://scenes"]
+	while not pending.is_empty():
+		var dir_path: String = pending.pop_back()
+		if dir_path.contains("/tests"):
+			continue
+		var dir := DirAccess.open(dir_path)
+		if dir == null:
+			continue
+		for name in dir.get_files():
+			if name.ends_with(".gd") or name.ends_with(".tscn"):
+				out.append(dir_path.path_join(name))
+		for sub in dir.get_directories():
+			pending.append(dir_path.path_join(sub))
+	out.append("res://project.godot")
+	return out
 
 func assert_true(condition: bool, test_name: String) -> void:
 	total_tests += 1
@@ -127,6 +184,7 @@ func run_all_tests() -> void:
 	test_army_tab_upgrades_and_looks()
 	test_battle_hud_modals_and_sound_toggle()
 	test_theme_and_ui_helpers()
+	test_ui_glyph_coverage()
 	test_toast_notifications()
 	test_crossing_streams_low_fps_and_huge_streams()
 	test_save_robustness_and_replay_rewards()
@@ -2585,6 +2643,25 @@ func test_tutorial_steps_and_tips() -> void:
 	assert_true(not GameManager.has_seen_tip("chain"), "Un paso caducado no se marca como aprendido")
 	remove_child(field2)
 	field2.free()
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+
+	# El primer gesto congela la simulación: si el jugador no lo hace, no puede quedarse así
+	GameManager.reset_save()
+	GameManager.current_level_id = "europe_1"
+	var field3 = load("res://scenes/battle/battle_field.tscn").instantiate()
+	add_child(field3)
+	assert_equals(field3._tutorial._current, "drag", "europe_1 espera el arrastre antes de descongelar")
+	field3._tutorial._step_time = 999.0
+	field3._tutorial._process(0.0) # construye el trazo de la mano si aún no existe
+	field3._tutorial._step_time = 999.0
+	field3._tutorial._process(0.0) # caduca el paso
+	assert_true(field3._tutorial._current != "drag", "Sin gesto, el paso de arrastre caduca solo")
+	assert_true(field3.bases.all(func(b): return b.is_active), "La batalla se descongela al caducar el gesto")
+	assert_true(field3.ai_controllers.all(func(ai): return ai.is_processing()), "La IA arranca sin esperar al gesto")
+	assert_true(not GameManager.has_seen_tip("drag"), "El gesto sin hacer no se marca como aprendido")
+	remove_child(field3)
+	field3.free()
 	get_tree().paused = false
 	Engine.time_scale = 1.0
 	GameManager.reset_save()

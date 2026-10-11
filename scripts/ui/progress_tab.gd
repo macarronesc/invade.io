@@ -92,7 +92,9 @@ func _build_collections() -> void:
 			claim.pressed.connect(func():
 				if GameManager.claim_collection(id) > 0:
 					AudioManager.play_star_reveal(2)
-					GameManager.haptic(30))
+					GameManager.haptic(30)
+				else:
+					rebuild()) # Un botón viejo (colección ya cobrada) no puede quedarse en pantalla
 			row.add_child(claim)
 		else:
 			row.add_child(UIThemeHelper.label("%d/%d" % [have, total], "Caption"))
