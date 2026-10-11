@@ -157,6 +157,25 @@ Todo esto se hace en la web de Play Console; el orden importa.
 7. **Producción**: crear la versión con el mismo AAB (no hay que recompilar), revisar el informe
    previo al lanzamiento (*Pre-launch report*) y lanzar el despliegue por fases (por ejemplo 20 %).
 
+**Registrar el identificador del paquete** (Android developer verification → *Register package name*):
+el paquete es `macarronesc.invadeio` y Play pide la **huella SHA-256 de una clave tuya**. Antes de
+publicar la única que existe es la de subida:
+
+```sh
+keytool -list -v -keystore upload.keystore -alias upload | grep -i sha256
+# Copia el valor con dos puntos: SHA256: 5B:2C:...:9F
+# Si el campo pide base64:
+keytool -list -v -keystore upload.keystore -alias upload | grep -i sha256 | awk '{print $2}' \
+  | tr -d ':' | xxd -r -p | base64
+```
+
+Debe ser **la misma clave** con la que firma GitHub Actions (`ANDROID_KEYSTORE_BASE64`): si el
+identificador se registra con una huella y el AAB llega firmado con otra, Play rechaza la subida. Si
+la pantalla ofrece tres opciones (Play Console / clave local / Android Studio), para una app sin
+publicar la buena es **la clave local**. Cuando el paquete ya esté publicado, la huella de la clave de
+firma de Google aparece en *Test and release → App integrity → Play App Signing*; ésa es la que se usa
+para App Links e integraciones, no la de subida.
+
 Notas de la cuenta: si es **de organización** no aplica la prueba cerrada obligatoria, pero sí la
 verificación de identidad. El reloj de los 14 días sólo empieza cuando los 12 probadores están dentro,
 así que conviene reclutarlos **antes** de subir el primer AAB.

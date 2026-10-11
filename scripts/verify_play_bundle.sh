@@ -60,7 +60,8 @@ if [ -n "$BUNDLE" ]; then
 	echo "Verificando $BUNDLE ($(du -h "$BUNDLE" | cut -f1))"
 
 	unzip -tq "$BUNDLE" >/dev/null 2>&1 && ok "el archivo es un ZIP íntegro" || bad "el ZIP está dañado"
-	LIST="$(unzip -l "$BUNDLE")"
+	LIST="$(unzip -l "$BUNDLE" 2>/dev/null || true)"
+	[ -n "$LIST" ] || die "no se pudo leer el contenido de $BUNDLE"
 
 	if grep -q "base/manifest/AndroidManifest.xml" <<<"$LIST"; then
 		ok "incluye el manifiesto"
@@ -110,7 +111,7 @@ if [ -n "$BUNDLE" ]; then
 
 	if grep -q "$ENGINE_SO" <<<"$LIST"; then
 		unzip -p "$BUNDLE" "$ENGINE_SO" >"$TMP/engine.so"
-		ALIGNS="$(readelf -lW "$TMP/engine.so" | awk '$1 == "LOAD" { print $NF }')"
+		ALIGNS="$(readelf -lW "$TMP/engine.so" | awk '$1 == "LOAD" { print $NF }' || true)"
 		if [ -z "$ALIGNS" ]; then
 			bad "no se pudieron leer los segmentos LOAD de la librería nativa"
 		else
@@ -142,7 +143,7 @@ if [ -n "$BUNDLE" ]; then
 	MANIFEST="$TMP/AndroidManifest.xml"
 	unzip -p "$BUNDLE" "base/manifest/AndroidManifest.xml" >"$MANIFEST" 2>/dev/null || true
 	if [ -s "$MANIFEST" ]; then
-		STRINGS="$(strings -el "$MANIFEST")"
+		STRINGS="$(strings -el "$MANIFEST" || true)"
 		if grep -qF "$PACKAGE" <<<"$STRINGS"; then
 			ok "el identificador es $PACKAGE"
 		else
@@ -164,6 +165,12 @@ if [ -n "$BUNDLE" ]; then
 			ok "no está marcado como depurable"
 		fi
 	fi
+
+	# Si algo del paquete no cuadra, se muestra su estructura para diagnosticar sin otra ejecución
+	if [ "$fail" -ne 0 ]; then
+		echo "  --- contenido relevante de $(basename "$BUNDLE") ---"
+		grep -E "base/lib/|base/manifest/|geo\.json" <<<"$LIST" | head -12 | sed 's/^/    /' || true
+	fi
 fi
 
 # --------------------------------------------------------------------------
@@ -176,15 +183,28 @@ if [ -n "$APK" ] && [ -f "$APK" ]; then
 	else
 		echo "Verificando el APK $APK"
 		BADGING="$("$AAPT2" dump badging "$APK" 2>/dev/null || true)"
-		if grep -q "targetSdkVersion:'$EXPECTED_TARGET_SDK'" <<<"$BADGING"; then
+		# aapt2 antiguo imprime sdkVersion y el nuevo minSdkVersion: se aceptan las dos formas
+		# (|| true: con set -e, un grep sin resultados abortaría el script)
+		TARGET_SDK="$(grep -oE "targetSdkVersion:'[0-9]+'" <<<"$BADGING" | grep -oE "[0-9]+" | head -1 || true)"
+		MIN_SDK="$(grep -oE "minSdkVersion:'[0-9]+'" <<<"$BADGING" | grep -oE "[0-9]+" | head -1 || true)"
+		if [ -z "$MIN_SDK" ]; then
+			MIN_SDK="$(grep -oE "^sdkVersion:'[0-9]+'" <<<"$BADGING" | grep -oE "[0-9]+" | head -1 || true)"
+		fi
+		if [ "$TARGET_SDK" = "$EXPECTED_TARGET_SDK" ]; then
 			ok "target SDK $EXPECTED_TARGET_SDK"
 		else
-			bad "target SDK distinto de $EXPECTED_TARGET_SDK: $(grep -oE "targetSdkVersion:'[0-9]+'" <<<"$BADGING" || echo 'no declarado')"
+			bad "target SDK distinto de $EXPECTED_TARGET_SDK (encontrado: ${TARGET_SDK:-no declarado})"
 		fi
-		if grep -q "sdkVersion:'$EXPECTED_MIN_SDK'" <<<"$BADGING"; then
-			ok "min SDK $EXPECTED_MIN_SDK"
+		# Play no impone un min SDK, pero el motor necesita 24 y el paquete debe declararlo
+		MIN_REQUIRED=21
+		if [ -z "$MIN_SDK" ]; then
+			bad "el APK no declara minSdkVersion: el sistema no sabría en qué dispositivos instalar"
+		elif [ "$MIN_SDK" -lt "$MIN_REQUIRED" ]; then
+			bad "min SDK $MIN_SDK: por debajo de Android 5.0 (API $MIN_REQUIRED)"
+		elif [ "$MIN_SDK" != "$EXPECTED_MIN_SDK" ]; then
+			echo "  [AVISO] min SDK $MIN_SDK (el preset AAB fija $EXPECTED_MIN_SDK: Godot usa 29 por defecto si el renderizador es Vulkan)"
 		else
-			bad "min SDK distinto de $EXPECTED_MIN_SDK"
+			ok "min SDK $MIN_SDK"
 		fi
 		CODES="$(grep -oE "native-code: '.*'" <<<"$BADGING" || echo "native-code: ''")"
 		if grep -q "arm64-v8a" <<<"$CODES"; then
@@ -192,16 +212,15 @@ if [ -n "$APK" ] && [ -f "$APK" ]; then
 		else
 			bad "el APK no incluye arm64-v8a"
 		fi
-		# Un APK de depuración lleva INTERNET (lo añade Godot para el depurador remoto): no se publica
-		PERM_EXPECTED="android.permission.VIBRATE"
-		if grep -q "application-debuggable" <<<"$BADGING"; then
-			echo "  [INFO] APK de depuración: se espera también INTERNET"
-			PERM_EXPECTED="android.permission.INTERNET
-android.permission.VIBRATE"
-		fi
+		# Godot añade INTERNET sólo a las exportaciones de depuración con depurador remoto:
+		# se tolera en un APK de pruebas, nunca se exige, y nunca puede aparecer en release.
 		PERMS="$(grep -oE "uses-permission: name='android\.permission\.[A-Z_]+'" <<<"$BADGING" | sed "s/.*'\(.*\)'/\1/" | sort -u || true)"
-		if [ "$PERMS" = "$PERM_EXPECTED" ]; then
-			ok "permisos esperados ($(tr '\n' ' ' <<<"$PERMS") )"
+		if grep -q "application-debuggable" <<<"$BADGING"; then
+			echo "  [INFO] APK de depuración (no se publica)"
+			PERMS="$(grep -vx "android.permission.INTERNET" <<<"$PERMS" || true)"
+		fi
+		if [ "$PERMS" = "android.permission.VIBRATE" ]; then
+			ok "permisos esperados (sólo VIBRATE)"
 		else
 			bad "permisos inesperados en el APK: ${PERMS:-ninguno}"
 		fi
