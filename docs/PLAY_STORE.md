@@ -38,10 +38,11 @@ indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se 
 - `.github/workflows/build-android.yml`: importa recursos, ejecuta la **suite completa** (1857
   comprobaciones), exporta el APK de pruebas, y si existen los secretos exporta el **AAB firmado** y
   lo verifica. El AAB se publica como artefacto `invadeio-play-bundle`.
-- `scripts/verify_play_bundle.sh`: puerta de calidad. Comprueba ZIP íntegro, manifiesto, arm64 sin
-  32 bits, `geo.json` presente, sin código de test, librería sin comprimir, **firma válida**,
-  **segmentos ELF a 16 KB**, identificador, VIBRATE declarado, **sin INTERNET**, sin `debuggable`, y
-  con aapt2 el target/min SDK, las arquitecturas y los permisos del APK.
+- `scripts/verify_play_bundle.sh`: puerta de calidad. En el **AAB**: ZIP íntegro, manifiesto,
+  arm64 sin 32 bits, `geo.json` presente, sin código de test, **firma válida**, **segmentos ELF de
+  todas las librerías a 16 KB**, **la alineación de 16 KB que el paquete pide** (con bundletool),
+  identificador, VIBRATE declarado, **sin INTERNET**, sin `debuggable`. En el **APK**: target/min SDK,
+  arquitecturas, permisos y **`zipalign -c -P 16`**, que verifica el empaquetado real de las librerías.
 - Correcciones de esta revisión: el tutorial de arrastre ya no puede congelar la batalla (caduca a los
   20 s), la tarjeta de ayuda abre y cierra bien con el botón atrás de Android, dos glifos que se veían
   como cuadros vacíos, el aviso de logro ya no tapa la cabecera de batalla, los botones de reclamar se

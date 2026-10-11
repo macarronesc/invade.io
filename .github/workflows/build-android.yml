@@ -72,6 +72,14 @@ jobs:
           export/android/android_sdk_path = "$ANDROID_HOME"
           EOF
 
+      - name: Instalar bundletool (alineación de 16 KB del paquete)
+        run: |
+          cd "$RUNNER_TEMP"
+          curl --fail --location --retry 3 -o bundletool.jar \
+            "https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar"
+          echo "50feda5f3f00931bad943a37b7cfc33d8ea53b33bd9bfa83832f612da6e99b72146206695ae25df5044030e305e1d718c833ad51c12b944079c263bba3cbffa0  bundletool.jar" | sha512sum --check -
+          echo "BUNDLETOOL_JAR=$RUNNER_TEMP/bundletool.jar" >> "$GITHUB_ENV"
+
       - name: Importar recursos
         run: godot --headless --path . --editor --import
 

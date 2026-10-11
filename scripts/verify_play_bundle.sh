@@ -34,11 +34,16 @@ bad()  { printf '  [FALLO] %s\n' "$1"; fail=1; }
 die()  { printf 'ERROR: %s\n' "$1" >&2; exit 2; }
 need() { command -v "$1" >/dev/null 2>&1 || die "falta '$1' en el sistema ($2)"; }
 
-# aapt2 vive en build-tools del SDK de Android, que puede no estar en el PATH
-find_aapt2() {
-	command -v aapt2 2>/dev/null && return 0
-	ls -1 "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/nonexistent}}"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1
+# aapt2 y zipalign viven en build-tools del SDK de Android, que puede no estar en el PATH
+find_build_tool() {
+	command -v "$1" 2>/dev/null && return 0
+	ls -1 "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/nonexistent}}"/build-tools/*/"$1" 2>/dev/null | sort -V | tail -1
 }
+
+# bundletool (jar) es opcional: si está, se comprueba la alineación que pide el paquete
+JAVA="$(command -v java 2>/dev/null || true)"
+BUNDLETOOL="${BUNDLETOOL_JAR:-}"
+[ -f "$BUNDLETOOL" ] || BUNDLETOOL=""
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -94,11 +99,36 @@ if [ -n "$BUNDLE" ]; then
 		ok "sin código de test"
 	fi
 
-	# Las librerías nativas deben viajar sin comprimir: es lo que permite la alineación de 16 KB
-	if unzip -v "$BUNDLE" "$ENGINE_SO" 2>/dev/null | grep -qE "Stored"; then
-		ok "la librería nativa viaja sin comprimir"
+	# Dentro del AAB las librerías pueden viajar comprimidas: Play/bundletool generan los APK
+	# de cada dispositivo y es ahí donde importan el ELF y la alineación del ZIP. Se informa
+	# del método para detectar un cambio inesperado, pero no es un requisito de Play.
+	SO_METHOD="$(unzip -v "$BUNDLE" "$ENGINE_SO" 2>/dev/null | grep -oE "Stored|Defl:[NX]" | head -1 || true)"
+	if [ "$SO_METHOD" = "Stored" ]; then
+		echo "  [INFO] la librería nativa viaja sin comprimir en el AAB"
+	elif [ -n "$SO_METHOD" ]; then
+		echo "  [INFO] la librería nativa viaja comprimida en el AAB (lo normal: Play la descomprime y la alinea al generar cada APK)"
 	else
-		bad "la librería nativa viaja comprimida (compress_native_libraries debe ser false)"
+		echo "  [AVISO] no se pudo leer el método de compresión de la librería nativa"
+	fi
+
+	# La alineación que el paquete pide para los APK que Play genera: si no es de 16 KB,
+	# el juego no se instala en dispositivos de 16 KB aunque el ELF esté bien.
+	if [ -n "$BUNDLETOOL" ]; then
+		if [ -z "$JAVA" ]; then
+			echo "  [AVISO] bundletool encontrado pero no hay 'java': no se puede comprobar la alineación del paquete"
+		else
+			BT_OUT="$("$JAVA" -jar "$BUNDLETOOL" dump config --bundle="$BUNDLE" 2>&1 || true)"
+			BT_ALIGN="$(grep -iE "alignment" <<<"$BT_OUT" | head -3 || true)"
+			if [ -z "$BT_ALIGN" ]; then
+				echo "  [AVISO] bundletool no informa de la alineación del paquete: $(head -1 <<<"$BT_OUT")"
+			elif grep -qE "PAGE_ALIGNMENT_(16|64)K" <<<"$BT_ALIGN"; then
+				ok "bundletool: el paquete pide 16 KB ($(tr '\n' ' ' <<<"$BT_ALIGN" | cut -c1-60))"
+			else
+				bad "el paquete no pide alineación de 16 KB para sus librerías ($(tr '\n' ' ' <<<"$BT_ALIGN" | cut -c1-60)): los APK de Play llevarían .so a 4 KB"
+			fi
+		fi
+	else
+		echo "  [INFO] sin bundletool (BUNDLETOOL_JAR) no se puede leer la alineación que pide el paquete"
 	fi
 
 	SIGN_OUT="$(jarsigner -verify -certs "$BUNDLE" 2>&1 || true)"
@@ -143,7 +173,10 @@ if [ -n "$BUNDLE" ]; then
 	MANIFEST="$TMP/AndroidManifest.xml"
 	unzip -p "$BUNDLE" "base/manifest/AndroidManifest.xml" >"$MANIFEST" 2>/dev/null || true
 	if [ -s "$MANIFEST" ]; then
-		STRINGS="$(strings -el "$MANIFEST" || true)"
+		# aapt2 compila el manifiesto con el pool de cadenas en UTF-8 (y algunos con UTF-16):
+		# se leen las dos codificaciones, o ninguna comprobación vería el identificador ni los permisos
+		STRINGS="$(strings "$MANIFEST" 2>/dev/null || true)
+$(strings -el "$MANIFEST" 2>/dev/null || true)"
 		if grep -qF "$PACKAGE" <<<"$STRINGS"; then
 			ok "el identificador es $PACKAGE"
 		else
@@ -177,7 +210,7 @@ fi
 # APK: target/min SDK, arquitecturas y permisos declarados
 # --------------------------------------------------------------------------
 if [ -n "$APK" ] && [ -f "$APK" ]; then
-	AAPT2="$(find_aapt2 || true)"
+	AAPT2="$(find_build_tool aapt2 || true)"
 	if [ -z "$AAPT2" ]; then
 		echo "  [INFO] aapt2 no está instalado: se omiten las comprobaciones de $APK"
 	else
@@ -223,6 +256,30 @@ if [ -n "$APK" ] && [ -f "$APK" ]; then
 			ok "permisos esperados (sólo VIBRATE)"
 		else
 			bad "permisos inesperados en el APK: ${PERMS:-ninguno}"
+		fi
+
+		# El APK comparte la configuración de Gradle con el paquete de Play: si aquí las
+		# librerías van sin comprimir, Play generará sus APK igual y alineados a 16 KB.
+		APK_SO="$(grep -oE "^ +[0-9]+ +[0-9-]+ +[0-9:]+ +lib/arm64-v8a/[^ ]+\.so" <<<"$(unzip -l "$APK" 2>/dev/null || true)" | awk '{ print $NF }' | sort -u || true)"
+		if [ -z "$APK_SO" ]; then
+			echo "  [AVISO] el APK no lista librerías arm64: no se pudo comprobar su empaquetado"
+		else
+			for so in $APK_SO; do
+				METHOD="$(unzip -v "$APK" "$so" 2>/dev/null | grep -oE "Stored|Defl:[NX]" | head -1 || true)"
+				if [ "$METHOD" = "Stored" ]; then
+					ok "$(basename "$so") viaja sin comprimir"
+				else
+					echo "  [AVISO] $(basename "$so") viaja comprimido (${METHOD:-desconocido}): se extrae al instalar y ocupa más espacio"
+				fi
+			done
+		fi
+		ZIPALIGN="$(find_build_tool zipalign || true)"
+		if [ -z "$ZIPALIGN" ]; then
+			echo "  [INFO] sin zipalign no se puede comprobar la alineación del ZIP"
+		elif "$ZIPALIGN" -c -P 16 4 "$APK" >/dev/null 2>&1; then
+			ok "las entradas del APK están alineadas a 16 KB (zipalign -c -P 16 4)"
+		else
+			bad "el APK no está alineado a 16 KB: en dispositivos de 16 KB no se instalaría ($("$ZIPALIGN" -c -P 16 4 "$APK" 2>&1 | head -1))"
 		fi
 	fi
 elif [ -n "$APK" ]; then
