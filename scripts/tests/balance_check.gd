@@ -11,6 +11,10 @@ class Simulation extends BattleController:
 	func _trigger_defeat() -> void:
 		is_game_over = true
 
+## Idiomas con captura visual. Los dos primeros cubren claro/oscuro; el resto,
+## sólo el tema oscuro, para revisar expansión, RTL y alfabetos sin multiplicar el tiempo.
+const UI_LANGS := ["es", "en", "de", "ru", "ar", "hi", "zh_CN", "ja"]
+
 var _failed := false
 var _completed := false
 
@@ -25,6 +29,12 @@ func _ready() -> void:
 	elif "--flow" in OS.get_cmdline_user_args():
 		GameManager.save_path = "user://balance_flow_test_save.json"
 		await _check_flow()
+	elif "--invasions" in OS.get_cmdline_user_args():
+		_check_invasions()
+	elif "--invasion-ui" in OS.get_cmdline_user_args():
+		GameManager.save_path = "user://balance_invasion_ui_test_save.json"
+		OS.low_processor_usage_mode = false
+		await _check_invasion_ui()
 	else:
 		_check_campaign()
 	_require(_completed, "La comprobación termina todos sus pasos sin errores de script")
@@ -69,6 +79,22 @@ func _check_campaign() -> void:
 		var result := _simulate(LevelGenerator.conquest_id(i), 3.0, 0)
 		print("EXPEDITION %d: %s · %.0fs" % [i, str(result["won"]), result["seconds"]])
 		_require(result["won"], "Expedición alcanzable con ejército mejorado: %d" % i)
+	_check_invasions()
+	_completed = true
+
+## Muestra de invasiones: cada nivel debe ser alcanzable con un ejército medio.
+func _check_invasions() -> void:
+	GameManager._apply_save({})
+	GameManager.upgrades = {"production_rate": 5, "starting_troops": 5, "troop_speed": 5, "gold_bonus": 0}
+	for id in ["inv_iberia_1", "inv_iberia_3", "inv_amazon_3", "inv_maghreb_3", "inv_us_east_1", "inv_us_east_3", "inv_china_1", "inv_china_3", "inv_siberia_3", "inv_pacific_3"]:
+		var wins := 0
+		var seconds := 0.0
+		for trial in 3:
+			var result := _simulate(id, 3.0 + trial * 0.3, trial)
+			wins += int(result["won"])
+			seconds += result["seconds"]
+		print("INVASION %s: %d/3 · %.0fs" % [id, wins, seconds / 3])
+		_require(wins >= 2, "Invasión alcanzable con ejército medio: " + id)
 	_completed = true
 
 func _simulate(id: String, delay: float, trial: int) -> Dictionary:
@@ -127,7 +153,52 @@ func _player_order(battle: BattleController) -> void:
 	if best_target:
 		for src in best_sources: battle.dispatch_troops(src, best_target)
 
+## Capturas de la pestaña de invasiones para comprobar mapa, ficha y tema en móvil.
+func _check_invasion_ui() -> void:
+	if DisplayServer.get_name() != "headless":
+		get_window().size = Vector2i(1080, 1920)
+		await get_tree().process_frame
+	GameManager._apply_save({})
+	GameManager.has_started = true
+	for i in range(1, LevelDatabase.LEVELS_PER_CONTINENT + 1):
+		GameManager.completed_levels["europe_%d" % i] = 3
+	GameManager.invasion_stars = {"inv_iberia_1": 3, "inv_iberia_2": 2}
+	GameManager.coins = 420
+	GameManager.settings["reduced_motion"] = true
+	for lang in _ui_langs():
+		GameManager.set_language(lang)
+		for light in [false, true]:
+			if light and lang not in ["es", "en"]:
+				continue
+			GameManager.set_setting("light_mode", light)
+			var menu: MainMenuUI = load(MainMenuUI.SCENE).instantiate()
+			add_child(menu)
+			menu.show_tab("invasion")
+			await _snapshot("invasion_%s_%s" % [lang, str(light)])
+			var page = menu._content.get_child(0)
+			_require(page is InvasionPage, "La sección de invasiones monta su página")
+			var map: Control = page.find_child("InvasionMap", true, false)
+			_require(map != null, "La pestaña de invasiones muestra el mapa")
+			_require(page.find_child("InvasionRegionCard", true, false) != null, "La pestaña de invasiones muestra la ficha de región")
+			_require(page.find_child("BtnInvasionFront_1", true, false) != null, "La ficha muestra el primer frente")
+			if map:
+				_require(map.get_global_rect().position.x >= 0.0 and map.get_global_rect().end.x <= get_viewport().get_visible_rect().end.x,
+					"El mapa de invasiones cabe en el ancho de la pantalla")
+			remove_child(menu)
+			menu.free()
+	_completed = true
+
+func _ui_langs() -> Array:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--lang="):
+			return [arg.substr(7)]
+	return UI_LANGS
+
 func _check_ui() -> void:
+	# La ficha de Play exige capturas de 1080×1920; el override de escritorio es 540×960.
+	if DisplayServer.get_name() != "headless":
+		get_window().size = Vector2i(1080, 1920)
+		await get_tree().process_frame
 	GameManager._apply_save({})
 	GameManager.has_started = true
 	GameManager.completed_levels = {"europe_1": 3, "europe_2": 3, "europe_3": 3}
@@ -135,17 +206,25 @@ func _check_ui() -> void:
 	GameManager.play_level("europe_4")
 	GameManager.coins = 420
 	GameManager.settings["reduced_motion"] = true
-	for lang in ["es", "en"]:
+	for lang in _ui_langs():
 		GameManager.set_language(lang)
 		for light in [false, true]:
+			if light and lang not in ["es", "en"]:
+				continue
 			GameManager.set_setting("light_mode", light)
 			var menu: MainMenuUI = load(MainMenuUI.SCENE).instantiate()
 			add_child(menu)
 			await _snapshot("menu_%s_%s" % [lang, str(light)])
 			var play := menu._content.get_child(0)
-			_require(play.btn_daily.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y, "Accesos secundarios no quedan bajo la navegación")
+			_require(not play.level_details.visible, "La ficha arranca sin datos secundarios")
+			play.btn_details.pressed.emit()
+			_require(play.level_details.visible, "Detalles revela las etiquetas secundarias")
+			await _snapshot("menu_details_%s_%s" % [lang, str(light)])
+			play.btn_details.pressed.emit()
+			_require(not play.level_details.visible, "Detalles vuelve a plegarse")
+			_require(play.btn_daily.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y, "Accesos secundarios no quedan bajo la navegación (%s)" % lang)
 			for label in play.btn_daily.find_children("*", "Label", true, false):
-				_require(play.btn_daily.get_global_rect().grow(1).encloses(label.get_global_rect()), "El texto del desafío diario queda dentro de su tarjeta")
+				_require(play.btn_daily.get_global_rect().grow(6).encloses(label.get_global_rect()), "El texto del desafío diario queda dentro de su tarjeta")
 			menu.show_tab("challenges")
 			await _snapshot("challenges_%s_%s" % [lang, str(light)])
 			var challenges: ScrollPage = menu._content.get_child(0)
@@ -193,6 +272,14 @@ func _check_ui() -> void:
 			await get_tree().process_frame
 			_require(army.section == "looks", "Un toque en un botón desplazable sigue activándolo")
 			await _snapshot("army_looks_%s_%s" % [lang, str(light)])
+			var before_completed: Dictionary = GameManager.completed_levels.duplicate()
+			for i in range(1, LevelDatabase.LEVELS_PER_CONTINENT + 1):
+				GameManager.completed_levels["europe_%d" % i] = 3
+			GameManager.invasion_stars = {"inv_iberia_1": 3, "inv_iberia_2": 2, "inv_iberia_3": 1}
+			menu.show_tab("invasion")
+			await _snapshot("invasion_%s_%s" % [lang, str(light)])
+			GameManager.completed_levels = before_completed
+			GameManager.invasion_stars.clear()
 			menu._open_settings()
 			await _snapshot("settings_%s_%s" % [lang, str(light)])
 			menu._utility_panel._close()
@@ -225,12 +312,12 @@ func _check_ui() -> void:
 			battle.defeat_gold = 19
 			hud._on_battle_lost()
 			await _snapshot("defeat_%s_%s" % [lang, str(light)])
-			_require(hud.btn_defeat_upgrade.visible and hud.btn_defeat_upgrade.theme_type_variation == "GoldButton", "Compra útil visible tras perder")
+			_require(hud.btn_defeat_upgrade.visible and hud.btn_defeat_upgrade.theme_type_variation == "Button", "Compra útil, secundaria, visible tras perder")
 			_require(hud.defeat_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y, "Derrota cabe en pantalla")
 			hud.defeat_panel.hide()
 			hud.deploy_victory_modal({"stars": 3, "gold_earned": 170, "xp_before": 0, "xp": 60, "level_id": "europe_4"})
 			await _snapshot("victory_%s_%s" % [lang, str(light)])
-			_require(hud.btn_result_action.visible and hud.btn_result_action.theme_type_variation == "GoldButton", "Mejorar y seguir visible tras ganar")
+			_require(hud.btn_result_action.visible and hud.btn_result_action.theme_type_variation == "Button", "Mejorar y seguir visible, secundario, tras ganar")
 			_require(hud.victory_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y, "Victoria cabe en pantalla")
 			hud.deploy_victory_modal({"stars": 2, "gold_earned": 150, "is_daily_challenge": true,
 				"level_id": DailyRewards.challenge_id(DailyRewards.today())})

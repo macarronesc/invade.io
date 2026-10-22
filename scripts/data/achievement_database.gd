@@ -23,13 +23,18 @@ const ACHIEVEMENTS: Array[Dictionary] = [
 	{"id": "tech", "icon": "🧠", "title": "Tecnología punta", "title_en": "Cutting edge", "desc": "Lleva una mejora a su nivel máximo", "desc_en": "Take one upgrade to max level", "stat": "max_upgrade_level", "goal": 10, "reward": 150},
 	{"id": "streak", "icon": "📅", "title": "Constancia", "title_en": "Consistency", "desc": "Recoge la recompensa diaria 7 días seguidos", "desc_en": "Claim the daily reward 7 days in a row", "stat": "daily_streak", "goal": 7, "reward": 200},
 	{"id": "daily_challenger", "icon": "🎯", "title": "Desafío superado", "title_en": "Challenge beaten", "desc": "Completa un desafío diario", "desc_en": "Complete a daily challenge", "stat": "daily_challenges", "goal": 1, "reward": 100},
+	{"id": "first_invasion", "icon": "🏆", "title": "Primera invasión", "title_en": "First invasion", "desc": "Completa una región de invasión", "desc_en": "Complete one invasion region", "stat": "invasion_regions", "goal": 1, "reward": 100},
+	{"id": "explorer", "icon": "🗺️", "title": "Explorador", "title_en": "Explorer", "desc": "Completa 5 regiones de invasión", "desc_en": "Complete 5 invasion regions", "stat": "invasion_regions", "goal": 5, "reward": 200},
+	{"id": "cartographer", "icon": "🗺️", "title": "Cartógrafo", "title_en": "Cartographer", "desc": "Completa 15 regiones de invasión", "desc_en": "Complete 15 invasion regions", "stat": "invasion_regions", "goal": 15, "reward": 350},
+	{"id": "world_invader", "icon": "🌍", "title": "Invasor mundial", "title_en": "World invader", "desc": "Completa las 36 regiones de invasión", "desc_en": "Complete all 36 invasion regions", "stat": "invasion_regions", "goal": 36, "reward": 750},
+	{"id": "regional_master", "icon": "💎", "title": "Dominio regional", "title_en": "Regional mastery", "desc": "Consigue 3 estrellas en los 3 frentes de una región", "desc_en": "Get 3 stars on all 3 fronts of one region", "stat": "invasion_mastery", "goal": 1, "reward": 150},
 ]
 
 static func achievement_title(a: Dictionary) -> String:
-	return a.get("title_en", a.get("title", "?")) if LocaleStrings.lang == "en" else a.get("title", "?")
+	return LocaleStrings.text("ach_%s_title" % a["id"])
 
 static func achievement_desc(a: Dictionary) -> String:
-	return a.get("desc_en", a.get("desc", "")) if LocaleStrings.lang == "en" else a.get("desc", "")
+	return LocaleStrings.text("ach_%s_desc" % a["id"])
 
 static func get_all() -> Array[Dictionary]:
 	return ACHIEVEMENTS

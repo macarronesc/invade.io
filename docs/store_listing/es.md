@@ -19,7 +19,8 @@ Conquista territorios base a base. Estrategia sin conexión y sin anuncios.
 
 ```
 invade.io es un juego de estrategia territorial: eliges una base, arrastras el dedo y las tropas
-marchan a conquistar la siguiente. Cinco segundos para entenderlo, treinta niveles para dominarlo.
+marchan a conquistar la siguiente. Cinco segundos para entenderlo, treinta niveles de campaña
+y más de cien frentes de invasión para dominarlo.
 
 El mapa es el mundo real. Cada nivel se juega sobre geografía auténtica (costas, fronteras y más de
 mil ciudades reales) y el territorio se reparte entre tú y tus rivales mientras las tropas avanzan.
@@ -35,6 +36,12 @@ Cada continente añade una regla nueva: capitales que producen un 50 % más, fá
 selva que frena las marchas, oasis, fortalezas y rutas marítimas obligatorias. Cada quinto nivel
 espera un jefe con refuerzos propios.
 
+★ INVASIONES REGIONALES
+Completa la campaña de un continente para abrir sus regiones reales. Cada una tiene tres frentes,
+estrellas por conquistar y un jefe final. Cierra la región para ganar oro, domina sus tres frentes
+con 3★ para un extra y completa todas sus regiones para desbloquear el color de ejército del
+continente.
+
 ★ CONQUISTA LIBRE Y DESAFÍO DIARIO
 Expediciones infinitas de cinco regiones, con jefe y oro doble al cerrar cada una. Un desafío nuevo
 cada día con reglas rotatorias y las mismas fuerzas para todos, para que la marca sea comparable.
@@ -42,7 +49,7 @@ Las tarjetas de resultado se copian con un toque y se pegan en tu chat favorito.
 
 ★ PROGRESO QUE SE NOTA
 Mejora guarnición, reclutamiento, velocidad y botín con el oro que ganas; los enemigos no crecen
-cuando mejoras, así que cada compra se siente. Sube de rango, completa 15 logros, cobra la
+cuando mejoras, así que cada compra se siente. Sube de rango, completa 20 logros, cobra la
 recompensa diaria (la racha perdona un día de ausencia) y conquista las ciudades de cada continente
 para llenar tu atlas.
 
@@ -52,12 +59,15 @@ el combate, sólo cómo se ve tu conquista.
 
 ★ PENSADO PARA EL MÓVIL
 • Se juega con una mano en vertical, sin tutoriales largos: el primer nivel ya es una batalla.
-• Sin conexión: todo funciona en modo avión.
+• Sin conexión: se puede jugar en modo avión. Las estadísticas de uso y los informes de fallos son
+  opcionales, están desactivados de forma predeterminada y se activan por separado en Ajustes.
 • Sin anuncios y sin compras. El oro se gana jugando.
-• Sin recogida de datos: el juego no pide permiso de red.
+• Privacidad: sin cuentas ni identificadores persistentes; compartir datos es opcional.
 • Guardado local con copia de seguridad exportable e importable cuando quieras.
-• Español e inglés, modo claro y oscuro, paleta para daltonismo, opción de reducir movimiento,
-  velocidad de juego y respuesta táctil ajustable.
+• 15 idiomas: inglés, español, portugués (Brasil), francés, alemán, italiano, ruso, turco,
+  árabe, hindi, indonesio, vietnamita, chino simplificado, japonés y coreano. El árabe usa
+  diseño de derecha a izquierda. Modo claro y oscuro, paleta para daltonismo, opción de reducir
+  movimiento, velocidad de juego y respuesta táctil ajustable.
 ```
 
 ## Qué NO prometer

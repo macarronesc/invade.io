@@ -1,4 +1,11 @@
-Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One)
+Font attributions:
+
+- Fredoka: Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One)
+- Noto subsets: Copyright 2022 The Noto Project Authors (https://github.com/notofonts)
+- CJK subsets: Copyright 2014-2021 Adobe; Reserved Font Name "Source"
+
+The bundled font subsets retain their font-specific copyright and OFL metadata.
+All bundled fonts are licensed under the SIL Open Font License, Version 1.1.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

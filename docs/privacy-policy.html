@@ -30,23 +30,32 @@
 <main>
 
 <h1>invade<span>.io</span> — Política de privacidad</h1>
-<p class="fecha">Última actualización: 11 de octubre de 2026</p>
+<p class="fecha">Última actualización: 22 de octubre de 2026</p>
 
 <div class="aviso">
-<p><strong>Resumen en una línea:</strong> invade.io no recopila, no transmite y no comparte ningún
-dato personal. El juego funciona sin conexión y no pide permiso de red.</p>
+<p><strong>Resumen:</strong> invade.io no tiene cuentas ni pide nombres o correos. Las estadísticas
+de uso y los informes de fallos son opcionales, están desactivados de forma predeterminada y sólo se
+envían si activas cada opción en <strong>Ajustes → Privacidad</strong>.</p>
 </div>
 
-<h2>1. Qué datos recogemos</h2>
-<p><strong>Ninguno.</strong> El juego no tiene cuentas, ni registro, ni inicio de sesión: no pide
-nombre, correo, teléfono, contactos, ubicación ni identificadores del dispositivo.</p>
+<h2>1. Qué datos se envían</h2>
+<p>Si activas la opción correspondiente, el juego puede enviar:</p>
 <ul>
-  <li>No incluye analítica, publicidad, redes sociales ni SDK de terceros.</li>
-  <li>No declara el permiso <code>INTERNET</code>, así que no puede enviar información a ningún
-      servidor: el juego no tiene forma técnica de transmitir datos.</li>
-  <li>El único permiso declarado es <code>VIBRATE</code>, que hace vibrar el teléfono al dar
-      órdenes. No da acceso a ningún dato.</li>
+  <li><strong>Estadísticas de uso:</strong> nivel o modo jugado, resultado, duración, estrellas,
+      intentos, mejoras compradas, recompensas, pestañas abiertas, idioma, versión de la app, sistema
+      operativo, modelo de dispositivo, versión del SDK, estado de depuración, país aproximado y un
+      identificador temporal de sesión para agrupar eventos. El juego no envía nombre, correo,
+      contactos, ubicación precisa, identificadores de publicidad ni identificadores persistentes de
+      usuario o dispositivo.</li>
+  <li><strong>Informes de fallos:</strong> mensaje y traza del error, versión de la app y del sistema,
+      modelo de dispositivo y las últimas acciones dentro del juego (por ejemplo, el nivel que se
+      estaba jugando). No se asocian a una cuenta del juego.</li>
 </ul>
+<p>El juego no incluye publicidad, redes sociales ni seguimiento entre aplicaciones. No crea perfiles
+de usuario ni vende datos.</p>
+<p>Para enviar esta información la app declara el permiso <code>INTERNET</code> y consulta el estado
+de la conexión con <code>ACCESS_NETWORK_STATE</code>. El único otro permiso es <code>VIBRATE</code>,
+que hace vibrar el teléfono al dar órdenes.</p>
 
 <h2>2. Qué se guarda y dónde</h2>
 <p>Tu progreso (oro, mejoras, niveles superados, ajustes, idioma y logros) se guarda <strong>solo en
@@ -54,54 +63,87 @@ tu dispositivo</strong>, en el almacenamiento privado que Android o iOS reservan
 <ul>
   <li>En <strong>Ajustes → Datos</strong> puedes <strong>exportar</strong> una copia
       (<code>invade-backup.json</code>) al lugar que tú elijas, e <strong>importarla</strong> después.
-      Ese archivo lo eliges y lo controlas tú; contiene exactamente el mismo progreso del juego y
-      ningún dato personal.</li>
+      Ese archivo lo eliges y lo controlas tú; contiene el progreso del juego y ningún dato personal.</li>
   <li>Si desinstalas el juego, el sistema borra esos datos. Sin la copia exportada, el progreso no se
       puede recuperar: no existe ninguna copia en servidores nuestros.</li>
 </ul>
 
-<h2>3. Menores</h2>
-<p>El juego no está dirigido a menores de 13 años y no recopila datos de ningún usuario, tampoco de
-menores.</p>
+<h2>3. Quién procesa los datos</h2>
+<p>Para no mantener servidores propios, el juego usa dos proveedores que actúan como encargados del
+tratamiento:</p>
+<ul>
+  <li><strong>Aptabase</strong> (estadísticas de uso; esta app usa el endpoint de la Unión Europea):
+      <a href="https://aptabase.com/legal/privacy">política de privacidad</a> ·
+      <a href="https://aptabase.com/legal/dpa">acuerdo de tratamiento</a>. Conserva los datos hasta
+      5 años.</li>
+  <li><strong>Sentry</strong> (informes de fallos, Functional Software, Inc.; esta app usa el endpoint
+      de ingestión de la Unión Europea):
+      <a href="https://sentry.io/privacy/">política de privacidad</a> ·
+      <a href="https://sentry.io/legal/dpa/">acuerdo de tratamiento</a>. En el plan gratuito conserva
+      los eventos 30 días.</li>
+</ul>
+<p>Ambos proveedores reciben los datos cifrados en tránsito y no los usan para publicidad ni para
+crear perfiles. Las solicitudes de red incluyen la dirección IP de conexión; Aptabase puede usarla para
+inferir el país aproximado y Sentry puede recibirla junto con un informe de fallo. El juego no envía un
+identificador de cuenta o dispositivo persistente. Revisa las políticas y acuerdos de cada proveedor
+para conocer sus prácticas de retención y las transferencias aplicables.</p>
 
-<h2>4. Terceros</h2>
-<p>La descarga y las actualizaciones se gestionan a través de Google Play (o del App Store en iOS).
-Esa distribución la realiza la tienda y se rige por la política de privacidad de Google o de Apple,
-que no controlamos. El juego, una vez instalado, no se comunica con nadie.</p>
+<h2>4. Control y base legal</h2>
+<p>Las dos opciones están desactivadas al instalar el juego. Al activarlas, autorizas por separado el
+envío de estadísticas de uso o informes de fallos para mejorar el juego. No se usan para publicidad ni
+para tomar decisiones automatizadas sobre ti. Los requisitos legales pueden variar según tu región.</p>
+<p>En <strong>Ajustes → Privacidad</strong> puedes retirar esa autorización en cualquier momento. Al
+desactivar una opción, el juego descarta los eventos de analítica que aún no se habían enviado y deja
+de recopilar nuevos datos para esa opción. Una solicitud de red que ya estuviera en curso podría
+completarse. Los datos que los proveedores ya recibieron no pueden localizarse ni borrarse
+individualmente mediante el juego, porque no se envía un identificador de cuenta. Para consultas o
+solicitudes, escribe al correo de contacto.</p>
 
-<h2>5. Cambios</h2>
-<p>Si una versión futura añadiera funciones que requieran conexión (por ejemplo, guardado en la nube
-o clasificaciones), esta política se actualizará <strong>antes</strong> de publicarla y se pedirá el
-consentimiento correspondiente. La versión publicada del juego no tiene esas funciones.</p>
+<h2>5. Menores</h2>
+<p>El juego no está dirigido a menores de 13 años. No hay cuentas y el juego no pide que introduzcas
+datos personales. Las estadísticas y los informes de fallos permanecen desactivados hasta que se
+activen en Ajustes → Privacidad.</p>
 
-<h2>6. Contacto</h2>
+<h2>6. Cambios</h2>
+<p>Si una versión futura añade funciones que recojan datos personales (por ejemplo, guardado en la
+nube o clasificaciones con cuenta), esta política se actualizará <strong>antes</strong> de publicarla
+y se pedirá el consentimiento correspondiente.</p>
+
+<h2>7. Contacto</h2>
 <p>Dudas sobre privacidad: <a href="mailto:alegandro2507@gmail.com">alegandro2507@gmail.com</a></p>
 
 <hr>
 
 <h1 lang="en">invade<span>.io</span> — Privacy policy</h1>
-<p class="fecha" lang="en">Last updated: 11 October 2026</p>
+<p class="fecha" lang="en">Last updated: 22 October 2026</p>
 
 <div class="aviso" lang="en">
-<p><strong>In one line:</strong> invade.io does not collect, transmit or share any personal data. The
-game runs offline and does not request network access.</p>
+<p><strong>Summary:</strong> invade.io has no accounts and does not ask for names or email addresses.
+Usage statistics and crash reports are optional, off by default, and sent only if you enable each
+option in <strong>Settings → Privacy</strong>.</p>
 </div>
 
-<h2 lang="en">1. What we collect</h2>
-<p lang="en"><strong>Nothing.</strong> There are no accounts, no sign-up and no login: the game never
-asks for a name, email, phone number, contacts, location or device identifiers.</p>
+<h2 lang="en">1. What is sent</h2>
+<p>When you enable the corresponding option, the game may send:</p>
 <ul lang="en">
-  <li>No analytics, advertising, social or third-party SDKs.</li>
-  <li>The app does not declare the <code>INTERNET</code> permission, so it cannot send information
-      anywhere: it has no technical way to transmit data.</li>
-  <li>The only declared permission is <code>VIBRATE</code>, used to buzz the phone when you give
-      orders. It gives access to no data.</li>
+  <li><strong>Usage statistics:</strong> level or mode played, result, duration, stars,
+      attempts, upgrades bought, rewards, tabs opened, language, app version, operating system,
+      device model, SDK version, debug state, approximate country and a temporary session identifier
+      used to group events. The game does not send your name, email, contacts, precise location,
+      advertising identifiers or persistent user or device identifiers.</li>
+  <li><strong>Crash reports:</strong> error message and stack trace, app and OS version, device model
+      and the last actions inside the game (for example, the level being played). They are not linked
+      to a game account.</li>
 </ul>
+<p>The game contains no advertising, social media or cross-app tracking. It does not build user
+profiles or sell data.</p>
+<p>To send this information the app declares the <code>INTERNET</code> permission and checks the
+connection state with <code>ACCESS_NETWORK_STATE</code>. The only other permission is
+<code>VIBRATE</code>, used to buzz the phone when you give orders.</p>
 
 <h2 lang="en">2. What is stored and where</h2>
-<p lang="en">Your progress (gold, upgrades, completed levels, settings, language and achievements) is
-stored <strong>only on your device</strong>, in the private storage Android or iOS reserves for the
-app.</p>
+<p>Your progress (gold, upgrades, completed levels, settings, language and achievements) is stored
+<strong>only on your device</strong>, in the private storage Android or iOS reserves for the app.</p>
 <ul lang="en">
   <li>In <strong>Settings → Data</strong> you can <strong>export</strong> a copy
       (<code>invade-backup.json</code>) wherever you choose and <strong>import</strong> it later. That
@@ -110,22 +152,46 @@ app.</p>
       recovered: there is no copy on any server of ours.</li>
 </ul>
 
-<h2 lang="en">3. Children</h2>
-<p lang="en">The game is not directed at children under 13 and collects no data from any user,
-including children.</p>
+<h2 lang="en">3. Who processes the data</h2>
+<p>To avoid running our own servers, the game uses two providers acting as data processors:</p>
+<ul lang="en">
+  <li><strong>Aptabase</strong> (usage statistics; this app uses its European Union endpoint):
+      <a href="https://aptabase.com/legal/privacy">privacy policy</a> ·
+      <a href="https://aptabase.com/legal/dpa">data processing agreement</a>. It retains data for up
+      to 5 years.</li>
+  <li><strong>Sentry</strong> (crash reports, Functional Software, Inc.; this app uses its European
+      Union ingest endpoint):
+      <a href="https://sentry.io/privacy/">privacy policy</a> ·
+      <a href="https://sentry.io/legal/dpa/">data processing agreement</a>. On the free plan it retains
+      events for 30 days.</li>
+</ul>
+<p>Both providers receive the data encrypted in transit and do not use it for advertising or to build
+profiles. Network requests include the connection IP address; Aptabase may use it to infer approximate
+country, and Sentry may receive it with a crash report. The game does not send a persistent account or
+device identifier. See each provider's policies and agreements for retention and applicable transfers.</p>
 
-<h2 lang="en">4. Third parties</h2>
-<p lang="en">Downloads and updates are handled by Google Play (or the App Store on iOS). That
-distribution is performed by the store under Google's or Apple's privacy policy, which we do not
-control. Once installed, the game talks to nobody.</p>
+<h2 lang="en">4. Control and legal basis</h2>
+<p>Both options are off when you install the game. Enabling them separately authorizes the game to
+send usage statistics or crash reports to help improve the game. They are not used for advertising or
+automated decisions about you. Legal requirements may vary by region.</p>
+<p>In <strong>Settings → Privacy</strong> you can withdraw that choice at any time. Turning an option
+off discards analytics events that have not yet been sent and stops collecting new data for that
+option. A network request already in progress may still complete. Data already received by a provider
+cannot be located or deleted individually through the game because no account identifier is sent. For
+questions or requests, use the contact email.</p>
 
-<h2 lang="en">5. Changes</h2>
-<p lang="en">If a future version added features needing a connection (cloud save or online rankings,
-for example), this policy would be updated <strong>before</strong> publishing it and consent would be
-requested. The published version has no such features.</p>
+<h2 lang="en">5. Children</h2>
+<p>The game is not directed at children under 13. There are no accounts, and the game does not ask you
+to enter personal data. Usage statistics and crash reports remain off until enabled in Settings →
+Privacy.</p>
 
-<h2 lang="en">6. Contact</h2>
-<p lang="en">Privacy questions: <a href="mailto:alegandro2507@gmail.com">alegandro2507@gmail.com</a></p>
+<h2 lang="en">6. Changes</h2>
+<p>If a future version adds features that collect personal data (for example, cloud save or online
+rankings with an account), this policy will be updated <strong>before</strong> publishing it and the
+corresponding consent will be requested.</p>
+
+<h2 lang="en">7. Contact</h2>
+<p>Privacy questions: <a href="mailto:alegandro2507@gmail.com">alegandro2507@gmail.com</a></p>
 
 <footer>
   invade.io · macarronesc · <a href="mailto:alegandro2507@gmail.com">alegandro2507@gmail.com</a>

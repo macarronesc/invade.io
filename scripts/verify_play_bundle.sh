@@ -182,15 +182,12 @@ $(strings -el "$MANIFEST" 2>/dev/null || true)"
 		else
 			bad "el manifiesto no declara $PACKAGE"
 		fi
-		if grep -qF "android.permission.VIBRATE" <<<"$STRINGS"; then
-			ok "declara VIBRATE (vibración de las órdenes)"
+		PERMS="$(grep -oE "android\.permission\.[A-Z_]+" <<<"$STRINGS" | sort -u || true)"
+		EXPECTED_PERMS=$'android.permission.ACCESS_NETWORK_STATE\nandroid.permission.INTERNET\nandroid.permission.VIBRATE'
+		if [ "$PERMS" = "$EXPECTED_PERMS" ]; then
+			ok "permisos esperados (VIBRATE, INTERNET, ACCESS_NETWORK_STATE)"
 		else
-			bad "no declara VIBRATE: la vibración no funcionaría"
-		fi
-		if grep -qF "android.permission.INTERNET" <<<"$STRINGS"; then
-			bad "declara INTERNET: la declaración de datos de Play dejaría de ser cierta"
-		else
-			ok "sin permiso INTERNET (sin acceso a red)"
+			bad "permisos inesperados en el AAB: ${PERMS:-ninguno}"
 		fi
 		if grep -qF "debuggable" <<<"$STRINGS"; then
 			bad "el paquete está marcado como depurable: Play no acepta builds de depuración"
@@ -245,15 +242,11 @@ if [ -n "$APK" ] && [ -f "$APK" ]; then
 		else
 			bad "el APK no incluye arm64-v8a"
 		fi
-		# Godot añade INTERNET sólo a las exportaciones de depuración con depurador remoto:
-		# se tolera en un APK de pruebas, nunca se exige, y nunca puede aparecer en release.
+		# Permisos normales esperados: vibración y red para analítica/fallos.
 		PERMS="$(grep -oE "uses-permission: name='android\.permission\.[A-Z_]+'" <<<"$BADGING" | sed "s/.*'\(.*\)'/\1/" | sort -u || true)"
-		if grep -q "application-debuggable" <<<"$BADGING"; then
-			echo "  [INFO] APK de depuración (no se publica)"
-			PERMS="$(grep -vx "android.permission.INTERNET" <<<"$PERMS" || true)"
-		fi
-		if [ "$PERMS" = "android.permission.VIBRATE" ]; then
-			ok "permisos esperados (sólo VIBRATE)"
+		EXPECTED_PERMS=$'android.permission.ACCESS_NETWORK_STATE\nandroid.permission.INTERNET\nandroid.permission.VIBRATE'
+		if [ "$PERMS" = "$EXPECTED_PERMS" ]; then
+			ok "permisos esperados (VIBRATE, INTERNET, ACCESS_NETWORK_STATE)"
 		else
 			bad "permisos inesperados en el APK: ${PERMS:-ninguno}"
 		fi

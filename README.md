@@ -4,16 +4,20 @@ Juego vertical de estrategia territorial en Godot 4.7.
 
 ## Experiencia de jugador
 
-- El menú principal tiene cuatro secciones en una barra inferior:
+- El menú principal tiene cinco secciones en una barra inferior:
   **Jugar** (mapa del continente, ficha del nivel y «Continuar» a un toque; conquista libre
-  y desafío diario como accesos directos), **Retos** (recompensa diaria con racha, desafío
-  y misiones), **Ejército** (mejoras y aspecto) y **Progreso** (nivel, atlas y logros).
+  y desafío diario como accesos directos), **Invasiones** (regiones reales, tres frentes y
+  progreso permanente), **Retos** (recompensa diaria con racha, desafío y misiones),
+  **Ejército** (mejoras y aspecto) y **Progreso** (nivel, invasiones, atlas y logros).
   Un punto dorado avisa de recompensas pendientes y de una mejora de combate asequible; no hay
   ventanas emergentes al entrar al menú. Sólo la sección activa queda resaltada.
 - Aspecto unificado en `scripts/ui/ui_theme_helper.gd` (paletas clara y oscura, tipografía y
-  tema global de Godot con variaciones como `PrimaryButton`, `Sheet`, `HudBar` o `Caption`) e
-  iconos SVG en `scripts/ui/icons.gd`. El modo claro/oscuro se elige en Ajustes › Apariencia y
-  se aplica al instante, también en plena batalla; el mapa conserva su tema de la tienda.
+  tema global de Godot con variaciones como `PrimaryButton`, `Sheet`, `HudBar`, `CompactCard`
+  o `Caption`) e iconos SVG en `scripts/ui/icons.gd`. El modo claro/oscuro se elige en
+  Ajustes › Apariencia y se aplica al instante, también en plena batalla. Una partida nueva
+  abre en claro con el mapa **Día claro**; las preferencias guardadas se respetan y el tema
+  del mapa se elige aparte en Ejército › Aspecto. Los temas claros ajustan también los
+  nombres y las fronteras del campo de batalla para conservar el contraste.
   Los componentes leen `UIThemeHelper.colors`: una única paleta activa, sin copias por color.
 - Tropas en paquetes: cada orden sale de la base en grupos pequeños, uno tras otro
   (`scripts/battle/troop.gd`). Las tropas quedan reservadas al dar la orden; las que aún no han
@@ -31,7 +35,13 @@ Juego vertical de estrategia territorial en Godot 4.7.
   cámara lenta dura como máximo 0,65 s reales por batalla.
 - Cada sección es un script corto registrado en `MainMenuUI.TABS`. Las desplazables heredan de
   `ScrollPage` e implementan sólo `_build()`: se redibujan solas al cambiar el oro.
-- Campaña de 30 niveles, conquista libre, atlas y tienda de estética.
+- Campaña de 30 niveles, **36 regiones de invasión con 108 frentes**, conquista libre,
+  atlas y tienda de estética. Las invasiones se abren al vencer la campaña de cada continente;
+  cada región tiene tres frentes (Frontera, Avance y Capital), estrellas y dominio total.
+- La pestaña **Invasiones** muestra el mapa del continente, sus regiones y una ficha con el
+  siguiente frente siempre a un toque. Completar una región paga oro; dominar sus tres frentes
+  con 3★ paga un extra y completar todas las regiones de un continente desbloquea su color de
+  ejército. Las estrellas de invasión viven separadas de las 90 estrellas de campaña.
 - Tres misiones diarias con recompensas manuales de oro y XP. El rango del jugador
   (`scripts/data/player_rank.gd`) no modifica el combate: regala estética en ciertos rangos,
   igual que vencer al jefe de cada continente. Colecciones del atlas por continente con
@@ -42,7 +52,7 @@ Juego vertical de estrategia territorial en Godot 4.7.
   comprobador verifica una compra de combate cada 1–3 victorias con la estrategia recomendada;
   el ritmo todavía debe contrastarse con jugadores reales.
 - La racha diaria perdona un día de ausencia.
-- Desafío diario con tarjeta ES/EN para copiar y pegar en un chat (no requiere servidor).
+- Desafío diario con tarjeta en el idioma activo para copiar y pegar en un chat (no requiere servidor).
   Incluye la velocidad usada; los segundos son tiempo de simulación. Se juega sin mejoras de
   combate para que las marcas sean comparables y cada día rota una regla de continente.
   Algunos días también se gana manteniendo capitales, fábricas o fortalezas; se explica antes
@@ -51,10 +61,23 @@ Juego vertical de estrategia territorial en Godot 4.7.
   comparan con tiempos de la nueva IA. La tarjeta compartida incluye esa versión.
 - Conquista libre en expediciones de 5 regiones con reglas rotatorias; la quinta tiene jefe
   y paga oro doble. El avance entre regiones se conserva entre sesiones.
-- Guardados v6 compatibles con el progreso anterior: monedas, mejoras, ciudades, cosméticos
-  comprados y las misiones del día se conservan. Al día siguiente entran los nuevos objetivos.
+- Guardados v7 compatibles con el progreso anterior: monedas, mejoras, ciudades, cosméticos
+  comprados, invasiones y las misiones del día se conservan. Un guardado v6 carga con las
+  invasiones a cero. Al día siguiente entran los nuevos objetivos.
 - Ajustes desde el menú y la pausa: idioma, sonido, música, volúmenes, vibración,
-  velocidad y paleta accesible. La velocidad afecta a ambos bandos y no acelera el reloj diario.
+  velocidad, paleta accesible y privacidad. La velocidad afecta a ambos bandos y no acelera el reloj diario.
+- 15 idiomas de interfaz y datos: inglés, español, portugués (Brasil), francés, alemán,
+  italiano, ruso, turco, árabe, hindi, indonesio, vietnamita, chino simplificado, japonés
+  y coreano. El árabe usa diseño RTL. El idioma inicial sigue al dispositivo y se puede
+  cambiar en Ajustes; las partidas antiguas conservan el suyo.
+- Traducciones en `locale/strings.csv` (claves estables, sin texto duplicado en el código).
+  Las fuentes Noto por escritura están en `assets/fonts/locale/`; los nombres de ciudad
+  localizados vienen de Natural Earth dentro de `assets/data/geo.json`. Para añadir textos,
+  edita `locale/strings.csv` y ejecuta `python3 tools/build_locale_csv.py --translate --overrides`;
+  después regenera las fuentes con `python3 tools/build_locale_fonts.py <fuentes Noto>`.
+- Estadísticas de uso e informes de fallos opcionales (Aptabase y Sentry), desactivados de forma
+  predeterminada y activables por separado en Ajustes → Privacidad. No hay cuentas ni identificadores
+  persistentes; el juego sigue funcionando sin conexión. Configuración y eventos en `docs/ANALYTICS.md`.
 - Respuesta táctil con intensidad persistente y botón de prueba en móviles compatibles,
   un pulso por asalto y límite de repetición. No requiere plugins nativos.
 - Guardado automático local con copia de recuperación `.previous`, aviso de errores y reintento
@@ -82,6 +105,8 @@ El ritmo de combate vive en `LevelDatabase.get_balance()`, separado del índice 
 intervalos completos, una orden por ciclo al empezar, coordinación gradual y un respiro al
 abrir continente o expedición. Comprar mejoras nunca endurece a los enemigos. Europa 4
 enseña a capturar una fábrica; Europa 5 introduce la fortaleza y un jefe con un solo rival.
+Las invasiones reutilizan las seis reglas como firma de región (capital, fábrica, fortaleza,
+selva, rutas marítimas u oasis) y reservan la capital y el jefe para el tercer frente.
 
 Cada quinto nivel tiene un jefe ♛: fortaleza de nivel 3 y 6–10 tropas cada 28–22 segundos
 mientras permanezca en manos del enemigo original. Cantidades y tiempos se anuncian en la ficha.
@@ -113,9 +138,12 @@ colecciones, rangos, objetivos diarios, ritmo de IA y cambio de tema sin perder 
 ```sh
 # 720 partidas: los 30 niveles, cuatro estrategias de mejoras y decisiones cada 2–4 s.
 godot --headless --path . res://scenes/tests/balance_check.tscn
+# Muestra de invasiones por niveles y capturas de la pestaña en ES/EN, claro/oscuro.
+godot --headless --path . res://scenes/tests/balance_check.tscn -- --invasions
+godot --path . res://scenes/tests/balance_check.tscn -- --invasion-ui
 # Botones reales: victoria → compra → siguiente nivel; derrota → compra → reintento.
 godot --headless --path . res://scenes/tests/balance_check.tscn -- --flow
-# En escritorio: 53 capturas ES/EN, claro/oscuro, interacción y límites de pantalla.
+# En escritorio: capturas ES/EN, claro/oscuro, interacción y límites de pantalla.
 godot --path . res://scenes/tests/balance_check.tscn -- --ui
 ```
 
@@ -176,3 +204,10 @@ La propuesta 11 está **pendiente de plugins, configuración de las tiendas y m�
 Las copias manuales no son guardado en la nube ni las estadísticas locales son
 clasificaciones online. Ver [requisitos de integración](docs/PLATFORM_INTEGRATION.md) y, para
 Android, el [plan de publicación en Google Play](docs/PLAY_STORE.md).
+
+## Licencia
+
+El código y los recursos propios del proyecto se distribuyen bajo Apache-2.0 (ver `LICENSE`). Los
+componentes de terceros conservan sus licencias y avisos: Aptabase y Sentry bajo MIT
+(`addons/aptabase/LICENSE` y `addons/sentry/LICENSE.md`), las fuentes bajo OFL
+(`assets/fonts/LICENSE-OFL.txt`) y los datos cartográficos de Natural Earth en el dominio público.

@@ -4,12 +4,14 @@
 
 El preset iOS y `.github/workflows/build-ios.yml` generan una IPA sin firmar para SideStore,
 con identificador `macarronesc.invadeio`; el Team ID es un marcador, no una credencial.
-El único plugin nativo es el selector de copias iOS; no hay credenciales ni servicios de tienda.
+El único plugin nativo propio es el selector de copias iOS; Sentry añade una GDExtension para
+informes de fallos. No hay credenciales ni servicios de tienda.
 No se muestran botones de conexión que simulen servicios inexistentes.
 El lanzamiento previsto es Android e iOS, sin backend. Ajustes muestra el estado real del
 guardado local, su alcance y la posibilidad de perderlo al desinstalar; no promete nube.
-El preset Android habilita `VIBRATE` y target SDK 36; requiere instalar la plantilla Gradle
-y configurar el SDK y la firma antes de exportar.
+El preset Android habilita `VIBRATE`, `INTERNET` y `ACCESS_NETWORK_STATE` (estadísticas de uso e
+informes de fallos, ambos opt-in) y target SDK 36; requiere instalar la plantilla Gradle y configurar
+el SDK y la firma antes de exportar.
 
 Sí está implementada la base de persistencia:
 

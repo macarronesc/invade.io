@@ -39,6 +39,11 @@ func _ready() -> void:
 		test_ui_glyph_coverage()
 		test_toast_notifications()
 		test_achievements_system()
+		test_telemetry_schema_and_privacy()
+		test_play_tab_campaign_route_and_briefing()
+		test_invasion_mode()
+		test_language_system()
+		test_locale_ui_fit()
 	else:
 		run_all_tests()
 	# Vaciar los queue_free de las páginas reconstruidas antes de cerrar el proceso.
@@ -66,22 +71,62 @@ func _ready() -> void:
 		print("✅ Todas las verificaciones ejecutadas han pasado.")
 		get_tree().quit(0)
 
-## Las fuentes incluyen subconjuntos (4 y 45 glifos), así que un emoji fuera de ellos se
-## dibuja como un cuadro vacío. Este test recorre todo texto visible y comprueba su glifo.
+## Las fuentes incluyen subconjuntos, así que un glifo fuera de ellos se dibuja como
+## un cuadro vacío. Recorre TODO el texto de cada idioma y comprueba su glifo con la
+## cadena tipográfica de ese idioma, no sólo con la fuente latina.
 func test_ui_glyph_coverage() -> void:
 	print("\n-> Test: Glifos de la Interfaz Cubiertos por las Fuentes Incluidas")
-	var font := UIThemeHelper.bold_font()
 	var missing: Dictionary = {}
-	var check = func(text: String, source: String):
+	var check = func(font: Font, text: String, source: String, seen: Dictionary):
 		for i in text.length():
 			var code := text.unicode_at(i)
 			# Los selectores de variación y el ZWJ no son glifos sueltos: acompañan al anterior
-			if code <= 127 or code in [0x200B, 0x200C, 0x200D, 0x200E, 0x200F] or (code >= 0xFE00 and code <= 0xFE0F):
+			if code <= 127 or code in [0x200B, 0x200C, 0x200D, 0x200E, 0x200F] or (code >= 0xFE00 and code <= 0xFE0F) or seen.has(code):
 				continue
+			seen[code] = true
 			if not font.has_char(code):
-				missing["U+%04X (%s) en %s" % [code, text.substr(0, 32), source]] = true
+				missing["U+%04X (%s) en %s (%s)" % [code, text.substr(0, 32), source, LocaleStrings.lang]] = true
 	for entry in _player_visible_text():
-		check.call(entry["text"], entry["source"])
+		check.call(UIThemeHelper.bold_font(), entry["text"], entry["source"], {})
+
+	var csv := FileAccess.open("res://locale/strings.csv", FileAccess.READ)
+	var header := csv.get_csv_line()
+	var columns: Dictionary = {}
+	for i in range(1, header.size()):
+		columns[header[i]] = i
+	var rows: Array = []
+	while not csv.eof_reached():
+		var row := csv.get_csv_line()
+		if row.size() == header.size():
+			rows.append(row)
+	assert_true(rows.size() >= 500, "El catálogo contiene todas las claves de texto")
+	var fmt := RegEx.new()
+	fmt.compile("%(?:\\d+\\$)?\\d*(?:\\.\\d+)?[sdif]|%%")
+	var empty_keys: Array[String] = []
+	var bad_markers: Array[String] = []
+	for code in LanguageCatalog.codes():
+		var index: int = columns[code]
+		GameManager.set_language(code)
+		var font := UIThemeHelper.bold_font()
+		var seen := {}
+		for row in rows:
+			var value: String = row[index]
+			if value.is_empty():
+				empty_keys.append("%s:%s" % [code, row[0]])
+			var expected := fmt.search_all(row[columns["en"]]).map(func(m): return m.get_string())
+			var actual := fmt.search_all(value).map(func(m): return m.get_string())
+			if actual != expected:
+				bad_markers.append("%s:%s %s != %s" % [code, row[0], str(actual), str(expected)])
+			check.call(font, value, "csv:%s" % row[0], seen)
+		for city in GeoDatabase.get_cities():
+			var names: Dictionary = city.get("names", {})
+			check.call(font, str(names.get(code, city.get("name_en", ""))), "city:%s" % city["key"], seen)
+		for native in LanguageCatalog.LANGUAGES:
+			check.call(font, LanguageCatalog.native_name(native), "native:%s" % native, seen)
+		check.call(font, DailyShare.text({"day": 20000, "stars": 3, "time": 42.0, "speed": 1.0}), "share:%s" % code, seen)
+	GameManager.set_language("es")
+	assert_equals(empty_keys, [] as Array, "Todas las claves tienen texto en todos los idiomas")
+	assert_equals(bad_markers, [] as Array, "Los marcadores conservan tipo y orden en todos los idiomas")
 	assert_equals(missing.keys(), [] as Array, "Ningún texto visible acaba en cuadro vacío")
 
 ## Todo texto que puede acabar en pantalla: literales de los scripts que se exportan,
@@ -196,6 +241,7 @@ func run_all_tests() -> void:
 	test_achievements_system()
 	test_daily_challenge_levels()
 	test_language_system()
+	test_locale_ui_fit()
 	test_conquest_mode()
 	test_atlas_and_first_levels()
 	test_cosmetics_shop()
@@ -203,6 +249,7 @@ func run_all_tests() -> void:
 	test_daily_missions_xp_and_share()
 	test_settings_and_backups()
 	test_continent_mechanics()
+	test_invasion_mode()
 	test_cleanup_regressions()
 	test_packets_and_battle_feedback()
 	test_progression_overhaul()
@@ -210,11 +257,16 @@ func run_all_tests() -> void:
 	test_new_ui_flows()
 	test_packet_combat_and_migration()
 	test_campaign_balance_and_rewards()
+	test_telemetry_schema_and_privacy()
 
 func test_mobile_experience() -> void:
 	print("\n-> Test: Guardado Local, Hápticos y Ciclo de Vida Móvil")
 	var manager = load("res://scripts/autoload/game_manager.gd").new()
 	var path := "user://test_mobile_save.json"
+	# Limpia restos de una ejecución interrumpida: un `.tmp` como directorio haría
+	# fallar la escritura atómica y dejaría el archivo anterior intacto.
+	for suffix in ["", ".previous", ".corrupt", ".backup", ".import", ".tmp"]:
+		DirAccess.remove_absolute(path + suffix)
 	manager.save_path = path
 	manager.coins = 321
 	assert_equals(manager.save_game(), OK, "El guardado local devuelve un resultado comprobable")
@@ -233,7 +285,7 @@ func test_mobile_experience() -> void:
 
 	var future: Dictionary = manager.save_data()
 	future["version"] = GameManager.SAVE_VERSION + 1
-	manager.write_save(path, future)
+	assert_equals(manager.write_save(path, future), OK, "La partida de prueba se escribe")
 	var original := FileAccess.get_file_as_string(path)
 	assert_equals(manager.load_game(), ERR_UNAVAILABLE, "La carga local rechaza versiones futuras")
 	manager.coins = 999
@@ -279,8 +331,7 @@ func test_mobile_experience() -> void:
 	assert_equals(manager._haptic_parameters(-5, 1700), Vector2.ZERO, "Una duración inválida no llega al dispositivo")
 	manager.free()
 	for suffix in ["", ".previous", ".corrupt", ".backup", ".import", ".tmp"]:
-		if FileAccess.file_exists(path + suffix):
-			DirAccess.remove_absolute(path + suffix)
+		DirAccess.remove_absolute(path + suffix)
 
 	GameManager.reset_save()
 	GameManager.set_setting("vibration_intensity", 5.0)
@@ -299,7 +350,10 @@ func test_mobile_experience() -> void:
 	assert_true(settings._vibration_slider.editable, "Activar vibración vuelve a habilitar la intensidad")
 	assert_true(settings._vibration_test.disabled == not OS.has_feature("mobile"), "La prueba no promete vibración en escritorio")
 	assert_true(settings.find_children("*", "BaseButton", true, false).filter(func(b): return b is CheckButton or b is OptionButton).all(func(b): return b.custom_minimum_size.y >= 128), "Los controles de ajustes tienen una zona táctil amplia")
-	for lang in ["es", "en"]:
+	var language_picker: OptionButton = settings.find_children("*", "OptionButton", true, false).filter(func(o): return o.item_count == LanguageCatalog.codes().size())[0]
+	assert_equals(language_picker.item_count, LanguageCatalog.codes().size(), "El selector ofrece todos los idiomas")
+	assert_equals(language_picker.get_item_text(0), LanguageCatalog.native_name(LanguageCatalog.codes()[0]), "El selector usa nombres nativos")
+	for lang in LanguageCatalog.codes():
 		GameManager.set_language(lang)
 		for light in [false, true]:
 			GameManager.set_setting("light_mode", light)
@@ -2150,8 +2204,8 @@ func test_main_menu_hub_navigation() -> void:
 	var menu: MainMenuUI = load("res://scenes/ui/main_menu.tscn").instantiate()
 	add_child(menu)
 	assert_equals(menu.current_tab, "play", "El menú abre en Jugar")
-	assert_equals(menu._nav.size(), 4, "La barra inferior tiene cuatro secciones")
-	for tab in ["challenges", "army", "progress", "play"]:
+	assert_equals(menu._nav.size(), 5, "La barra inferior tiene cinco secciones")
+	for tab in ["invasion", "challenges", "army", "progress", "play"]:
 		menu.show_tab(tab)
 		assert_true(menu.current_tab == tab and menu._nav[tab].button_pressed, "La sección %s queda activa en la barra" % tab)
 		assert_equals(menu._content.get_child_count(), 1, "Sólo hay una sección montada a la vez (%s)" % tab)
@@ -2208,7 +2262,14 @@ func test_play_tab_campaign_route_and_briefing() -> void:
 	# 1. Un toque para seguir la campaña
 	assert_equals(play.selected_level_id, "europe_1", "Se propone el nivel actual de la campaña")
 	assert_equals(play.btn_start_level.text, LocaleStrings.text("continue"), "El botón principal es Continuar")
-	assert_equals(play.level_chips.get_child_count(), 4, "Bases, rivales, tiempo de 3★ y ciudades nuevas como etiquetas")
+	assert_equals(play.level_chips.get_child_count(), 3, "Bases, rivales y tiempo de 3★ como etiquetas esenciales")
+	assert_true(play.level_extra_chips.get_child_count() > 0, "Las ciudades nuevas viven en Detalles")
+	assert_true(play.btn_details != null and play.btn_details.toggle_mode, "La ficha tiene un botón de Detalles")
+	assert_true(not play.level_details.visible, "Los datos secundarios empiezan plegados")
+	play.btn_details.pressed.emit()
+	assert_true(play.level_details.visible and play.btn_details.text == LocaleStrings.text("hide_details"), "Detalles se despliega y anuncia cómo cerrarse")
+	play.btn_details.pressed.emit()
+	assert_true(not play.level_details.visible and play.btn_details.text == LocaleStrings.text("details"), "Detalles vuelve a plegarse")
 	assert_true(play.level_medal.text == LocaleStrings.text("medal_todo"), "La ficha anuncia el objetivo de medalla")
 
 	# 2. Navegación de continentes sin nodos fantasma
@@ -2241,10 +2302,15 @@ func test_play_tab_campaign_route_and_briefing() -> void:
 	var labels: Array = play.btn_conquest.find_children("*", "Label", true, false).map(func(l): return l.text)
 	assert_true(labels.has(LocaleStrings.text("conquest")), "Conquista libre a un toque desde Jugar")
 	assert_true(play.btn_daily.find_children("*", "Label", true, false).any(func(l): return l.text == LocaleStrings.text("daily")), "Desafío diario a un toque desde Jugar")
-	assert_true(play.btn_daily.custom_minimum_size.y >= 176, "La tarjeta diaria reserva altura para sus dos líneas")
+	assert_true(play.btn_daily.custom_minimum_size.y >= 150, "La tarjeta diaria reserva altura para sus líneas")
 	var initial_phase = play.marching_phase
 	play._process(0.1)
 	assert_true(play.marching_phase != initial_phase, "La frontera de la campaña se anima")
+	GameManager.settings["reduced_motion"] = true
+	initial_phase = play.marching_phase
+	play._process(0.1)
+	assert_equals(play.marching_phase, initial_phase, "Reducir movimiento detiene la ruta de campaña")
+	GameManager.settings["reduced_motion"] = false
 
 	remove_child(play)
 	play.free()
@@ -2336,7 +2402,12 @@ func test_battle_hud_modals_and_sound_toggle() -> void:
 	hud.dim_overlay.visible = false
 
 	# 3. Victoria: estrellas, tiempo, oro y ciudades nuevas
+	var previous_coins := GameManager.coins
+	GameManager.coins = 1000
 	hud.deploy_victory_modal({"stars": 3, "gold_earned": 150, "time": 41.2, "new_cities": 2, "is_continent_conquest": false})
+	GameManager.coins = previous_coins
+	assert_equals(hud.btn_next_level.theme_type_variation, &"PrimaryButton", "Siguiente nivel es la acción principal")
+	assert_equals(hud.btn_result_action.theme_type_variation, &"Button", "Mejorar y seguir es una acción secundaria")
 	assert_true(hud.victory_panel.visible and hud.dim_overlay.visible, "Victoria visible tras ganar")
 	assert_equals(hud.victory_title.text, LocaleStrings.text("victory"), "Título de victoria estándar")
 	assert_equals(hud.victory_reward_label.text, "+150", "Recompensa de oro mostrada")
@@ -2358,6 +2429,7 @@ func test_battle_hud_modals_and_sound_toggle() -> void:
 	hud._on_battle_lost()
 	assert_true(hud.defeat_panel.visible and hud.dim_overlay.visible, "Derrota visible")
 	assert_equals(hud.btn_retry.theme_type_variation, &"PrimaryButton", "Reintentar es la acción destacada")
+	assert_equals(hud.btn_defeat_upgrade.theme_type_variation, &"Button", "La mejora tras perder no compite con Reintentar")
 
 	# 5. Salir devuelve a la sección de la que viene cada modo
 	var exit_battle := BattleController.new()
@@ -2379,8 +2451,9 @@ func test_theme_and_ui_helpers() -> void:
 	var theme := ThemeDB.get_default_theme()
 	for v in ["PrimaryButton", "GoldButton", "GhostButton", "IconButton", "NavButton", "SegmentButton", "RowButton"]:
 		assert_equals(theme.get_type_variation_base(v), &"Button", "Variación de botón %s instalada" % v)
-	for v in ["Sheet", "Chip", "NavBar", "Tile"]:
+	for v in ["Sheet", "Chip", "NavBar", "Tile", "CompactCard"]:
 		assert_equals(theme.get_type_variation_base(v), &"PanelContainer", "Variación de panel %s instalada" % v)
+	assert_true(theme.default_font is FontVariation, "La interfaz usa el peso regular legible por defecto")
 	for v in ["Display", "Title", "Heading", "Caption"]:
 		assert_equals(theme.get_type_variation_base(v), &"Label", "Variación de texto %s instalada" % v)
 	for type in ["Button", "PrimaryButton", "GoldButton"]:
@@ -3033,9 +3106,10 @@ func test_cleanup_regressions() -> void:
 		n.free()
 
 func test_language_system() -> void:
-	print("\n-> Test: Traducciones ES/EN y Nombres Localizados")
+	print("\n-> Test: Traducciones, Catálogo de Idiomas y Nombres Localizados")
 	GameManager.reset_save()
-	assert_equals(GameManager.language, "es", "Idioma por defecto español")
+	GameManager.set_language("es")
+	assert_equals(GameManager.language, "es", "Cambio a español")
 	assert_equals(LocaleStrings.text("play"), "Jugar", "Clave del menú en español")
 	GameManager.set_language("en")
 	assert_equals(GameManager.language, "en", "Cambio a inglés")
@@ -3044,16 +3118,99 @@ func test_language_system() -> void:
 	assert_equals(LevelDatabase.continent_name("europe"), "Europe", "Continente en inglés")
 	assert_true(str(LevelDatabase.get_level_data("europe_1")["name"]).begins_with("Level 1:"), "Nivel de campaña con nombre inglés")
 	GameManager.set_language("fr")
-	assert_equals(GameManager.language, "en", "Idioma no soportado se ignora")
+	assert_equals(LocaleStrings.text("play"), "Jouer", "Clave del menú en francés")
+	assert_true(str(LevelDatabase.get_level_data("europe_1")["name"]).begins_with("Niveau 1"), "Nivel de campaña en francés")
+	GameManager.set_language("ar")
+	assert_true(LanguageCatalog.is_rtl("ar"), "El árabe es un idioma RTL")
+	assert_equals(GeoDatabase.city_name(GeoDatabase.get_city("tokyo")), "طوكيو", "Nombre de ciudad en árabe")
+	var direction_root := Control.new()
+	add_child(direction_root)
+	UIThemeHelper.apply_locale_direction(direction_root)
+	assert_true(direction_root.is_layout_rtl(), "Un Control existente cambia a RTL al elegir árabe")
+	GameManager.set_language("en")
+	UIThemeHelper.apply_locale_direction(direction_root)
+	assert_true(not direction_root.is_layout_rtl(), "El mismo Control vuelve a LTR al salir del árabe")
+	remove_child(direction_root)
+	direction_root.free()
+	GameManager.set_language("ar")
+	GameManager.set_language("ja")
+	assert_equals(LocaleStrings.text("play"), "プレイ", "Clave del menú en japonés")
+	assert_equals(GeoDatabase.city_name(GeoDatabase.get_city("tokyo")), "東京都", "Nombre de ciudad en japonés")
+	GameManager.set_language("zh_CN")
+	assert_equals(GeoDatabase.city_name(GeoDatabase.get_city("tokyo")), "东京", "Nombre de ciudad en chino simplificado")
+	GameManager.set_language("xx")
+	assert_equals(GameManager.language, "zh_CN", "Idioma no soportado se ignora")
+	assert_equals(LanguageCatalog.normalize("pt_PT"), "pt_BR", "Portugués de Portugal usa la variante brasileña")
+	assert_equals(LanguageCatalog.normalize("zh_Hant_TW"), "zh_CN", "Chino tradicional cae en la variante disponible")
+	assert_equals(LanguageCatalog.normalize("xx_YY"), "", "Un idioma desconocido no se inventa")
 	GameManager.set_language("es")
 	assert_equals(LevelDatabase.get_level_data("europe_1")["name"], "Nivel 1: Península Ibérica y Galia", "Vuelve al español")
 	GameManager.set_language("en")
 	assert_equals(AchievementDatabase.achievement_title(AchievementDatabase.get_by_id("blitz")), "Blitzkrieg", "Logro en inglés")
+	assert_equals(CosmeticsDatabase.item_name(CosmeticsDatabase.get_by_id("color_gold")), "Gold", "Cosmético en inglés")
+	assert_equals(InvasionDatabase.region_name(InvasionDatabase.REGIONS[0]), "Iberia", "Región de invasión en inglés")
 	GameManager.language = "es"
 	GameManager.load_game()
 	assert_equals(GameManager.language, "en", "El idioma se guarda entre sesiones")
 	GameManager.reset_save()
-	assert_equals(GameManager.language, "es", "Reiniciar restaura el idioma inicial")
+	assert_equals(GameManager.language, "en", "Reiniciar conserva el idioma elegido")
+	assert_equals(TranslationServer.get_loaded_locales().size(), LanguageCatalog.codes().size(), "Todas las traducciones se cargan al arrancar")
+
+## Cada idioma ocupa el mismo lienzo lógico. Este test monta las dos pantallas con
+## más riesgo (navegación y ajustes) y comprueba que ningún texto sale de su control.
+func test_locale_ui_fit() -> void:
+	print("\n-> Test: La Interfaz Cabe en Todos los Idiomas")
+	GameManager.reset_save()
+	GameManager.has_started = true
+	for code in LanguageCatalog.codes():
+		GameManager.set_language(code)
+		var menu: MainMenuUI = load(MainMenuUI.SCENE).instantiate()
+		add_child(menu)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var width := get_viewport().get_visible_rect().size.x
+		for id in menu._nav:
+			var btn: Button = menu._nav[id]
+			assert_true(btn.get_global_rect().position.x >= -1.0 and btn.get_global_rect().end.x <= width + 1.0,
+				"La pestaña %s cabe en pantalla (%s)" % [id, code])
+			assert_true(btn.get_combined_minimum_size().x <= btn.size.x + 2.0,
+				"El texto de la pestaña %s no se recorta (%s)" % [id, code])
+		var play = menu._content.get_child(0)
+		for label in play.btn_daily.find_children("*", "Label", true, false):
+			assert_true(play.btn_daily.get_global_rect().grow(8).encloses(label.get_global_rect()),
+				"La tarjeta diaria contiene su texto (%s)" % code)
+		menu._open_settings()
+		await get_tree().process_frame
+		var settings = menu._utility_panel
+		var picker: OptionButton = settings.find_children("*", "OptionButton", true, false).filter(
+			func(o): return o.item_count == LanguageCatalog.codes().size())[0]
+		assert_equals(picker.item_count, LanguageCatalog.codes().size(), "El selector de idioma está completo (%s)" % code)
+		var bounds: Rect2 = settings._content.get_global_rect()
+		for slider in settings.find_children("*", "HSlider", true, false):
+			assert_true(slider.get_global_rect().position.x >= bounds.position.x - 1.0 \
+				and slider.get_global_rect().end.x <= bounds.end.x + 1.0, "Los deslizadores caben (%s)" % code)
+		settings._close()
+		await get_tree().process_frame
+		remove_child(menu)
+		menu.free()
+
+	# Cambio en caliente: el tema, la dirección y los textos deben seguir al idioma.
+	GameManager.set_language("en")
+	var live: MainMenuUI = load(MainMenuUI.SCENE).instantiate()
+	add_child(live)
+	await get_tree().process_frame
+	GameManager.set_language("ar")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_true(live.is_layout_rtl(), "El menú abierto cambia a RTL sin reiniciar")
+	assert_equals(live._nav["play"].text, "العب", "La navegación se retraduce en caliente")
+	assert_true(live._nav["play"].get_theme_font("font").has_char("ي".unicode_at(0)), "La fuente del tema cambia en caliente")
+	GameManager.set_language("en")
+	await get_tree().process_frame
+	assert_true(not live.is_layout_rtl(), "El menú vuelve a LTR")
+	remove_child(live)
+	live.free()
+	GameManager.set_language("es")
 
 func test_conquest_mode() -> void:
 	print("\n-> Test: Conquista Libre Infinita (Generación, Dificultad y Oro)")
@@ -3173,6 +3330,12 @@ func test_atlas_and_first_levels() -> void:
 func test_cosmetics_shop() -> void:
 	print("\n-> Test: Tienda de Estética (Oro Útil Tras el Máximo)")
 	GameManager.reset_save()
+	assert_true(GameManager.settings["light_mode"], "Una partida nueva empieza en el tema claro")
+	assert_equals(GameManager.cosmetics_equipped["map_theme"], "theme_daylight", "Una partida nueva usa el mapa de día")
+	var day_theme := GameManager.map_theme()
+	assert_true(day_theme.get("light", false), "El mapa de día está marcado como claro")
+	assert_true(Color(day_theme["label_color"]).get_luminance() < 0.2, "El mapa de día usa nombres oscuros legibles")
+	assert_true(UIThemeHelper.palette_name == "light", "La interfaz aplica el tema claro al empezar")
 	GameManager.coins = 100
 	assert_true(not GameManager.buy_cosmetic("color_violet"), "Sin oro no hay compra")
 	assert_true(not GameManager.buy_cosmetic("no_existe"), "Id desconocido se rechaza")
@@ -3315,7 +3478,7 @@ func test_settings_and_backups() -> void:
 	assert_true(exported_data is Dictionary and exported_data.has("completed_levels"), "La copia exportada conserva el formato del juego")
 	DirAccess.remove_absolute(backup_path)
 	assert_equals(panel.find_children("*", "HSlider", true, false).size(), 3, "Volúmenes e intensidad háptica con controles nativos")
-	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 5, "Sonido, música, vibración, paleta y reducir movimiento")
+	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 7, "Sonido, música, vibración, paleta, reducir movimiento, analítica y fallos")
 	assert_equals(panel.find_children("*", "OptionButton", true, false).size(), 3, "Apariencia, idioma y velocidad")
 	assert_equals(panel.find_children("*", "ScrollContainer", true, false)[0].scroll_deadzone, UIThemeHelper.TOUCH_SCROLL_DEADZONE, "Ajustes distingue toques y arrastres")
 	assert_true(panel._content.find_children("*", "BaseButton", true, false).all(func(b): return b.mouse_filter == Control.MOUSE_FILTER_PASS), "Los botones de ajustes dejan pasar gestos de desplazamiento")
@@ -3324,6 +3487,189 @@ func test_settings_and_backups() -> void:
 	panel.free()
 	GameManager.reset_save()
 	AudioManager.apply_volumes()
+
+func test_invasion_mode() -> void:
+	print("\n-> Test: Invasiones Regionales (Datos, Progreso, Reglas y UI)")
+	GameManager.reset_save()
+	InvasionPage.last_continent = "europe"
+	InvasionPage.last_region = "iberia"
+	assert_equals(InvasionDatabase.get_regions().size(), 36, "Hay 36 regiones de invasión")
+	assert_equals(InvasionDatabase.get_total_fronts(), 108, "Cada región tiene tres frentes")
+	assert_equals(GeoDatabase.get_city("madrid").get("country", ""), "ESP", "Las ciudades llevan su código de país")
+
+	# 1. Datos: ids únicos, ciudades reales, capital y jefe sólo en el frente final.
+	var ids := {}
+	for region in InvasionDatabase.get_regions():
+		var region_id := str(region["id"])
+		assert_true(not ids.has(region_id), "Región única: " + region_id)
+		ids[region_id] = true
+		assert_true(InvasionDatabase.get_region_level_ids(region_id).size() == 3, "Tres frentes en " + region_id)
+		var has_boss := false
+		for step in range(1, InvasionDatabase.FRONTS + 1):
+			var level_id := InvasionDatabase.level_id(region_id, step)
+			var definition := InvasionDatabase.get_level_definition(level_id)
+			assert_true(not definition.is_empty(), "Definición de " + level_id)
+			assert_true(definition["bases"].size() >= 3, "Bases suficientes en " + level_id)
+			var cities := {}
+			for base in definition["bases"]:
+				assert_true(GeoDatabase.has_city(base["city"]), "Ciudad real en " + level_id + ": " + str(base["city"]))
+				assert_true(not cities.has(base["city"]), "Sin ciudades duplicadas en " + level_id)
+				cities[base["city"]] = true
+				if base.get("boss", false):
+					has_boss = true
+					assert_equals(step, 3, "El jefe sólo aparece en el tercer frente")
+			if step == 3:
+				assert_true(cities.has(region["capital"]), "La capital está en el frente final de " + region_id)
+		assert_true(has_boss, "Toda región termina con jefe: " + region_id)
+
+	# 2. Reglas y mapas construidos: capital, fábrica, selva, rutas marítimas y jefe.
+	for level_id in ["inv_iberia_1", "inv_us_east_3", "inv_brazil_coast_1", "inv_maghreb_3", "inv_china_1", "inv_australia_east_3"]:
+		var data := LevelDatabase.get_level_data(level_id)
+		assert_true(data["bases"].size() >= 3, "Mapa jugable: " + level_id)
+		assert_true(data["geo"]["land"].size() > 0, "Geografía real: " + level_id)
+		var worst_gap := INF
+		for base in data["bases"]:
+			assert_true(LevelGenerator.PLAY_RECT.grow(1.0).has_point(base["pos"]), "Base dentro del área: " + level_id)
+		for i in data["bases"].size():
+			for j in range(i + 1, data["bases"].size()):
+				var gap: float = data["bases"][i]["pos"].distance_to(data["bases"][j]["pos"]) \
+					- LevelGenerator.min_distance(data["bases"][i].get("tier", 1), data["bases"][j].get("tier", 1))
+				worst_gap = minf(worst_gap, gap)
+		assert_true(worst_gap > -8.0, "Sin bases solapadas: " + level_id)
+	var iberia := LevelDatabase.get_level_data("inv_iberia_1")
+	assert_equals(iberia.get("rule_key", ""), "rule_inv_capital", "Iberia usa la regla de capital")
+	assert_true(iberia["bases"].any(func(b): return b.get("capital", false) and b["city"] == "madrid"), "Madrid es la capital de Iberia")
+	var maghreb := LevelDatabase.get_level_data("inv_maghreb_1")
+	assert_equals(maghreb.get("rule_key", ""), "rule_inv_oasis", "El Magreb usa la regla de oasis")
+	assert_true(maghreb["bases"].any(func(b): return b.get("capital", false) and is_equal_approx(float(b.get("production_bonus", 1.0)), 1.75)), "El oasis del Magreb produce un 75% más")
+	var amazon := LevelDatabase.get_level_data("inv_amazon_1")
+	assert_true(is_equal_approx(float(amazon.get("travel_multiplier", 1.0)), 0.8), "La Amazonía ralentiza las tropas")
+	var isles := LevelDatabase.get_level_data("inv_british_isles_1")
+	assert_equals(isles["sea_lanes"].size(), isles["bases"].size() - 1, "Las islas usan rutas marítimas")
+	var france := LevelDatabase.get_level_data("inv_france_benelux_1")
+	assert_equals(france["bases"].filter(func(b): return b.get("type") == "factory").size(), 1, "Francia enseña una fábrica, no dos")
+	var finale := LevelDatabase.get_level_data("inv_iberia_3")
+	assert_true(finale["bases"].any(func(b): return b.get("boss", false)), "El tercer frente tiene jefe")
+	assert_true(finale.has("boss_interval") and finale.has("boss_reinforcement"), "El jefe usa el ritmo de invasión")
+
+	# 3. Desbloqueo por continente y progreso secuencial de frentes.
+	var locked_page: InvasionPage = load("res://scripts/ui/invasion_tab.gd").new()
+	add_child(locked_page)
+	assert_true(locked_page.find_child("InvasionLockedCard", true, false) != null, "La pestaña explica el bloqueo")
+	assert_true(locked_page.find_child("BtnInvasionGoCampaign", true, false) != null, "Ofrece volver a la campaña")
+	remove_child(locked_page)
+	locked_page.free()
+	assert_true(not GameManager.is_invasion_unlocked("iberia"), "Iberia bloqueada sin completar Europa")
+	for i in range(1, LevelDatabase.LEVELS_PER_CONTINENT + 1):
+		GameManager.completed_levels["europe_%d" % i] = 3
+	assert_true(GameManager.is_invasion_unlocked("iberia"), "Europa completa abre sus invasiones")
+	assert_true(GameManager.is_invasion_level_unlocked("inv_iberia_1"), "El primer frente está disponible")
+	assert_true(not GameManager.is_invasion_level_unlocked("inv_iberia_2"), "El segundo frente requiere el primero")
+	assert_equals(GameManager.get_total_stars(), 15, "Las estrellas de campaña no cambian")
+
+	var first := GameManager.complete_invasion_level("inv_iberia_1", 3)
+	assert_true(int(first["gold"]) > 0, "El frente paga oro")
+	assert_equals(GameManager.invasion_level_stars("inv_iberia_1"), 3, "El frente guarda sus estrellas")
+	assert_true(not GameManager.completed_levels.has("inv_iberia_1"), "Las invasiones no contaminan la campaña")
+	assert_true(GameManager.is_invasion_level_unlocked("inv_iberia_2"), "Ganar el primero abre el segundo")
+	assert_true(not GameManager.is_invasion_level_unlocked("inv_iberia_3"), "El tercero sigue cerrado")
+	GameManager.complete_invasion_level("inv_iberia_2", 2)
+	var third := GameManager.complete_invasion_level("inv_iberia_3", 1)
+	assert_true(third["region_complete"], "Los tres frentes completan la región")
+	assert_true(int(third["region_bonus"]) > 0, "La región paga un premio único")
+	assert_true(GameManager.is_region_complete("iberia"), "La región queda completa")
+	assert_true(not GameManager.is_region_mastered("iberia"), "Aún no hay dominio total")
+	assert_true(GameManager.invasion_rewards.has("iberia"), "El premio de región queda registrado")
+	assert_equals(GameManager.completed_invasion_regions(), 1, "Una región completada")
+	assert_equals(GameManager.total_invasion_fronts(), 3, "Tres frentes completados")
+	assert_equals(GameManager.total_invasion_stars(), 6, "Seis estrellas de invasión")
+	assert_equals(GameManager.get_total_stars(), 15, "La campaña conserva sus 15 estrellas")
+
+	var replay := GameManager.complete_invasion_level("inv_iberia_1", 3)
+	assert_true(not replay["region_complete"] or int(replay["region_bonus"]) == 0, "Repetir no vuelve a pagar la región")
+	GameManager.complete_invasion_level("inv_iberia_2", 3)
+	var mastery := GameManager.complete_invasion_level("inv_iberia_3", 3)
+	assert_true(mastery["region_mastered"], "Tres estrellas en los tres frentes dan dominio")
+	assert_true(int(mastery["mastery_bonus"]) > 0, "El dominio paga una sola vez")
+	assert_equals(GameManager.total_invasion_stars(), 9, "Nueve estrellas en la región")
+	GameManager.invasion_stars["inv_british_isles_1"] = 3
+	assert_equals(GameManager.next_invasion_level("inv_iberia_3"), "inv_british_isles_2",
+		"Tras una región, el siguiente nivel es el primer frente pendiente de la siguiente")
+	GameManager.invasion_stars.erase("inv_british_isles_1")
+
+	# 4. Persistencia: las invasiones sobreviven y la migración antigua no las inventa.
+	GameManager.save_game()
+	GameManager.load_game()
+	assert_equals(GameManager.invasion_level_stars("inv_iberia_1"), 3, "Las estrellas de invasión persisten")
+	assert_true(GameManager.is_region_mastered("iberia"), "El dominio persiste")
+	assert_true(GameManager.invasion_rewards.has("iberia"), "El premio de región persiste")
+	GameManager._apply_save({"version": 6, "coins": 100, "upgrades": {}, "completed_levels": {}})
+	assert_true(GameManager.invasion_stars.is_empty(), "Un guardado v6 no inventa invasiones")
+	assert_true(GameManager.invasion_rewards.is_empty(), "Un guardado v6 no inventa premios")
+
+	# 5. UI desbloqueada: mapa, regiones, frentes y resumen.
+	for i in range(1, LevelDatabase.LEVELS_PER_CONTINENT + 1):
+		GameManager.completed_levels["europe_%d" % i] = 3
+	GameManager.invasion_stars = {"inv_iberia_1": 3, "inv_iberia_2": 2, "inv_iberia_3": 1}
+	var page: InvasionPage = load("res://scripts/ui/invasion_tab.gd").new()
+	add_child(page)
+	assert_true(page.find_child("InvasionMap", true, false) != null, "La pestaña muestra el mapa")
+	assert_equals(page.continent_buttons.size(), 6, "Hay un selector por continente")
+	assert_equals(page.region_buttons.size(), 8, "Europa muestra sus ocho regiones")
+	assert_true(page.detail_card != null, "La ficha de región está presente")
+	assert_equals(page.front_buttons.size(), 3, "La ficha muestra los tres frentes")
+	assert_true(page.progress_label.text.contains("1/36"), "El progreso de regiones se muestra")
+	var front2 = page.find_child("BtnInvasionFront_2", true, false) as Button
+	assert_true(front2 != null and not front2.disabled, "El segundo frente se puede jugar")
+	var front3 = page.find_child("BtnInvasionFront_3", true, false) as Button
+	assert_true(front3 != null and not front3.disabled, "El tercer frente se puede jugar")
+	remove_child(page)
+	page.free()
+
+	# 6. Logros y estética de continente.
+	AchievementManager.check_all()
+	assert_true(GameManager.achievements.has("first_invasion"), "Completar una región desbloquea su logro")
+	var reward := CosmeticsDatabase.invasion_reward("europe")
+	assert_true(not reward.is_empty(), "Europa tiene premio de invasión")
+	assert_true(CosmeticsDatabase.is_reward(reward), "El premio no se vende")
+	assert_true(not GameManager.is_cosmetic_owned(reward["id"]), "El premio exige todas las regiones")
+	assert_true(CosmeticsDatabase.unlock_text(reward).contains("Europa"), "El premio explica cómo se consigue")
+	for region in InvasionDatabase.get_regions_by_continent("europe"):
+		for level_id in InvasionDatabase.get_region_level_ids(str(region["id"])):
+			GameManager.invasion_stars[level_id] = 3
+	assert_true(GameManager.all_regions_complete("europe"), "Europa completa desbloquea su premio")
+	assert_true(GameManager.is_cosmetic_owned(reward["id"]), "El color de invasión queda disponible")
+	GameManager.save_game()
+	GameManager.load_game()
+	assert_true(GameManager.cosmetics_owned.has(reward["id"]), "El color ganado persiste al guardar")
+
+	# 7. La victoria real de una batalla usa el camino de invasión y publica el resultado.
+	GameManager.reset_save()
+	for i in range(1, LevelDatabase.LEVELS_PER_CONTINENT + 1):
+		GameManager.completed_levels["europe_%d" % i] = 3
+	var battle := BattleController.new()
+	battle.level_id = "inv_iberia_1"
+	battle.target_time = 60.0
+	battle.battle_time = 20.0
+	battle.lost_a_base = false
+	var player_base := _make_base(Vector2(500, 900), GameManager.Faction.PLAYER, 30)
+	player_base.base_name = "Madrid"
+	player_base.city_key = "madrid"
+	battle.bases.append(player_base)
+	var results: Array[Dictionary] = []
+	var capture = func(stats): results.append(stats)
+	EventBus.battle_won.connect(capture)
+	battle._trigger_victory()
+	EventBus.battle_won.disconnect(capture)
+	assert_true(not results.is_empty(), "La victoria publica un resultado")
+	var result: Dictionary = results[0] if not results.is_empty() else {}
+	assert_true(result.get("is_invasion", false), "La victoria se marca como invasión")
+	assert_equals(result.get("stars", 0), 3, "La batalla calcula sus estrellas")
+	assert_true(int(result.get("gold_earned", 0)) > 0, "La pantalla recibe el oro de invasión")
+	assert_equals(GameManager.invasion_level_stars("inv_iberia_1"), 3, "La victoria guarda el frente")
+	assert_true(result.has("region_id") and result["region_id"] == "iberia", "El resultado identifica la región")
+	battle.free()
+	GameManager.reset_save()
 
 func test_continent_mechanics() -> void:
 	print("\n-> Test: Reglas de Continente, Rutas y Jefes")
@@ -3417,7 +3763,7 @@ func test_review_regressions() -> void:
 	assert_true(not GameManager.buy_cosmetic("color_violet"), "Comprar dos veces no duplica ni cobra")
 	assert_equals(GameManager.coins, 700, "La compra sólo descuenta una vez")
 	EventBus.cosmetics_changed.disconnect(on_change)
-	GameManager._apply_save({"language": "fr", "conquest_next": -4,
+	GameManager._apply_save({"language": "xx", "conquest_next": -4,
 		"conquered_cities": ["madrid", "madrid", "no_existe", 42],
 		"cosmetics_owned": ["color_cyan", "no_existe"],
 		"cosmetics_equipped": {"army_color": "color_gold", "base_shape": "color_cyan"}})
@@ -3434,13 +3780,13 @@ func test_review_regressions() -> void:
 	battle.target_time = 60.0
 	battle.battle_time = 12.0
 	hud._update_target_time()
-	assert_equals(hud.label_target_time.text, "★★★ 48s", "El HUD utiliza el objetivo de la batalla sin duplicarlo")
+	assert_equals(hud.label_target_time.text, LocaleStrings.text("star_goal") % ["★★★", 48], "El HUD utiliza el objetivo de la batalla sin duplicarlo")
 	battle.battle_time = 65.0
 	hud._update_target_time()
-	assert_equals(hud.label_target_time.text, "★★ 25s", "Pasado el objetivo, el reloj pasa a defender la segunda estrella")
+	assert_equals(hud.label_target_time.text, LocaleStrings.text("star_goal") % ["★★", 25], "Pasado el objetivo, el reloj pasa a defender la segunda estrella")
 	battle.battle_time = 95.0
 	hud._update_target_time()
-	assert_equals(hud.label_target_time.text, "★", "Tras 1,5 veces el objetivo sólo queda la estrella de victoria")
+	assert_equals(hud.label_target_time.text, LocaleStrings.text("star_goal_only") % "★", "Tras 1,5 veces el objetivo sólo queda la estrella de victoria")
 	remove_child(hud)
 	hud.free()
 	battle.free()
@@ -3783,3 +4129,87 @@ func test_light_and_dark_mode() -> void:
 	assert_equals(UIThemeHelper.palette_name, "dark", "Volver al modo oscuro")
 	assert_equals(theme.get_color("font_color", "Label"), UIThemeHelper.PALETTES.dark.text, "El tema global vuelve al texto claro")
 	GameManager.reset_save()
+
+func test_telemetry_schema_and_privacy() -> void:
+	print("\n-> Test: Telemetría Opt-in y Privacidad")
+	GameManager._apply_save({})
+	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "La telemetría empieza desactivada hasta que el jugador la active")
+	assert_true(Telemetry._is_test_runtime(), "La suite headless nunca inicializa analítica ni red")
+	assert_true(EventBus.has_signal("battle_finished"), "La batalla publica un resultado único para analítica")
+	assert_equals(Telemetry._mode("europe_1"), "campaign", "Nivel de campaña identificado")
+	assert_equals(Telemetry._mode(DailyRewards.challenge_id(20000)), "daily", "Desafío diario identificado")
+	assert_equals(Telemetry._mode(LevelGenerator.conquest_id(3)), "conquest", "Conquista identificada")
+	assert_equals(Telemetry._mode(InvasionDatabase.level_id("iberia", 1)), "invasion", "Invasión identificada")
+	assert_equals(Telemetry._bucket(0.0, Telemetry.LEVEL_BUCKETS), "0_20", "Duración corta agrupada")
+	assert_equals(Telemetry._bucket(25.0, Telemetry.LEVEL_BUCKETS), "20_40", "Duración media agrupada")
+	assert_equals(Telemetry._bucket(500.0, Telemetry.LEVEL_BUCKETS), "120_plus", "Duración larga agrupada")
+	var clean := Telemetry._clean_props({"flag": true, "number": 3, "text": "x", "skip": null})
+	assert_equals(clean, {"flag": 1, "number": 3, "text": "x"}, "Sólo se envían cadenas y números")
+	var finished: Array = []
+	var on_finished = func(result: Dictionary): finished.append(result)
+	EventBus.battle_finished.connect(on_finished)
+	var battle := BattleController.new()
+	battle.level_id = "europe_1"
+	battle._trigger_defeat()
+	EventBus.battle_finished.disconnect(on_finished)
+	assert_true(not finished.is_empty(), "La derrota publica su resultado para analítica")
+	assert_equals(finished[0].get("outcome", ""), "loss", "La derrota publica su resultado para analítica")
+	assert_true(finished[0].has("captures") and finished[0].has("time"), "El resultado incluye capturas y duración")
+	battle.free()
+	assert_true(GameManager.DEFAULT_SETTINGS.has("share_analytics"), "La analítica está en los ajustes")
+	assert_true(GameManager.DEFAULT_SETTINGS.has("share_crashes"), "Los fallos están en los ajustes")
+	var previous_language := GameManager.language
+	LocaleStrings.set_locale("es")
+	assert_equals(LocaleStrings.text("share_analytics"), "Estadísticas de uso", "El ajuste de analítica está traducido")
+	assert_equals(LocaleStrings.text("privacy_policy"), "Política de privacidad", "El enlace de privacidad está traducido")
+	LocaleStrings.set_locale(previous_language)
+	GameManager.set_setting("share_analytics", false)
+	GameManager.set_setting("share_crashes", false)
+	GameManager.load_game()
+	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "La privacidad persiste entre sesiones")
+	GameManager._apply_save({"version": 6, "upgrades": {}, "completed_levels": {}})
+	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Un guardado antiguo no activa la telemetría sin consentimiento")
+
+	# Retirar el consentimiento descarta la cola y cierra el contexto analítico de la batalla.
+	Telemetry._analytics_ready = true
+	Telemetry._battle = {"level": "europe_1", "analytics_allowed": true}
+	Telemetry._attempts = {"europe_1": 1}
+	var stale_generation: int = Aptabase._generation
+	Aptabase._initialized = true
+	Aptabase._event_queue = [{"eventName": "pending"}]
+	Telemetry._on_settings_changed()
+	assert_true(not Telemetry._analytics_ready and not Aptabase._initialized, "Desactivar la analítica detiene el cliente")
+	assert_true(Aptabase._event_queue.is_empty(), "Desactivar la analítica descarta eventos aún no enviados")
+	assert_true(not Telemetry._battle["analytics_allowed"] and Telemetry._attempts.is_empty(), "Una batalla iniciada sin consentimiento no se envía al reactivar")
+	Telemetry._battle.clear()
+	var stale_http := HTTPRequest.new()
+	var current_http := HTTPRequest.new()
+	Aptabase.add_child(stale_http)
+	Aptabase.add_child(current_http)
+	Aptabase._initialized = true
+	Aptabase._event_queue = [{"eventName": "new"}]
+	Aptabase._request_in_flight = true
+	Aptabase._active_http = current_http
+	Aptabase._on_request_completed(HTTPRequest.RESULT_SUCCESS, 200, PackedByteArray(),
+		[{"eventName": "old"}], stale_http, stale_generation)
+	assert_equals(Aptabase._event_queue, [{"eventName": "new"}], "Una respuesta anterior al opt-out no reencola eventos al reactivar")
+	assert_true(Aptabase._active_http == current_http and Aptabase._request_in_flight, "Una respuesta antigua no altera la petición de la sesión nueva")
+	current_http.queue_free()
+	Aptabase._active_http = null
+	Aptabase._request_in_flight = false
+	Aptabase._initialized = false
+	Aptabase._event_queue.clear()
+
+	# Importar una copia tampoco puede cambiar la preferencia de privacidad del dispositivo.
+	var imported := GameManager.save_data()
+	imported["settings"] = imported["settings"].duplicate(true)
+	imported["settings"]["share_analytics"] = true
+	imported["settings"]["share_crashes"] = true
+	var import_path := "user://privacy_import.json"
+	assert_equals(GameManager.write_save(import_path, imported), OK, "Se escribe la copia de privacidad de prueba")
+	assert_equals(GameManager.import_save(import_path), OK, "Se importa una copia con telemetría activada")
+	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Importar no anula el consentimiento local")
+	DirAccess.remove_absolute(import_path)
+	DirAccess.remove_absolute(GameManager.save_path + ".backup")
+	GameManager.reset_save()
+	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Reiniciar progreso conserva las opciones de privacidad")

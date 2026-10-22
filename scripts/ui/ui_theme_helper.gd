@@ -5,20 +5,23 @@ class_name UIThemeHelper
 ## `install()` fusiona el tema con el de Godot, así que cualquier Control (también en capas,
 ## diálogos y listas desplegables) hereda el mismo aspecto sin estilos sueltos por pantalla.
 ## Variaciones: Label → Display, Title, Heading, Caption · Button → PrimaryButton, GoldButton,
-## GhostButton, IconButton, NavButton, SegmentButton, RowButton · PanelContainer → Sheet, Chip,
-## Tile, NavBar · Panel → Badge · ProgressBar → GoldBar.
+## GhostButton, IconButton, NavButton, SegmentButton, RowButton · PanelContainer → Sheet,
+## CompactCard, Chip, Tile, NavBar · Panel → Badge · ProgressBar → GoldBar.
 
 const BATTLE_SCENE := "res://scenes/battle/battle_field.tscn"
 
 ## Paletas de interfaz. El mapa de batalla no cambia con ellas: tiene su propio tema (tienda).
-## "ink" es el texto sobre los botones de color primario y dorado.
+## "gold" se usa para texto y trazos; "gold_bright" para superficies que llevan "gold_ink".
+## "ink" es el texto sobre los botones de color primario.
 const PALETTES := {
-	"dark": {"bg": Color("0e1624"), "surface": Color("172234"), "surface_2": Color("22314a"), "line": Color("2c3d59"),
-		"text": Color("eaf1fa"), "muted": Color("8fa3bd"), "ink": Color("0b1a2e"),
-		"primary": Color("2f9bff"), "gold": Color("ffc83d"), "success": Color("3dd68c"), "danger": Color("ff5a5f"), "neutral": Color("8fa3bd")},
-	"light": {"bg": Color("f2f4f8"), "surface": Color("ffffff"), "surface_2": Color("e5eaf1"), "line": Color("d3dbe6"),
-		"text": Color("15202f"), "muted": Color("5d6c80"), "ink": Color("ffffff"),
-		"primary": Color("1668c8"), "gold": Color("865700"), "success": Color("087747"), "danger": Color("d63c43"), "neutral": Color("64748b")},
+	"dark": {"bg": Color("101b2a"), "surface": Color("19283b"), "surface_2": Color("243750"), "line": Color("36506d"),
+		"text": Color("f3f8ff"), "muted": Color("a6b8cc"), "ink": Color("09182a"),
+		"primary": Color("3b9eff"), "gold": Color("ffc83d"), "gold_bright": Color("ffc83d"), "gold_ink": Color("332200"),
+		"success": Color("45dc96"), "danger": Color("ff6b70"), "neutral": Color("a6b8cc")},
+	"light": {"bg": Color("f3f7fc"), "surface": Color("ffffff"), "surface_2": Color("eaf1f9"), "line": Color("d4e0ed"),
+		"text": Color("14283e"), "muted": Color("556a82"), "ink": Color("ffffff"),
+		"primary": Color("1367b8"), "gold": Color("8d5b00"), "gold_bright": Color("ffc83d"), "gold_ink": Color("3a2800"),
+		"success": Color("0b7a4b"), "danger": Color("c33a42"), "neutral": Color("697b8f")},
 }
 ## Velo bajo las capas modales (igual en ambos modos)
 const COLOR_SCRIM := Color(0.02, 0.04, 0.08, 0.6)
@@ -33,16 +36,79 @@ const FONT_BODY := 30
 const TOUCH_SCROLL_DEADZONE := 20
 const FONT_WEIGHT_TAG := 2003265652 # 'wght'
 
+const FONT_DIR := "res://assets/fonts/locale/"
+const SCRIPT_FONTS := {
+	"latin": "noto_latin_ext.ttf", "latin_ext": "noto_latin_ext.ttf",
+	"cyrillic": "noto_cyrillic.ttf", "arabic": "noto_arabic.ttf",
+	"devanagari": "noto_devanagari.ttf", "cjk_sc": "noto_sc.ttf",
+	"cjk_jp": "noto_jp.ttf", "cjk_kr": "noto_kr.ttf",
+}
+const NAME_FONTS := ["names_latin.ttf", "names_cyrillic.ttf", "names_arabic.ttf",
+	"names_devanagari.ttf", "names_cjk_sc.ttf", "names_cjk_jp.ttf", "names_cjk_kr.ttf"]
+
 static var _bold: FontVariation
+static var _regular: FontVariation
+static var _font_cache: Dictionary = {}
 
 static func bold_font() -> FontVariation:
-	if _bold == null:
-		var base: FontVariation = load("res://assets/fonts/game_font.tres")
-		_bold = FontVariation.new()
-		_bold.base_font = base.base_font
-		_bold.fallbacks = base.fallbacks
-		_bold.variation_opentype = {FONT_WEIGHT_TAG: 700}
+	if _bold == null or _bold.get_meta("locale", "") != LocaleStrings.lang:
+		_bold = _weighted_font(700)
+		_bold.set_meta("locale", LocaleStrings.lang)
 	return _bold
+
+## Peso medio para textos explicativos: la tipografía deja de competir con los títulos.
+static func regular_font() -> FontVariation:
+	if _regular == null or _regular.get_meta("locale", "") != LocaleStrings.lang:
+		_regular = _weighted_font(500)
+		_regular.set_meta("locale", LocaleStrings.lang)
+	return _regular
+
+static func _weighted_font(weight: int) -> FontVariation:
+	var key := "%s|%d" % [LocaleStrings.lang, weight]
+	if _font_cache.has(key):
+		return _font_cache[key]
+	var base: FontVariation = load("res://assets/fonts/game_font.tres")
+	var font := FontVariation.new()
+	font.base_font = base.base_font
+	var script: FontVariation = _script_font(LocaleStrings.lang, weight)
+	# Vietnamese and Turkish have letters Fredoka does not cover. Using Noto as the
+	# primary face for those locales avoids mixed glyphs inside a single word.
+	if LocaleStrings.lang in ["vi", "tr"] and script != null:
+		font.base_font = script
+	font.variation_opentype = {FONT_WEIGHT_TAG: weight}
+	var fallbacks: Array[Font] = []
+	for f in base.fallbacks:
+		fallbacks.append(f)
+	for name in NAME_FONTS:
+		var path: String = FONT_DIR + str(name)
+		if ResourceLoader.exists(path):
+			fallbacks.append(load(path))
+	if script != null:
+		fallbacks.append(script)
+	font.fallbacks = fallbacks
+	_font_cache[key] = font
+	return font
+
+static func _script_font(code: String, weight: int) -> FontVariation:
+	var file: String = str(SCRIPT_FONTS.get(LanguageCatalog.script_of(code), ""))
+	if file == "" or not ResourceLoader.exists(FONT_DIR + file):
+		return null
+	var font := FontVariation.new()
+	font.base_font = load(FONT_DIR + file)
+	font.variation_opentype = {FONT_WEIGHT_TAG: weight}
+	return font
+
+## Aplica el sentido de lectura a un Control raíz. Godot sólo calcula layout_rtl al
+## crear el control; al cambiar de idioma hay que fijarlo y avisar al árbol.
+static func apply_locale_direction(root: Control) -> void:
+	root.layout_direction = Control.LAYOUT_DIRECTION_RTL if LanguageCatalog.is_rtl(LocaleStrings.lang) else Control.LAYOUT_DIRECTION_LTR
+	root.propagate_notification(Control.NOTIFICATION_LAYOUT_DIRECTION_CHANGED)
+
+## CanvasLayer (HUD, avisos) no es un Control: aplica el sentido a cada capa raíz.
+static func apply_locale_direction_children(parent: Node) -> void:
+	for child in parent.get_children():
+		if child is Control:
+			apply_locale_direction(child)
 
 ## Aplica el tema y el feedback táctil a toda la aplicación (una vez, desde un autoload)
 static func install(tree: SceneTree, light: bool) -> void:
@@ -55,9 +121,11 @@ static func install(tree: SceneTree, light: bool) -> void:
 ## con overrides los refresca cada pantalla al recibir EventBus.settings_changed.
 static func apply_palette(tree: SceneTree, light: bool) -> void:
 	var name := "light" if light else "dark"
-	if name == palette_name and tree.has_meta("_theme_installed"):
+	var theme_key := "%s|%s" % [name, LocaleStrings.lang]
+	if theme_key == str(tree.get_meta("_theme_key", "")) and tree.has_meta("_theme_installed"):
 		return
 	tree.set_meta("_theme_installed", true)
+	tree.set_meta("_theme_key", theme_key)
 	palette_name = name
 	colors = PALETTES[name]
 	ThemeDB.get_default_theme().merge_with(build_theme())
@@ -66,6 +134,7 @@ static func apply_palette(tree: SceneTree, light: bool) -> void:
 
 static func build_theme() -> Theme:
 	var t := Theme.new()
+	t.default_font = regular_font()
 	t.default_font_size = FONT_BODY
 
 	# Texto
@@ -80,7 +149,7 @@ static func build_theme() -> Theme:
 	# Botones: secundario por defecto y variaciones por énfasis
 	_button_type(t, "Button", colors.surface_2, colors.text)
 	_button_type(t, "OptionButton", colors.surface_2, colors.text)
-	for b in [["PrimaryButton", colors.primary, colors.ink], ["GoldButton", colors.gold, colors.ink]]:
+	for b in [["PrimaryButton", colors.primary, colors.ink], ["GoldButton", colors.gold_bright, colors.gold_ink]]:
 		t.set_type_variation(b[0], "Button")
 		_button_type(t, b[0], b[1], b[2])
 		t.set_font_size("font_size", b[0], 34)
@@ -88,11 +157,14 @@ static func build_theme() -> Theme:
 	t.set_type_variation("GhostButton", "Button")
 	_flat_button(t, "GhostButton", Color.TRANSPARENT, colors.surface, colors.muted, colors.text)
 	t.set_type_variation("SegmentButton", "Button")
-	_flat_button(t, "SegmentButton", Color.TRANSPARENT, colors.surface_2, colors.muted, colors.text)
+	_flat_button(t, "SegmentButton", Color.TRANSPARENT, Color(colors.primary, 0.14 if palette_name == "light" else 0.22), colors.muted, colors.text)
 	t.set_type_variation("NavButton", "Button")
 	_flat_button(t, "NavButton", Color.TRANSPARENT, Color.TRANSPARENT, colors.muted, colors.primary)
 	t.set_font_size("font_size", "NavButton", 22)
 	t.set_constant("h_separation", "NavButton", 4)
+	var nav_active := box(Color(colors.primary, 0.11 if palette_name == "light" else 0.18), 20, 18)
+	for state in ["hover", "pressed", "hover_pressed"]:
+		t.set_stylebox(state, "NavButton", nav_active)
 	t.set_type_variation("RowButton", "Button")
 	_flat_button(t, "RowButton", colors.surface, colors.surface_2, colors.text, colors.text)
 	t.set_type_variation("IconButton", "Button")
@@ -103,14 +175,22 @@ static func build_theme() -> Theme:
 		box.set_content_margin_all(22)
 
 	# Paneles
-	t.set_stylebox("panel", "PanelContainer", box(colors.surface, RADIUS, 32))
+	var panel := box(colors.surface, RADIUS, 32)
+	panel.set_border_width_all(1)
+	panel.border_color = colors.line
+	t.set_stylebox("panel", "PanelContainer", panel)
 	t.set_type_variation("Sheet", "PanelContainer")
-	var sheet := box(colors.surface, 40, 48)
+	var sheet := box(colors.surface, 34, 44)
 	sheet.set_border_width_all(2)
 	sheet.border_color = colors.line
-	sheet.shadow_color = Color(0, 0, 0, 0.45 if palette_name == "dark" else 0.12)
+	sheet.shadow_color = Color(0, 0, 0, 0.36 if palette_name == "dark" else 0.10)
 	sheet.shadow_size = 24
 	t.set_stylebox("panel", "Sheet", sheet)
+	t.set_type_variation("CompactCard", "PanelContainer")
+	var compact := box(colors.surface, 24, 24)
+	compact.set_border_width_all(1)
+	compact.border_color = colors.line
+	t.set_stylebox("panel", "CompactCard", compact)
 	t.set_type_variation("Chip", "PanelContainer")
 	var chip := box(colors.surface_2, 999, 10)
 	chip.content_margin_left = 22
@@ -124,19 +204,23 @@ static func build_theme() -> Theme:
 	nav.border_color = colors.line
 	t.set_stylebox("panel", "NavBar", nav)
 	t.set_type_variation("Badge", "Panel")
-	t.set_stylebox("panel", "Badge", box(colors.gold, 999, 0))
+	t.set_stylebox("panel", "Badge", box(colors.gold_bright, 999, 0))
 	# Cabecera de batalla: superficie translúcida para leerse sobre cualquier tema de mapa
 	t.set_type_variation("HudBar", "PanelContainer")
-	var hud := box(Color(colors.surface, 0.92), 32, 20)
+	var hud := box(Color(colors.surface, 0.96), 32, 20)
 	hud.set_border_width_all(2)
-	hud.border_color = Color(colors.line, 0.8)
+	hud.border_color = Color(colors.line, 0.9)
+	# La cabecera flota sobre mapas claros y oscuros: una sombra suave la separa sin tapar tropas.
+	hud.shadow_color = Color(0, 0, 0, 0.34 if palette_name == "dark" else 0.14)
+	hud.shadow_size = 16
+	hud.shadow_offset = Vector2(0, 5)
 	t.set_stylebox("panel", "HudBar", hud)
 
 	# Progreso, desplazamiento, interruptores y deslizadores
 	t.set_stylebox("background", "ProgressBar", box(colors.surface_2, 999, 0))
 	t.set_stylebox("fill", "ProgressBar", box(colors.primary, 999, 0))
 	t.set_type_variation("GoldBar", "ProgressBar")
-	t.set_stylebox("fill", "GoldBar", box(colors.gold, 999, 0))
+	t.set_stylebox("fill", "GoldBar", box(colors.gold_bright, 999, 0))
 	t.set_stylebox("panel", "ScrollContainer", StyleBoxEmpty.new())
 	var grabber := box(colors.line, 999, 0)
 	grabber.content_margin_left = 6
@@ -144,6 +228,12 @@ static func build_theme() -> Theme:
 	for s in ["grabber", "grabber_highlight", "grabber_pressed"]:
 		t.set_stylebox(s, "VScrollBar", grabber)
 	t.set_stylebox("scroll", "VScrollBar", StyleBoxEmpty.new())
+	var h_grabber := box(colors.line, 999, 0)
+	h_grabber.content_margin_top = 6
+	h_grabber.content_margin_bottom = 6
+	for s in ["grabber", "grabber_highlight", "grabber_pressed"]:
+		t.set_stylebox(s, "HScrollBar", h_grabber)
+	t.set_stylebox("scroll", "HScrollBar", StyleBoxEmpty.new())
 	for s in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
 		var empty := StyleBoxEmpty.new()
 		empty.content_margin_top = 14
@@ -239,6 +329,7 @@ static func _button_colors(t: Theme, type: String, ink: Color, active_ink: Color
 
 static func label(text: String, variation: String = "", color: Color = Color.TRANSPARENT) -> Label:
 	var l := Label.new()
+	l.auto_translate_mode = Control.AUTO_TRANSLATE_MODE_DISABLED
 	l.text = text
 	l.theme_type_variation = variation
 	if color != Color.TRANSPARENT:
@@ -254,6 +345,7 @@ static func paragraph(text: String, variation: String = "Caption") -> Label:
 
 static func button(text: String, variation: String = "", icon: String = "") -> Button:
 	var b := Button.new()
+	b.auto_translate_mode = Control.AUTO_TRANSLATE_MODE_DISABLED
 	b.text = text
 	b.theme_type_variation = variation
 	if icon != "":
@@ -262,7 +354,10 @@ static func button(text: String, variation: String = "", icon: String = "") -> B
 
 ## Icono de botón: los de trazo toman el color del texto; los de color propio (moneda) no se tiñen
 static func set_icon(b: Button, icon: String, size: int = 44) -> void:
-	b.icon = Icons.texture(icon, size)
+	if LanguageCatalog.is_rtl(LocaleStrings.lang) and icon in ["back", "next"]:
+		b.icon = Icons.mirrored_texture(icon, size)
+	else:
+		b.icon = Icons.texture(icon, size)
 	if icon in Icons.COLORED:
 		for state in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
 			b.add_theme_color_override("icon_%s_color" % state, Color.WHITE)
@@ -499,6 +594,8 @@ static func create_modal_card(title: String, body: String, button_text: String, 
 		root.color = COLOR_SCRIM
 		root.mouse_filter = Control.MOUSE_FILTER_STOP
 		root.add_child(center)
+	if root is Control:
+		apply_locale_direction(root)
 	root.tree_entered.connect(func():
 		root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

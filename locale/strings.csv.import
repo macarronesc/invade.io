@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://c7u86qh055xu8"
+
+[deps]
+
+files=["res://locale/strings.es.translation", "res://locale/strings.en.translation", "res://locale/strings.pt_BR.translation", "res://locale/strings.fr.translation", "res://locale/strings.de.translation", "res://locale/strings.it.translation", "res://locale/strings.ru.translation", "res://locale/strings.tr.translation", "res://locale/strings.ar.translation", "res://locale/strings.hi.translation", "res://locale/strings.id.translation", "res://locale/strings.vi.translation", "res://locale/strings.zh_CN.translation", "res://locale/strings.ja.translation", "res://locale/strings.ko.translation"]
+
+source_file="res://locale/strings.csv"
+dest_files=["res://locale/strings.es.translation", "res://locale/strings.en.translation", "res://locale/strings.pt_BR.translation", "res://locale/strings.fr.translation", "res://locale/strings.de.translation", "res://locale/strings.it.translation", "res://locale/strings.ru.translation", "res://locale/strings.tr.translation", "res://locale/strings.ar.translation", "res://locale/strings.hi.translation", "res://locale/strings.id.translation", "res://locale/strings.vi.translation", "res://locale/strings.zh_CN.translation", "res://locale/strings.ja.translation", "res://locale/strings.ko.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

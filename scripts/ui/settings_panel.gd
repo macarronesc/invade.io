@@ -41,8 +41,10 @@ func _build() -> void:
 		GameManager.set_setting("light_mode", index == 1)
 		_build()))
 	_label(LocaleStrings.text("language"))
-	_group.add_child(_options(["Español", "English"], 1 if GameManager.language == "en" else 0, func(index):
-		GameManager.set_language("en" if index == 1 else "es")
+	var locale_codes := LanguageCatalog.codes()
+	var locale_names: Array = locale_codes.map(func(code): return LanguageCatalog.native_name(code))
+	_group.add_child(_options(locale_names, maxi(0, locale_codes.find(GameManager.language)), func(index):
+		GameManager.set_language(locale_codes[index])
 		_build()))
 	_label(LocaleStrings.text("speed"))
 	var speeds: Array = GameManager.GAME_SPEEDS.map(func(value): return "×" + String.num(value))
@@ -70,6 +72,14 @@ func _build() -> void:
 	_section("section_access")
 	for key in ["colorblind", "reduced_motion"]:
 		_toggle(key, GameManager.settings[key], func(value): GameManager.set_setting(key, value))
+
+	_section("section_privacy")
+	_toggle("share_analytics", GameManager.settings["share_analytics"], func(value):
+		GameManager.set_setting("share_analytics", value))
+	_toggle("share_crashes", GameManager.settings["share_crashes"], func(value):
+		GameManager.set_setting("share_crashes", value))
+	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("privacy_note")))
+	_button("privacy_policy", func(): OS.shell_open(Telemetry.PRIVACY_URL), "shield")
 
 	_section("section_data")
 	_group.add_child(UIThemeHelper.label(LocaleStrings.text("save_auto"), "Heading"))
@@ -260,6 +270,8 @@ func _confirm_reset() -> void:
 func _confirm(text: String, action: Callable, on_cancel: Callable = Callable()) -> void:
 	var dialog := ConfirmationDialog.new()
 	dialog.dialog_text = text
+	dialog.ok_button_text = LocaleStrings.text("confirm")
+	dialog.cancel_button_text = LocaleStrings.text("cancel")
 	dialog.get_label().autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	dialog.confirmed.connect(func():
 		action.call()

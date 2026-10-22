@@ -11,16 +11,17 @@ config_version=5
 [application]
 
 config/name="invade.io"
+config/version="0.1.0"
 run/main_scene="res://scenes/ui/main_menu.tscn"
 config/quit_on_go_back=false
 config/features=PackedStringArray("4.7", "GL Compatibility")
 run/low_processor_mode=true
-config/icon="res://icon.svg"
+boot_splash/bg_color=Color(0.9529, 0.9686, 0.9882, 1)
 boot_splash/image="res://assets/brand/boot_splash.png"
 boot_splash/show_image=true
 boot_splash/stretch_mode=1
 boot_splash/use_filter=true
-boot_splash/bg_color=Color(0.0549, 0.0863, 0.1412, 1)
+config/icon="res://icon.svg"
 
 [autoload]
 
@@ -29,6 +30,12 @@ GameManager="*res://scripts/autoload/game_manager.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
 AchievementManager="*res://scripts/autoload/achievement_manager.gd"
 Toasts="*res://scripts/autoload/toasts.gd"
+Aptabase="*res://addons/aptabase/aptabase.gd"
+Telemetry="*res://scripts/autoload/telemetry.gd"
+
+[debug]
+
+settings/gdscript/always_track_call_stacks=true
 
 [display]
 
@@ -48,9 +55,19 @@ theme/custom_font="res://assets/fonts/game_font.tres"
 
 pointing/emulate_touch_from_mouse=true
 
+[internationalization]
+
+locale/translations=PackedStringArray("res://locale/strings.en.translation", "res://locale/strings.es.translation", "res://locale/strings.pt_BR.translation", "res://locale/strings.fr.translation", "res://locale/strings.de.translation", "res://locale/strings.it.translation", "res://locale/strings.ru.translation", "res://locale/strings.tr.translation", "res://locale/strings.ar.translation", "res://locale/strings.hi.translation", "res://locale/strings.id.translation", "res://locale/strings.vi.translation", "res://locale/strings.zh_CN.translation", "res://locale/strings.ja.translation", "res://locale/strings.ko.translation")
+locale/include_text_server_data=true
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
-environment/defaults/default_clear_color=Color(0.1, 0.12, 0.16, 1)
+environment/defaults/default_clear_color=Color(0.9529, 0.9686, 0.9882, 1)
+
+[sentry]
+
+options/auto_init=false
+schema_version=5

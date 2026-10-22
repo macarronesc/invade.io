@@ -29,7 +29,7 @@ func _build() -> void:
 	content.add_child(_segments())
 	if section == "upgrades":
 		if GameManager.should_suggest_first_upgrade():
-			var first := UIThemeHelper.card(content, "", 8)
+			var first := UIThemeHelper.card(content, "CompactCard", 8)
 			first.add_child(UIThemeHelper.label(LocaleStrings.text("first_upgrade"), "Heading", UIThemeHelper.colors.gold))
 			first.add_child(UIThemeHelper.paragraph(LocaleStrings.text("first_upgrade_sub")))
 		else:
@@ -78,7 +78,8 @@ func _upgrade_card(id: String) -> PanelContainer:
 	var fmt := "+%d%%" if cfg["percent"] else "+%d"
 	var card := PanelContainer.new()
 	card.name = "UpgradeCard_" + id
-	var column := UIThemeHelper.vbox(18)
+	card.theme_type_variation = "CompactCard"
+	var column := UIThemeHelper.vbox(14)
 	card.add_child(column)
 
 	# Efecto actual › siguiente, p. ej. "+10  ›  +15 tropas al empezar"

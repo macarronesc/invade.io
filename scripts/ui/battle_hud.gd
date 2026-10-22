@@ -111,6 +111,7 @@ func _cleanup_time_scale() -> void:
 
 func _ready() -> void:
 	_apply_texts()
+	UIThemeHelper.apply_locale_direction_children(self)
 	UIThemeHelper.apply_safe_area_top(top_bar)
 	confetti_overlay.draw.connect(_draw_confetti)
 	for entry in [[btn_pause, "pause"], [btn_pause_sound, "sound"], [btn_pause_music, "music"], [btn_resume, "play"],
@@ -236,18 +237,23 @@ func _on_pause_sound_pressed() -> void:
 func _open_settings() -> void:
 	if is_instance_valid(_utility_panel):
 		return
+	Telemetry.screen_opened("settings")
 	_utility_panel = load("res://scripts/ui/settings_panel.gd").new()
 	_utility_panel.allow_backups = false # No reemplazar una partida mientras su batalla vive.
 	_utility_panel.closed.connect(func():
+		Telemetry.screen_opened("battle")
 		_apply_texts()
+		UIThemeHelper.apply_locale_direction_children(self)
 		_refresh_audio_buttons()
 		_refresh_palette()
 		if is_instance_valid(battle_controller):
 			_on_battle_started(battle_controller.level_id)
 			for base in battle_controller.bases:
+				base.base_name = GeoDatabase.city_name(GeoDatabase.get_city(base.city_key))
 				if base.label_name:
-					base.label_name.text = GeoDatabase.city_name(GeoDatabase.get_city(base.city_key)))
+					base.label_name.text = base.base_name)
 	add_child(_utility_panel)
+	UIThemeHelper.apply_locale_direction(_utility_panel)
 
 func _open_share() -> void:
 	if is_instance_valid(_utility_panel):
@@ -269,7 +275,7 @@ func _on_battle_started(level_id: String) -> void:
 	label_level_name.text = data["name"]
 	_rule_text = CampaignRules.description(data).strip_edges().get_slice("\n", 0)
 	if level_id == "europe_4":
-		_rule_text = LocaleStrings.text("hint_factory")
+		_rule_text = LocaleStrings.text("hint_factory_short")
 	pause_rule.text = CampaignRules.description(data).strip_edges()
 	if data.has("objective"):
 		pause_rule.text += "\n" + LocaleStrings.text("daily_objective") % (LocaleStrings.text(data["objective"]) % int(data["hold_seconds"]))
@@ -339,7 +345,8 @@ func _update_target_time() -> void:
 	if key == _last_shown_second:
 		return
 	_last_shown_second = key
-	label_target_time.text = "★".repeat(stars) + (" %ds" % remaining if remaining >= 0 else "")
+	var star_text := "★".repeat(stars)
+	label_target_time.text = LocaleStrings.text("star_goal") % [star_text, remaining] if remaining >= 0 else LocaleStrings.text("star_goal_only") % star_text
 	label_target_time.add_theme_color_override("font_color", UIThemeHelper.colors.gold if stars == 3 else UIThemeHelper.colors.gold.lerp(UIThemeHelper.colors.muted, 0.5 if stars == 2 else 1.0))
 
 ## Reparto de tropas en juego de cada bando, con el número dentro de su segmento
@@ -398,13 +405,19 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 	UIThemeHelper.animate_modal_pop_in(victory_panel)
 	var daily: bool = stats.get("is_daily_challenge", false)
 	var conquest: bool = stats.get("is_conquest", false)
+	var invasion: bool = stats.get("is_invasion", false)
 	btn_share.visible = daily
 	if daily:
 		_share_result = {"day": DailyRewards.challenge_day(str(stats.get("level_id", GameManager.get_battle_level_id()))),
 			"stars": stats.get("stars", 1), "time": stats.get("time", 0.0), "speed": stats.get("speed", 1.0), "balance_version": DailyRewards.BALANCE_VERSION}
 	btn_next_level.visible = not daily
-	btn_next_level.text = LocaleStrings.text("next_region" if conquest else "next_level")
-	btn_victory_map.text = LocaleStrings.text("to_challenges" if daily else "exit")
+	if invasion:
+		btn_next_level.text = LocaleStrings.text("next_region" if stats.get("region_complete", false) else "next_front")
+	elif conquest:
+		btn_next_level.text = LocaleStrings.text("next_region")
+	else:
+		btn_next_level.text = LocaleStrings.text("next_level")
+	btn_victory_map.text = LocaleStrings.text("to_challenges" if daily else ("to_invasions" if invasion else "exit"))
 
 	_refresh_result_title()
 
@@ -421,6 +434,14 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 	victory_note.visible = stats.get("is_replay", false)
 	if int(stats.get("boss_gold", 0)) > 0:
 		victory_note.text = LocaleStrings.text("boss_gold_earned") % stats["boss_gold"]
+		victory_note.visible = true
+	if int(stats.get("region_bonus", 0)) + int(stats.get("mastery_bonus", 0)) > 0:
+		var notes: PackedStringArray = []
+		if int(stats.get("region_bonus", 0)) > 0:
+			notes.append(LocaleStrings.text("invasion_reward_gold") % stats["region_bonus"])
+		if int(stats.get("mastery_bonus", 0)) > 0:
+			notes.append(LocaleStrings.text("invasion_mastery_reward") % stats["mastery_bonus"])
+		victory_note.text = "\n".join(notes)
 		victory_note.visible = true
 	medal_label.text = LocaleStrings.text("medal_won")
 	medal_label.visible = stats.get("new_medal", false)
@@ -448,6 +469,13 @@ func _refresh_result_title() -> void:
 	var title := ["victory", UIThemeHelper.colors.success]
 	if _result.get("is_daily_challenge", false):
 		title = ["daily_done", UIThemeHelper.colors.gold]
+	elif _result.get("is_invasion", false):
+		if int(_result.get("mastery_bonus", 0)) > 0:
+			title = ["invasion_mastered", UIThemeHelper.colors.gold]
+		elif int(_result.get("region_bonus", 0)) > 0:
+			title = ["invasion_region_done", UIThemeHelper.colors.gold]
+		else:
+			title = ["invasion_front_done", UIThemeHelper.colors.primary]
 	elif _result.get("expedition_finale", false):
 		title = ["expedition_done", UIThemeHelper.colors.gold]
 	elif _result.get("is_conquest", false):
@@ -466,6 +494,9 @@ func _show_progress(stats: Dictionary) -> void:
 	var level_now := GameManager.player_level()
 	rank_label.text = LocaleStrings.text("rank_line") % [PlayerRank.title(level_now), level_now]
 	xp_label.text = "+%d XP" % xp
+	# Los signos + y las cifras se leen en LTR también en árabe.
+	for numeric in [victory_reward_label, stat_cities_value, xp_label]:
+		numeric.text_direction = Control.TEXT_DIRECTION_LTR
 	xp_bar.value = PlayerRank.progress(before) if level_now == level_before else 0.0
 	if is_instance_valid(_xp_tween):
 		_xp_tween.kill()
@@ -488,6 +519,15 @@ func _show_progress(stats: Dictionary) -> void:
 		if not reward.is_empty():
 			unlocks.append(LocaleStrings.text("unlocked") % CosmeticsDatabase.item_name(reward))
 			_reward_to_equip = reward["id"]
+	if str(stats.get("invasions_unlocked", "")) != "":
+		unlocks.append(LocaleStrings.text("invasions_unlocked") % LevelDatabase.continent_name(str(stats["invasions_unlocked"])))
+		InvasionPage.last_continent = str(stats["invasions_unlocked"])
+		InvasionPage.last_region = ""
+	if str(stats.get("continent_reward", "")) != "":
+		var invasion_reward := CosmeticsDatabase.get_by_id(str(stats["continent_reward"]))
+		if not invasion_reward.is_empty():
+			unlocks.append(LocaleStrings.text("unlocked") % CosmeticsDatabase.item_name(invasion_reward))
+			_reward_to_equip = invasion_reward["id"]
 	unlock_label.text = "\n".join(unlocks)
 	unlock_label.visible = not unlocks.is_empty()
 	_refresh_next_goal()
@@ -500,7 +540,9 @@ func _refresh_next_goal() -> void:
 	btn_claim_missions.text = LocaleStrings.text("claim_missions") % claimable
 	var guide: bool = GameManager.can_suggest_combat_upgrade() and not _result.get("is_daily_challenge", false)
 	btn_result_action.visible = guide
-	btn_result_action.theme_type_variation = "GoldButton"
+	# La mejora propone un desvío: nunca compite en peso con «Siguiente nivel».
+	btn_result_action.theme_type_variation = "Button"
+	UIThemeHelper.set_icon(btn_result_action, "bolt", 36)
 	btn_result_action.text = LocaleStrings.text("improve_continue")
 	# El botón de mejora ya dice lo mismo que el siguiente objetivo
 	next_goal_label.visible = goal != "" and not guide
@@ -514,6 +556,10 @@ func _on_result_action() -> void:
 		if is_instance_valid(battle_controller):
 			if _result.get("is_conquest", false):
 				GameManager.play_conquest(GameManager.conquest_next)
+			elif _result.get("is_invasion", false):
+				var next_invasion := GameManager.next_invasion_level(battle_controller.level_id)
+				if next_invasion != "":
+					GameManager.play_level(next_invasion)
 			else:
 				var next := GameManager.get_next_level(battle_controller.level_id)
 				if next != "":
@@ -606,6 +652,7 @@ func _on_battle_lost() -> void:
 	var daily := is_instance_valid(battle_controller) and DailyRewards.is_challenge(battle_controller.level_id)
 	btn_defeat_upgrade.visible = upgrade != "" and not daily
 	if btn_defeat_upgrade.visible:
+		UIThemeHelper.set_icon(btn_defeat_upgrade, "bolt", 36)
 		btn_defeat_upgrade.text = LocaleStrings.text("upgrade_named") % LocaleStrings.text("upg_" + upgrade)
 	UIThemeHelper.animate_modal_pop_in(defeat_panel)
 
@@ -698,6 +745,14 @@ func _on_retry_pressed() -> void:
 	_leave_battle()
 
 func _on_next_level_pressed() -> void:
+	if InvasionDatabase.is_invasion(battle_controller.level_id):
+		var next_invasion := GameManager.next_invasion_level(battle_controller.level_id)
+		if next_invasion == "":
+			_on_map_pressed()
+			return
+		GameManager.play_level(next_invasion)
+		_leave_battle()
+		return
 	if LevelGenerator.is_conquest(battle_controller.level_id):
 		GameManager.play_conquest(LevelGenerator.conquest_index(battle_controller.level_id) + 1)
 		_leave_battle()
@@ -709,10 +764,15 @@ func _on_next_level_pressed() -> void:
 	GameManager.play_level(next_id)
 	_leave_battle()
 
-## Sección del menú a la que se vuelve: el desafío diario vive en Retos, el resto en Jugar
+## Sección del menú a la que se vuelve: diario a Retos, invasión a Invasiones, resto a Jugar
 func exit_tab() -> String:
-	var daily := is_instance_valid(battle_controller) and DailyRewards.is_challenge(battle_controller.level_id)
-	return "challenges" if daily else "play"
+	if not is_instance_valid(battle_controller):
+		return "play"
+	if DailyRewards.is_challenge(battle_controller.level_id):
+		return "challenges"
+	if InvasionDatabase.is_invasion(battle_controller.level_id):
+		return "invasion"
+	return "play"
 
 func _on_map_pressed() -> void:
 	MainMenuUI.next_tab = exit_tab()

@@ -47,6 +47,8 @@ var simulation_paused: bool = false
 var battle_time: float = 0.0
 var target_time: float = 45.0
 var level_data: Dictionary = {}
+## Fondo claro del mapa actual, cacheado: el anillo de destino se dibuja mientras se arrastra.
+var _map_is_light: bool = false
 
 var is_slow_motion_active: bool = false
 ## Escala de tiempo de reposo (el tutorial la reduce temporalmente para enseñar el corte)
@@ -85,6 +87,9 @@ func _notification(what: int) -> void:
 func _exit_tree() -> void:
 	reset_time_scale()
 	GameManager.normalized_battle = false
+	# Salir de la batalla (pausa, botón atrás o cierre de la app) también cuenta como intento.
+	if not is_game_over and battle_time > 0.5 and not level_data.is_empty():
+		EventBus.battle_finished.emit(_battle_result("quit"))
 
 func _ready() -> void:
 	load_level(GameManager.get_battle_level_id())
@@ -166,14 +171,28 @@ func load_level(p_level_id: String) -> void:
 	queue_redraw()
 	EventBus.battle_started.emit(level_id)
 
-## Tema de mapa equipado en la tienda: fondo y tierra firme
+## Tema de mapa equipado en la tienda: fondo, tierra, fronteras y etiquetas de ciudad.
+## Los temas claros traen texto y bordes oscuros para no perder contraste.
 func _apply_map_theme() -> void:
 	var theme := GameManager.map_theme()
+	_map_is_light = Color(theme.get("bg", Color.BLACK)).get_luminance() > 0.5
 	var bg := get_node_or_null("Background")
 	if bg is ColorRect:
 		(bg as ColorRect).color = theme.get("bg", Color(0.07, 0.11, 0.16))
-	if territory_map and theme.has("land"):
-		territory_map.land_color = theme["land"]
+	if territory_map:
+		territory_map.land_color = theme.get("land", Color(0.19, 0.22, 0.26))
+		territory_map.border_color = theme.get("border_color", territory_map.border_color)
+		territory_map.coast_color = theme.get("coast_color", territory_map.coast_color)
+		territory_map.country_border_color = theme.get("country_border_color", territory_map.country_border_color)
+		territory_map.territory_alpha = theme.get("territory_alpha", territory_map.territory_alpha)
+		territory_map.neutral_alpha = theme.get("neutral_alpha", territory_map.neutral_alpha)
+		for cell in territory_map.cells:
+			cell.current_color = territory_map.get_faction_territory_color(cell.base_node.faction)
+			cell.target_color = cell.current_color
+			cell.start_color = cell.current_color
+		territory_map.queue_redraw()
+	for base in bases:
+		base.apply_map_theme(theme)
 
 func _process(delta: float) -> void:
 	if not is_game_over:
@@ -675,11 +694,17 @@ func _trigger_victory() -> void:
 
 	var is_challenge = DailyRewards.is_challenge(level_id)
 	var is_conquest = LevelGenerator.is_conquest(level_id)
+	var is_invasion = InvasionDatabase.is_invasion(level_id)
 	var is_replay: bool
 	var total_gold: int
 	var new_medal := false
 	var new_continent := false
 	var boss_gold := 0
+	var region_complete := false
+	var region_mastered := false
+	var region_bonus := 0
+	var mastery_bonus := 0
+	var continent_reward := ""
 	if is_challenge:
 		# Los desafíos diarios no cuentan para la campaña ni para las estrellas
 		is_replay = GameManager.is_daily_challenge_done(DailyRewards.challenge_day(level_id))
@@ -688,6 +713,15 @@ func _trigger_victory() -> void:
 		# La conquista libre avanza sola de región en región, sin repeticiones
 		is_replay = false
 		total_gold = GameManager.complete_conquest(LevelGenerator.conquest_index(level_id))
+	elif is_invasion:
+		var invasion_result := GameManager.complete_invasion_level(level_id, stars)
+		is_replay = bool(invasion_result.get("is_replay", false))
+		total_gold = int(invasion_result.get("gold", 0))
+		region_complete = bool(invasion_result.get("region_complete", false))
+		region_mastered = bool(invasion_result.get("region_mastered", false))
+		region_bonus = int(invasion_result.get("region_bonus", 0))
+		mastery_bonus = int(invasion_result.get("mastery_bonus", 0))
+		continent_reward = str(invasion_result.get("continent_reward", ""))
 	else:
 		var continent := LevelDatabase.get_continent_of(level_id)
 		new_continent = not GameManager.is_continent_complete(continent)
@@ -702,10 +736,11 @@ func _trigger_victory() -> void:
 	GameManager.add_coins(total_gold)
 	GameManager.haptic(80)
 
-	var is_continent_conquest = not is_challenge and not is_conquest and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT
+	var is_continent_conquest = not is_challenge and not is_conquest and not is_invasion \
+		and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT
 	# La fanfarria suena sola: la música se retira y vuelve la del menú al salir
 	AudioManager.stop_music()
-	if is_continent_conquest:
+	if is_continent_conquest or continent_reward != "":
 		AudioManager.play_continent_conquest()
 	else:
 		AudioManager.play_victory()
@@ -722,14 +757,25 @@ func _trigger_victory() -> void:
 		"is_replay": is_replay,
 		"is_daily_challenge": is_challenge,
 		"is_conquest": is_conquest,
+		"is_invasion": is_invasion,
+		"region_id": InvasionDatabase.get_region_of_level(level_id) if is_invasion else "",
+		"region_complete": region_complete,
+		"region_mastered": region_mastered,
+		"region_bonus": region_bonus,
+		"mastery_bonus": mastery_bonus,
+		"continent_reward": continent_reward,
 		"new_medal": new_medal,
 		"new_continent": new_continent,
+		"invasions_unlocked": LevelDatabase.get_continent_of(level_id) if new_continent else "",
 		"boss_gold": boss_gold,
 		"expedition_finale": is_conquest and LevelGenerator.is_expedition_finale(LevelGenerator.conquest_index(level_id)),
 		"xp_before": GameManager.experience,
 	}
 	result["xp"] = GameManager.victory_xp(result)
+	result["outcome"] = "win"
+	result["captures"] = _captured_bases.size()
 	EventBus.battle_won.emit(result)
+	EventBus.battle_finished.emit(result)
 
 ## Algunos diarios admiten una victoria estratégica: asegurar los objetivos y mantenerlos.
 func _objective_targets() -> Array[BaseNode]:
@@ -757,6 +803,19 @@ func objective_text() -> String:
 	var seconds := ceili(float(level_data["hold_seconds"]) - _objective_held)
 	return LocaleStrings.text(level_data["objective"]) % maxi(0, seconds)
 
+func _battle_result(outcome: String) -> Dictionary:
+	return {
+		"level_id": level_id,
+		"outcome": outcome,
+		"time": battle_time,
+		"speed": _max_speed,
+		"captures": _captured_bases.size(),
+		"gold": defeat_gold if outcome == "loss" else 0,
+		"is_daily_challenge": DailyRewards.is_challenge(level_id),
+		"is_conquest": LevelGenerator.is_conquest(level_id),
+		"is_invasion": InvasionDatabase.is_invasion(level_id),
+	}
+
 func _trigger_defeat() -> void:
 	if is_game_over:
 		return
@@ -766,6 +825,7 @@ func _trigger_defeat() -> void:
 	AudioManager.stop_music()
 	AudioManager.play_defeat()
 	GameManager.haptic(120)
+	EventBus.battle_finished.emit(_battle_result("loss"))
 	EventBus.battle_lost.emit()
 
 ## Consejo tras una derrota, a partir de un hecho observado en la batalla
@@ -954,9 +1014,11 @@ func estimate_target_defense(target: BaseNode) -> float:
 ## Anillo sobre el objetivo que anticipa el resultado con la defensa estimada al llegar:
 ## verde si sobra fuerza, dorado si es ajustado, rojo con lo que falta, gris si no hay ruta
 func _draw_target_preview(canvas: CanvasItem, target: BaseNode) -> void:
-	var map_colors: Dictionary = UIThemeHelper.PALETTES.dark
+	var map_colors: Dictionary = UIThemeHelper.PALETTES.light if _map_is_light else UIThemeHelper.PALETTES.dark
 	var h_pos = canvas.to_local(target.global_position)
-	var ring_r = (target.radius + 16.0) * (1.0 + sin(marching_dots_phase * TAU * 2.0) * 0.04)
+	var ring_r: float = target.radius + 16.0
+	if not GameManager.settings["reduced_motion"]:
+		ring_r *= 1.0 + sin(marching_dots_phase * TAU * 2.0) * 0.04
 	var attack := get_pending_attack_count(target)
 	var ring_color: Color
 	var text: String
@@ -1028,5 +1090,7 @@ func _draw_marching_routes(canvas: CanvasItem) -> void:
 
 ## Sólo las rutas marítimas obligatorias: el resto del mapa queda limpio
 func _draw_sea_lanes() -> void:
+	# El cian brillante se pierde sobre el mar claro: cada tema recibe una ruta legible.
+	var lane_color := Color("0a6685") if _map_is_light else Color("62cbf2")
 	for route in level_data.get("sea_lanes", []):
-		draw_dashed_line(bases[route.x].position, bases[route.y].position, Color("62cbf2"), 3.0, 12.0, true)
+		draw_dashed_line(bases[route.x].position, bases[route.y].position, Color(lane_color, 0.9), 3.0, 12.0, true)

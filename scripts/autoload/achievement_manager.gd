@@ -31,6 +31,10 @@ func get_stat(stat: String) -> int:
 				if GameManager.is_continent_complete(c["id"]):
 					done += 1
 			return done
+		"invasion_regions":
+			return GameManager.completed_invasion_regions()
+		"invasion_mastery":
+			return GameManager.mastered_invasion_regions()
 		"max_upgrade_level":
 			return GameManager.upgrades.values().max()
 	return GameManager.get_stat(stat)

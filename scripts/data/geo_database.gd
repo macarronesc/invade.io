@@ -4,6 +4,7 @@ class_name GeoDatabase
 ## GeoDatabase: costas, fronteras y ciudades reales (Natural Earth, dominio público).
 ## Los datos se generan con tools/build_geo_data.py y se cargan una única vez bajo demanda.
 ## Todas las coordenadas se guardan como Vector2(longitud, latitud) en grados.
+## Cada ciudad conserva además su código de país (ADM0_A3) para agrupar invasiones.
 
 const DATA_PATH = "res://assets/data/geo.json"
 
@@ -32,7 +33,9 @@ static func _ensure_loaded() -> void:
 	for row in data.get("cities", []):
 		var city := {
 			"key": row[0], "name_es": row[1], "name_en": row[2],
-			"lonlat": Vector2(row[3], row[4]), "population": int(row[5])
+			"lonlat": Vector2(row[3], row[4]), "population": int(row[5]),
+			"country": str(row[6]) if row.size() > 6 else "",
+			"names": row[7] if row.size() > 7 and row[7] is Dictionary else {}
 		}
 		_cities[city["key"]] = city
 		_cities_by_pop.append(city)
@@ -55,14 +58,21 @@ static func has_city(key: String) -> bool:
 	_ensure_loaded()
 	return _cities.has(key)
 
-## {key, name_es, name_en, lonlat, population} o un diccionario vacío si no existe
+## {key, name_es, name_en, names, lonlat, population} o {} si no existe
 static func get_city(key: String) -> Dictionary:
 	_ensure_loaded()
 	return _cities.get(key, {})
 
-## Nombre de la ciudad en el idioma actual
+## Nombre de la ciudad en el idioma actual, con inglés como respaldo.
 static func city_name(city: Dictionary) -> String:
-	return city.get("name_en", "?") if LocaleStrings.lang == "en" else city.get("name_es", "?")
+	var names: Dictionary = city.get("names", {})
+	var key := str(names.get(LocaleStrings.lang, ""))
+	if key == "":
+		var base := LocaleStrings.lang.get_slice("_", 0)
+		key = str(names.get(base, ""))
+	if key == "":
+		key = str(city.get("name_en", city.get("name_es", "?")))
+	return key
 
 ## ponytail: cajas lon/lat aproximadas; bastan para agrupar el atlas (algún puerto del
 ## Mediterráneo puede caer en el continente vecino). Guardar el continente en geo.json si hace falta exactitud.

@@ -237,9 +237,11 @@ func _draw() -> void:
 		_draw_banner()
 
 func _draw_hand() -> void:
-	var cycle = fmod(_step_time, HAND_CYCLE) / HAND_CYCLE
-	var move_t = smoothstep(0.15, 0.75, cycle)
-	var alpha = clampf(cycle / 0.1, 0.0, 1.0) * (1.0 - smoothstep(0.85, 1.0, cycle))
+	var reduced: bool = GameManager.settings["reduced_motion"]
+	# Sin animación, la mano se queda en el punto medio del gesto y no pulsa.
+	var cycle = 0.55 if reduced else fmod(_step_time, HAND_CYCLE) / HAND_CYCLE
+	var move_t = 0.55 if reduced else smoothstep(0.15, 0.75, cycle)
+	var alpha = 1.0 if reduced else clampf(cycle / 0.1, 0.0, 1.0) * (1.0 - smoothstep(0.85, 1.0, cycle))
 	var pos = _point_on_path(_hand_path, move_t)
 	var accent = UIThemeHelper.colors.gold
 
@@ -251,7 +253,7 @@ func _draw_hand() -> void:
 		draw_polyline(trail, Color(accent, 0.55 * alpha), 10.0 if _current == "slice" else 7.0, true)
 
 	# Pulsación en el punto de contacto
-	var press = 1.0 - smoothstep(0.0, 0.15, cycle)
+	var press = 0.0 if reduced else 1.0 - smoothstep(0.0, 0.15, cycle)
 	draw_arc(pos, 26.0 + press * 18.0, 0, TAU, 32, Color(1, 1, 1, 0.8 * alpha), 4.0, true)
 	draw_circle(pos, 12.0, Color(accent, 0.8 * alpha))
 

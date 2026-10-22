@@ -6,6 +6,9 @@ class_name CampaignRules
 ## para que cada día tenga una particularidad. Las expediciones también rotan esas reglas.
 static func apply(level: Dictionary) -> void:
 	var id: String = level.get("id", "")
+	if level.has("invasion_region"):
+		_apply_invasion(level, str(level["invasion_region"]))
+		return
 	var continent := ""
 	if DailyRewards.is_challenge(id):
 		var continents := LevelDatabase.get_continents()
@@ -61,6 +64,48 @@ static func apply(level: Dictionary) -> void:
 		var balance := LevelDatabase.get_balance(id)
 		level["boss_interval"] = balance["boss_interval"]
 		level["boss_reinforcement"] = balance["boss_reinforcement"]
+
+## Regla de una región: no depende del continente ni del índice de campaña.
+static func _apply_invasion(level: Dictionary, region_id: String) -> void:
+	var region := InvasionDatabase.get_region(region_id)
+	if region.is_empty():
+		return
+	var rule := str(region.get("rule", ""))
+	level["rule_key"] = InvasionDatabase.rule_key(rule)
+	var bases: Array = level["bases"]
+	match rule:
+		"capital", "oasis":
+			var target := _base_at_city(bases, str(region.get("capital", "")))
+			if not target.is_empty():
+				target["capital"] = true
+				target["production_bonus"] = 1.5 if rule == "capital" else 1.75
+		"factory", "fortress":
+			if not bases.any(func(base): return base.get("type", "") == rule):
+				var special := _first_neutral_without_type(bases)
+				if not special.is_empty():
+					special["type"] = rule
+					if rule == "fortress":
+						special["troops"] = mini(int(special["troops"]), 14)
+		"jungle":
+			level["travel_multiplier"] = 0.8
+		"sea_lanes":
+			level["sea_lanes"] = sea_lanes(bases)
+	if bases.any(func(base): return base.get("boss", false)):
+		var balance := LevelDatabase.get_balance(str(level.get("id", "")))
+		level["boss_interval"] = balance["boss_interval"]
+		level["boss_reinforcement"] = balance["boss_reinforcement"]
+
+static func _base_at_city(bases: Array, city_key: String) -> Dictionary:
+	for base in bases:
+		if str(base.get("city", "")) == city_key:
+			return base
+	return {}
+
+static func _first_neutral_without_type(bases: Array) -> Dictionary:
+	for base in bases:
+		if base["faction"] == GameManager.Faction.NEUTRAL and not base.has("type"):
+			return base
+	return {}
 
 ## ponytail: árbol de rutas O(n³), n≤16; Prim con heap si se añaden mapas masivos.
 ## Siempre conectado: ninguna isla ni facción queda aislada.

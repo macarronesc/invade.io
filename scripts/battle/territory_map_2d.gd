@@ -191,22 +191,18 @@ func _draw() -> void:
 
 	# 3. Fronteras reales entre países y línea de costa (referencia cartográfica sutil)
 	for line in country_borders:
-		draw_polyline(line, country_border_color, 1.5, true)
+		draw_polyline(line, country_border_color, 1.0, true)
 	for poly in land:
-		draw_polyline(_closed(poly), coast_color, 2.0, true)
+		draw_polyline(_closed(poly), coast_color, 1.8, true)
 
-	# 4. Fronteras territoriales por pasadas (sombra, trazo nítido y acento de facción) para que
-	#    la sombra de una celda no tape el borde de su vecina
+	# 4. Fronteras territoriales: sombra y trazo. El borde de juego manda; no se duplica
+	#    con un tercer acento de facción que ensuciaba los límites.
 	for cell in cells:
 		for piece in cell.pieces:
-			draw_polyline(_closed(piece), Color(0.04, 0.06, 0.08, 0.40), border_width + 1.8, true)
+			draw_polyline(_closed(piece), Color(0.02, 0.05, 0.08, 0.28), border_width + 1.2, true)
 	for cell in cells:
 		for piece in cell.pieces:
 			draw_polyline(_closed(piece), border_color, border_width, true)
-	for cell in cells:
-		var accent_col = Color(cell.current_color, 0.55)
-		for piece in cell.pieces:
-			draw_polyline(_closed(piece), accent_col, 1.4, true)
 
 	# 5. Marco perimetral (sólo en el mapa abstracto sin geografía)
 	if land.is_empty():

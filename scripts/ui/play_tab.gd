@@ -20,6 +20,8 @@ var current_continent_index := 0
 var selected_level_id := ""
 var marching_phase := 0.0
 var pulse_time := 0.0
+## Los datos secundarios de la ficha se recuerdan al cambiar de nivel o de tema.
+var details_open := false
 
 var continent_title: Label
 var continent_progress: Label
@@ -32,12 +34,16 @@ var level_desc: Label
 var level_rule: Label
 var level_stars: Label
 var level_chips: HFlowContainer
+var level_details: VBoxContainer
+var level_extra_chips: HFlowContainer
 var level_medal: Label
+var btn_details: Button
 var btn_start_level: Button
 var btn_conquest: Button
 var btn_daily: Button
 var _silhouette: GeoSilhouette
 var _node_positions := PackedVector2Array()
+var _redraw_accum := 0.0
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 0)
@@ -68,11 +74,15 @@ func _build() -> void:
 
 	# Mapa con la ruta de niveles
 	var map_area := Control.new()
+	map_area.name = "MapArea"
 	map_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	map_area.custom_minimum_size.y = 440
+	map_area.custom_minimum_size.y = 380
 	map_area.clip_contents = true
+	# El mapa es geografía, no texto: no se espeja en árabe. El resto de la ficha sí.
+	map_area.layout_direction = Control.LAYOUT_DIRECTION_LTR
 	add_child(map_area)
 	route_container = Control.new()
+	route_container.layout_direction = Control.LAYOUT_DIRECTION_LTR
 	route_container.size = MAP_SIZE
 	map_area.add_child(route_container)
 	map_area.resized.connect(func():
@@ -81,10 +91,13 @@ func _build() -> void:
 		route_container.position = (map_area.size - MAP_SIZE * s) * 0.5)
 	route_container.draw.connect(_draw_route)
 	_silhouette = GeoSilhouette.new()
+	_silhouette.layout_direction = Control.LAYOUT_DIRECTION_LTR
 	_silhouette.show_behind_parent = true
 	_silhouette.size = MAP_SIZE
 	route_container.add_child(_silhouette)
+	_silhouette.position = Vector2.ZERO
 	levels_container = Control.new()
+	levels_container.layout_direction = Control.LAYOUT_DIRECTION_LTR
 	levels_container.size = MAP_SIZE
 	levels_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	route_container.add_child(levels_container)
@@ -93,26 +106,44 @@ func _build() -> void:
 	var sheet_holder := UIThemeHelper.vbox(0)
 	add_child(UIThemeHelper.page_margin(sheet_holder, 0, 8))
 	var sheet := UIThemeHelper.card(sheet_holder, "", 16)
-	var top := UIThemeHelper.hbox(16)
+	var top := UIThemeHelper.hbox(12)
 	sheet.add_child(top)
 	level_title = UIThemeHelper.label("", "Heading")
 	level_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	level_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	level_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	top.add_child(level_title)
 	level_stars = UIThemeHelper.stars_label(0)
+	level_stars.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	top.add_child(level_stars)
+	btn_details = UIThemeHelper.button("", "GhostButton", "chevron_down")
+	btn_details.toggle_mode = true
+	btn_details.custom_minimum_size.y = 72
+	btn_details.add_theme_font_size_override("font_size", 24)
+	btn_details.mouse_filter = Control.MOUSE_FILTER_STOP
+	btn_details.pressed.connect(_toggle_details)
+	top.add_child(btn_details)
 	level_desc = UIThemeHelper.paragraph("")
 	level_desc.max_lines_visible = 2
 	sheet.add_child(level_desc)
 	level_rule = UIThemeHelper.paragraph("", "Caption")
 	level_rule.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
 	sheet.add_child(level_rule)
+	# Lo esencial para decidir si jugar; el resto queda a un toque en «Detalles».
 	level_chips = HFlowContainer.new()
 	level_chips.add_theme_constant_override("h_separation", 12)
 	level_chips.add_theme_constant_override("v_separation", 12)
 	sheet.add_child(level_chips)
+	level_details = UIThemeHelper.vbox(12)
+	level_details.visible = details_open
+	level_extra_chips = HFlowContainer.new()
+	level_extra_chips.add_theme_constant_override("h_separation", 12)
+	level_extra_chips.add_theme_constant_override("v_separation", 12)
+	level_details.add_child(level_extra_chips)
 	level_medal = UIThemeHelper.label("", "Caption")
-	sheet.add_child(level_medal)
+	level_details.add_child(level_medal)
+	sheet.add_child(level_details)
+	_refresh_details_button()
 	btn_start_level = UIThemeHelper.button("", "PrimaryButton", "play")
 	btn_start_level.custom_minimum_size.y = 112
 	# Deshabilitado mientras el nivel seleccionado siga bloqueado
@@ -146,7 +177,11 @@ func _process(delta: float) -> void:
 		return
 	marching_phase = fmod(marching_phase + delta * 0.8, 1.0)
 	pulse_time += delta * 3.0
-	route_container.queue_redraw()
+	# La ruta no necesita 60 fps: 20 fps mantiene la animación y deja respirar al móvil.
+	_redraw_accum += delta
+	if _redraw_accum >= 0.05:
+		_redraw_accum = 0.0
+		route_container.queue_redraw()
 
 func _refresh_display() -> void:
 	var cont := continents[current_continent_index]
@@ -179,6 +214,8 @@ func _refresh_display() -> void:
 func _build_level_node(level_id: String, index: int) -> Control:
 	var holder := Control.new()
 	holder.name = "NodeHolder_%d" % (index + 1)
+	# La ruta es geografía: se coloca siempre en LTR aunque la ficha esté en árabe.
+	holder.layout_direction = Control.LAYOUT_DIRECTION_LTR
 	holder.position = _node_positions[index] - Vector2.ONE * NODE_SIZE * 0.5
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var btn := Button.new()
@@ -259,6 +296,20 @@ func _select_level(level_id: String) -> void:
 	selected_level_id = level_id
 	_update_briefing_card()
 
+func _toggle_details() -> void:
+	AudioManager.play_click()
+	details_open = not details_open
+	level_details.visible = details_open
+	_refresh_details_button()
+
+func _refresh_details_button() -> void:
+	if not is_instance_valid(btn_details):
+		return
+	btn_details.set_pressed_no_signal(details_open)
+	btn_details.text = LocaleStrings.text("hide_details" if details_open else "details")
+	btn_details.icon = Icons.texture("chevron_up" if details_open else "chevron_down", 32)
+	btn_details.tooltip_text = LocaleStrings.text("hide_details" if details_open else "details")
+
 func _update_briefing_card() -> void:
 	var data := LevelDatabase.get_level_data(selected_level_id)
 	var unlocked := GameManager.is_level_unlocked(selected_level_id)
@@ -285,15 +336,17 @@ func _update_briefing_card() -> void:
 	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("bases") % bases.size(), "flag", UIThemeHelper.colors.muted))
 	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("rival" if rivals.size() == 1 else "rivals") % rivals.size(), "target", UIThemeHelper.colors.danger))
 	level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("target_time") % data.get("target_time", 45), "clock", UIThemeHelper.colors.gold))
-	# Bases especiales con el mismo icono que su insignia en batalla
+	# Bases especiales con el mismo icono que su insignia en batalla (bajo demanda)
+	UIThemeHelper.clear(level_extra_chips)
 	for special in [["capital", "star", UIThemeHelper.colors.gold], ["factory", "bolt", UIThemeHelper.colors.gold], ["fortress", "shield", UIThemeHelper.colors.text]]:
 		var n := bases.filter(func(b): return b.get("type", "") == special[0] or (special[0] == "capital" and b.get("capital", false))).size()
 		if n > 0:
-			level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("chip_" + special[0]) % n, special[1], special[2]))
+			level_extra_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("chip_" + special[0]) % n, special[1], special[2]))
 	# Motivos para jugar (o repetir) este nivel: ciudades aún no coleccionadas y la medalla
 	var new_cities := bases.filter(func(b): return GeoDatabase.has_city(b.get("city", "")) and not GameManager.conquered_cities.has(b["city"])).size()
 	if new_cities > 0:
-		level_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("new_cities_chip") % new_cities, "globe", UIThemeHelper.colors.primary))
+		level_extra_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("new_cities_chip") % new_cities, "globe", UIThemeHelper.colors.primary))
+	level_details.visible = details_open
 	level_medal.text = LocaleStrings.text("medal_won") if GameManager.medals.has(selected_level_id) else LocaleStrings.text("medal_todo")
 	level_medal.add_theme_color_override("font_color", UIThemeHelper.colors.gold if GameManager.medals.has(selected_level_id) else UIThemeHelper.colors.muted)
 

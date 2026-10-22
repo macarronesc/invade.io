@@ -12,6 +12,8 @@ signal player_assault(source_count: int)
 signal battle_started(level_id: String)
 signal battle_won(stats: Dictionary)
 signal battle_lost()
+## Resultado único para analítica: victoria, derrota o salida a mitad de batalla.
+signal battle_finished(result: Dictionary)
 
 signal coins_updated(total_coins: int)
 signal upgrade_purchased(upgrade_id: String, new_level: int)

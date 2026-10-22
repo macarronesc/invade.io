@@ -57,16 +57,17 @@ const UPGRADE_COST_QUADRATIC := 0.25
 const MAX_UPGRADE_LEVEL = 10
 const DEFAULT_COINS = 150
 const FIRST_LEVEL_ID := "europe_1"
-const SAVE_VERSION = 6
+const SAVE_VERSION = 7
 const DEFAULT_SETTINGS := {"volume": 0.8, "music_volume": 0.8, "vibration": true, "speed": 1.0, "colorblind": false,
-	"light_mode": false, "reduced_motion": false, "vibration_intensity": 0.55}
+	"light_mode": true, "reduced_motion": false, "vibration_intensity": 0.55,
+	"share_analytics": false, "share_crashes": false}
 const MAX_SAVE_BYTES := 2_000_000
 const HAPTIC_INTERVAL_MS := 80
 const GAME_SPEEDS := [0.75, 1.0, 1.5, 2.0]
 const ACCESSIBLE_FACTION_COLORS := [Color("8796a5"), Color("0072b2"), Color("d55e00"), Color("f0e442"), Color("cc79a7")]
-const SUPPORTED_LANGUAGES := ["es", "en"]
+const SUPPORTED_LANGUAGES := ["en", "es", "pt_BR", "fr", "de", "it", "ru", "tr", "ar", "hi", "id", "vi", "zh_CN", "ja", "ko"]
 ## Cosméticos iniciales: uno gratis por categoría
-const DEFAULT_COSMETICS_EQUIPPED := {"army_color": "color_blue", "troop_style": "troop_classic", "base_shape": "base_round", "map_theme": "theme_midnight"}
+const DEFAULT_COSMETICS_EQUIPPED := {"army_color": "color_blue", "troop_style": "troop_classic", "base_shape": "base_round", "map_theme": "theme_daylight"}
 
 ## Fracción de oro que se concede al repetir un nivel ya superado sin mejorar estrellas
 const REPLAY_GOLD_FACTOR = 0.25
@@ -95,12 +96,12 @@ var achievements: Dictionary = {}
 var daily: Dictionary = {}
 ## Nivel diario o de conquista en juego; vacío = campaña. No se persiste.
 var special_level_id: String = ""
-## Idioma de la interfaz ("es" o "en")
+## Código canónico del idioma de la interfaz (ver LanguageCatalog).
 var language: String:
 	get:
 		return LocaleStrings.lang
 	set(value):
-		LocaleStrings.lang = value
+		LocaleStrings.set_locale(value)
 ## Primer arranque: false hasta que el jugador entra en su primera batalla
 var has_started: bool = false
 ## Siguiente región de expedición por jugar; la dificultad crece hasta su techo.
@@ -118,6 +119,10 @@ var daily_best: Dictionary = {}
 var campaign_best: Dictionary = {}
 ## Niveles de campaña ganados sin perder ninguna base (medalla de dominio)
 var medals: Array[String] = []
+## Invasiones: estrellas por frente ("inv_<región>_<1..3>") y regiones ya premiadas.
+## Se guardan aparte de la campaña para no alterar estrellas, logros ni desbloqueos.
+var invasion_stars: Dictionary = {}
+var invasion_rewards: Array[String] = []
 ## Continentes cuya colección del atlas ya se ha cobrado
 var collections_claimed: Array[String] = []
 ## Intentos con recompensa de consuelo por nivel pendiente (máximo dos).
@@ -302,7 +307,7 @@ func get_battle_level_id() -> String:
 
 ## Elige el nivel de la próxima batalla sin perder el punto de la campaña
 func play_level(level_id: String) -> void:
-	if DailyRewards.is_challenge(level_id) or LevelGenerator.is_conquest(level_id):
+	if DailyRewards.is_challenge(level_id) or LevelGenerator.is_conquest(level_id) or InvasionDatabase.is_invasion(level_id):
 		special_level_id = level_id
 	else:
 		special_level_id = ""
@@ -314,7 +319,7 @@ func play_conquest(index: int) -> void:
 
 ## Nombre de facción en el idioma actual (etiquetas de la barra de dominancia)
 func faction_name(faction: int) -> String:
-	return FACTION_NAMES_EN.get(faction, "?") if language == "en" else FACTION_NAMES.get(faction, "?")
+	return LocaleStrings.text("faction_%d" % faction)
 
 ## Color real de una facción en batalla (el jugador usa su color de la tienda)
 func faction_color(faction: int) -> Color:
@@ -334,6 +339,164 @@ func player_level() -> int:
 func is_continent_complete(continent_id: String) -> bool:
 	return LevelDatabase.get_continent_level_ids(continent_id).all(func(id): return completed_levels.has(id))
 
+func is_campaign_complete() -> bool:
+	return LevelDatabase.get_continents().all(func(c): return is_continent_complete(c["id"]))
+
+# =========================================================================
+# Invasiones regionales: tres frentes por región, desbloqueadas por continente
+# =========================================================================
+
+func is_invasion_unlocked(region_id: String) -> bool:
+	var region := InvasionDatabase.get_region(region_id)
+	return not region.is_empty() and is_continent_complete(str(region["continent"]))
+
+## Los frentes de una región son secuenciales: el segundo exige ganar el primero.
+func is_invasion_level_unlocked(level_id: String) -> bool:
+	var parsed := InvasionDatabase.parse_level(level_id)
+	if parsed.is_empty() or not is_invasion_unlocked(str(parsed["region_id"])):
+		return false
+	if int(parsed["step"]) == 1:
+		return true
+	var previous := InvasionDatabase.level_id(str(parsed["region_id"]), int(parsed["step"]) - 1)
+	return int(invasion_stars.get(previous, 0)) > 0
+
+func invasion_level_stars(level_id: String) -> int:
+	return int(invasion_stars.get(level_id, 0))
+
+func region_completed_fronts(region_id: String) -> int:
+	return InvasionDatabase.get_region_level_ids(region_id).filter(func(id): return int(invasion_stars.get(id, 0)) > 0).size()
+
+func region_stars(region_id: String) -> int:
+	var total := 0
+	for id in InvasionDatabase.get_region_level_ids(region_id):
+		total += int(invasion_stars.get(id, 0))
+	return total
+
+func is_region_complete(region_id: String) -> bool:
+	return region_completed_fronts(region_id) == InvasionDatabase.FRONTS
+
+func is_region_mastered(region_id: String) -> bool:
+	return InvasionDatabase.get_region_level_ids(region_id).all(func(id): return int(invasion_stars.get(id, 0)) == 3)
+
+func completed_invasion_regions() -> int:
+	return InvasionDatabase.get_regions().filter(func(r): return is_region_complete(r["id"])).size()
+
+func mastered_invasion_regions() -> int:
+	return InvasionDatabase.get_regions().filter(func(r): return is_region_mastered(r["id"])).size()
+
+func total_invasion_fronts() -> int:
+	return invasion_stars.values().filter(func(stars): return int(stars) > 0).size()
+
+func total_invasion_stars() -> int:
+	var total := 0
+	for stars in invasion_stars.values():
+		total += int(stars)
+	return total
+
+func all_regions_complete(continent_id: String) -> bool:
+	return InvasionDatabase.get_regions_by_continent(continent_id).all(func(r): return is_region_complete(r["id"]))
+
+## Primera región pendiente de un continente ya desbloqueado; si no hay, la primera.
+func recommended_invasion_region(continent_id: String = "") -> String:
+	var candidates: Array[Dictionary] = []
+	if continent_id == "":
+		for continent in LevelDatabase.get_continents():
+			if is_continent_complete(continent["id"]):
+				candidates.append_array(InvasionDatabase.get_regions_by_continent(continent["id"]))
+	else:
+		if is_continent_complete(continent_id):
+			candidates = InvasionDatabase.get_regions_by_continent(continent_id)
+	for region in candidates:
+		if not is_region_complete(region["id"]):
+			return str(region["id"])
+	return str(candidates[0]["id"]) if not candidates.is_empty() else ""
+
+func next_invasion_level(level_id: String) -> String:
+	var parsed := InvasionDatabase.parse_level(level_id)
+	if parsed.is_empty():
+		return ""
+	var region_id := str(parsed["region_id"])
+	var step := int(parsed["step"])
+	if step < InvasionDatabase.FRONTS:
+		return InvasionDatabase.level_id(region_id, step + 1)
+	var pending_current := first_pending_invasion_front(region_id)
+	if pending_current != "":
+		return pending_current
+	var region := InvasionDatabase.get_region(region_id)
+	for candidate in InvasionDatabase.get_regions_by_continent(str(region["continent"])):
+		var pending := first_pending_invasion_front(str(candidate["id"]))
+		if pending != "":
+			return pending
+	return ""
+
+## Primer frente sin completar y ya desbloqueado de una región; vacío si está completa.
+func first_pending_invasion_front(region_id: String) -> String:
+	for level_id in InvasionDatabase.get_region_level_ids(region_id):
+		if is_invasion_level_unlocked(level_id) and int(invasion_stars.get(level_id, 0)) == 0:
+			return level_id
+	return ""
+
+func calculate_invasion_gold(level_id: String, stars: int) -> int:
+	var parsed := InvasionDatabase.parse_level(level_id)
+	if parsed.is_empty():
+		return 0
+	var region: Dictionary = parsed["region"]
+	var step := int(parsed["step"])
+	var previous := int(invasion_stars.get(level_id, 0))
+	var factor := 1.0
+	if previous > 0:
+		factor = 0.5 if stars > previous else REPLAY_GOLD_FACTOR
+	var base := 50 + int(region["tier"]) * 20 + step * 10
+	return int(round(base * factor * get_gold_multiplier()))
+
+## Registra una victoria de invasión. Devuelve el desglose para la pantalla de victoria.
+func complete_invasion_level(level_id: String, stars: int) -> Dictionary:
+	var parsed := InvasionDatabase.parse_level(level_id)
+	if parsed.is_empty():
+		return {}
+	var region_id := str(parsed["region_id"])
+	var region: Dictionary = parsed["region"]
+	var previous := int(invasion_stars.get(level_id, 0))
+	var before_complete := is_region_complete(region_id)
+	var before_mastered := is_region_mastered(region_id)
+	var before_continent := all_regions_complete(str(region["continent"]))
+	if stars > previous:
+		invasion_stars[level_id] = clampi(stars, 1, 3)
+
+	var gold := calculate_invasion_gold(level_id, stars)
+	var region_bonus := 0
+	var mastery_bonus := 0
+	if is_region_complete(region_id) and not before_complete and not invasion_rewards.has(region_id):
+		invasion_rewards.append(region_id)
+		region_bonus = InvasionDatabase.REGION_COMPLETION_GOLD + int(region["tier"]) * 50
+		gold += region_bonus
+	if is_region_mastered(region_id) and not before_mastered:
+		mastery_bonus = InvasionDatabase.REGION_MASTERY_GOLD + int(region["tier"]) * 25
+		gold += mastery_bonus
+
+	var continent_reward := ""
+	if all_regions_complete(str(region["continent"])) and not before_continent:
+		var reward := CosmeticsDatabase.invasion_reward(str(region["continent"]))
+		if not reward.is_empty():
+			continent_reward = str(reward["id"])
+			if not cosmetics_owned.has(continent_reward):
+				cosmetics_owned.append(continent_reward)
+	return {
+		"gold": gold, "region_bonus": region_bonus, "mastery_bonus": mastery_bonus,
+		"region_complete": is_region_complete(region_id), "region_mastered": is_region_mastered(region_id),
+		"continent_reward": continent_reward, "is_replay": previous > 0 and stars <= previous,
+	}
+
+func invasion_progress() -> Dictionary:
+	return {
+		"regions": completed_invasion_regions(),
+		"regions_total": InvasionDatabase.get_region_count(),
+		"fronts": total_invasion_fronts(),
+		"fronts_total": InvasionDatabase.get_total_fronts(),
+		"stars": total_invasion_stars(),
+		"stars_total": InvasionDatabase.get_total_fronts() * 3,
+	}
+
 func troop_style() -> String:
 	return str(cosmetics_equipped.get("troop_style", "troop_classic"))
 
@@ -341,8 +504,8 @@ func base_shape() -> String:
 	return str(cosmetics_equipped.get("base_shape", "base_round"))
 
 func map_theme() -> Dictionary:
-	var theme := CosmeticsDatabase.get_by_id(cosmetics_equipped.get("map_theme", ""))
-	return theme if not theme.is_empty() else CosmeticsDatabase.get_by_id("theme_midnight")
+	var theme := CosmeticsDatabase.get_map_theme(cosmetics_equipped.get("map_theme", ""))
+	return theme if not theme.is_empty() else CosmeticsDatabase.get_map_theme("theme_daylight")
 
 # =========================================================================
 # Estadísticas y logros (AchievementManager decide cuándo se cumplen)
@@ -430,9 +593,10 @@ func mark_tip_seen(tip_id: String) -> void:
 
 ## Cambia y persiste el idioma; la interfaz decide cuándo recargarse.
 func set_language(lang: String) -> void:
-	if lang not in SUPPORTED_LANGUAGES or lang == language:
+	var code := LanguageCatalog.normalize(lang)
+	if code == "" or code == language:
 		return
-	language = lang
+	language = code
 	save_game()
 	EventBus.settings_changed.emit()
 
@@ -479,6 +643,8 @@ func is_cosmetic_owned(id: String) -> bool:
 	var item := CosmeticsDatabase.get_by_id(id)
 	if item.has("rank"):
 		return player_level() >= int(item["rank"])
+	if item.has("invasion"):
+		return all_regions_complete(str(item["invasion"]))
 	return item.has("continent") and is_continent_complete(item["continent"])
 
 ## Compra un cosmético; devuelve true si se ha desbloqueado. Los premios no se venden.
@@ -632,6 +798,7 @@ func save_data() -> Dictionary:
 		"medals": medals, "collections_claimed": collections_claimed,
 		"campaign_best": campaign_best,
 		"defeat_rewards": defeat_rewards,
+		"invasion_stars": invasion_stars, "invasion_rewards": invasion_rewards,
 	}
 
 func save_game() -> Error:
@@ -698,7 +865,11 @@ func import_save(path: String) -> Error:
 	if error != OK:
 		return error
 	var previous := save_data().duplicate(true)
+	var share_analytics: bool = settings["share_analytics"]
+	var share_crashes: bool = settings["share_crashes"]
 	_apply_save(data)
+	settings["share_analytics"] = share_analytics
+	settings["share_crashes"] = share_crashes
 	error = save_game()
 	if error != OK:
 		_apply_save(previous)
@@ -743,7 +914,13 @@ func reset_save() -> Error:
 	if _save_blocked:
 		return ERR_UNAVAILABLE
 	var previous := save_data().duplicate(true)
+	var current_language := language
+	var share_analytics: bool = settings["share_analytics"]
+	var share_crashes: bool = settings["share_crashes"]
 	_apply_save({})
+	language = current_language # Reiniciar el progreso no cambia el idioma elegido.
+	settings["share_analytics"] = share_analytics
+	settings["share_crashes"] = share_crashes
 	var error := save_game()
 	if error != OK:
 		_apply_save(previous)
@@ -810,6 +987,16 @@ func _apply_save(data: Dictionary) -> void:
 	for id in saved_defeats:
 		if _is_campaign_level(id):
 			defeat_rewards[id] = clampi(_as_int(saved_defeats[id], 0), 0, MAX_DEFEAT_REWARDS)
+	invasion_stars = {}
+	var saved_invasions := _as_dict(data.get("invasion_stars"))
+	for id in saved_invasions:
+		var stars := _as_int(saved_invasions[id], 0)
+		if stars > 0 and InvasionDatabase.is_invasion(id):
+			invasion_stars[id] = mini(stars, 3)
+	invasion_rewards.clear()
+	for id in _as_array(data.get("invasion_rewards")):
+		if id is String and not InvasionDatabase.get_region(id).is_empty() and not invasion_rewards.has(id):
+			invasion_rewards.append(id)
 	unlocked_levels = [FIRST_LEVEL_ID]
 	for l in _as_array(data.get("unlocked_levels")):
 		if _is_campaign_level(l) and not unlocked_levels.has(l):
@@ -838,8 +1025,11 @@ func _apply_save(data: Dictionary) -> void:
 	daily = {"last_claim_day": -1, "streak": 0, "challenge_day": -1}
 	for key in daily:
 		daily[key] = _as_int(saved_daily.get(key), daily[key])
-	var lang := str(data.get("language", "es"))
-	language = lang if lang in SUPPORTED_LANGUAGES else "es"
+	var lang := LanguageCatalog.normalize(str(data.get("language", "")))
+	if lang == "":
+		# New install: follow the device. Old saves without a language keep Spanish.
+		lang = LanguageCatalog.preferred_from_system() if data.is_empty() else "es"
+	language = lang
 	has_started = _as_bool(data.get("has_started"))
 	conquest_next = maxi(0, _as_int(data.get("conquest_next"), 0))
 	var saved_cities := {}
@@ -854,6 +1044,13 @@ func _apply_save(data: Dictionary) -> void:
 	for free_id in DEFAULT_COSMETICS_EQUIPPED.values():
 		if not cosmetics_owned.has(free_id):
 			cosmetics_owned.append(free_id)
+	# Los premios de invasión se guardan también en la lista: añadir regiones en el futuro
+	# no debe quitarle a nadie un color que ya había ganado.
+	for continent in LevelDatabase.get_continents():
+		if all_regions_complete(continent["id"]):
+			var invasion_reward := CosmeticsDatabase.invasion_reward(continent["id"])
+			if not invasion_reward.is_empty() and not cosmetics_owned.has(invasion_reward["id"]):
+				cosmetics_owned.append(invasion_reward["id"])
 	medals.clear()
 	for id in _as_array(data.get("medals")):
 		if _is_campaign_level(id) and completed_levels.has(id) and not medals.has(id):
@@ -872,6 +1069,7 @@ func _apply_save(data: Dictionary) -> void:
 static func _is_campaign_level(level_id: Variant) -> bool:
 	return level_id is String and not DailyRewards.is_challenge(level_id) \
 		and not LevelGenerator.is_conquest(level_id) \
+		and not InvasionDatabase.is_invasion(level_id) \
 		and not LevelDatabase.get_level_definition(level_id).is_empty()
 
 ## JSON devuelve los números como float y un guardado dañado puede traer cualquier tipo

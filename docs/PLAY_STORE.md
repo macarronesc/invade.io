@@ -17,13 +17,13 @@ indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se 
 | Build firmada y no depurable | ✅ | El flujo firma con la clave de subida; la verificación rechaza paquetes depurables |
 | 64 bits | ✅ | Sólo `arm64-v8a` |
 | 16 KB de página (obligatorio para API 35+, exigible a las actualizaciones desde el 1 feb 2027) | ✅ | AGP 8.6.1 + NDK 29 alinean a 16 KB; lo comprueba el script |
-| Permisos mínimos | ✅ | Sólo `VIBRATE`; sin `INTERNET` en release |
-| Declaración de datos (Data Safety) | ✅ «No se recogen datos» | Sin red, sin analítica, sin cuentas |
-| Política de privacidad | ✅ `docs/privacy-policy.html` | Hay que publicarla en una URL (paso 4) |
+| Permisos mínimos | ✅ | `VIBRATE`, `INTERNET` y `ACCESS_NETWORK_STATE`; la red sólo se usa si el jugador activa estadísticas o informes de fallos |
+| Declaración de datos (Data Safety) | ⬜ revisar en Play Console | Actividad de la app, diagnósticos y país aproximado derivado de la IP; las opciones empiezan desactivadas |
+| Política de privacidad | ✅ `docs/privacy-policy.html` | Actualizada para Aptabase y Sentry; hay que publicarla en una URL (paso 4) |
 | Icono 512×512 | ✅ | `assets/brand/play-store-icon-512.png` |
 | Gráfico destacado 1024×500 sin alfa | ✅ | `docs/store_assets/feature-graphic-1024x500.png` |
-| Al menos 2 capturas | ✅ 6 por idioma | `docs/store_assets/screenshots_es/` y `_en/` (1080×1920) |
-| Título ≤ 30, corta ≤ 80, completa ≤ 4000 | ✅ | `docs/store_listing/es.md` y `en.md`, ya medidos |
+| Al menos 2 capturas | ✅ 7 por idioma | `docs/store_assets/screenshots_{es,en,de,ru,ar,hi,zh_CN,ja}/` (1080×1920) |
+| Título ≤ 30, corta ≤ 80, completa ≤ 4000 | ⚠️ | Los 15 borradores cumplen límites; revisar las traducciones antes de publicarlas |
 | Ficha, categoría y etiquetas | ⬜ | Paso 4 |
 | Declaraciones de contenido de Play Console | ⬜ | Paso 5 |
 | Cuenta de desarrollador verificada en un móvil | ⬜ | Paso 5 (sólo cuentas personales nuevas) |
@@ -33,16 +33,19 @@ indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se 
 ## 2. Lo que ya está hecho en el repositorio
 
 - `export_presets.cfg`: preset **Android AAB** (formato AAB, sólo arm64-v8a, minSdk 24, targetSdk 36,
-  VIBRATE, iconos incluido el monocromo). La firma **no** está en el repositorio: se lee de las
-  variables `GODOT_ANDROID_KEYSTORE_RELEASE_*`.
-- `.github/workflows/build-android.yml`: importa recursos, ejecuta la **suite completa** (1857
+  versionCode 2, VIBRATE, iconos incluido el monocromo). La firma **no** está en el repositorio: se lee
+  de las variables `GODOT_ANDROID_KEYSTORE_RELEASE_*`. Antes de subir, confirma en Play Console que el
+  código 2 siga disponible; si ya se usó, elige el siguiente código libre.
+- `.github/workflows/build-android.yml`: importa recursos, ejecuta la **suite completa** (3999
   comprobaciones), exporta el APK de pruebas, y si existen los secretos exporta el **AAB firmado** y
-  lo verifica. El AAB se publica como artefacto `invadeio-play-bundle`.
+  lo verifica. Sólo la rama `main` puede firmar; protege esa rama y limita el acceso a los secretos de
+  firma en la configuración de Actions. El AAB se publica como artefacto `invadeio-play-bundle`.
 - `scripts/verify_play_bundle.sh`: puerta de calidad. En el **AAB**: ZIP íntegro, manifiesto,
   arm64 sin 32 bits, `geo.json` presente, sin código de test, **firma válida**, **segmentos ELF de
   todas las librerías a 16 KB**, **la alineación de 16 KB que el paquete pide** (con bundletool),
-  identificador, VIBRATE declarado, **sin INTERNET**, sin `debuggable`. En el **APK**: target/min SDK,
-  arquitecturas, permisos y **`zipalign -c -P 16`**, que verifica el empaquetado real de las librerías.
+  identificador, lista exacta de permisos, sin
+  `debuggable`. En el **APK**: target/min SDK, arquitecturas, permisos y **`zipalign -c -P 16`**, que
+  verifica el empaquetado real de las librerías.
 - Correcciones de esta revisión: el tutorial de arrastre ya no puede congelar la batalla (caduca a los
   20 s), la tarjeta de ayuda abre y cierra bien con el botón atrás de Android, dos glifos que se veían
   como cuadros vacíos, el aviso de logro ya no tapa la cabecera de batalla, los botones de reclamar se
@@ -68,12 +71,16 @@ base64 -i upload.keystore | tr -d '\n' > upload.keystore.b64   # macOS
 base64 -w0 upload.keystore > upload.keystore.b64               # Linux/GNU
 wc -l upload.keystore.b64   # debe decir 0 (una sola línea)
 
-# 4. Configurar los tres secretos del repositorio (la contraseña se escribe a ciegas)
-gh secret set ANDROID_KEYSTORE_BASE64 --repo macarronesc/invade.io < upload.keystore.b64
-gh secret set ANDROID_KEY_ALIAS      --repo macarronesc/invade.io --body 'upload'
-gh secret set ANDROID_KEY_PASSWORD   --repo macarronesc/invade.io
-# Sin gh: GitHub → Settings → Secrets and variables → Actions → New repository secret
+# 4. En GitHub, crea el Environment "play-release", limita deployments a main y añade revisores.
+#    Guarda ahí los tres secretos (no como repository secrets).
+gh secret set ANDROID_KEYSTORE_BASE64 --env play-release --repo macarronesc/invade.io < upload.keystore.b64
+gh secret set ANDROID_KEY_ALIAS      --env play-release --repo macarronesc/invade.io --body 'upload'
+gh secret set ANDROID_KEY_PASSWORD   --env play-release --repo macarronesc/invade.io
+# Sin gh: Settings → Environments → play-release → Environment secrets
 ```
+
+Si ya existen secretos homónimos a nivel de repositorio, elimínalos después de comprobar el Environment.
+La protección del Environment y de la rama `main` es parte del límite de seguridad de la firma.
 
 **La contraseña debe ser sólo ASCII**: letras, números y signos como `! $ = ? # - . _ + @ ~ | &`.
 Un solo carácter fuera de ASCII (por ejemplo `£`, `ñ`, `á`) hace fallar la creación de la clave con
@@ -108,8 +115,9 @@ Guardas a tener en cuenta:
 | Correo de soporte | `alegandro2507@gmail.com` |
 | Política de privacidad | URL pública del paso siguiente |
 
-**Política de privacidad**: `docs/privacy-policy.html` ya está listo (ES + EN, sin rastreadores).
-Para publicarla con una URL activa, sin servidor propio:
+**Política de privacidad**: `docs/privacy-policy.html` (ES + EN) describe la analítica opcional,
+los diagnósticos y el país aproximado derivado de la IP. Para publicarla con una URL activa, sin
+servidor propio:
 
 1. GitHub → repositorio → **Settings → Pages** → *Source*: `Deploy from a branch` →
    rama `main`, carpeta `/docs` → **Save**.
@@ -131,7 +139,8 @@ Todo esto se hace en la web de Play Console; el orden importa.
 1. **Cuenta de desarrollador** (25 USD, pago único). Verificación de identidad y de dispositivo: con
    una cuenta personal nueva hay que abrir la app **Play Console** en un Android real (Android 10+) y
    pulsar *Verify*.
-2. **Crear la app**: nombre `invade.io`, idioma predeterminado español, tipo *Juego*, gratis.
+2. **Crear la app**: nombre `invade.io`, idioma predeterminado de la ficha español, tipo *Juego*, gratis.
+   La app detecta el idioma del dispositivo; la ficha se puede traducir a los mercados principales.
    Aceptar las declaraciones de políticas y de exportación, y los términos de Play App Signing.
 3. **App content** (Política y programas → Contenido de la app), con estas respuestas:
    - **Privacidad**: URL del paso 4.
@@ -142,10 +151,15 @@ Todo esto se hace en la web de Play Console; el orden importa.
      violencia contra personas (unidades y bases abstractas), sin contenido sexual, sin lenguaje
      soez, sin drogas, sin apuestas, sin contenido generado por usuarios, sin compras. Resultado
      esperable: *Todos / PEGI 3*.
-   - **Seguridad de los datos**: *¿La app recoge o comparte datos?* → **No**. Google considera
-     «recogida» sólo lo que sale del dispositivo; en este juego no sale nada (no hay permiso de red).
+   - **Seguridad de los datos**: *¿La app recoge o comparte datos?* → **Sí**. Declara actividad en la
+     app, diagnósticos y ubicación aproximada (país inferido por Aptabase a partir de la IP). Los
+     eventos de uso incluyen un identificador temporal de sesión. No hay cuentas ni publicidad; cada
+     envío está desactivado hasta que el usuario lo active en Ajustes → Privacidad. Revisa en Play
+     Console si el identificador temporal se clasifica como «Device or other IDs». Google considera
+     «recogida» cualquier dato que salga del dispositivo, incluida la IP recibida por los proveedores.
    - **Noticias, COVID-19, apps gubernamentales, financieras y de salud**: No.
-   - **Permisos peligrosos**: ninguno (VIBRATE no lo es), así que no hay formulario.
+   - **Permisos peligrosos**: ninguno (VIBRATE, INTERNET y ACCESS_NETWORK_STATE no lo son), así que no
+     hay formulario.
 4. **Prueba interna** (Probar y publicar → Pruebas → Prueba interna): subir
    `invadeio-play-bundle` desde el artefacto de GitHub Actions, añadirte como probador y comprobar en
    tu móvil que instala, abre y guarda. Si el AAB no sube, Play dirá el motivo exacto (normalmente
@@ -184,10 +198,12 @@ así que conviene reclutarlos **antes** de subir el primer AAB.
 ## 6. Publicar una actualización
 
 1. Cambiar `version/code` en los dos presets Android (debe crecer siempre) y, si procede,
-   `version/name` (por ejemplo `0.2.0`).
+   `version/name` (por ejemplo `0.2.0`). Mantén `application/config/version` en `project.godot`
+   sincronizado: Sentry lo usa como identificador de release.
 2. `git commit` y `git push`: GitHub Actions ejecuta las pruebas, exporta y verifica el AAB nuevo.
 3. Descargar el artefacto `invadeio-play-bundle`, subirlo a la pista correspondiente, escribir las
-   notas de la versión y publicar.
+   notas de la versión (el texto de cada publicación está en
+   [store_listing/release_notes.md](store_listing/release_notes.md)) y publicar.
 
 Los `version/code` ya usados no se pueden repetir nunca en la misma app.
 

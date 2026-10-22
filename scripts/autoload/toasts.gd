@@ -58,6 +58,7 @@ func _show_next() -> void:
 	var view_w := get_viewport().get_visible_rect().size.x
 	var width := minf(WIDTH, view_w - UIThemeHelper.PAGE_MARGIN * 2)
 	var card := _build_card(data, width)
+	UIThemeHelper.apply_locale_direction(card)
 	add_child(card)
 	if DisplayServer.get_name() == "headless":
 		card.queue_free()

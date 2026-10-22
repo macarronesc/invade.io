@@ -8,7 +8,7 @@ Uso:
 Salida (coordenadas lon/lat planas y redondeadas para que el JSON sea pequeño):
     {"land": [[lon, lat, lon, lat, ...], ...],
      "borders": [[lon, lat, ...], ...],
-     "cities": [[clave, nombre_es, nombre_en, lon, lat, población], ...]}
+     "cities": [[clave, nombre_es, nombre_en, lon, lat, población, código_país, nombres], ...]}
 """
 import io
 import json
@@ -98,6 +98,14 @@ def build_borders(reader) -> list:
     return out
 
 
+LOCALIZED = {
+    "es": "NAME_ES", "en": "NAME_EN", "pt_BR": "NAME_PT", "fr": "NAME_FR",
+    "de": "NAME_DE", "it": "NAME_IT", "ru": "NAME_RU", "tr": "NAME_TR",
+    "ar": "NAME_AR", "hi": "NAME_HI", "id": "NAME_ID", "vi": "NAME_VI",
+    "zh_CN": "NAME_ZH", "ja": "NAME_JA", "ko": "NAME_KO",
+}
+
+
 def build_cities(reader) -> list:
     rows = [r for r in reader.records() if r["SCALERANK"] <= MAX_CITY_RANK]
     rows.sort(key=lambda r: -r["POP_MAX"])
@@ -109,8 +117,13 @@ def build_cities(reader) -> list:
         if key in used:
             continue
         used.add(key)
+        names = {}
+        for lang, field in LOCALIZED.items():
+            value = r[field] if field in r else ""
+            if value:
+                names[lang] = value
         out.append([key, font_safe(r["NAME_ES"] or r["NAME"]), font_safe(r["NAME_EN"] or r["NAME"]),
-                    round(r["LONGITUDE"], 3), round(r["LATITUDE"], 3), int(r["POP_MAX"])])
+                    round(r["LONGITUDE"], 3), round(r["LATITUDE"], 3), int(r["POP_MAX"]), r["ADM0_A3"], names])
     return out
 
 

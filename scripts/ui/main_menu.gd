@@ -8,6 +8,7 @@ const SCENE := "res://scenes/ui/main_menu.tscn"
 ## Una entrada por sección: añadir una nueva es añadir una línea y su script
 const TABS := {
 	"play": {"icon": "map", "title": "tab_play", "page": preload("res://scripts/ui/play_tab.gd")},
+	"invasion": {"icon": "flag", "title": "tab_invasion", "page": preload("res://scripts/ui/invasion_tab.gd")},
 	"challenges": {"icon": "target", "title": "tab_challenges", "page": preload("res://scripts/ui/challenges_tab.gd")},
 	"army": {"icon": "shield", "title": "tab_army", "page": preload("res://scripts/ui/army_tab.gd")},
 	"progress": {"icon": "trophy", "title": "tab_progress", "page": preload("res://scripts/ui/progress_tab.gd")},
@@ -46,6 +47,7 @@ func _ready() -> void:
 		UIThemeHelper.start_battle.bind(self, GameManager.FIRST_LEVEL_ID).call_deferred()
 		return
 	_build()
+	UIThemeHelper.apply_locale_direction(self)
 	_appearance = _appearance_key()
 	EventBus.settings_changed.connect(_refresh_appearance)
 	EventBus.coins_updated.connect(_update_coins)
@@ -72,6 +74,8 @@ func _build() -> void:
 	column.add_child(UIThemeHelper.page_margin(bar, 32 + UIThemeHelper.get_safe_area_top(self), 16))
 	bar.add_child(_logo_tile())
 	var wordmark := UIThemeHelper.hbox(0)
+	# La marca se lee siempre "invade.io", también en RTL.
+	wordmark.layout_direction = Control.LAYOUT_DIRECTION_LTR
 	wordmark.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wordmark.alignment = BoxContainer.ALIGNMENT_BEGIN
 	wordmark.add_child(UIThemeHelper.label("invade", "Title"))
@@ -130,6 +134,7 @@ func show_tab(id: String) -> void:
 	if not TABS.has(id):
 		id = "play"
 	current_tab = id
+	Telemetry.tab_opened(id)
 	for tab in _nav:
 		_nav[tab].set_pressed_no_signal(tab == id)
 	UIThemeHelper.clear(_content)
@@ -170,8 +175,10 @@ func _open_settings() -> void:
 	if is_instance_valid(_utility_panel):
 		return
 	AudioManager.play_click()
+	Telemetry.screen_opened("settings")
 	_utility_panel = load("res://scripts/ui/settings_panel.gd").new()
 	_utility_panel.closed.connect(_refresh_appearance)
+	_utility_panel.closed.connect(func(): Telemetry.screen_opened("menu"))
 	add_child(_utility_panel)
 
 func _appearance_key() -> String:
@@ -182,6 +189,7 @@ func _refresh_appearance() -> void:
 	if _appearance == _appearance_key():
 		return
 	_appearance = _appearance_key()
+	UIThemeHelper.apply_locale_direction(self)
 	_background.color = UIThemeHelper.colors.bg
 	_logo_io.add_theme_color_override("font_color", UIThemeHelper.colors.primary)
 	coins_label.add_theme_color_override("font_color", UIThemeHelper.colors.text)

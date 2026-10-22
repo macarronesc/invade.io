@@ -209,6 +209,13 @@ func _update_tier_parameters() -> void:
 		label_name.position.y = radius + 20.0
 	_dirty = true
 
+## El nombre de la ciudad vive sobre el terreno: un tema claro necesita tinta oscura.
+func apply_map_theme(theme: Dictionary) -> void:
+	if not label_name:
+		return
+	label_name.add_theme_color_override("font_color", theme.get("label_color", Color(0.92, 0.95, 0.98, 0.9)))
+	label_name.add_theme_color_override("font_outline_color", theme.get("label_outline", Color(0, 0, 0, 0.9)))
+
 func _process(delta: float) -> void:
 	# Producción pasiva de tropas (sólo para bases activas y capturadas)
 	if is_active and faction != GameManager.Faction.NEUTRAL:
@@ -284,8 +291,8 @@ func _animate(delta: float) -> bool:
 	return animating
 
 func _trigger_generation_pulse() -> void:
-	# Pulso elástico suave y sutil al reclutar cada unidad
-	elastic_velocity += Vector2(0.9, 0.9)
+	# Un pulso apenas perceptible: la producción se lee en el número y el anillo.
+	elastic_velocity += Vector2(0.28, 0.28)
 
 func _trigger_conquest_shockwave(new_faction: int) -> void:
 	# Rebote elástico dramático de conquista + onda expansiva
@@ -437,11 +444,12 @@ func _draw_capacity_ring(r: float) -> void:
 		draw_arc(Vector2.ZERO, r, -PI * 0.5, -PI * 0.5 + TAU * fill, 56, Color(1, 1, 1, 0.85), 4.0, true)
 	if is_producing():
 		var color := GameManager.faction_color(faction)
-		for k in 2:
-			var p := Vector2.from_angle(orbit_angle + k * PI) * r
-			draw_circle(p, 9.0, Color(0, 0, 0, 0.35))
-			draw_circle(p, 7.5, Color.WHITE)
-			draw_circle(p, 4.0, color)
+		# Un único satélite mantiene la lectura de producción sin convertir cada base
+		# en un foco de movimiento permanente.
+		var p := Vector2.from_angle(orbit_angle) * r
+		draw_circle(p, 8.0, Color(0, 0, 0, 0.28))
+		draw_circle(p, 6.5, Color.WHITE)
+		draw_circle(p, 3.5, color)
 
 func _badge_keys() -> PackedStringArray:
 	var keys: PackedStringArray = []

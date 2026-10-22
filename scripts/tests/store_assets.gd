@@ -10,13 +10,16 @@ extends Node
 const OUT_DIR := "res://docs/store_assets"
 const SHOTS_DIR := "user://"
 ## Capturas de la ficha, en orden: lo que explica el juego en cinco segundos
-const SHOTS := ["menu", "battle", "victory", "army", "challenges", "progress"]
-const LANGS := ["es", "en"]
+const SHOTS := ["menu", "invasion", "march", "victory", "army", "challenges", "progress"]
+const LANGS := ["es", "en", "de", "ru", "ar", "hi", "zh_CN", "ja"]
+const OBSOLETE_SHOTS := ["2_battle.png", "3_victory.png", "4_army.png", "5_challenges.png", "6_progress.png"]
 const BANNER := Vector2i(1024, 500)
 
 var _icon: Texture2D
 
 func _ready() -> void:
+	# La ficha siempre se genera con la presentación nueva, sin depender del guardado de quien la exporta.
+	UIThemeHelper.apply_palette(get_tree(), true)
 	_icon = load("res://icon.svg") # Vectorial: conserva las esquinas redondeadas de la marca
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 	for lang in LANGS:
@@ -54,11 +57,11 @@ func _brand_tile() -> Control:
 	var tile := PanelContainer.new()
 	tile.custom_minimum_size = Vector2(196, 196)
 	tile.position = Vector2(72, 152)
-	var shadow := UIThemeHelper.box(Color.TRANSPARENT, 24, 0)
-	shadow.draw_center = false
-	shadow.shadow_color = Color(0, 0, 0, 0.6)
-	shadow.shadow_size = 26
-	shadow.shadow_offset = Vector2(0, 12)
+	tile.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+	var shadow := UIThemeHelper.box(Color("0e1624"), 24, 0)
+	shadow.shadow_color = Color(0, 0, 0, 0.45)
+	shadow.shadow_size = 22
+	shadow.shadow_offset = Vector2(0, 8)
 	tile.add_theme_stylebox_override("panel", shadow)
 	var icon := TextureRect.new()
 	icon.texture = _icon
@@ -87,16 +90,32 @@ func _wordmark() -> Control:
 
 ## Copia las capturas del comprobador con el nombre y el orden que espera la ficha
 func _copy_screenshots() -> void:
+	var sources := {}
 	for lang in LANGS:
+		sources[lang] = {}
 		for shot in SHOTS:
-			var source := "%s%s_%s_false.png" % [SHOTS_DIR, shot, lang]
+			# La ficha prefiere la presentación clara; los idiomas nuevos se capturan
+			# en oscuro para no duplicar el tiempo del comprobador.
+			var source := "%s%s_%s_true.png" % [SHOTS_DIR, shot, lang]
 			if not FileAccess.file_exists(source):
-				push_warning("falta la captura %s: ejecuta antes el comprobador --ui" % source)
-				continue
+				source = "%s%s_%s_false.png" % [SHOTS_DIR, shot, lang]
+			if not FileAccess.file_exists(source):
+				push_warning("falta la captura %s: no se sustituyeron las capturas existentes; ejecuta antes --ui" % source)
+				return
+			sources[lang][shot] = source
+
+	for lang in LANGS:
+		var target_dir := "%s/screenshots_%s" % [OUT_DIR, lang]
+		for shot in SHOTS:
 			var target := "%s/screenshots_%s/%d_%s.png" % [OUT_DIR, lang, SHOTS.find(shot) + 1, shot]
-			if DirAccess.copy_absolute(ProjectSettings.globalize_path(source),
-					ProjectSettings.globalize_path(target)) == OK:
-				print("captura -> %s" % target.get_file())
+			var error := DirAccess.copy_absolute(ProjectSettings.globalize_path(sources[lang][shot]),
+				ProjectSettings.globalize_path(target))
+			if error != OK:
+				push_warning("no se pudo copiar %s: %s" % [target, error_string(error)])
+				return
+			print("captura -> %s" % target.get_file())
+		for obsolete in OBSOLETE_SHOTS:
+			DirAccess.remove_absolute(ProjectSettings.globalize_path("%s/%s" % [target_dir, obsolete]))
 
 ## Línea de ruta con tres bases: neutral, jugador (anillo blanco) y rival
 class RouteLine extends Control:
@@ -119,8 +138,8 @@ class Banner extends Control:
 
 	func _ready() -> void:
 		var gradient := Gradient.new()
-		gradient.set_color(0, Color("17243c"))
-		gradient.set_color(1, Color("0b1220"))
+		gradient.set_color(0, UIThemeHelper.colors.bg)
+		gradient.set_color(1, UIThemeHelper.colors.surface_2)
 		_gradient = GradientTexture2D.new()
 		_gradient.gradient = gradient
 		_gradient.width = 1024
@@ -145,7 +164,7 @@ class Banner extends Control:
 			var radius: float = base["radius"]
 			var center: Vector2 = base["pos"]
 			if int(base["faction"]) == 1:
-				draw_arc(center, radius + 7.0, 0, TAU, 40, Color(1, 1, 1, 0.28), 2.0, true)
+				draw_arc(center, radius + 7.0, 0, TAU, 40, Color(UIThemeHelper.colors.text, 0.24), 2.0, true)
 			draw_circle(center, radius, Color(color, 0.36))
 
 	## Rutas entre bases cercanas, como las órdenes de la batalla
@@ -157,5 +176,4 @@ class Banner extends Control:
 				var distance := p1.distance_to(p2)
 				if distance > 190.0:
 					continue
-				draw_line(p1, p2, Color(1, 1, 1, (1.0 - distance / 190.0) * 0.17), 2.0, true)
-
+				draw_line(p1, p2, Color(UIThemeHelper.colors.muted, (1.0 - distance / 190.0) * 0.22), 2.0, true)

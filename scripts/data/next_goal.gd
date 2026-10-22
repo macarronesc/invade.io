@@ -10,7 +10,7 @@ const NEAR_UPGRADE := 0.6
 static func text() -> String:
 	if GameManager.should_suggest_first_upgrade():
 		return _upgrade()
-	for goal in [_boss, _mission, _upgrade, _collection, _rank]:
+	for goal in [_boss, _mission, _invasion, _upgrade, _collection, _rank]:
 		var candidate: String = goal.call()
 		if candidate != "":
 			return candidate
@@ -29,7 +29,7 @@ static func _upgrade() -> String:
 	if GameManager.coins >= cost:
 		return LocaleStrings.text("goal_upgrade_ready") % name
 	if GameManager.coins >= cost * NEAR_UPGRADE:
-		return LocaleStrings.text("goal_upgrade_near") % [cost - GameManager.coins, name]
+		return LocaleStrings.text("goal_upgrade_near") % [name, cost - GameManager.coins]
 	return ""
 
 ## La misión de hoy empezada y más cerca de completarse
@@ -47,6 +47,34 @@ static func _mission() -> String:
 		return ""
 	var progress := int(GameManager.missions["progress"].get(best["id"], 0))
 	return LocaleStrings.text("goal_mission") % [LocaleStrings.text(best["key"]) % best["goal"], progress, best["goal"]]
+
+## Una región empezada manda; si no, la primera pendiente de un continente ya abierto.
+## No distraer al jugador que aún no ha terminado la campaña ni ha probado invasiones.
+static func _invasion() -> String:
+	if not GameManager.is_campaign_complete() and GameManager.total_invasion_fronts() == 0:
+		return ""
+	if GameManager.completed_invasion_regions() >= InvasionDatabase.get_region_count():
+		return ""
+	var region: Dictionary = {}
+	for candidate in InvasionDatabase.get_regions():
+		if not GameManager.is_invasion_unlocked(candidate["id"]):
+			continue
+		var completed := GameManager.region_completed_fronts(candidate["id"])
+		if completed > 0 and completed < InvasionDatabase.FRONTS:
+			region = candidate
+			break
+	if region.is_empty():
+		var region_id := GameManager.recommended_invasion_region("")
+		if region_id == "":
+			return ""
+		region = InvasionDatabase.get_region(region_id)
+	if region.is_empty():
+		return ""
+	var completed := GameManager.region_completed_fronts(region["id"])
+	if completed > 0:
+		return LocaleStrings.text("goal_invasion_front") % InvasionDatabase.region_name(region)
+	return LocaleStrings.text("goal_invasion_region") % [InvasionDatabase.region_name(region),
+		completed, InvasionDatabase.FRONTS]
 
 ## El jefe del continente es el siguiente nivel de la campaña: anticipar su premio
 static func _boss() -> String:

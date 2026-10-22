@@ -20,9 +20,8 @@ static func get_continents() -> Array[Dictionary]:
 
 ## Nombre del continente en el idioma actual
 static func continent_name(continent_id: String) -> String:
-	for c in CONTINENTS:
-		if c["id"] == continent_id:
-			return c["name_en"] if LocaleStrings.lang == "en" else c["name"]
+	if CONTINENTS.any(func(c): return c["id"] == continent_id):
+		return LocaleStrings.text("continent_" + continent_id)
 	return continent_id
 
 static func get_continent_level_ids(continent_id: String) -> Array[String]:
@@ -32,10 +31,14 @@ static func get_continent_level_ids(continent_id: String) -> Array[String]:
 	return ids
 
 static func get_continent_of(level_id: String) -> String:
+	if InvasionDatabase.is_invasion(level_id):
+		return str(InvasionDatabase.get_region(InvasionDatabase.get_region_of_level(level_id)).get("continent", ""))
 	return level_id.substr(0, level_id.rfind("_"))
 
-## Posición del nivel dentro de su continente (1..LEVELS_PER_CONTINENT)
+## Posición del nivel dentro de su continente (campaña) o de su región (invasión)
 static func get_level_number(level_id: String) -> int:
+	if InvasionDatabase.is_invasion(level_id):
+		return InvasionDatabase.get_front_of_level(level_id)
 	return int(level_id.substr(level_id.rfind("_") + 1))
 
 static var _definitions: Dictionary = {}
@@ -60,11 +63,11 @@ static func get_level_data(level_id: String) -> Dictionary:
 		_built[cache_key] = built
 	return _built[cache_key]
 
-## En inglés, los nombres y descripciones de campaña usan una plantilla con la
-## ciudad central (las 30 descripciones literarias sólo existen en español).
+## Nombres y descripciones de campaña desde locale/strings.csv. Si una traducción
+## falta, se usa una plantilla con la ciudad central para no enseñar la clave.
 static func _localize(built: Dictionary, def: Dictionary) -> void:
 	var level_id: String = def.get("id", "")
-	if LocaleStrings.lang != "en" or not _get_definitions().has(level_id):
+	if not _get_definitions().has(level_id):
 		return
 	var n := get_level_ids().find(level_id) + 1
 	var center := ""
@@ -72,8 +75,10 @@ static func _localize(built: Dictionary, def: Dictionary) -> void:
 		if b.get("faction") == GameManager.Faction.PLAYER:
 			center = GeoDatabase.city_name(GeoDatabase.get_city(b.get("city", "")))
 			break
-	built["name"] = "Level %d: %s" % [n, continent_name(get_continent_of(level_id))]
-	built["description"] = LocaleStrings.text("level_desc_en") % [center, built.get("target_time", 45)]
+	var fallback_name := "Level %d: %s" % [n, continent_name(get_continent_of(level_id))]
+	built["name"] = LocaleStrings.text_or("level_%s_name" % level_id, fallback_name)
+	var fallback_desc := LocaleStrings.text("level_desc_generic") % [center, built.get("target_time", 45)]
+	built["description"] = LocaleStrings.text_or("level_%s_desc" % level_id, fallback_desc)
 
 ## Definición original (ciudades y facciones) sin construir
 static func get_level_definition(level_id: String) -> Dictionary:
@@ -81,6 +86,8 @@ static func get_level_definition(level_id: String) -> Dictionary:
 		return LevelGenerator.daily_challenge_definition(DailyRewards.challenge_day(level_id))
 	if LevelGenerator.is_conquest(level_id):
 		return LevelGenerator.conquest_definition(LevelGenerator.conquest_index(level_id))
+	if InvasionDatabase.is_invasion(level_id):
+		return InvasionDatabase.get_level_definition(level_id)
 	return _get_definitions().get(level_id, {})
 
 ## Ids de la campaña en orden de juego
@@ -98,6 +105,10 @@ static func get_difficulty(level_id: String) -> float:
 		return DailyRewards.CHALLENGE_DIFFICULTY
 	if LevelGenerator.is_conquest(level_id):
 		return LevelGenerator.conquest_difficulty(LevelGenerator.conquest_index(level_id))
+	if InvasionDatabase.is_invasion(level_id):
+		var region := InvasionDatabase.get_region(InvasionDatabase.get_region_of_level(level_id))
+		var front := InvasionDatabase.get_front_of_level(level_id)
+		return clampf((float(region.get("tier", 1)) - 1.0) / 4.0 + (front - 1) * 0.05, 0.0, 1.0)
 	var ids := get_level_ids()
 	return maxf(0.0, ids.find(level_id)) / float(ids.size() - 1)
 
@@ -119,6 +130,15 @@ static func get_balance(level_id: String) -> Dictionary:
 			cadence += 0.4
 			grace += 3.0
 			production -= 0.05
+	elif InvasionDatabase.is_invasion(level_id):
+		var front := InvasionDatabase.get_front_of_level(level_id)
+		if front == 1:
+			cadence += 0.4
+			grace += 3.0
+			production -= 0.05
+			joint = 0
+		elif front == 2:
+			joint = mini(joint, 2)
 	else:
 		var index := get_level_ids().find(level_id)
 		if index < 3:

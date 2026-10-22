@@ -16,10 +16,11 @@ static func level_start(p_level: int) -> int:
 
 ## Nombre del rango; pasado el último, "Mariscal 2", "Mariscal 3"...
 static func title(p_level: int) -> String:
-	var titles: Array = TITLES_EN if LocaleStrings.lang == "en" else TITLES_ES
-	var i := clampi(p_level - 1, 0, titles.size() - 1)
-	var extra := p_level - titles.size()
-	return titles[i] if extra <= 0 else "%s %d" % [titles[i], extra + 1]
+	var count := TITLES_ES.size()
+	var i := clampi(p_level - 1, 0, count - 1)
+	var name := LocaleStrings.text("rank_%d" % (i + 1))
+	var extra := p_level - count
+	return name if extra <= 0 else "%s %d" % [name, extra + 1]
 
 ## Fracción del nivel actual ya recorrida con `xp` (0..1)
 static func progress(xp: int) -> float:

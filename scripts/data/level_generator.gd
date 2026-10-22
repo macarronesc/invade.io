@@ -59,7 +59,8 @@ static func build(def: Dictionary, difficulty: float) -> Dictionary:
 		base["pos"] = proj.project(base["lonlat"])
 	relax_positions(bases)
 
-	var extras := _pick_extra_neutrals(proj, bases, roundi(difficulty * MAX_EXTRA_NEUTRALS), difficulty, rng)
+	var extra_count := int(def.get("extra_neutrals", roundi(difficulty * MAX_EXTRA_NEUTRALS)))
+	var extras := _pick_extra_neutrals(proj, bases, maxi(0, extra_count), difficulty, rng)
 	bases.append_array(extras)
 
 	var level: Dictionary = def.duplicate()
@@ -155,7 +156,7 @@ static func conquest_definition(index: int) -> Dictionary:
 	return {
 		"id": conquest_id(index),
 		"name": LocaleStrings.text("conquest_title") % [expedition_of(index), expedition_step(index), GameManager.EXPEDITION_SIZE, GeoDatabase.city_name(center)],
-		"description": LocaleStrings.text("conquest_desc") % [index + 1, GeoDatabase.city_name(center)],
+		"description": LocaleStrings.text("conquest_desc") % [GeoDatabase.city_name(center), index + 1],
 		"target_time": DAILY_TARGET_TIME + (25 if is_expedition_finale(index) else 0),
 		"bases": bases,
 	}

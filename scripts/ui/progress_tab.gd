@@ -16,6 +16,7 @@ func _build() -> void:
 	UIThemeHelper.section(content, LocaleStrings.text("tab_progress"))
 	_build_player_level()
 	_build_summary()
+	_build_invasions()
 	_build_collections()
 	_build_atlas()
 	_build_achievements()
@@ -64,16 +65,18 @@ func _build_summary() -> void:
 ## Una colección por continente: sus ciudades de campaña, con premio al completarla
 func _build_collections() -> void:
 	UIThemeHelper.section(content, LocaleStrings.text("collections"), LocaleStrings.text("collections_sub"), "Heading")
-	var card := UIThemeHelper.card(content, "", 20)
+	var card := UIThemeHelper.card(content, "CompactCard", 8)
 	for cont in LevelDatabase.get_continents():
 		var id: String = cont["id"]
 		var total := LevelDatabase.collection_cities(id).size()
 		var have := GameManager.collection_progress(id)
-		var row := UIThemeHelper.hbox(16)
+		var row := UIThemeHelper.hbox(14)
 		row.name = "Collection_" + id
+		row.custom_minimum_size.y = 64
 		var name_label := UIThemeHelper.button(LevelDatabase.continent_name(id), "GhostButton")
 		name_label.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		name_label.custom_minimum_size.x = 300
+		name_label.custom_minimum_size.x = 280
+		name_label.add_theme_font_size_override("font_size", 26)
 		var next_level := _collection_next_level(id)
 		name_label.disabled = next_level == "" or have == total
 		name_label.tooltip_text = LocaleStrings.text("collection_play")
@@ -99,13 +102,40 @@ func _build_collections() -> void:
 		else:
 			row.add_child(UIThemeHelper.label("%d/%d" % [have, total], "Caption"))
 		card.add_child(row)
-	card.add_child(UIThemeHelper.paragraph(LocaleStrings.text("collection_play")))
 
 func _collection_next_level(continent_id: String) -> String:
 	for id in LevelDatabase.get_continent_level_ids(continent_id):
 		if GameManager.is_level_unlocked(id) and LevelDatabase.get_level_definition(id).get("bases", []).any(func(b): return not GameManager.conquered_cities.has(b["city"])):
 			return id
 	return ""
+
+## Resumen de invasiones: el jugador ve el largo plazo sin entrar en la pestaña.
+func _build_invasions() -> void:
+	UIThemeHelper.section(content, LocaleStrings.text("tab_invasion"), LocaleStrings.text("invasions_sub"), "Heading")
+	var progress := GameManager.invasion_progress()
+	var card := UIThemeHelper.card(content)
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", 16)
+	row.add_theme_constant_override("v_separation", 8)
+	row.add_child(UIThemeHelper.label(LocaleStrings.text("invasions_progress") % [
+		progress["regions"], progress["regions_total"], progress["fronts"], progress["fronts_total"]], "Heading"))
+	var percent := roundi(100.0 * int(progress["regions"]) / maxi(1, int(progress["regions_total"])))
+	row.add_child(UIThemeHelper.label(LocaleStrings.text("invasions_world") % percent, "Caption", UIThemeHelper.colors.gold))
+	row.add_child(UIThemeHelper.label(LocaleStrings.text("invasions_stars") % [
+		progress["stars"], progress["stars_total"]], "Caption", UIThemeHelper.colors.gold))
+	card.add_child(row)
+	card.add_child(UIThemeHelper.progress(int(progress["regions"]), int(progress["regions_total"])))
+	var go := UIThemeHelper.row_button("flag", LocaleStrings.text("tab_invasion"), LocaleStrings.text("invasions_open"), "next", UIThemeHelper.colors.primary)
+	go.name = "BtnProgressInvasions"
+	go.pressed.connect(_go_to_invasions)
+	card.add_child(go)
+
+func _go_to_invasions() -> void:
+	var node: Node = self
+	while node and not (node is MainMenuUI):
+		node = node.get_parent()
+	if node:
+		(node as MainMenuUI).show_tab("invasion")
 
 ## Atlas: mapa del mundo con las ciudades conquistadas, recuento por continente y últimas conquistas
 func _build_atlas() -> void:

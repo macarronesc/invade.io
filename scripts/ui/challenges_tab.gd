@@ -110,21 +110,28 @@ func _build_mission(mission: Dictionary) -> void:
 	var progress := int(GameManager.missions["progress"].get(mission["id"], 0))
 	var goal := int(mission["goal"])
 	var claimed: bool = GameManager.missions["claimed"].has(mission["id"])
-	var card := UIThemeHelper.card(content, "", 16)
+	var title := LocaleStrings.text(mission["key"]) % goal
+	if claimed:
+		# Una misión cobrada deja de competir por atención: una sola fila silenciosa.
+		var done_card := UIThemeHelper.card(content, "CompactCard", 0)
+		var done_row := UIThemeHelper.hbox(14)
+		done_row.add_child(Icons.rect("check", 36, UIThemeHelper.colors.success))
+		var done_title := UIThemeHelper.label(title, "", UIThemeHelper.colors.muted)
+		done_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		done_row.add_child(done_title)
+		done_row.add_child(UIThemeHelper.label(LocaleStrings.text("mission_claimed"), "Caption", UIThemeHelper.colors.success))
+		done_card.add_child(done_row)
+		return
+	var card := UIThemeHelper.card(content, "CompactCard", 14)
 	var top := UIThemeHelper.hbox(16)
-	top.add_child(UIThemeHelper.paragraph(LocaleStrings.text(mission["key"]) % goal, ""))
+	top.add_child(UIThemeHelper.paragraph(title, ""))
 	top.add_child(UIThemeHelper.chip("+%d · +%d XP" % [mission["gold"], mission["xp"]], "coin"))
 	card.add_child(top)
 	var bar_row := UIThemeHelper.hbox(16)
 	bar_row.add_child(UIThemeHelper.progress(progress, goal, "GoldBar" if progress >= goal else ""))
 	bar_row.add_child(UIThemeHelper.label("%d/%d" % [progress, goal], "Caption"))
 	card.add_child(bar_row)
-	if claimed:
-		var done := UIThemeHelper.hbox(10)
-		done.add_child(Icons.rect("check", 36, UIThemeHelper.colors.success))
-		done.add_child(UIThemeHelper.label(LocaleStrings.text("mission_claimed"), "Caption", UIThemeHelper.colors.success))
-		card.add_child(done)
-	elif progress >= goal:
+	if progress >= goal:
 		var claim := UIThemeHelper.button(LocaleStrings.text("mission_claim"), "GoldButton", "coin")
 		claim.name = "Claim_" + mission["id"]
 		claim.pressed.connect(func():
