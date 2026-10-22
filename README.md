@@ -153,7 +153,7 @@ Para la ficha de Google Play (necesita pantalla real o `xvfb-run`):
 # Gráfico destacado 1024×500 y capturas ordenadas en docs/store_assets/
 godot --path . res://scenes/tests/store_assets.tscn
 # Antes de subir: firma, 64 bits, 16 KB, permisos y contenido del APK o del AAB
-bash scripts/verify_play_bundle.sh build/android/invadeio.aab build/android/invadeio.apk
+BUNDLETOOL_JAR=/path/to/bundletool.jar bash scripts/verify_play_bundle.sh build/android/invadeio.aab build/android/invadeio.apk
 ```
 
 Estos comprobadores usan guardados separados y devuelven error si falla una condición. Las capturas

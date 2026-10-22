@@ -213,8 +213,9 @@ Los `version/code` ya usados no se pueden repetir nunca en la misma app.
 # Un APK suelto: target/min SDK, arquitecturas y permisos
 bash scripts/verify_play_bundle.sh build/android/invadeio.apk
 
-# El paquete de Play: firma, 16 KB, permisos, contenido y sin código de test
-bash scripts/verify_play_bundle.sh build/android/invadeio.aab build/android/invadeio.apk
+# El paquete de Play: firma, 16 KB, permisos, contenido y sin código de test.
+# Requiere Java y bundletool; el flujo de GitHub configura BUNDLETOOL_JAR automáticamente.
+BUNDLETOOL_JAR=/path/to/bundletool.jar bash scripts/verify_play_bundle.sh build/android/invadeio.aab build/android/invadeio.apk
 ```
 
 El script falla con un mensaje concreto en cuanto algo no cumple, así que sirve igual en local y en

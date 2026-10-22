@@ -3,12 +3,12 @@
 # Comprueba un paquete de Google Play sin Android Studio y sin publicarlo:
 # firma, 64 bits, alineación de 16 KB, permisos, contenido y que no viaja código de test.
 #
-#   bash scripts/verify_play_bundle.sh build/android/invadeio.aab                # paquete de Play
+#   BUNDLETOOL_JAR=/path/to/bundletool.jar bash scripts/verify_play_bundle.sh build/android/invadeio.aab
 #   bash scripts/verify_play_bundle.sh build/android/invadeio.apk                # APK suelto
 #   bash scripts/verify_play_bundle.sh build/android/invadeio.aab build/.../invadeio.apk
 #
-# El AAB comprueba además la firma (necesita un JDK) y la alineación de 16 KB de la
-# librería nativa. El APK se comprueba con aapt2 (target/min SDK, arquitecturas, permisos).
+# El AAB comprueba además la firma (necesita un JDK), sus permisos y la alineación de
+# 16 KB de la librería nativa (bundletool). El APK se comprueba con aapt2.
 # Sale con error (1) en la primera comprobación que falle, así que sirve de puerta en CI.
 
 set -euo pipefail
@@ -40,7 +40,7 @@ find_build_tool() {
 	ls -1 "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/nonexistent}}"/build-tools/*/"$1" 2>/dev/null | sort -V | tail -1
 }
 
-# bundletool (jar) es opcional: si está, se comprueba la alineación que pide el paquete
+# bundletool (jar) decodifica el manifiesto binario y comprueba la alineación del paquete.
 JAVA="$(command -v java 2>/dev/null || true)"
 BUNDLETOOL="${BUNDLETOOL_JAR:-}"
 [ -f "$BUNDLETOOL" ] || BUNDLETOOL=""
@@ -173,8 +173,7 @@ if [ -n "$BUNDLE" ]; then
 	MANIFEST="$TMP/AndroidManifest.xml"
 	unzip -p "$BUNDLE" "base/manifest/AndroidManifest.xml" >"$MANIFEST" 2>/dev/null || true
 	if [ -s "$MANIFEST" ]; then
-		# aapt2 compila el manifiesto con el pool de cadenas en UTF-8 (y algunos con UTF-16):
-		# se leen las dos codificaciones, o ninguna comprobación vería el identificador ni los permisos
+		# El manifiesto binario conserva el identificador y el indicador debuggable en UTF-8 o UTF-16.
 		STRINGS="$(strings "$MANIFEST" 2>/dev/null || true)
 $(strings -el "$MANIFEST" 2>/dev/null || true)"
 		if grep -qF "$PACKAGE" <<<"$STRINGS"; then
@@ -182,12 +181,39 @@ $(strings -el "$MANIFEST" 2>/dev/null || true)"
 		else
 			bad "el manifiesto no declara $PACKAGE"
 		fi
-		PERMS="$(grep -oE "android\.permission\.[A-Z_]+" <<<"$STRINGS" | sort -u || true)"
-		EXPECTED_PERMS=$'android.permission.ACCESS_NETWORK_STATE\nandroid.permission.INTERNET\nandroid.permission.VIBRATE'
-		if [ "$PERMS" = "$EXPECTED_PERMS" ]; then
-			ok "permisos esperados (VIBRATE, INTERNET, ACCESS_NETWORK_STATE)"
+		if [ -z "$BUNDLETOOL" ] || [ -z "$JAVA" ]; then
+			bad "se necesita bundletool y Java para validar los permisos del AAB"
 		else
-			bad "permisos inesperados en el AAB: ${PERMS:-ninguno}"
+			MANIFEST_XML="$TMP/manifest.xml"
+			if "$JAVA" -jar "$BUNDLETOOL" dump manifest --bundle="$BUNDLE" --module=base >"$MANIFEST_XML" 2>"$TMP/bundletool.log"; then
+				if python3 - "$MANIFEST_XML" >"$TMP/permissions.txt" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+android = "{http://schemas.android.com/apk/res/android}"
+permissions = sorted({
+	child.attrib[android + "name"]
+	for child in root
+	if child.tag.rsplit("}", 1)[-1].startswith("uses-permission")
+	and android + "name" in child.attrib
+})
+print("\n".join(permissions))
+PY
+				then
+					PERMS="$(cat "$TMP/permissions.txt")"
+					EXPECTED_PERMS=$'android.permission.ACCESS_NETWORK_STATE\nandroid.permission.INTERNET\nandroid.permission.VIBRATE'
+					if [ "$PERMS" = "$EXPECTED_PERMS" ]; then
+						ok "permisos esperados (VIBRATE, INTERNET, ACCESS_NETWORK_STATE)"
+					else
+						bad "permisos inesperados en el AAB: ${PERMS:-ninguno}"
+					fi
+				else
+					bad "no se pudo decodificar el manifiesto del AAB para validar permisos"
+				fi
+			else
+				bad "bundletool no pudo leer el manifiesto del AAB"
+			fi
 		fi
 		if grep -qF "debuggable" <<<"$STRINGS"; then
 			bad "el paquete está marcado como depurable: Play no acepta builds de depuración"
