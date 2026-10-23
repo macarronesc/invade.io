@@ -55,6 +55,7 @@ func _ready() -> void:
 		if continents[i]["id"] == GameManager.current_continent:
 			current_continent_index = i
 	_build()
+	EventBus.settings_changed.connect(_fit_daily_card)
 	_refresh_display()
 
 func _build() -> void:
@@ -199,6 +200,16 @@ func _apply_layout() -> void:
 	_side.size_flags_vertical = Control.SIZE_EXPAND_FILL if wide else Control.SIZE_FILL
 	# En vertical la ficha mide lo que su contenido (sin scroll), como siempre
 	_side.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if wide else ScrollContainer.SCROLL_MODE_DISABLED
+	call_deferred("_fit_daily_card")
+
+func _fit_daily_card() -> void:
+	if not is_instance_valid(btn_daily) or not btn_daily.is_inside_tree():
+		return
+	var row := btn_daily.get_child(0) as Control
+	if row.get_child_count() < 2:
+		return
+	var text_column := row.get_child(1) as Control
+	btn_daily.custom_minimum_size.y = maxf(176.0, maxf(80.0, text_column.get_combined_minimum_size().y) + 36.0)
 
 static func _conquest_subtitle() -> String:
 	var index := GameManager.conquest_next

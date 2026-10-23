@@ -59,6 +59,7 @@ static func get_level_data(level_id: String, landscape: bool = false) -> Diction
 		var built: Dictionary = LevelGenerator.build(def, get_difficulty(level_id), landscape)
 		_localize(built, def)
 		CampaignRules.apply(built)
+		built.erase("_route_positions")
 		if _built.size() >= MAX_CACHED_LEVELS:
 			_built.erase(_built.keys()[0])
 		_built[cache_key] = built

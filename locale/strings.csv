@@ -352,7 +352,7 @@ accessible_level_name,Nivel %d: %s,Level %d: %s,Nível %d: %s,Niveau %d : %s,Le
 accessible_level_stars,%d estrellas,%d stars,%d estrelas,%d étoiles,%d Sterne,%d stelle,%d звезды,%d yıldızlar,%d نجوم,%d सितारे,%d bintang,%d sao,%d星星,%d 星,%d 별
 accessible_under_siege,Bajo asedio,Under siege,Sob cerco,En état de siège,Unter Belagerung,Sotto assedio,В осаде,Kuşatma altında,تحت الحصار,घेराबंदी में,Dikepung,Bị bao vây,被围攻,包囲下,포위 공격 중
 accessibility_price,%d de oro,%d gold,%d ouro,%d or,%d Gold,%d oro,%d золото,%d altın,%d الذهب,%d सोना,%d emas,%d vàng,%d金币,%d ゴールド,%d 골드
-section_data,Datos,Data,Dados,Données,Daten,Dati,Данные,Veri,بيانات,डेटا,Data,dữ liệu,数据,データ,데이터
+section_data,Datos,Data,Dados,Données,Daten,Dati,Данные,Veri,بيانات,डेटा,Data,dữ liệu,数据,データ,데이터
 section_feedback,Respuesta háptica,Haptic feedback,Resposta tátil,Retour haptique,Haptisches Feedback,Feedback aptico,Тактильная отдача,Dokunsal geri bildirim,الاستجابة اللمسية,स्पर्श प्रतिक्रिया,Umpan balik getaran,Phản hồi rung,触觉反馈,触覚フィードバック,햅틱 피드백
 section_game,Juego,Game,Jogo,Jeu,Spiel,Gioco,Игра,Oyun,لعبة,खेल,Permainan,Trò chơi,游戏,ゲーム,게임
 section_sound,Sonido,Sound,Som,Son,Klang,Suono,Звук,Ses,صوت,आवाज़,Suara,Âm thanh,声音,音,소리

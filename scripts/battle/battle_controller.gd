@@ -83,6 +83,7 @@ var _remate_used := false
 @onready var camera: Camera2D = get_node_or_null("Camera2D")
 ## Tablero del nivel en coordenadas de mundo (vertical u horizontal)
 var map_rect: Rect2 = LevelGenerator.MAP_RECT
+var _fit_zoom := 1.0
 
 func _notification(what: int) -> void:
 	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED]:
@@ -119,6 +120,7 @@ func _fit_camera() -> void:
 	if view.x <= 0.0 or view.y <= 0.0 or map_rect.size.x <= 0.0 or map_rect.size.y <= 0.0:
 		return
 	var z := minf(view.x / map_rect.size.x, view.y / map_rect.size.y)
+	_fit_zoom = z
 	camera.zoom = Vector2(z, z)
 	camera.position = map_rect.get_center()
 
@@ -146,7 +148,8 @@ func load_level(p_level_id: String) -> void:
 	# El desafío diario se compara entre jugadores: se juega sin mejoras de combate
 	GameManager.normalized_battle = DailyRewards.is_challenge(level_id)
 	# El tablero se monta en la orientación de la pantalla al entrar; si luego gira, la cámara lo reencaja
-	level_data = LevelDatabase.get_level_data(level_id, is_inside_tree() and _is_landscape())
+	var landscape := is_inside_tree() and _is_landscape() and not DailyRewards.is_challenge(level_id)
+	level_data = LevelDatabase.get_level_data(level_id, landscape)
 	map_rect = level_data.get("map_rect", LevelGenerator.MAP_RECT)
 	target_time = level_data.get("target_time", 45.0)
 
@@ -300,7 +303,9 @@ func shake_camera(amount: float) -> void:
 
 func adjust_camera_zoom(step: float) -> void:
 	if camera:
-		camera.zoom = Vector2.ONE * clampf(camera.zoom.x + step, 0.75, 2.0)
+		var minimum := _fit_zoom * 0.75
+		var maximum := maxf(_fit_zoom, minf(2.0, _fit_zoom * 2.0))
+		camera.zoom = Vector2.ONE * clampf(camera.zoom.x + step * _fit_zoom, minimum, maximum)
 
 func center_camera_on(base: BaseNode) -> void:
 	if camera and is_instance_valid(base):

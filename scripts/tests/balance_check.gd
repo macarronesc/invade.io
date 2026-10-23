@@ -315,12 +315,14 @@ func _check_ui() -> void:
 			hud._on_battle_lost()
 			await _snapshot("defeat_%s_%s" % [lang, str(light)])
 			_require(hud.btn_defeat_upgrade.visible and hud.btn_defeat_upgrade.theme_type_variation == "Button", "Compra útil, secundaria, visible tras perder")
-			_require(hud.defeat_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y, "Derrota cabe en pantalla")
+			_require(hud.defeat_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y,
+				"Derrota cabe en pantalla: %s / %s" % [hud.defeat_panel.get_global_rect(), get_viewport().get_visible_rect()])
 			hud.defeat_panel.hide()
 			hud.deploy_victory_modal({"stars": 3, "gold_earned": 170, "xp_before": 0, "xp": 60, "level_id": "europe_4"})
 			await _snapshot("victory_%s_%s" % [lang, str(light)])
 			_require(hud.btn_result_action.visible and hud.btn_result_action.theme_type_variation == "Button", "Mejorar y seguir visible, secundario, tras ganar")
-			_require(hud.victory_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y, "Victoria cabe en pantalla")
+			_require(hud.victory_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y,
+				"Victoria cabe en pantalla: %s / %s" % [hud.victory_panel.get_global_rect(), get_viewport().get_visible_rect()])
 			hud.deploy_victory_modal({"stars": 2, "gold_earned": 150, "is_daily_challenge": true,
 				"level_id": DailyRewards.challenge_id(DailyRewards.today())})
 			await _snapshot("daily_result_%s_%s" % [lang, str(light)])
@@ -331,7 +333,8 @@ func _check_ui() -> void:
 				"is_continent_conquest": true, "boss_gold": 150})
 			await _snapshot("boss_%s_%s" % [lang, str(light)])
 			_require(hud.btn_result_action.visible and hud.btn_equip_reward.visible, "Equipar el premio no queda oculto por la sugerencia de compra")
-			_require(hud.victory_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y, "Victoria de jefe con desbloqueos cabe en pantalla")
+			_require(hud.victory_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y,
+				"Victoria de jefe con desbloqueos cabe en pantalla: %s / %s" % [hud.victory_panel.get_global_rect(), get_viewport().get_visible_rect()])
 			hud.btn_equip_reward.pressed.emit()
 			_require(GameManager.cosmetics_equipped["map_theme"] == "theme_ocean", "Equipar premio desde el resultado funciona")
 			GameManager.experience = 0
@@ -436,6 +439,20 @@ func _check_wide_ui() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	battle.free()
+	var daily_id := DailyRewards.challenge_id(DailyRewards.today())
+	GameManager.play_level(daily_id)
+	var daily_battle: BattleController = load(UIThemeHelper.BATTLE_SCENE).instantiate()
+	add_child(daily_battle)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var canonical_daily := LevelDatabase.get_level_data(daily_id)
+	_require(daily_battle.level_data["map_rect"] == LevelGenerator.MAP_RECT,
+		"El desafío diario conserva el mismo tablero de simulación en apaisado")
+	_require(daily_battle.level_data["bases"].map(func(base): return base["pos"])
+		== canonical_daily["bases"].map(func(base): return base["pos"]),
+		"El desafío diario conserva las distancias comparables en apaisado")
+	daily_battle.free()
+	GameManager.play_level("europe_4")
 	_completed = true
 
 ## Pulsar los botones reales recorre victoria → compra → siguiente batalla

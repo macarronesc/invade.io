@@ -142,6 +142,9 @@ func test_ui_glyph_coverage() -> void:
 	assert_equals(empty_keys, [] as Array, "Todas las claves tienen texto en todos los idiomas")
 	assert_equals(bad_markers, [] as Array, "Los marcadores conservan tipo y orden en todos los idiomas")
 	assert_equals(missing.keys(), [] as Array, "Ningún texto visible acaba en cuadro vacío")
+	GameManager.set_language("hi")
+	assert_equals(LocaleStrings.text("section_data"), "डेटा", "La etiqueta hindi de Datos conserva su escritura")
+	GameManager.set_language("es")
 
 ## Todo texto que puede acabar en pantalla: literales de los scripts que se exportan,
 ## escenas, nombres de ciudades del atlas y el texto compartido del desafío diario.
@@ -1814,11 +1817,11 @@ func test_confetti_and_star_revelation() -> void:
 	assert_true(hud.confetti_pieces[0]["pos"].y > initial_y or hud.confetti_pieces[0]["vel"].y != 0.0, "Piezas de confeti actualizan su posición y física en _process")
 
 	# 3. Verificar contenedor de estrellas y labels individuales
-	var stars_container = hud.get_node_or_null("%StarsContainer")
+	var stars_container = hud.victory_panel.find_child("StarsContainer", true, false)
 	assert_true(stars_container != null, "StarsContainer presente en VictoryPanel")
-	var star1 = hud.get_node_or_null("%Star1")
-	var star2 = hud.get_node_or_null("%Star2")
-	var star3 = hud.get_node_or_null("%Star3")
+	var star1: Label = hud.star_1
+	var star2: Label = hud.star_2
+	var star3: Label = hud.star_3
 	assert_true(star1 != null and star2 != null and star3 != null, "Las 3 estrellas individuales (Star1, Star2, Star3) existen en VictoryPanel")
 
 	# 4. Probar configuración con 1 estrella
@@ -1843,7 +1846,7 @@ func test_confetti_and_star_revelation() -> void:
 	# 7. Probar despliegue completo de modal con conquista continental
 	hud.deploy_victory_modal({"stars": 3, "gold_earned": 150, "is_continent_conquest": true})
 	assert_true(hud.victory_panel.visible, "VictoryPanel es visible tras deploy_victory_modal()")
-	var title = hud.get_node_or_null("%VictoryTitle")
+	var title: Label = hud.victory_title
 	assert_true(title != null, "Label de título en VictoryPanel existe")
 	assert_equals(title.text, "¡Continente conquistado!", "Título de continente conquistado al completar nivel 5")
 
@@ -2316,6 +2319,8 @@ func test_large_screen_layouts() -> void:
 		var mechanics := func(base): return [base.get("city", ""), base.get("faction"), base.get("troops"), base.get("tier"), base.get("type", ""), base.get("boss", false)]
 		assert_equals(wide["bases"].map(mechanics), tall["bases"].map(mechanics), "Mismas ciudades y mecánicas en ambas orientaciones: " + level_id)
 		assert_equals(wide["target_time"], tall["target_time"], "Mismo objetivo en ambas orientaciones: " + level_id)
+		if tall.has("sea_lanes") or wide.has("sea_lanes"):
+			assert_equals(wide.get("sea_lanes", []), tall.get("sea_lanes", []), "Mismas rutas de mar en ambas orientaciones: " + level_id)
 		assert_equals(wide["map_rect"], LevelGenerator.LANDSCAPE_MAP_RECT, "El nivel apaisado guarda su tablero: " + level_id)
 		var inside := true
 		var worst := INF
@@ -2343,6 +2348,11 @@ func test_large_screen_layouts() -> void:
 	assert_true(shown.x <= view.x + 0.5 and shown.y <= view.y + 0.5, "El tablero cabe en la vista")
 	assert_true(is_equal_approx(shown.x, view.x) or is_equal_approx(shown.y, view.y), "Y la aprovecha al máximo")
 	assert_equals(battle.camera.position, LevelGenerator.MAP_RECT.get_center(), "La cámara centra el tablero")
+	battle._fit_zoom = 0.5625
+	battle.camera.zoom = Vector2.ONE * battle._fit_zoom
+	battle.adjust_camera_zoom(-0.25)
+	assert_true(battle.camera.zoom.x < 0.5625,
+		"Alejar mantiene su sentido cuando una partida apaisada cabe dentro de una pantalla vertical")
 	remove_child(battle)
 	battle.free()
 
@@ -2379,11 +2389,19 @@ func test_large_screen_layouts() -> void:
 	UIThemeHelper.cap_page_width(margin)
 	assert_equals(margin.get_theme_constant("margin_left"), UIThemeHelper.PAGE_MARGIN, "En el móvil conserva su margen")
 	margin.free()
+	GameManager.set_setting("text_scale", 1.0)
 	var hud: BattleHUD = load("res://scenes/ui/battle_hud.tscn").instantiate()
 	add_child(hud)
 	hud.victory_panel.size = Vector2(900, 4000)
 	hud._fit_panel(hud.victory_panel)
-	assert_true(hud.victory_panel.size.y * hud.victory_panel.scale.y <= hud.get_viewport().get_visible_rect().size.y, "La ficha de victoria cabe entera")
+	var modal_scroll := hud.victory_panel.find_child("PanelScroll", true, false) as ScrollContainer
+	assert_true(is_instance_valid(modal_scroll), "La ficha de victoria puede desplazarse sin reducir el texto")
+	if is_instance_valid(modal_scroll):
+		(modal_scroll.get_child(0) as Control).custom_minimum_size.y = 4000
+	hud._fit_panel(hud.victory_panel)
+	assert_true(hud.victory_panel.size.y <= hud.get_viewport().get_visible_rect().size.y - 48.0,
+		"La ficha se limita a la pantalla cuando su texto ocupa varias pantallas")
+	assert_equals(hud.victory_panel.scale, Vector2.ONE, "La ficha conserva su tamaño táctil y de texto")
 	var small_panel := Control.new()
 	small_panel.size = Vector2(100, 100)
 	hud._fit_panel(small_panel)
@@ -2391,6 +2409,7 @@ func test_large_screen_layouts() -> void:
 	small_panel.free()
 	remove_child(hud)
 	hud.free()
+	GameManager.set_setting("text_scale", 0.0)
 
 func test_play_tab_campaign_route_and_briefing() -> void:
 	print("\n-> Test: Jugar (Mapa del Continente, Ficha del Nivel y Accesos Directos)")
@@ -2624,12 +2643,15 @@ func test_accessible_battle_controls() -> void:
 	assert_equals(source.troops, 1, "Enviar desde el panel usa la misma regla de tropas que el gesto")
 	assert_true(hud._accessible_status.text.contains(target.base_name), "El resultado del envío se anuncia en el panel")
 	assert_true(not battle.active_troops.is_empty(), "El panel crea una orden de tropas real")
+	var source_button: Button = hud._accessible_source_buttons[source]
+	assert_true(source_button.accessibility_description.contains("1"), "El resumen del origen se actualiza al enviar")
 	(hud._accessible_source_buttons[source] as Button).set_pressed(true)
 	assert_true(hud._accessible_send_button.disabled, "Enviar se desactiva si no queda tropa disponible")
 	assert_equals(hud._accessible_status.text, LocaleStrings.text("accessible_no_troops"), "La falta de tropas se anuncia claramente")
 	var troop: Troop = battle.active_troops[0]
 	hud._retreat_accessible_order(troop)
 	assert_true(troop.is_retreating, "La orden accesible de retirada invierte el mismo flujo de tropas")
+	assert_true(source_button.accessibility_description.contains("40"), "El resumen del origen se actualiza al retirar una orden")
 	var camera := battle.get_node_or_null("Camera2D") as Camera2D
 	assert_true(is_instance_valid(camera), "La escena de batalla contiene cámara para los controles de zoom")
 	battle.adjust_camera_zoom(0.25)
@@ -3432,7 +3454,7 @@ func test_locale_ui_fit() -> void:
 		var play = menu._content.get_child(0)
 		for label in play.btn_daily.find_children("*", "Label", true, false):
 			assert_true(play.btn_daily.get_global_rect().grow(8).encloses(label.get_global_rect()),
-				"La tarjeta diaria contiene su texto (%s)" % code)
+				"La tarjeta diaria contiene su texto (%s): '%s' en %s, tarjeta %s" % [code, label.text, label.get_global_rect(), play.btn_daily.get_global_rect()])
 		menu._open_settings()
 		await get_tree().process_frame
 		var settings = menu._utility_panel

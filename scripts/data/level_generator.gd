@@ -84,6 +84,13 @@ static func build(def: Dictionary, difficulty: float, landscape: bool = false) -
 			selection_bases[i]["pos"] = selection_proj.project(selection_bases[i]["lonlat"])
 		relax_positions(selection_bases, PLAY_RECT)
 	var extras := _pick_extra_neutrals(selection_proj, selection_bases, maxi(0, extra_count), difficulty, rng, PLAY_RECT)
+	var route_positions: Array[Vector2] = []
+	if landscape:
+		# Sea-lane rules use the same canonical distances even though landscape pins are repacked.
+		for base in selection_bases:
+			route_positions.append(base["pos"])
+		for extra in extras:
+			route_positions.append(extra["pos"])
 	for extra in extras:
 		extra["pos"] = proj.project(extra["lonlat"])
 	bases.append_array(extras)
@@ -95,6 +102,8 @@ static func build(def: Dictionary, difficulty: float, landscape: bool = false) -
 	level["target_time"] = def.get("target_time", 45) + extras.size() * EXTRA_TARGET_TIME
 	level["geo"] = project_geography(proj, zones["clip"])
 	level["map_rect"] = zones["map"]
+	if landscape:
+		level["_route_positions"] = route_positions
 	return level
 
 ## Definición del desafío de un día: la misma para todos los jugadores ese día.

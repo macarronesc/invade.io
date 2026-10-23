@@ -49,6 +49,9 @@ const MIN_LABEL_SHARE := 0.08
 @onready var reward_card: Control = %RewardCard
 @onready var gold_chip: Control = %GoldChip
 @onready var cities_chip: Control = %CitiesChip
+@onready var gold_icon: TextureRect = %GoldIcon
+@onready var time_icon: TextureRect = %TimeIcon
+@onready var cities_icon: TextureRect = %CitiesIcon
 @onready var confetti_overlay: Control = %ConfettiOverlay
 @onready var btn_next_level: Button = %BtnNextLevel
 @onready var btn_victory_map: Button = %BtnVictoryMap
@@ -121,6 +124,7 @@ func _cleanup_time_scale() -> void:
 		battle_controller.reset_time_scale()
 
 func _ready() -> void:
+	_wrap_modal_contents()
 	_apply_texts()
 	UIThemeHelper.apply_locale_direction_children(self)
 	_apply_safe_area()
@@ -128,7 +132,7 @@ func _ready() -> void:
 	for entry in [[btn_pause, "pause"], [btn_pause_sound, "sound"], [btn_pause_music, "music"], [btn_resume, "play"],
 			[btn_retry, "retry"], [btn_next_level, "play"], [btn_how_to_play, "help"], [btn_settings, "gear"], [btn_share, "share"]]:
 		entry[0].icon = Icons.texture(entry[1], 44)
-	for entry in [[%GoldIcon, "coin", 52], [%TimeIcon, "clock", 40], [%CitiesIcon, "globe", 40]]:
+	for entry in [[gold_icon, "coin", 52], [time_icon, "clock", 40], [cities_icon, "globe", 40]]:
 		entry[0].texture = Icons.texture(entry[1], entry[2])
 	_build_faction_bars()
 	for panel in [victory_panel, defeat_panel, pause_panel]:
@@ -169,6 +173,22 @@ func _ready() -> void:
 	btn_equip_reward.pressed.connect(_on_equip_reward)
 	_refresh_audio_buttons()
 
+func _wrap_modal_contents() -> void:
+	for panel in [victory_panel, defeat_panel, pause_panel]:
+		var content := panel.get_node_or_null("VBox") as Control
+		if content == null:
+			continue
+		panel.remove_child(content)
+		var scroll := ScrollContainer.new()
+		scroll.name = "PanelScroll"
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		panel.add_child(scroll)
+		scroll.owner = panel.owner
+		scroll.add_child(content)
+
 ## Textos estáticos de capas y botones en el idioma actual
 func _apply_texts() -> void:
 	_last_dominance_accessibility = ""
@@ -176,13 +196,13 @@ func _apply_texts() -> void:
 		_faction_labels[faction].accessibility_name = GameManager.faction_name(faction)
 	btn_share.text = LocaleStrings.text("share")
 	btn_victory_map.text = LocaleStrings.text("exit")
-	defeat_panel.get_node("VBox/Title").text = LocaleStrings.text("defeat_title")
+	(defeat_panel.find_child("Title", true, false) as Label).text = LocaleStrings.text("defeat_title")
 	UIThemeHelper.set_icon(btn_claim_missions, "coin", 40)
 	defeat_tip.text = LocaleStrings.text("defeat_sub")
 	btn_retry.text = LocaleStrings.text("retry")
 	btn_defeat_upgrade.text = LocaleStrings.text("improve")
 	btn_defeat_map.text = LocaleStrings.text("exit")
-	pause_panel.get_node("VBox/Title").text = LocaleStrings.text("pause")
+	(pause_panel.find_child("Title", true, false) as Label).text = LocaleStrings.text("pause")
 	pause_hint.text = LocaleStrings.text("pause_auto_hint")
 	btn_resume.text = LocaleStrings.text("resume")
 	btn_pause_retry.text = LocaleStrings.text("restart_battle")
@@ -227,8 +247,8 @@ func _refresh_palette() -> void:
 		_faction_bars[faction].color = GameManager.faction_color(faction)
 	victory_reward_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
 	stat_cities_value.add_theme_color_override("font_color", UIThemeHelper.colors.primary)
-	%TimeIcon.modulate = UIThemeHelper.colors.muted
-	%CitiesIcon.modulate = UIThemeHelper.colors.primary
+	time_icon.modulate = UIThemeHelper.colors.muted
+	cities_icon.modulate = UIThemeHelper.colors.primary
 	var reward_box := UIThemeHelper.box(Color.TRANSPARENT, 24, 20)
 	reward_box.set_border_width_all(3)
 	reward_box.border_color = Color(UIThemeHelper.colors.gold, 0.6)
@@ -236,7 +256,7 @@ func _refresh_palette() -> void:
 	medal_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
 	unlock_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
 	xp_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
-	defeat_panel.get_node("VBox/Title").add_theme_color_override("font_color", UIThemeHelper.colors.danger)
+	(defeat_panel.find_child("Title", true, false) as Label).add_theme_color_override("font_color", UIThemeHelper.colors.danger)
 	defeat_xp_label.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
 	for star in [star_1, star_2, star_3]:
 		star.add_theme_color_override("font_color", UIThemeHelper.colors.gold if star.text == "★" else UIThemeHelper.colors.line)
@@ -244,6 +264,7 @@ func _refresh_palette() -> void:
 	_update_objective()
 	if not _result.is_empty():
 		_refresh_result_title()
+	call_deferred("_fit_panels")
 
 func _refresh_audio_buttons() -> void:
 	btn_pause_sound.modulate.a = 0.4 if AudioManager.is_muted else 1.0
@@ -337,7 +358,11 @@ func _focus_accessible_control() -> void:
 		control = _accessible_source_buttons.values()[0] as Control
 	else:
 		control = _accessible_panel.find_child("BtnBack", true, false) as Control
-	control.grab_focus.call_deferred()
+	call_deferred("_grab_focus_if_available", control)
+
+func _grab_focus_if_available(control: Control) -> void:
+	if is_instance_valid(control) and control.is_inside_tree() and not control.is_queued_for_deletion():
+		control.grab_focus()
 
 func _close_accessible_controls() -> void:
 	if not is_instance_valid(_accessible_panel):
@@ -354,7 +379,7 @@ func _close_accessible_controls() -> void:
 	_accessible_target = null
 	pause_panel.visible = true
 	dim_overlay.visible = true
-	btn_accessible_controls.grab_focus.call_deferred()
+	call_deferred("_grab_focus_if_available", btn_accessible_controls)
 
 func _accessible_base_button(base: BaseNode) -> Button:
 	var description := base.accessibility_summary()
@@ -427,17 +452,22 @@ func _send_accessible_order() -> void:
 	GameManager.haptic(25)
 	_accessible_status.text = LocaleStrings.text("accessible_order_sent") % [sent_troops, target_name]
 	_accessible_sources.clear()
-	for base in _accessible_source_buttons:
-		if not is_instance_valid(base) or not is_instance_valid(_accessible_source_buttons[base]):
-			continue
-		var button: Button = _accessible_source_buttons[base]
-		button.set_pressed_no_signal(false)
-		var description: String = base.accessibility_summary()
-		button.text = "%s · %s" % [base.base_name, description]
-		button.accessibility_description = description
+	for button in _accessible_source_buttons.values():
+		(button as Button).set_pressed_no_signal(false)
+	_refresh_accessible_base_summaries()
 	_refresh_accessible_orders()
 	_accessible_send_button.disabled = true
 	_focus_accessible_control()
+
+func _refresh_accessible_base_summaries() -> void:
+	for buttons in [_accessible_source_buttons, _accessible_target_buttons]:
+		for base in buttons:
+			if not is_instance_valid(base) or not is_instance_valid(buttons[base]):
+				continue
+			var button: Button = buttons[base]
+			var description: String = base.accessibility_summary()
+			button.text = "%s · %s" % [base.base_name, description]
+			button.accessibility_description = description
 
 func _refresh_accessible_orders() -> void:
 	if not is_instance_valid(_accessible_orders_list):
@@ -469,6 +499,8 @@ func _retreat_accessible_order(troop: Troop) -> void:
 	AudioManager.play_troop_retreat()
 	GameManager.haptic(15)
 	EventBus.troops_retreated.emit(GameManager.Faction.PLAYER)
+	_refresh_accessible_base_summaries()
+	_update_accessible_send_state()
 	_accessible_status.text = LocaleStrings.text("accessible_retreat_done")
 	_refresh_accessible_orders()
 	_focus_accessible_control()
@@ -499,7 +531,7 @@ func _open_settings(accessibility: bool = false) -> void:
 					base.label_name.text = base.base_name
 				base.refresh_accessible_labels()
 		if is_instance_valid(return_focus):
-			return_focus.grab_focus.call_deferred())
+			call_deferred("_grab_focus_if_available", return_focus))
 	add_child(_utility_panel)
 	UIThemeHelper.apply_locale_direction(_utility_panel)
 
@@ -525,19 +557,22 @@ func _apply_safe_area() -> void:
 	UIThemeHelper.apply_safe_area_top(top_bar)
 	UIThemeHelper.apply_safe_area_horizontal(top_bar)
 
-## Las fichas largas (victoria) se reducen para caber enteras en pantallas apaisadas
+## Result panels scroll when their text no longer fits; never shrink their text or touch targets.
 func _fit_panel(panel: Control) -> void:
-	var room := get_viewport().get_visible_rect().size - Vector2(48, 48)
-	var s := minf(1.0, minf(room.x / maxf(panel.size.x, 1.0), room.y / maxf(panel.size.y, 1.0)))
-	var target := Vector2(s, s)
-	panel.pivot_offset = panel.size * 0.5
-	panel.set_meta("_modal_target_scale", target)
-	var tween = panel.get_meta("_modal_tween") if panel.has_meta("_modal_tween") else null
-	if panel.visible and tween is Tween and tween.is_running():
-		if panel.get_meta("_modal_animation", "") == "in":
-			UIThemeHelper.animate_modal_pop_in(panel)
-		return # Restart an opening at the new fit; let a closing finish normally.
-	panel.scale = target
+	var room := (get_viewport().get_visible_rect().size - Vector2(48, 48)).max(Vector2.ONE)
+	var target := panel.size.min(room)
+	var scroll := panel.find_child("PanelScroll", true, false) as ScrollContainer
+	if scroll and scroll.get_child_count() > 0:
+		var content := scroll.get_child(0) as Control
+		var frame_height := maxf(0.0, panel.get_combined_minimum_size().y - scroll.get_combined_minimum_size().y)
+		var content_size := content.get_combined_minimum_size()
+		target = Vector2(minf(maxf(panel.custom_minimum_size.x, content_size.x), room.x),
+			minf(content_size.y + frame_height, room.y))
+	if not panel.size.is_equal_approx(target):
+		panel.size = target
+	panel.position = (get_viewport().get_visible_rect().size - target) * 0.5
+	panel.pivot_offset = target * 0.5
+	panel.scale = Vector2.ONE
 
 func _on_battle_started(level_id: String) -> void:
 	var data: Dictionary = battle_controller.level_data if battle_controller and battle_controller.level_id == level_id else LevelDatabase.get_level_data(level_id)
@@ -686,7 +721,6 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 	_result = stats.duplicate(true)
 	defeat_panel.visible = false
 	dim_overlay.visible = true
-	UIThemeHelper.animate_modal_pop_in(victory_panel)
 	var daily: bool = stats.get("is_daily_challenge", false)
 	var conquest: bool = stats.get("is_conquest", false)
 	var invasion: bool = stats.get("is_invasion", false)
@@ -731,10 +765,12 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 	medal_label.visible = stats.get("new_medal", false)
 	_show_progress(stats)
 
+	_fit_panel(victory_panel)
+	UIThemeHelper.animate_modal_pop_in(victory_panel)
 	trigger_confetti()
 	animate_stars(stats.get("stars", 1))
 	_pop_gold(stats.get("stars", 1))
-	(btn_next_level if btn_next_level.visible else btn_victory_map).grab_focus.call_deferred()
+	call_deferred("_grab_focus_if_available", btn_next_level if btn_next_level.visible else btn_victory_map)
 
 ## El oro ganado aparece de un salto justo después de la última estrella
 func _pop_gold(stars_count: int) -> void:
@@ -939,8 +975,9 @@ func _on_battle_lost() -> void:
 	if btn_defeat_upgrade.visible:
 		UIThemeHelper.set_icon(btn_defeat_upgrade, "bolt", 36)
 		btn_defeat_upgrade.text = LocaleStrings.text("upgrade_named") % LocaleStrings.text("upg_" + upgrade)
+	_fit_panel(defeat_panel)
 	UIThemeHelper.animate_modal_pop_in(defeat_panel)
-	btn_retry.grab_focus.call_deferred()
+	call_deferred("_grab_focus_if_available", btn_retry)
 
 # =========================================================================
 # Pausa, botón "atrás" de Android y tarjetas de ayuda
@@ -980,9 +1017,10 @@ func _on_pause_pressed(automatic: bool = false) -> void:
 	_refresh_audio_buttons()
 	pause_hint.visible = automatic
 	dim_overlay.visible = true
+	_fit_panel(pause_panel)
 	UIThemeHelper.animate_modal_pop_in(pause_panel)
 	get_tree().paused = true
-	btn_resume.grab_focus.call_deferred()
+	call_deferred("_grab_focus_if_available", btn_resume)
 
 func _on_resume_pressed() -> void:
 	if not pause_panel.visible or not GameManager.application_active or is_instance_valid(_tip_panel) or is_instance_valid(_utility_panel):
@@ -995,7 +1033,7 @@ func _on_resume_pressed() -> void:
 			return
 		dim_overlay.visible = false
 		get_tree().paused = false
-		btn_pause.grab_focus.call_deferred()
+		call_deferred("_grab_focus_if_available", btn_pause)
 	)
 
 ## Tarjeta modal explicativa (pausa la batalla hasta que el jugador la cierra)
