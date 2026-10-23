@@ -103,7 +103,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_ipa
         run: |
           mkdir -p "$RUNNER_TEMP/ios-debug"
-          godot --headless --path . --export-debug "iOS" "$RUNNER_TEMP/ios-debug/invadeio.xcodeproj"
+          godot --headless --path . --export-debug "iOS Diagnostics" "$RUNNER_TEMP/ios-debug/invadeio.xcodeproj"
 
       - name: Compilar IPA Debug para diagnóstico
         if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_ipa
