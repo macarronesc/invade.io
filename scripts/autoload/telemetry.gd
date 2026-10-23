@@ -69,12 +69,11 @@ func _init_analytics() -> void:
 		return
 	if not is_instance_valid(Aptabase):
 		return
-	Aptabase.init(APTABASE_KEY, {
+	_analytics_ready = Aptabase.init(APTABASE_KEY, {
 		"app_version": _app_version(),
 		"is_debug": OS.is_debug_build(),
 		"flush_interval": 10.0,
 	})
-	_analytics_ready = true
 
 func _init_crashes() -> void:
 	if _crash_ready or not _crash_allowed() or SENTRY_DSN.is_empty():

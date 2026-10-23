@@ -24,6 +24,11 @@ Con las claves vacías el juego funciona igual y no envía nada. En tests headle
 `--no-telemetry` tampoco se inicializa nada. `--telemetry-debug` imprime los eventos por consola en
 una compilación de depuración.
 
+La IPA de GitHub Actions se compila como `Release`, por lo que los envíos correctos no se imprimen en
+esa compilación. Los fallos de transporte aparecen como avisos en la consola local de Godot/Xcode; no
+se adjuntan a Sentry (`attach_log = false`). La suite headless verifica el cliente contra un servidor
+HTTP local y no envía eventos ni claves reales a Aptabase.
+
 ## Eventos
 
 Todas las propiedades personalizadas son cadenas o números. No se envían nombres, correos, texto

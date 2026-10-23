@@ -22,10 +22,11 @@ func _ready() -> void:
 
 	await test_mobile_experience()
 	if "--mobile" in OS.get_cmdline_user_args():
-		test_settings_and_backups()
+		await test_settings_and_backups()
 	elif "--quick" in OS.get_cmdline_user_args():
 		test_packets_and_battle_feedback()
 		test_progression_overhaul()
+		test_confetti_geometry()
 		test_light_and_dark_mode()
 		test_new_ui_flows()
 		test_packet_combat_and_migration()
@@ -43,9 +44,10 @@ func _ready() -> void:
 		test_play_tab_campaign_route_and_briefing()
 		test_invasion_mode()
 		test_language_system()
-		test_locale_ui_fit()
+		await test_locale_ui_fit()
 	else:
-		run_all_tests()
+		await run_all_tests()
+	await test_aptabase_http_delivery()
 	# Vaciar los queue_free de las páginas reconstruidas antes de cerrar el proceso.
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -219,6 +221,7 @@ func run_all_tests() -> void:
 	test_ai_archetypes_decision_making()
 	test_slow_motion_and_time_scale_safety()
 	test_confetti_and_star_revelation()
+	test_confetti_geometry()
 	test_audio_fanfares_and_continental_conquest()
 	test_bezier_curves_and_marching_dots()
 	test_slice_gesture_and_troop_retreat()
@@ -241,13 +244,13 @@ func run_all_tests() -> void:
 	test_achievements_system()
 	test_daily_challenge_levels()
 	test_language_system()
-	test_locale_ui_fit()
+	await test_locale_ui_fit()
 	test_conquest_mode()
 	test_atlas_and_first_levels()
 	test_cosmetics_shop()
 	test_review_regressions()
 	test_daily_missions_xp_and_share()
-	test_settings_and_backups()
+	await test_settings_and_backups()
 	test_continent_mechanics()
 	test_invasion_mode()
 	test_cleanup_regressions()
@@ -455,6 +458,8 @@ func test_mobile_experience() -> void:
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets móviles se pueden leer")
 	assert_true(presets.get_value("preset.1.options", "permissions/vibrate", false), "Android exporta el permiso de vibración sin pedir permisos de usuario")
 	assert_true(presets.get_value("preset.0.options", "plugins/BackupFilePicker", false), "iOS habilita el selector nativo de copias")
+	assert_equals(presets.get_value("preset.0.options", "application/short_version", ""),
+		str(ProjectSettings.get_setting("application/config/version", "0.2.0")), "La versión de iOS coincide con la versión reportada por analítica")
 	var picker_plugin := ConfigFile.new()
 	assert_equals(picker_plugin.load("res://ios/plugins/backup_file_picker/BackupFilePicker.gdip.in"), OK, "La configuración del selector iOS se puede leer")
 
@@ -1828,6 +1833,11 @@ func test_confetti_and_star_revelation() -> void:
 
 	remove_child(hud)
 	hud.free()
+
+func test_confetti_geometry() -> void:
+	print("\n-> Test: Geometría no degenerada del confeti")
+	var half := BattleHUD._confetti_half_size(Vector2(12, 8), PI * 0.5)
+	assert_true(4.0 * half.x * half.y > 1.0, "El confeti de canto conserva área y no falla al triangular")
 
 func test_audio_fanfares_and_continental_conquest() -> void:
 	print("\n-> Test: Fanfarrias Triunfales, Conquista Continental y Sonidos Secuenciales de Estrellas")
@@ -4213,3 +4223,103 @@ func test_telemetry_schema_and_privacy() -> void:
 	DirAccess.remove_absolute(GameManager.save_path + ".backup")
 	GameManager.reset_save()
 	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Reiniciar progreso conserva las opciones de privacidad")
+
+func test_aptabase_http_delivery() -> void:
+	print("\n-> Test: Envío HTTP de Aptabase contra servidor local")
+	Aptabase.disable()
+	var server := TCPServer.new()
+	var listen_error := server.listen(0, "127.0.0.1")
+	assert_equals(listen_error, OK, "El servidor HTTP local de prueba escucha en loopback")
+	if listen_error != OK:
+		return
+
+	var initialized := Aptabase.init("A-SH-CI", {
+		"base_url": "http://127.0.0.1:%d" % server.get_local_port(),
+		"app_version": "test",
+		"is_debug": false,
+		"flush_interval": 0.5,
+		"timeout": 10.0,
+	})
+	assert_true(initialized, "Aptabase confirma la inicialización con una clave de prueba")
+	if not initialized:
+		server.stop()
+		return
+
+	Aptabase.track("ci_smoke", {"flag": 1})
+	var request: Dictionary = await _receive_mock_aptabase_request(server)
+	assert_true(not request.is_empty(), "Aptabase envía un lote al servidor local")
+	if request.is_empty():
+		Aptabase.disable()
+		server.stop()
+		return
+
+	var headers: String = str(request["headers"])
+	assert_true(headers.begins_with("POST /api/v0/events "), "Aptabase usa la ruta de eventos")
+	assert_true(headers.to_lower().contains("app-key: a-sh-ci"), "Aptabase envía solo la clave de prueba")
+	assert_true(headers.to_lower().contains("content-type: application/json"), "Aptabase declara el cuerpo JSON")
+	var batch: Variant = JSON.parse_string(str(request["body"]))
+	assert_true(batch is Array and batch.size() == 1, "El cuerpo contiene un lote JSON de un evento")
+	if batch is Array and batch.size() == 1:
+		var event: Dictionary = batch[0]
+		assert_equals(event.get("eventName", ""), "ci_smoke", "El nombre del evento llega intacto")
+		var props: Dictionary = event.get("props", {})
+		assert_equals(props.get("flag", 0), 1, "Las propiedades del evento llegan intactas")
+	assert_equals(int(request.get("response_error", ERR_CANT_CONNECT)), OK, "El servidor local acepta la petición HTTP")
+
+	for _frame in 720:
+		if not Aptabase._request_in_flight:
+			break
+		await get_tree().process_frame
+	assert_true(not Aptabase._request_in_flight, "Aptabase termina la petición tras recibir HTTP 200")
+	assert_true(Aptabase._event_queue.is_empty(), "Aptabase elimina de la cola el lote aceptado")
+	var peer: StreamPeerTCP = request.get("peer")
+	if peer != null:
+		peer.disconnect_from_host()
+	Aptabase.disable()
+	server.stop()
+
+func _receive_mock_aptabase_request(server: TCPServer) -> Dictionary:
+	var peer: StreamPeerTCP
+	for _frame in 720:
+		if server.is_connection_available():
+			peer = server.take_connection()
+			break
+		await get_tree().process_frame
+	if peer == null:
+		return {}
+
+	var raw := PackedByteArray()
+	var headers := ""
+	var body := ""
+	var content_length := -1
+	var complete := false
+	for _frame in 720:
+		peer.poll()
+		if peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+			break
+		var available := peer.get_available_bytes()
+		if available > 0:
+			var received: Array = peer.get_partial_data(available)
+			if received[0] == OK:
+				raw.append_array(received[1])
+		var request_text := raw.get_string_from_utf8()
+		var header_end := request_text.find("\r\n\r\n")
+		if header_end >= 0:
+			headers = request_text.substr(0, header_end)
+			for line in headers.split("\r\n"):
+				if line.to_lower().begins_with("content-length:"):
+					content_length = int(line.get_slice(":", 1).strip_edges())
+					break
+			if content_length >= 0:
+				var body_bytes := raw.slice(header_end + 4)
+				if body_bytes.size() >= content_length:
+					body = body_bytes.slice(0, content_length).get_string_from_utf8()
+					complete = true
+					break
+		await get_tree().process_frame
+	if not complete:
+		peer.disconnect_from_host()
+		return {}
+
+	var response := "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+	return {"headers": headers, "body": body, "peer": peer, "response_error": peer.put_data(response.to_utf8_buffer())}
