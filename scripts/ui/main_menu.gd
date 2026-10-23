@@ -194,6 +194,7 @@ func _open_settings() -> void:
 	_utility_panel = load("res://scripts/ui/settings_panel.gd").new()
 	_utility_panel.closed.connect(_refresh_appearance)
 	_utility_panel.closed.connect(func(): Telemetry.screen_opened("menu"))
+	_utility_panel.closed.connect(func(): btn_settings.grab_focus.call_deferred())
 	add_child(_utility_panel)
 
 func _appearance_key() -> String:
@@ -209,6 +210,7 @@ func _refresh_appearance() -> void:
 	_logo_io.add_theme_color_override("font_color", UIThemeHelper.colors.primary)
 	coins_label.add_theme_color_override("font_color", UIThemeHelper.colors.text)
 	btn_settings.tooltip_text = LocaleStrings.text("settings")
+	btn_settings.accessibility_name = LocaleStrings.text("settings")
 	for id in TABS:
 		_nav[id].text = LocaleStrings.text(TABS[id]["title"])
 	if _content.get_child_count() > 0:

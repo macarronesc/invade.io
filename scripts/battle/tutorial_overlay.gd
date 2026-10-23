@@ -259,18 +259,22 @@ func _draw_hand() -> void:
 
 	# Mano (el dedo apunta al punto de contacto)
 	var font = UIThemeHelper.bold_font()
-	draw_string(font, pos + Vector2(-38, 72), "👆", HORIZONTAL_ALIGNMENT_LEFT, -1, 72, Color(1, 1, 1, alpha))
+	var font_scale := UIThemeHelper.font_scale()
+	draw_string(font, pos + Vector2(-38, 72) * font_scale, "👆", HORIZONTAL_ALIGNMENT_LEFT, -1, UIThemeHelper.scaled_font_size(72), Color(1, 1, 1, alpha))
 
 ## El aviso se centra bajo el tablero (vertical u horizontal).
 func _draw_banner() -> void:
 	var font = UIThemeHelper.bold_font()
-	var font_size = 34
-	var width = 880.0
-	var text_size = font.get_multiline_string_size(_hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size)
+	var font_size := UIThemeHelper.scaled_font_size(34)
 	var board: Rect2 = battle.map_rect
-	var size := Vector2(width + 72.0, text_size.y + 56.0)
-	# Vertical: franja libre bajo las bases. Apaisado: pegado al borde inferior.
-	var top := 1680.0 if board.size.y > board.size.x else board.end.y - size.y - 12.0
-	var rect = Rect2(Vector2(board.get_center().x - size.x * 0.5, top), size)
+	var width := minf(880.0, board.size.x - 120.0)
+	var text_size = font.get_multiline_string_size(_hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size)
+	var rect_size := Vector2(width + 72.0, text_size.y + 56.0)
+	var top := board.end.y - rect_size.y - 24.0
+	if board.size.y > board.size.x:
+		# Keep the portrait hint below the bases when it still fits at the chosen text size.
+		top = minf(1680.0, top)
+	top = clampf(top, board.position.y + 24.0, board.end.y - rect_size.y - 24.0)
+	var rect := Rect2(Vector2(board.get_center().x - rect_size.x * 0.5, top), rect_size)
 	draw_style_box(_banner_style, rect)
 	draw_multiline_string(font, rect.position + Vector2(36.0, 28.0 + font.get_ascent(font_size)), _hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size, -1, UIThemeHelper.colors.text)

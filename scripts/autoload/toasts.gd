@@ -13,13 +13,15 @@ const BATTLE_TOP_OFFSET := 260.0
 
 var _queue: Array[Dictionary] = []
 var _showing: bool = false
+var _font_scale := -1.0
 
 func _ready() -> void:
 	UIThemeHelper.install(get_tree(), GameManager.settings["light_mode"])
+	_font_scale = float(GameManager.settings["text_scale"])
 	var window := get_window()
 	UIThemeHelper.fit_canvas(window)
 	window.size_changed.connect(UIThemeHelper.fit_canvas.bind(window))
-	EventBus.settings_changed.connect(func(): UIThemeHelper.apply_palette(get_tree(), GameManager.settings["light_mode"]))
+	EventBus.settings_changed.connect(_on_settings_changed)
 	layer = 100
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	EventBus.achievement_unlocked.connect(_on_achievement_unlocked)
@@ -28,6 +30,13 @@ func _ready() -> void:
 	GameManager.save_status_changed.connect(_on_save_status_changed)
 	if GameManager.save_error != OK or GameManager.save_recovered:
 		_on_save_status_changed.call_deferred()
+
+func _on_settings_changed() -> void:
+	UIThemeHelper.apply_palette(get_tree(), GameManager.settings["light_mode"])
+	var scale := float(GameManager.settings["text_scale"])
+	if not is_equal_approx(scale, _font_scale):
+		_font_scale = scale
+		UIThemeHelper.apply_text_scale(get_tree().root)
 
 func _on_save_status_changed() -> void:
 	if GameManager.save_error != OK:
@@ -62,6 +71,9 @@ func _show_next() -> void:
 	var width := minf(WIDTH, view_w - UIThemeHelper.PAGE_MARGIN * 2)
 	var card := _build_card(data, width)
 	UIThemeHelper.apply_locale_direction(card)
+	card.accessibility_live = AccessibilityServer.LIVE_POLITE
+	card.accessibility_name = data["title"]
+	card.accessibility_description = data["body"]
 	add_child(card)
 	if DisplayServer.get_name() == "headless":
 		card.queue_free()

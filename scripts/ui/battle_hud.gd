@@ -68,6 +68,8 @@ const MIN_LABEL_SHARE := 0.08
 @onready var btn_pause_music: Button = %BtnPauseMusic
 @onready var btn_pause_retry: Button = %BtnPauseRetry
 @onready var btn_how_to_play: Button = %BtnHowToPlay
+@onready var btn_accessibility: Button = %BtnAccessibility
+@onready var btn_accessible_controls: Button = %BtnAccessibleControls
 @onready var btn_settings: Button = %BtnSettings
 @onready var btn_pause_map: Button = %BtnPauseMap
 @onready var pause_rule: Label = %PauseRule
@@ -84,7 +86,16 @@ var _tip_panel: Control = null
 var _tip_on_close: Callable = Callable()
 ## Sólo actualiza la etiqueta cuando cambia el segundo mostrado.
 var _last_shown_second: int = -999
+var _last_dominance_accessibility := ""
 var _utility_panel: Control = null
+var _accessible_panel: Control = null
+var _accessible_status: Label
+var _accessible_send_button: Button
+var _accessible_orders_list: VBoxContainer
+var _accessible_source_buttons: Dictionary = {}
+var _accessible_target_buttons: Dictionary = {}
+var _accessible_sources: Array[BaseNode] = []
+var _accessible_target: BaseNode
 var _share_result: Dictionary = {}
 ## La medalla de este nivel sigue en juego (campaña, aún no conseguida y sin bases perdidas)
 var _medal_tracked: bool = false
@@ -144,6 +155,9 @@ func _ready() -> void:
 		_tip_panel = UIThemeHelper.how_to_play_card()
 		add_child(_tip_panel))
 	btn_settings.pressed.connect(_open_settings)
+	btn_accessibility.pressed.connect(_open_settings.bind(true))
+	btn_accessible_controls.pressed.connect(_open_accessible_controls)
+	btn_accessible_controls.disabled = not is_instance_valid(battle_controller)
 	btn_next_level.pressed.connect(_on_next_level_pressed)
 	btn_victory_map.pressed.connect(_on_map_pressed)
 	btn_share.pressed.connect(_open_share)
@@ -157,6 +171,9 @@ func _ready() -> void:
 
 ## Textos estáticos de capas y botones en el idioma actual
 func _apply_texts() -> void:
+	_last_dominance_accessibility = ""
+	for faction in _faction_labels:
+		_faction_labels[faction].accessibility_name = GameManager.faction_name(faction)
 	btn_share.text = LocaleStrings.text("share")
 	btn_victory_map.text = LocaleStrings.text("exit")
 	defeat_panel.get_node("VBox/Title").text = LocaleStrings.text("defeat_title")
@@ -170,9 +187,13 @@ func _apply_texts() -> void:
 	btn_resume.text = LocaleStrings.text("resume")
 	btn_pause_retry.text = LocaleStrings.text("restart_battle")
 	btn_how_to_play.text = LocaleStrings.text("how_to_play")
+	btn_accessibility.text = LocaleStrings.text("section_access")
 	btn_settings.text = LocaleStrings.text("settings")
+	btn_accessible_controls.text = LocaleStrings.text("accessible_battle_controls")
+	btn_accessible_controls.accessibility_name = btn_accessible_controls.text
 	btn_pause_map.text = LocaleStrings.text("exit")
 	btn_pause.tooltip_text = LocaleStrings.text("pause")
+	btn_pause.accessibility_name = LocaleStrings.text("pause")
 
 ## Un segmento de la barra de fuerzas por facción con sus tropas dentro (las enemigas 2 y 3 se
 ## crean aquí). Cada segmento ocupa una parte del ancho proporcional a sus tropas (stretch ratio).
@@ -196,6 +217,8 @@ func _build_faction_bars() -> void:
 		bar_enemy.get_parent().add_child(bar)
 		_faction_bars[f] = bar
 		_faction_labels[f] = bar.get_child(0)
+	for faction in _faction_labels:
+		_faction_labels[faction].accessibility_name = GameManager.faction_name(faction)
 	_refresh_palette()
 
 ## Colores que no vienen del tema (se repite al cambiar a modo claro u oscuro)
@@ -225,8 +248,10 @@ func _refresh_palette() -> void:
 func _refresh_audio_buttons() -> void:
 	btn_pause_sound.modulate.a = 0.4 if AudioManager.is_muted else 1.0
 	btn_pause_sound.tooltip_text = LocaleStrings.text("sound_off" if AudioManager.is_muted else "sound_on")
+	btn_pause_sound.accessibility_name = btn_pause_sound.tooltip_text
 	btn_pause_music.modulate.a = 0.4 if AudioManager.music_muted else 1.0
 	btn_pause_music.tooltip_text = LocaleStrings.text("music_off" if AudioManager.music_muted else "music_on")
+	btn_pause_music.accessibility_name = btn_pause_music.tooltip_text
 
 func _on_pause_music_pressed() -> void:
 	AudioManager.play_click()
@@ -238,12 +263,228 @@ func _on_pause_sound_pressed() -> void:
 		AudioManager.play_click()
 	_refresh_audio_buttons()
 
-func _open_settings() -> void:
+## Lista accesible para inspeccionar bases y emitir las mismas órdenes que el gesto del mapa.
+func _open_accessible_controls() -> void:
+	if not is_instance_valid(battle_controller) or is_instance_valid(_accessible_panel):
+		return
+	_accessible_sources.clear()
+	_accessible_target = null
+	_accessible_source_buttons.clear()
+	_accessible_target_buttons.clear()
+	pause_panel.visible = false
+	_accessible_panel = Control.new()
+	_accessible_panel.name = "AccessibleBattleControlsPanel"
+	_accessible_panel.accessibility_name = LocaleStrings.text("accessible_battle_controls")
+	_accessible_panel.accessibility_description = LocaleStrings.text("accessible_battle_help")
+	var content := UIThemeHelper.overlay_page(_accessible_panel, LocaleStrings.text("accessible_battle_controls"), _close_accessible_controls)
+	add_child(_accessible_panel)
+	UIThemeHelper.apply_locale_direction(_accessible_panel)
+	content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("accessible_battle_help")))
+	UIThemeHelper.section(content, LocaleStrings.text("accessible_sources"), "", "Heading")
+	var sources := UIThemeHelper.vbox(8)
+	content.add_child(sources)
+	for base in battle_controller.bases:
+		if base.faction != GameManager.Faction.PLAYER:
+			continue
+		var button := _accessible_base_button(base)
+		button.toggle_mode = true
+		button.toggled.connect(_on_accessible_source_toggled.bind(base))
+		sources.add_child(button)
+		_accessible_source_buttons[base] = button
+	UIThemeHelper.section(content, LocaleStrings.text("accessible_targets"), "", "Heading")
+	var targets := UIThemeHelper.vbox(8)
+	content.add_child(targets)
+	var target_group := ButtonGroup.new()
+	for base in battle_controller.bases:
+		var button := _accessible_base_button(base)
+		button.toggle_mode = true
+		button.button_group = target_group
+		button.pressed.connect(_select_accessible_target.bind(base))
+		targets.add_child(button)
+		_accessible_target_buttons[base] = button
+	_accessible_status = UIThemeHelper.paragraph("")
+	_accessible_status.name = "AccessibleBattleStatus"
+	_accessible_status.accessibility_name = LocaleStrings.text("accessible_battle_controls")
+	_accessible_status.accessibility_live = AccessibilityServer.LIVE_POLITE
+	content.add_child(_accessible_status)
+	_accessible_send_button = UIThemeHelper.button(LocaleStrings.text("accessible_send"), "PrimaryButton", "play")
+	_accessible_send_button.name = "AccessibleSend"
+	_accessible_send_button.custom_minimum_size.y = 112
+	_accessible_send_button.disabled = true
+	_accessible_send_button.pressed.connect(_send_accessible_order)
+	content.add_child(_accessible_send_button)
+	var zoom := UIThemeHelper.hbox(12)
+	var zoom_out := UIThemeHelper.button(LocaleStrings.text("accessible_zoom_out"))
+	var zoom_in := UIThemeHelper.button(LocaleStrings.text("accessible_zoom_in"))
+	zoom_out.pressed.connect(_zoom_accessible_map.bind(-0.25))
+	zoom_in.pressed.connect(_zoom_accessible_map.bind(0.25))
+	zoom.add_child(zoom_out)
+	zoom.add_child(zoom_in)
+	content.add_child(zoom)
+	UIThemeHelper.section(content, LocaleStrings.text("accessible_orders_in_transit"), "", "Heading")
+	_accessible_orders_list = UIThemeHelper.vbox(8)
+	content.add_child(_accessible_orders_list)
+	_refresh_accessible_orders()
+	_update_accessible_send_state()
+	UIThemeHelper.pass_scroll_events(content)
+	_focus_accessible_control()
+
+func _focus_accessible_control() -> void:
+	var control: Control
+	if is_instance_valid(_accessible_send_button) and not _accessible_send_button.disabled:
+		control = _accessible_send_button
+	elif not _accessible_source_buttons.is_empty():
+		control = _accessible_source_buttons.values()[0] as Control
+	else:
+		control = _accessible_panel.find_child("BtnBack", true, false) as Control
+	control.grab_focus.call_deferred()
+
+func _close_accessible_controls() -> void:
+	if not is_instance_valid(_accessible_panel):
+		return
+	_accessible_panel.visible = false
+	_accessible_panel.queue_free()
+	_accessible_panel = null
+	_accessible_status = null
+	_accessible_send_button = null
+	_accessible_orders_list = null
+	_accessible_source_buttons.clear()
+	_accessible_target_buttons.clear()
+	_accessible_sources.clear()
+	_accessible_target = null
+	pause_panel.visible = true
+	dim_overlay.visible = true
+	btn_accessible_controls.grab_focus.call_deferred()
+
+func _accessible_base_button(base: BaseNode) -> Button:
+	var description := base.accessibility_summary()
+	var button := UIThemeHelper.button("%s · %s" % [base.base_name, description])
+	button.name = "AccessibleBase_%d" % base.get_instance_id()
+	button.custom_minimum_size.y = 92
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.accessibility_name = base.base_name
+	button.accessibility_description = description
+	return button
+
+func _on_accessible_source_toggled(pressed: bool, base: BaseNode) -> void:
+	if pressed:
+		if not _accessible_sources.has(base):
+			_accessible_sources.append(base)
+		battle_controller.center_camera_on(base)
+	else:
+		_accessible_sources.erase(base)
+	_update_accessible_send_state()
+
+func _select_accessible_target(base: BaseNode) -> void:
+	_accessible_target = base
+	battle_controller.center_camera_on(base)
+	_update_accessible_send_state()
+
+func _update_accessible_send_state() -> void:
+	if not is_instance_valid(_accessible_send_button):
+		return
+	var can_send := false
+	if is_instance_valid(_accessible_target):
+		for source in _accessible_sources:
+			if is_instance_valid(source) and source.faction == GameManager.Faction.PLAYER \
+					and source.troops > 1 and battle_controller.can_dispatch(source, _accessible_target):
+				can_send = true
+				break
+	_accessible_send_button.disabled = not can_send
+	if not is_instance_valid(_accessible_status):
+		return
+	if _accessible_sources.is_empty():
+		_accessible_status.text = LocaleStrings.text("accessible_no_sources")
+		return
+	if not is_instance_valid(_accessible_target):
+		_accessible_status.text = ""
+		return
+	if can_send:
+		_accessible_status.text = ""
+	elif _accessible_sources.any(func(source): return is_instance_valid(source) and source.troops > 1):
+		_accessible_status.text = LocaleStrings.text("no_route")
+	else:
+		_accessible_status.text = LocaleStrings.text("accessible_no_troops")
+
+func _send_accessible_order() -> void:
+	if not is_instance_valid(_accessible_target):
+		return
+	var target_name := _accessible_target.base_name
+	var sent_troops := 0
+	var sent_sources := 0
+	for source in _accessible_sources.duplicate():
+		if not is_instance_valid(source) or source.faction != GameManager.Faction.PLAYER:
+			continue
+		var count := maxi(0, source.troops - 1)
+		if count > 0 and battle_controller.dispatch_troops(source, _accessible_target):
+			sent_troops += count
+			sent_sources += 1
+	if sent_sources == 0:
+		_accessible_status.text = LocaleStrings.text("no_route") if _accessible_sources.any(func(source): return is_instance_valid(source) and source.troops > 1) else LocaleStrings.text("accessible_no_troops")
+		return
+	EventBus.player_assault.emit(sent_sources)
+	GameManager.haptic(25)
+	_accessible_status.text = LocaleStrings.text("accessible_order_sent") % [sent_troops, target_name]
+	_accessible_sources.clear()
+	for base in _accessible_source_buttons:
+		if not is_instance_valid(base) or not is_instance_valid(_accessible_source_buttons[base]):
+			continue
+		var button: Button = _accessible_source_buttons[base]
+		button.set_pressed_no_signal(false)
+		var description: String = base.accessibility_summary()
+		button.text = "%s · %s" % [base.base_name, description]
+		button.accessibility_description = description
+	_refresh_accessible_orders()
+	_accessible_send_button.disabled = true
+	_focus_accessible_control()
+
+func _refresh_accessible_orders() -> void:
+	if not is_instance_valid(_accessible_orders_list):
+		return
+	UIThemeHelper.clear(_accessible_orders_list)
+	var count := 0
+	for troop in battle_controller.active_troops:
+		if not BattleController._is_alive(troop) or troop.faction != GameManager.Faction.PLAYER or troop.is_retreating:
+			continue
+		if not is_instance_valid(troop.origin_base) or not is_instance_valid(troop.target_base):
+			continue
+		var route := LocaleStrings.text("accessible_moving_order") % [troop.origin_base.base_name, troop.target_base.base_name, troop.count]
+		var button := UIThemeHelper.button("%s · %s" % [LocaleStrings.text("accessible_retreat"), route], "GhostButton")
+		button.name = "AccessibleRetreat_%d" % troop.get_instance_id()
+		button.custom_minimum_size.y = 88
+		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		button.accessibility_name = LocaleStrings.text("accessible_retreat")
+		button.accessibility_description = route
+		button.pressed.connect(_retreat_accessible_order.bind(troop))
+		_accessible_orders_list.add_child(button)
+		count += 1
+	if count == 0:
+		_accessible_orders_list.add_child(UIThemeHelper.paragraph(LocaleStrings.text("accessible_no_orders")))
+
+func _retreat_accessible_order(troop: Troop) -> void:
+	if not BattleController._is_alive(troop) or troop.faction != GameManager.Faction.PLAYER:
+		return
+	troop.abort_mission()
+	AudioManager.play_troop_retreat()
+	GameManager.haptic(15)
+	EventBus.troops_retreated.emit(GameManager.Faction.PLAYER)
+	_accessible_status.text = LocaleStrings.text("accessible_retreat_done")
+	_refresh_accessible_orders()
+	_focus_accessible_control()
+
+func _zoom_accessible_map(step: float) -> void:
+	if is_instance_valid(battle_controller):
+		battle_controller.adjust_camera_zoom(step)
+
+func _open_settings(accessibility: bool = false) -> void:
 	if is_instance_valid(_utility_panel):
 		return
 	Telemetry.screen_opened("settings")
 	_utility_panel = load("res://scripts/ui/settings_panel.gd").new()
 	_utility_panel.allow_backups = false # No reemplazar una partida mientras su batalla vive.
+	_utility_panel.focus_accessibility_on_open = accessibility
+	var return_focus: Control = btn_accessibility if accessibility else btn_settings
 	_utility_panel.closed.connect(func():
 		Telemetry.screen_opened("battle")
 		_apply_texts()
@@ -255,7 +496,10 @@ func _open_settings() -> void:
 			for base in battle_controller.bases:
 				base.base_name = GeoDatabase.city_name(GeoDatabase.get_city(base.city_key))
 				if base.label_name:
-					base.label_name.text = base.base_name)
+					base.label_name.text = base.base_name
+				base.refresh_accessible_labels()
+		if is_instance_valid(return_focus):
+			return_focus.grab_focus.call_deferred())
 	add_child(_utility_panel)
 	UIThemeHelper.apply_locale_direction(_utility_panel)
 
@@ -379,8 +623,17 @@ func _update_target_time() -> void:
 func _update_dominance_bar() -> void:
 	var counts: Dictionary = battle_controller.get_faction_troop_counts()
 	var total := 0
+	var accessible_counts: PackedStringArray = []
 	for f in _faction_bars:
-		total += counts.get(f, 0)
+		var count: int = counts.get(f, 0)
+		total += count
+		if count > 0:
+			accessible_counts.append("%s: %d" % [GameManager.faction_name(f), count])
+	var summary := ", ".join(accessible_counts)
+	if summary != _last_dominance_accessibility:
+		%DominanceBarContainer.accessibility_name = LocaleStrings.text("tab_army")
+		%DominanceBarContainer.accessibility_description = summary
+		_last_dominance_accessibility = summary
 	for f in _faction_bars:
 		var n: int = counts.get(f, 0)
 		_faction_bars[f].visible = n > 0
@@ -476,6 +729,7 @@ func deploy_victory_modal(stats: Dictionary) -> void:
 	trigger_confetti()
 	animate_stars(stats.get("stars", 1))
 	_pop_gold(stats.get("stars", 1))
+	(btn_next_level if btn_next_level.visible else btn_victory_map).grab_focus.call_deferred()
 
 ## El oro ganado aparece de un salto justo después de la última estrella
 func _pop_gold(stars_count: int) -> void:
@@ -681,6 +935,7 @@ func _on_battle_lost() -> void:
 		UIThemeHelper.set_icon(btn_defeat_upgrade, "bolt", 36)
 		btn_defeat_upgrade.text = LocaleStrings.text("upgrade_named") % LocaleStrings.text("upg_" + upgrade)
 	UIThemeHelper.animate_modal_pop_in(defeat_panel)
+	btn_retry.grab_focus.call_deferred()
 
 # =========================================================================
 # Pausa, botón "atrás" de Android y tarjetas de ayuda
@@ -691,7 +946,9 @@ func _can_pause() -> bool:
 		and not (is_instance_valid(battle_controller) and battle_controller.is_game_over)
 
 func _on_back_requested() -> void:
-	if is_instance_valid(_utility_panel):
+	if is_instance_valid(_accessible_panel):
+		_close_accessible_controls()
+	elif is_instance_valid(_utility_panel):
 		if _utility_panel.has_method("_close"):
 			_utility_panel._close()
 		else:
@@ -720,6 +977,7 @@ func _on_pause_pressed(automatic: bool = false) -> void:
 	dim_overlay.visible = true
 	UIThemeHelper.animate_modal_pop_in(pause_panel)
 	get_tree().paused = true
+	btn_resume.grab_focus.call_deferred()
 
 func _on_resume_pressed() -> void:
 	if not pause_panel.visible or not GameManager.application_active or is_instance_valid(_tip_panel) or is_instance_valid(_utility_panel):
@@ -732,6 +990,7 @@ func _on_resume_pressed() -> void:
 			return
 		dim_overlay.visible = false
 		get_tree().paused = false
+		btn_pause.grab_focus.call_deferred()
 	)
 
 ## Tarjeta modal explicativa (pausa la batalla hasta que el jugador la cierra)

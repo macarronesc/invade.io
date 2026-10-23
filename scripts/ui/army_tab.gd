@@ -143,25 +143,30 @@ func _cosmetic_tile(item: Dictionary) -> PanelContainer:
 	column.add_child(name_label)
 	var btn := UIThemeHelper.button("")
 	btn.add_theme_font_size_override("font_size", 26)
+	btn.accessibility_name = CosmeticsDatabase.item_name(item)
 	if GameManager.cosmetics_equipped.get(item["category"], "") == item["id"]:
 		btn.text = LocaleStrings.text("equipped")
+		btn.accessibility_description = LocaleStrings.text("equipped")
 		btn.icon = Icons.texture("check", 36)
 		btn.disabled = true
 		btn.add_theme_color_override("font_disabled_color", UIThemeHelper.colors.success)
 		btn.add_theme_color_override("icon_disabled_color", UIThemeHelper.colors.success)
 	elif GameManager.is_cosmetic_owned(item["id"]):
 		btn.text = LocaleStrings.text("equip")
+		btn.accessibility_description = LocaleStrings.text("equip")
 		btn.pressed.connect(func():
 			if GameManager.equip_cosmetic(item["id"]):
 				AudioManager.play_click())
 	elif CosmeticsDatabase.is_reward(item):
 		# Premio de un hito: se explica cómo conseguirlo en lugar de venderlo
 		btn.text = CosmeticsDatabase.unlock_text(item)
+		btn.accessibility_description = btn.text
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		btn.disabled = true
 	else:
 		btn.theme_type_variation = "GoldButton"
 		btn.text = str(item["cost"])
+		btn.accessibility_description = LocaleStrings.text("accessibility_price") % int(item["cost"])
 		UIThemeHelper.set_icon(btn, "coin", 36)
 		btn.disabled = GameManager.coins < int(item["cost"])
 		btn.pressed.connect(func():

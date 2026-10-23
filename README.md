@@ -65,7 +65,10 @@ Juego vertical de estrategia territorial en Godot 4.7.
   comprados, invasiones y las misiones del día se conservan. Un guardado v6 carga con las
   invasiones a cero. Al día siguiente entran los nuevos objetivos.
 - Ajustes desde el menú y la pausa: idioma, sonido, música, volúmenes, vibración,
-  velocidad, paleta accesible y privacidad. La velocidad afecta a ambos bandos y no acelera el reloj diario.
+  velocidad, tamaño del texto, paleta accesible, contraste del mapa y privacidad. La velocidad afecta a ambos bandos y no acelera el reloj diario.
+- La pausa ofrece controles de batalla accesibles para elegir bases, enviar o retirar tropas,
+  centrar el mapa y ajustar el zoom. También se puede ampliar el texto y reforzar las fronteras
+  del mapa sin cambiar el estilo predeterminado.
 - 15 idiomas de interfaz y datos: inglés, español, portugués (Brasil), francés, alemán,
   italiano, ruso, turco, árabe, hindi, indonesio, vietnamita, chino simplificado, japonés
   y coreano. El árabe usa diseño RTL. El idioma inicial sigue al dispositivo; el idioma

@@ -96,6 +96,26 @@ OVERRIDES = {
         "ru": "Соперники: %d", "tr": "Rakipler: %d", "ar": "المنافسون: %d", "hi": "प्रतिद्वंद्वी: %d",
         "id": "Saingan: %d", "vi": "Đối thủ: %d", "zh_CN": "对手：%d", "ja": "ライバル: %d", "ko": "라이벌: %d",
     },
+    "accessible_order_sent": {
+        "zh_CN": "已派遣%d支部队至%s。",
+    },
+    "accessible_zoom_out": {
+        "ar": "تصغير الخريطة",
+        "fr": "Dézoomer la carte", "id": "Perkecil peta",
+    },
+    "accessible_sources": {
+        "fr": "Bases de départ", "de": "Ausgangsbasen",
+    },
+    "accessible_orders_in_transit": {
+        "es": "Tropas en marcha", "pt_BR": "Tropas em marcha", "fr": "Troupes en marche",
+        "de": "Truppen unterwegs", "it": "Truppe in marcia", "ru": "Войска в пути",
+        "tr": "Yoldaki birlikler", "ar": "القوات في الطريق", "hi": "रास्ते में सैनिक",
+        "id": "Pasukan dalam perjalanan", "vi": "Quân đang hành quân", "zh_CN": "行军中的部队",
+        "ja": "移動中の部隊", "ko": "이동 중인 병력",
+    },
+    "accessibility_price": {
+        "zh_CN": "%d金币",
+    },
     "retry": {
         "pt_BR": "Tentar novamente", "fr": "Réessayer", "de": "Erneut versuchen", "it": "Riprova",
         "ru": "Повторить", "tr": "Tekrar dene", "ar": "إعادة المحاولة", "hi": "पुनः प्रयास करें",
