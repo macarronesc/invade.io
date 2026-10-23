@@ -4,6 +4,7 @@ extends Control
 
 signal closed()
 var allow_backups: bool = true
+var focus_accessibility_on_open := false
 var _content: VBoxContainer
 var _group: VBoxContainer
 var _status: Label
@@ -17,8 +18,16 @@ const IOS_IMPORT_PATH := "user://backup_import.json"
 const IOS_EXPORT_PATH := "user://backup_export.json"
 
 func _ready() -> void:
+	var focus_accessibility := focus_accessibility_on_open
 	_build()
+	if not focus_accessibility:
+		call_deferred("_focus_control", "BtnBack")
 	GameManager.save_status_changed.connect(_refresh_save_status)
+
+func _focus_control(control_name: String) -> void:
+	var control := find_child(control_name, true, false)
+	if control is Control:
+		control.grab_focus()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
@@ -31,25 +40,41 @@ func _close() -> void:
 	closed.emit()
 	queue_free()
 
-func _build() -> void:
+func _build(restore_focus: String = "") -> void:
+	var saved_scroll := 0
+	var scrolls := find_children("*", "ScrollContainer", true, false)
+	if not scrolls.is_empty():
+		saved_scroll = (scrolls[0] as ScrollContainer).scroll_vertical
+	if restore_focus == "":
+		var focused := get_viewport().gui_get_focus_owner()
+		if is_instance_valid(focused) and is_ancestor_of(focused):
+			restore_focus = str(focused.name)
+	if restore_focus == "" and focus_accessibility_on_open:
+		restore_focus = "Colorblind"
+		focus_accessibility_on_open = false
 	UIThemeHelper.clear(self)
 	_content = UIThemeHelper.overlay_page(self, LocaleStrings.text("settings"), _close)
 
 	_section("section_game")
 	_label(LocaleStrings.text("appearance"))
-	_group.add_child(_options([LocaleStrings.text("theme_dark"), LocaleStrings.text("theme_light")], 1 if GameManager.settings["light_mode"] else 0, func(index):
+	var appearance_changed := func(index):
 		GameManager.set_setting("light_mode", index == 1)
-		_build()))
+		_build("Appearance")
+	_group.add_child(_options([LocaleStrings.text("theme_dark"), LocaleStrings.text("theme_light")],
+		1 if GameManager.settings["light_mode"] else 0, appearance_changed, "Appearance", LocaleStrings.text("appearance")))
 	_label(LocaleStrings.text("language"))
 	var locale_codes := LanguageCatalog.codes()
 	var locale_names: Array = locale_codes.map(func(code): return LanguageCatalog.native_name(code))
-	_group.add_child(_options(locale_names, maxi(0, locale_codes.find(GameManager.language)), func(index):
+	var language_changed := func(index):
 		GameManager.set_language(locale_codes[index])
-		_build()))
+		_build("Language")
+	_group.add_child(_options(locale_names, maxi(0, locale_codes.find(GameManager.language)),
+		language_changed, "Language", LocaleStrings.text("language")))
 	_label(LocaleStrings.text("speed"))
 	var speeds: Array = GameManager.GAME_SPEEDS.map(func(value): return "×" + String.num(value))
-	_group.add_child(_options(speeds, GameManager.GAME_SPEEDS.find(float(GameManager.settings["speed"])), func(index):
-		GameManager.set_setting("speed", GameManager.GAME_SPEEDS[index])))
+	var speed_changed := func(index): GameManager.set_setting("speed", GameManager.GAME_SPEEDS[index])
+	_group.add_child(_options(speeds, GameManager.GAME_SPEEDS.find(float(GameManager.settings["speed"])),
+		speed_changed, "Speed", LocaleStrings.text("speed")))
 	_button("how_to_play", func(): add_child(UIThemeHelper.how_to_play_card()), "help")
 
 	_section("section_sound")
@@ -70,8 +95,17 @@ func _build() -> void:
 	_refresh_vibration_controls()
 
 	_section("section_access")
+	_label(LocaleStrings.text("accessibility_font_size"))
+	var text_sizes := [LocaleStrings.text("text_size_standard"), LocaleStrings.text("text_size_large"), LocaleStrings.text("text_size_extra_large")]
+	var text_size_changed := func(index): GameManager.set_setting("text_scale", index * 0.5)
+	_group.add_child(_options(text_sizes, roundi(float(GameManager.settings["text_scale"]) * 2.0),
+		text_size_changed, "TextSize", LocaleStrings.text("accessibility_font_size")))
 	for key in ["colorblind", "reduced_motion"]:
 		_toggle(key, GameManager.settings[key], func(value): GameManager.set_setting(key, value))
+	_toggle("high_contrast_map", GameManager.settings["high_contrast_map"], func(value):
+		GameManager.set_setting("high_contrast_map", value), "accessibility_high_contrast_map")
+	if OS.has_feature("mobile") and not AccessibilityServer.is_supported():
+		_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("accessibility_mobile_reader_note")))
 
 	_section("section_privacy")
 	_toggle("share_analytics", GameManager.settings["share_analytics"], func(value):
@@ -96,6 +130,16 @@ func _build() -> void:
 		_status = UIThemeHelper.paragraph("")
 		_group.add_child(_status)
 	UIThemeHelper.pass_scroll_events(_content)
+	call_deferred("_restore_focus_and_scroll", restore_focus, saved_scroll)
+
+func _restore_focus_and_scroll(control_name: String, scroll_position: int) -> void:
+	var scrolls := find_children("*", "ScrollContainer", true, false)
+	if not scrolls.is_empty():
+		(scrolls[0] as ScrollContainer).scroll_vertical = scroll_position
+	if control_name != "":
+		var control := find_child(control_name, true, false)
+		if control is Control:
+			control.grab_focus()
 
 func _refresh_save_status() -> void:
 	var key := "save_local_ok"
@@ -120,8 +164,10 @@ func _section(key: String) -> void:
 func _label(text: String) -> void:
 	_group.add_child(UIThemeHelper.label(text, "Caption"))
 
-func _options(items: Array, selected: int, on_select: Callable) -> OptionButton:
+func _options(items: Array, selected: int, on_select: Callable, control_name: String, accessible_name: String) -> OptionButton:
 	var options := OptionButton.new()
+	options.name = control_name
+	options.accessibility_name = accessible_name
 	options.custom_minimum_size.y = 128
 	for item in items:
 		options.add_item(item)
@@ -138,11 +184,11 @@ func _button(key: String, callback: Callable, icon: String = "") -> Button:
 	_group.add_child(button)
 	return button
 
-func _toggle(key: String, value: bool, callback: Callable) -> void:
+func _toggle(key: String, value: bool, callback: Callable, label_key: String = "") -> void:
 	var check := CheckButton.new()
 	check.custom_minimum_size.y = 128
 	check.name = key.to_pascal_case()
-	check.text = LocaleStrings.text(key)
+	check.text = LocaleStrings.text(label_key if label_key != "" else key)
 	check.button_pressed = value
 	check.toggled.connect(callback)
 	_group.add_child(check)
@@ -154,6 +200,8 @@ func _slider(key: String) -> HSlider:
 	_group.add_child(label)
 	var slider := HSlider.new()
 	slider.name = key.to_pascal_case()
+	slider.accessibility_name = LocaleStrings.text(key)
+	slider.accessibility_description = label.text
 	slider.max_value = 1
 	slider.step = 0.05
 	slider.value = GameManager.settings[key]
@@ -161,6 +209,7 @@ func _slider(key: String) -> HSlider:
 	slider.value_changed.connect(func(value):
 		GameManager.set_setting(key, value)
 		update.call(value)
+		slider.accessibility_description = label.text
 		if key == "vibration_intensity":
 			_refresh_vibration_controls()
 			GameManager.haptic(30))

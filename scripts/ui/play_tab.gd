@@ -225,6 +225,9 @@ func _build_level_node(level_id: String, index: int) -> Control:
 	btn.add_theme_font_size_override("font_size", 40)
 	holder.add_child(btn)
 	var stars: int = GameManager.completed_levels.get(level_id, 0)
+	var data := LevelDatabase.get_level_data(level_id)
+	btn.accessibility_name = LocaleStrings.text("accessible_level_name") % [index + 1, data["name"]]
+	btn.accessibility_description = LocaleStrings.text("level_locked") if not GameManager.is_level_unlocked(level_id) else LocaleStrings.text("accessible_level_stars") % stars
 	if not GameManager.is_level_unlocked(level_id):
 		btn.disabled = true
 		btn.icon = Icons.texture("lock", 40)

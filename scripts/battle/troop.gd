@@ -320,16 +320,18 @@ static func draw_count_badge(canvas: CanvasItem, center: Vector2, n: int, color:
 	_badge_box.bg_color = color.darkened(0.15)
 	var font := UIThemeHelper.bold_font()
 	var text := str(n)
-	var symbol: bool = GameManager.settings.get("colorblind", false)
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + (46.0 if symbol else 26.0)
-	var rect := Rect2(center - Vector2(w * 0.5, 17.0), Vector2(w, 34.0))
+	var symbol: bool = GameManager.settings.get("colorblind", false) or GameManager.settings.get("high_contrast_map", false)
+	var font_size := UIThemeHelper.scaled_font_size(24)
+	var height := UIThemeHelper.scaled_font_size(34)
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + (46.0 if symbol else 26.0)
+	var rect := Rect2(center - Vector2(w * 0.5, height * 0.5), Vector2(w, height))
 	canvas.draw_style_box(_badge_box, rect)
 	var x := rect.position.x
 	if symbol:
-		BaseNode.draw_faction_symbol(canvas, Vector2(x + 18.0, center.y), 6.0, owner)
+		BaseNode.draw_faction_symbol(canvas, Vector2(x + 18.0, center.y), 7.0, owner)
 		x += 18.0
-	var baseline := center.y + (font.get_ascent(24) - font.get_descent(24)) * 0.5
-	canvas.draw_string(font, Vector2(x, baseline), text, HORIZONTAL_ALIGNMENT_CENTER, rect.end.x - x, 24, Color.WHITE)
+	var baseline := center.y + (font.get_ascent(font_size) - font.get_descent(font_size)) * 0.5
+	canvas.draw_string(font, Vector2(x, baseline), text, HORIZONTAL_ALIGNMENT_CENTER, rect.end.x - x, font_size, Color.WHITE)
 
 ## Paquete en formación con el estilo de la tienda (vista previa de Ejército)
 static func draw_packet(canvas: CanvasItem, pos: Vector2, units: int, color: Color, style: String, s: float = 1.0, angle: float = 0.0) -> void:

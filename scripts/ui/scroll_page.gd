@@ -18,10 +18,20 @@ func _ready() -> void:
 
 func rebuild() -> void:
 	var scroll := scroll_vertical
+	var buttons := content.find_children("*", "BaseButton", true, false).filter(func(button): return not button.disabled)
+	var viewport := get_viewport()
+	var focus_index := buttons.find(viewport.gui_get_focus_owner()) if viewport else -1
 	UIThemeHelper.clear(content)
 	_build()
 	UIThemeHelper.pass_scroll_events(content)
 	set_deferred("scroll_vertical", scroll)
+	if focus_index >= 0:
+		call_deferred("_restore_focus", focus_index)
+
+func _restore_focus(index: int) -> void:
+	var buttons := content.find_children("*", "BaseButton", true, false).filter(func(button): return not button.disabled)
+	if not buttons.is_empty():
+		(buttons[mini(index, buttons.size() - 1)] as Control).grab_focus()
 
 func _build() -> void:
 	pass

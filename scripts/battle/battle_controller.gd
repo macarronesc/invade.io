@@ -186,6 +186,13 @@ func _apply_map_theme() -> void:
 		territory_map.country_border_color = theme.get("country_border_color", territory_map.country_border_color)
 		territory_map.territory_alpha = theme.get("territory_alpha", territory_map.territory_alpha)
 		territory_map.neutral_alpha = theme.get("neutral_alpha", territory_map.neutral_alpha)
+		if GameManager.settings.get("high_contrast_map", false):
+			territory_map.border_color = Color("10263a") if _map_is_light else Color("ffffff")
+			territory_map.border_width = 5.5
+			territory_map.territory_alpha = 0.48
+			territory_map.neutral_alpha = 0.26
+		else:
+			territory_map.border_width = 3.5
 		for cell in territory_map.cells:
 			cell.current_color = territory_map.get_faction_territory_color(cell.base_node.faction)
 			cell.target_color = cell.current_color
@@ -267,6 +274,14 @@ func shake_camera(amount: float) -> void:
 	if not GameManager.settings["reduced_motion"]:
 		_shake = maxf(_shake, amount)
 
+func adjust_camera_zoom(step: float) -> void:
+	if camera:
+		camera.zoom = Vector2.ONE * clampf(camera.zoom.x + step, 0.75, 2.0)
+
+func center_camera_on(base: BaseNode) -> void:
+	if camera and is_instance_valid(base):
+		camera.global_position = base.global_position
+
 func _refresh_colors() -> void:
 	if GameManager.settings["reduced_motion"]:
 		_shake = 0.0
@@ -276,11 +291,7 @@ func _refresh_colors() -> void:
 		if is_instance_valid(troop):
 			troop.queue_redraw()
 	if territory_map:
-		for cell in territory_map.cells:
-			cell.current_color = territory_map.get_faction_territory_color(cell.base_node.faction)
-			cell.target_color = cell.current_color
-			cell.start_color = cell.current_color
-		territory_map.queue_redraw()
+		_apply_map_theme()
 
 ## El jefe recibe los refuerzos de su mapa mientras conserve su dueño original;
 ## un arco sobre la base anuncia la próxima oleada
@@ -595,7 +606,7 @@ func _handle_release(pos: Vector2) -> void:
 ## Ficha breve de una base tocada: tropas, producción y ventaja especial
 func show_base_info(base: BaseNode) -> void:
 	_info_base = base
-	_info_timer = INFO_SECONDS if base else 0.0
+	_info_timer = INFO_SECONDS * UIThemeHelper.font_scale() if base else 0.0
 
 func _add_selected_source(base: BaseNode) -> void:
 	if not selected_sources.has(base):
@@ -1047,9 +1058,11 @@ func _draw_target_preview(canvas: CanvasItem, target: BaseNode) -> void:
 
 static func _draw_map_text(canvas: CanvasItem, center: Vector2, text: String, size: int, color: Color) -> void:
 	var font := UIThemeHelper.bold_font()
-	var pos := center - Vector2(200.0, 0.0)
-	canvas.draw_string_outline(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, 400.0, size, 8, Color(0, 0, 0, 0.75))
-	canvas.draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, 400.0, size, color)
+	size = UIThemeHelper.scaled_font_size(size)
+	var width := 400.0 * UIThemeHelper.font_scale()
+	var pos := center - Vector2(width * 0.5, 0.0)
+	canvas.draw_string_outline(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, size, 8, Color(0, 0, 0, 0.75))
+	canvas.draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, size, color)
 
 ## Ficha de la base tocada: nombre, tropas / capacidad, producción y ventaja especial
 func _draw_base_info(canvas: CanvasItem) -> void:
@@ -1064,10 +1077,12 @@ func _draw_base_info(canvas: CanvasItem) -> void:
 	if perk != "":
 		lines.append(perk)
 	var font := UIThemeHelper.bold_font()
+	var font_size := UIThemeHelper.scaled_font_size(28)
+	var line_height := UIThemeHelper.scaled_font_size(38)
 	var width := 0.0
 	for line in lines:
-		width = maxf(width, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x)
-	var size := Vector2(width + 48.0, 20.0 + lines.size() * 38.0)
+		width = maxf(width, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x)
+	var size := Vector2(width + 48.0, 20.0 + lines.size() * line_height)
 	var top := b.global_position + Vector2(-size.x * 0.5, -b.radius - 40.0 - size.y)
 	if top.y < 260.0:
 		top.y = b.global_position.y + b.radius + 40.0
@@ -1077,7 +1092,7 @@ func _draw_base_info(canvas: CanvasItem) -> void:
 	canvas.draw_style_box(box, rect)
 	for i in lines.size():
 		var color := BaseNode.MARKER_GOLD if i == 2 else Color(1, 1, 1, 1.0 if i == 0 else 0.8)
-		canvas.draw_string(font, rect.position + Vector2(24.0, 44.0 + i * 38.0), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(color, alpha))
+		canvas.draw_string(font, rect.position + Vector2(24.0, 44.0 + i * line_height), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(color, alpha))
 
 ## Mientras se traza un corte, las rutas de tus tropas en marcha se ven tenues
 func _draw_marching_routes(canvas: CanvasItem) -> void:

@@ -169,6 +169,7 @@ func update_siege_status(troops_list: Array) -> void:
 		is_under_siege = hostile_incoming > get_effective_defense()
 	if was_under_siege != is_under_siege:
 		_dirty = true
+		refresh_accessible_labels()
 
 ## Acepta el enum o el texto de las definiciones de nivel ("fortress" / "factory")
 func _set_type_from_variant(v) -> void:
@@ -369,6 +370,7 @@ func _change_faction(new_faction: int) -> void:
 	var prev_faction = faction
 	faction = new_faction
 	_trigger_conquest_shockwave(new_faction)
+	refresh_accessible_labels()
 	AudioManager.play_capture()
 	var perk := perk_text()
 	if new_faction == GameManager.Faction.PLAYER and perk != "":
@@ -383,6 +385,25 @@ func _change_faction(new_faction: int) -> void:
 func _update_label() -> void:
 	if label_troops:
 		label_troops.text = str(troops)
+	refresh_accessible_labels()
+
+func refresh_accessible_labels() -> void:
+	if label_troops:
+		label_troops.accessibility_name = LocaleStrings.text("info_troops") % [troops, max_capacity]
+	if label_name:
+		label_name.accessibility_name = base_name
+		label_name.accessibility_description = accessibility_summary()
+
+func accessibility_summary() -> String:
+	var details: PackedStringArray = [GameManager.faction_name(faction), LocaleStrings.text("info_troops") % [troops, max_capacity]]
+	if faction != GameManager.Faction.NEUTRAL:
+		details.append(LocaleStrings.text("info_full") if is_full() else LocaleStrings.text("info_rate") % get_production_rate())
+	var perk := perk_text()
+	if perk != "":
+		details.append(perk)
+	if is_under_siege:
+		details.append(LocaleStrings.text("accessible_under_siege"))
+	return " · ".join(details)
 
 func _draw() -> void:
 	var color = GameManager.faction_color(faction)
@@ -413,8 +434,8 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, current_radius, color)
 
 	# 5. Símbolo de facción sólo en modo daltónico (el color ya distingue los bandos)
-	if GameManager.settings.get("colorblind", false):
-		draw_faction_symbol(self, Vector2(0, -current_radius * 0.62), 5.5, faction)
+	if GameManager.settings.get("colorblind", false) or GameManager.settings.get("high_contrast_map", false):
+		draw_faction_symbol(self, Vector2(0, -current_radius * 0.62), 7.0, faction)
 
 	# 6. Anillo de capacidad (se cierra al llenarse) y producción en órbita
 	if faction != GameManager.Faction.NEUTRAL:
@@ -477,12 +498,14 @@ func _draw_badge(c: Vector2, key: String) -> void:
 
 func _draw_float_texts() -> void:
 	var font := UIThemeHelper.bold_font()
+	var font_size := UIThemeHelper.scaled_font_size(28)
+	var width := 400.0 * UIThemeHelper.font_scale()
 	for ft in _float_texts:
 		var k: float = ft["t"] / FLOAT_TEXT_SECONDS
-		var pos := Vector2(-200, -radius - 60.0 - (0.0 if GameManager.settings["reduced_motion"] else k * 50.0))
+		var pos := Vector2(-width * 0.5, -radius - 60.0 - (0.0 if GameManager.settings["reduced_motion"] else k * 50.0))
 		var alpha := 1.0 - smoothstep(0.6, 1.0, k)
-		draw_string_outline(font, pos, ft["text"], HORIZONTAL_ALIGNMENT_CENTER, 400, 28, 8, Color(0, 0, 0, 0.75 * alpha))
-		draw_string(font, pos, ft["text"], HORIZONTAL_ALIGNMENT_CENTER, 400, 28, Color(ft["color"], alpha))
+		draw_string_outline(font, pos, ft["text"], HORIZONTAL_ALIGNMENT_CENTER, width, font_size, 8, Color(0, 0, 0, 0.75 * alpha))
+		draw_string(font, pos, ft["text"], HORIZONTAL_ALIGNMENT_CENTER, width, font_size, Color(ft["color"], alpha))
 
 func _draw_crown(c: Vector2, r: float) -> void:
 	var pts := PackedVector2Array([c + Vector2(-r, r * 0.6), c + Vector2(-r, -r * 0.5), c + Vector2(-r * 0.5, 0),

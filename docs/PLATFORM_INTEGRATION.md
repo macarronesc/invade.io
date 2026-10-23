@@ -13,6 +13,13 @@ El preset Android habilita `VIBRATE`, `INTERNET` y `ACCESS_NETWORK_STATE` (estad
 informes de fallos, ambos opt-in) y target SDK 36; requiere instalar la plantilla Gradle y configurar
 el SDK y la firma antes de exportar.
 
+Godot 4.7.2 expone el árbol de accesibilidad a lectores de pantalla en escritorio, pero no a
+TalkBack ni VoiceOver en Android/iOS. Ajustes consulta `AccessibilityServer.is_supported()` y
+explica esta limitación en móvil. Los controles y nombres accesibles del juego siguen siendo
+útiles en plataformas compatibles, pero no se debe anunciar compatibilidad móvil con lectores de
+pantalla hasta validar una versión estable de Godot que incluya el puente móvil o integrar y probar
+un puente nativo. Esta versión no añade un plugin nativo de accesibilidad.
+
 Sí está implementada la base de persistencia:
 
 - `GameManager.save_data()` genera el mismo documento versionado para el guardado

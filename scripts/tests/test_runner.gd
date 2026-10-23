@@ -35,6 +35,7 @@ func _ready() -> void:
 		test_slice_gesture_and_troop_retreat()
 		test_voronoi_halfplane_clipping_geometry()
 		test_territory_map_generation_and_coverage()
+		test_accessible_battle_controls()
 		test_theme_and_ui_helpers()
 		test_ui_glyph_coverage()
 		test_toast_notifications()
@@ -224,6 +225,7 @@ func run_all_tests() -> void:
 	test_slice_gesture_and_troop_retreat()
 	test_under_siege_alert_trigger_and_deactivation()
 	test_hud_force_counters()
+	test_accessible_battle_controls()
 	test_main_menu_hub_navigation()
 	test_play_tab_campaign_route_and_briefing()
 	test_army_tab_upgrades_and_looks()
@@ -367,7 +369,11 @@ func test_mobile_experience() -> void:
 			assert_true(knob.is_equal_approx(UIThemeHelper.colors.text), "El control de intensidad conserva contraste en ambos temas")
 	GameManager.set_language("es")
 	GameManager.set_setting("light_mode", false)
+	(settings.find_child("TextSize", true, false) as Control).grab_focus()
 	settings._build()
+	await get_tree().process_frame
+	assert_true(get_viewport().gui_get_focus_owner() == settings.find_child("TextSize", true, false),
+		"Ajustes restaura el foco al mismo control tras reconstruirse")
 	var real_test_path := GameManager.save_path
 	GameManager.save_path = "user://test_mobile_missing_dir/save.json"
 	GameManager.save_game()
@@ -2446,6 +2452,65 @@ func test_battle_hud_modals_and_sound_toggle() -> void:
 	remove_child(hud)
 	hud.free()
 
+func test_accessible_battle_controls() -> void:
+	print("\n-> Test: Controles Accesibles de Batalla")
+	GameManager.reset_save()
+	GameManager.play_level("europe_1")
+	for tip in ["drag", "chain", "slice", "factory", "fortress"]:
+		GameManager.mark_tip_seen(tip)
+	var battle: BattleController = load("res://scenes/battle/battle_field.tscn").instantiate()
+	add_child(battle)
+	var hud: BattleHUD = battle.get_node("BattleHUD")
+	var source: BaseNode = battle.bases.filter(func(base): return base.faction == GameManager.Faction.PLAYER)[0]
+	var target: BaseNode = battle.bases.filter(func(base): return base.faction != GameManager.Faction.PLAYER)[0]
+	source.troops = 40
+	source._update_label()
+	hud._on_pause_pressed()
+	hud._open_accessible_controls()
+	assert_true(is_instance_valid(hud._accessible_panel), "La pausa abre el panel de bases y órdenes")
+	assert_true(get_tree().paused, "Los controles accesibles mantienen la batalla en pausa")
+	assert_true(hud._accessible_source_buttons.has(source) and hud._accessible_target_buttons.has(target), "El panel lista origen y destino")
+	assert_equals(hud._accessible_status.text, LocaleStrings.text("accessible_no_sources"), "El panel explica por qué Enviar está desactivado")
+	assert_true(hud._accessible_send_button.get_index() < hud._accessible_orders_list.get_index(), "Enviar aparece antes de la lista de órdenes para reducir desplazamiento")
+	GameManager.set_setting("high_contrast_map", true)
+	var map := battle.territory_map as TerritoryMap2D
+	assert_equals(map.border_width, 5.5, "El alto contraste refuerza los bordes del mapa")
+	assert_equals(map.territory_alpha, 0.48, "El alto contraste hace más visibles los territorios")
+	GameManager.set_setting("high_contrast_map", false)
+	(hud._accessible_source_buttons[source] as Button).set_pressed(true)
+	hud._select_accessible_target(source)
+	assert_true(hud._accessible_send_button.disabled, "No se puede enviar desde una base a sí misma")
+	hud._select_accessible_target(target)
+	(hud._accessible_target_buttons[target] as Button).pressed.emit()
+	assert_true(not hud._accessible_send_button.disabled, "Enviar se habilita al elegir una ruta válida")
+	hud._send_accessible_order()
+	assert_equals(source.troops, 1, "Enviar desde el panel usa la misma regla de tropas que el gesto")
+	assert_true(hud._accessible_status.text.contains(target.base_name), "El resultado del envío se anuncia en el panel")
+	assert_true(not battle.active_troops.is_empty(), "El panel crea una orden de tropas real")
+	(hud._accessible_source_buttons[source] as Button).set_pressed(true)
+	assert_true(hud._accessible_send_button.disabled, "Enviar se desactiva si no queda tropa disponible")
+	assert_equals(hud._accessible_status.text, LocaleStrings.text("accessible_no_troops"), "La falta de tropas se anuncia claramente")
+	var troop: Troop = battle.active_troops[0]
+	hud._retreat_accessible_order(troop)
+	assert_true(troop.is_retreating, "La orden accesible de retirada invierte el mismo flujo de tropas")
+	var camera := battle.get_node_or_null("Camera2D") as Camera2D
+	assert_true(is_instance_valid(camera), "La escena de batalla contiene cámara para los controles de zoom")
+	battle.adjust_camera_zoom(0.25)
+	if is_instance_valid(camera):
+		assert_true(camera.zoom.x > 1.0, "Los controles pueden ampliar el mapa")
+		battle.adjust_camera_zoom(-5.0)
+		assert_equals(camera.zoom.x, 0.75, "El zoom de salida tiene un límite inferior seguro")
+		battle.adjust_camera_zoom(5.0)
+		assert_equals(camera.zoom.x, 2.0, "El zoom de entrada tiene un límite superior seguro")
+	battle.center_camera_on(target)
+	if is_instance_valid(camera):
+		assert_true(camera.global_position.is_equal_approx(target.global_position), "La selección centra el mapa en la base")
+	hud._close_accessible_controls()
+	get_tree().paused = false
+	remove_child(battle)
+	battle.free()
+	GameManager.reset_save()
+
 func test_theme_and_ui_helpers() -> void:
 	print("\n-> Test: Tema Visual Global, Iconos y Piezas de Interfaz")
 	var theme := ThemeDB.get_default_theme()
@@ -2460,6 +2525,44 @@ func test_theme_and_ui_helpers() -> void:
 		var ink: float = theme.get_color("font_color", type).srgb_to_linear().get_luminance()
 		var background: float = (theme.get_stylebox("normal", type) as StyleBoxFlat).bg_color.srgb_to_linear().get_luminance()
 		assert_true((maxf(ink, background) + 0.05) / (minf(ink, background) + 0.05) >= 4.5, "El texto de %s tiene contraste accesible" % type)
+	var previous_light_mode: bool = GameManager.settings["light_mode"]
+	GameManager.set_setting("light_mode", false)
+	assert_true(UIThemeHelper.contrast_ratio(UIThemeHelper.colors.text, UIThemeHelper.colors.surface_2) >= 4.5,
+		"El texto alternativo de chips supera el contraste normal en el tema oscuro")
+	var danger_chip := UIThemeHelper.chip("Rival", "target", UIThemeHelper.colors.danger)
+	var danger_label := danger_chip.find_children("*", "Label", true, false)[0] as Label
+	assert_equals(danger_label.get_theme_color("font_color"), UIThemeHelper.colors.text,
+		"El texto de un chip peligroso usa tinta legible cuando el color semántico no contrasta")
+	danger_chip.free()
+	var icon_button := UIThemeHelper.icon_button("gear", LocaleStrings.text("settings"))
+	assert_equals(icon_button.accessibility_name, LocaleStrings.text("settings"), "El botón sólo con icono tiene nombre accesible")
+	icon_button.free()
+	var scaled_label := UIThemeHelper.label("Readable", "Caption")
+	add_child(scaled_label)
+	var base_font_size := scaled_label.get_theme_font_size("font_size")
+	GameManager.set_setting("text_scale", 0.5)
+	assert_equals(scaled_label.get_theme_font_size("font_size"), UIThemeHelper.scaled_font_size(base_font_size),
+		"El tamaño del texto se actualiza en controles ya creados")
+	var scaled_button := Button.new()
+	scaled_button.add_theme_font_size_override("font_size", 40)
+	add_child(scaled_button)
+	GameManager.set_setting("text_scale", 0.5)
+	assert_equals(scaled_button.get_theme_font_size("font_size"), 50,
+		"Los tamaños explícitos de botones también se amplían una sola vez")
+	assert_equals(ThemeDB.get_default_theme().get_font_size("font_size", "PopupMenu"), UIThemeHelper.scaled_font_size(UIThemeHelper.FONT_BODY),
+		"El tamaño de texto también se aplica a menús desplegables")
+	GameManager.set_setting("text_scale", 2.0)
+	assert_equals(GameManager.settings["text_scale"], 1.0, "El tamaño del texto se limita al último tamaño disponible")
+	GameManager.set_setting("text_scale", 0.0)
+	remove_child(scaled_button)
+	scaled_button.free()
+	remove_child(scaled_label)
+	scaled_label.free()
+	GameManager.set_setting("high_contrast_map", true)
+	assert_equals(GameManager.faction_color(GameManager.Faction.PLAYER), GameManager.ACCESSIBLE_FACTION_COLORS[GameManager.Faction.PLAYER],
+		"El mapa de alto contraste usa la paleta segura de facciones")
+	GameManager.set_setting("high_contrast_map", false)
+	GameManager.set_setting("light_mode", previous_light_mode)
 
 	# Feedback táctil automático y sin duplicar señales
 	var btn := Button.new()
@@ -3445,9 +3548,12 @@ func test_settings_and_backups() -> void:
 	assert_equals(GameManager.settings["volume"], 0.0, "Volumen no puede ser negativo")
 	GameManager.set_setting("vibration", false)
 	GameManager.set_setting("colorblind", true)
+	GameManager.set_setting("high_contrast_map", true)
+	GameManager.set_setting("text_scale", 0.5)
 	assert_true(GameManager.faction_color(1) != GameManager.faction_color(2), "Paleta accesible distingue rivales")
 	GameManager.load_game()
-	assert_true(not GameManager.settings["vibration"] and GameManager.settings["colorblind"], "Ajustes persisten")
+	assert_true(not GameManager.settings["vibration"] and GameManager.settings["colorblind"] and GameManager.settings["high_contrast_map"], "Ajustes accesibles persisten")
+	assert_equals(GameManager.settings["text_scale"], 0.5, "La escala de texto persiste")
 	var original_path := GameManager.save_path
 	var export_path := "user://test_export.json"
 	var import_path := "user://test_import.json"
@@ -3470,6 +3576,7 @@ func test_settings_and_backups() -> void:
 	GameManager._apply_save({"settings": {"volume": "no", "music_volume": INF, "speed": -4, "vibration": "sí"}})
 	assert_equals(GameManager.settings["music_volume"], 0.8, "Ajuste no finito usa valor inicial")
 	assert_equals(GameManager.settings["speed"], 0.75, "Velocidad mínima validada")
+	assert_equals(GameManager.settings["text_scale"], 0.0, "Los ajustes de accesibilidad ausentes conservan valores predeterminados")
 	var panel = load("res://scripts/ui/settings_panel.gd").new()
 	add_child(panel)
 	var backup_path := "user://test_backup_export.json"
@@ -3478,8 +3585,10 @@ func test_settings_and_backups() -> void:
 	assert_true(exported_data is Dictionary and exported_data.has("completed_levels"), "La copia exportada conserva el formato del juego")
 	DirAccess.remove_absolute(backup_path)
 	assert_equals(panel.find_children("*", "HSlider", true, false).size(), 3, "Volúmenes e intensidad háptica con controles nativos")
-	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 7, "Sonido, música, vibración, paleta, reducir movimiento, analítica y fallos")
-	assert_equals(panel.find_children("*", "OptionButton", true, false).size(), 3, "Apariencia, idioma y velocidad")
+	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 8, "Sonido, música, vibración, paleta, contraste, reducir movimiento, analítica y fallos")
+	assert_equals(panel.find_children("*", "OptionButton", true, false).size(), 4, "Apariencia, idioma, velocidad y tamaño del texto")
+	var text_size_option := panel.find_child("TextSize", true, false) as OptionButton
+	assert_true(text_size_option.accessibility_name == LocaleStrings.text("accessibility_font_size"), "El tamaño de texto tiene nombre accesible")
 	assert_equals(panel.find_children("*", "ScrollContainer", true, false)[0].scroll_deadzone, UIThemeHelper.TOUCH_SCROLL_DEADZONE, "Ajustes distingue toques y arrastres")
 	assert_true(panel._content.find_children("*", "BaseButton", true, false).all(func(b): return b.mouse_filter == Control.MOUSE_FILTER_PASS), "Los botones de ajustes dejan pasar gestos de desplazamiento")
 	assert_true(panel.find_children("*", "HSlider", true, false).all(func(s): return s.mouse_filter == Control.MOUSE_FILTER_PASS), "Los deslizadores de ajustes dejan pasar gestos de desplazamiento")
@@ -3866,6 +3975,8 @@ func test_packets_and_battle_feedback() -> void:
 
 func test_progression_overhaul() -> void:
 	print("\n-> Test: Economía, Rangos, Premios, Medallas, Colecciones y Siguiente Objetivo")
+	var previous_language := GameManager.language
+	GameManager.set_language("es")
 	GameManager.reset_save()
 	# 1. Economía: siempre hay una compra al alcance y la última no es desorbitada
 	assert_equals(GameManager.get_upgrade_cost("starting_troops"), 50, "Primera mejora: 50 de oro")
@@ -3936,6 +4047,7 @@ func test_progression_overhaul() -> void:
 			ids[m["id"]] = true
 	assert_equals(ids.size(), DailyMissions.POOL.size(), "Todas las misiones aparecen a lo largo de los días")
 	GameManager.reset_save()
+	GameManager.set_language(previous_language)
 
 func test_new_ui_flows() -> void:
 	print("\n-> Test: Flujos de interfaz y objetivos diarios")

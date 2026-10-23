@@ -59,7 +59,7 @@ const DEFAULT_COINS = 150
 const FIRST_LEVEL_ID := "europe_1"
 const SAVE_VERSION = 7
 const DEFAULT_SETTINGS := {"volume": 0.8, "music_volume": 0.8, "vibration": true, "speed": 1.0, "colorblind": false,
-	"light_mode": true, "reduced_motion": false, "vibration_intensity": 0.55,
+	"light_mode": true, "reduced_motion": false, "high_contrast_map": false, "text_scale": 0.0, "vibration_intensity": 0.55,
 	"share_analytics": false, "share_crashes": false}
 const MAX_SAVE_BYTES := 2_000_000
 const HAPTIC_INTERVAL_MS := 80
@@ -323,7 +323,7 @@ func faction_name(faction: int) -> String:
 
 ## Color real de una facción en batalla (el jugador usa su color de la tienda)
 func faction_color(faction: int) -> Color:
-	if settings.get("colorblind", false):
+	if settings.get("colorblind", false) or settings.get("high_contrast_map", false):
 		return ACCESSIBLE_FACTION_COLORS[clampi(faction, 0, 4)]
 	if faction == Faction.PLAYER:
 		return player_color()
@@ -709,6 +709,8 @@ static func _setting_number(key: String, value: Variant) -> float:
 			if absf(speed - number) < absf(closest - number):
 				closest = speed
 		return closest
+	if key == "text_scale":
+		return roundf(clampf(number, 0.0, 1.0) * 2.0) / 2.0
 	return clampf(number, 0.0, 1.0)
 
 func ensure_missions(day: int = DailyRewards.today()) -> void:

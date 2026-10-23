@@ -259,15 +259,18 @@ func _draw_hand() -> void:
 
 	# Mano (el dedo apunta al punto de contacto)
 	var font = UIThemeHelper.bold_font()
-	draw_string(font, pos + Vector2(-38, 72), "👆", HORIZONTAL_ALIGNMENT_LEFT, -1, 72, Color(1, 1, 1, alpha))
+	var font_scale := UIThemeHelper.font_scale()
+	draw_string(font, pos + Vector2(-38, 72) * font_scale, "👆", HORIZONTAL_ALIGNMENT_LEFT, -1, UIThemeHelper.scaled_font_size(72), Color(1, 1, 1, alpha))
 
 ## El aviso se centra en el ancho real del lienzo (en tabletas es más ancho que 1080).
 func _draw_banner() -> void:
 	var font = UIThemeHelper.bold_font()
-	var font_size = 34
-	var width = 880.0
+	var font_size = UIThemeHelper.scaled_font_size(34)
+	var width = minf(880.0, get_viewport_rect().size.x - 120.0)
 	var text_size = font.get_multiline_string_size(_hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size)
 	var center_x := get_viewport_rect().size.x * 0.5
-	var rect = Rect2(Vector2(center_x - width * 0.5 - 36.0, 1680.0), Vector2(width + 72.0, text_size.y + 56.0))
+	var rect_size := Vector2(width + 72.0, text_size.y + 56.0)
+	var top := maxf(24.0, get_viewport_rect().size.y - rect_size.y - 24.0)
+	var rect = Rect2(Vector2(center_x - rect_size.x * 0.5, top), rect_size)
 	draw_style_box(_banner_style, rect)
 	draw_multiline_string(font, rect.position + Vector2(36.0, 28.0 + font.get_ascent(font_size)), _hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size, -1, UIThemeHelper.colors.text)
