@@ -41,15 +41,16 @@ indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se 
 - `project.godot`: permite redimensionado y rotación con `SCREEN_SENSOR`. La UI mantiene un lienzo con el lado corto
   a 1080 unidades lógicas; Jugar coloca mapa/ficha en columnas en apaisado, y la batalla calcula un
   tablero 1920×1080 con cámara que se vuelve a encajar al girar/redimensionar.
-- `.github/workflows/build-android.yml`: importa recursos, ejecuta la suite completa, exporta el APK
-  de pruebas y activa R8 en el módulo `app` de la plantilla Gradle generada. Si existen los secretos,
-  exporta el **AAB firmado** sin reinstalar la plantilla y lo verifica. Sólo la rama `main` puede
-  firmar; protege esa rama y limita el acceso a los secretos de firma en Actions. El AAB se publica
+- `.github/workflows/build-android.yml`: importa recursos, ejecuta la suite completa y las pruebas
+  visuales, exporta el APK de prueba y activa R8 en `android/build/build.gradle`. Si existen los
+  secretos, exporta el **AAB firmado** sin reinstalar la plantilla y lo verifica. Sólo la rama `main`
+  puede firmar; protege esa rama y limita el acceso a los secretos de firma en Actions. El AAB se publica
   como artefacto `invadeio-play-bundle`.
 - `scripts/enable_android_r8.sh` + `tools/android/proguard-rules.pro`: parche reproducible e idempotente
-  para la plantilla Android que Godot genera en `android/build/` (esa carpeta está ignorada por Git).
-  R8 se activa sólo en `release`, sin resource shrinking. Las reglas conservan el acceso Java/JNI que
-  necesita Godot; la GDExtension de Sentry es nativa y no la optimiza R8.
+  para la plantilla Android que Godot genera en `android/build/` (Godot aplana allí los archivos del
+  subdirectorio `app/`; esa carpeta está ignorada por Git). R8 se activa sólo en `release`, sin resource
+  shrinking. Las reglas conservan el acceso Java/JNI que necesita Godot; la GDExtension de Sentry es
+  nativa y no la optimiza R8.
 - `scripts/verify_play_bundle.sh`: puerta de calidad. En el **AAB**: ZIP íntegro, manifiesto,
   arm64 sin 32 bits, `geo.json` presente, sin código de test, **firma válida**, **segmentos ELF de
   todas las librerías a 16 KB**, **la alineación de 16 KB que el paquete pide** (con bundletool),

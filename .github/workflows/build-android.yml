@@ -103,14 +103,14 @@ jobs:
         run: |
           test_root="$(mktemp -d "$RUNNER_TEMP/invadeio-r8-test.XXXXXX")"
           trap 'rm -rf "$test_root"' EXIT
-          mkdir -p "$test_root/build/app"
-          cp android/build/app/build.gradle "$test_root/build/app/build.gradle"
+          mkdir -p "$test_root/build"
+          cp android/build/build.gradle "$test_root/build/build.gradle"
           bash scripts/enable_android_r8.sh "$test_root/build"
           bash scripts/enable_android_r8.sh "$test_root/build"
-          test "$(grep -Fc '// invadeio: R8 release' "$test_root/build/app/build.gradle")" -eq 1
-          grep -Fq 'minifyEnabled true' "$test_root/build/app/build.gradle"
-          grep -Fq 'invadeio-proguard-rules.pro' "$test_root/build/app/build.gradle"
-          test -s "$test_root/build/app/invadeio-proguard-rules.pro"
+          test "$(grep -Fc '// invadeio: R8 release' "$test_root/build/build.gradle")" -eq 1
+          grep -Fq 'minifyEnabled true' "$test_root/build/build.gradle"
+          grep -Fq 'invadeio-proguard-rules.pro' "$test_root/build/build.gradle"
+          test -s "$test_root/build/invadeio-proguard-rules.pro"
 
       - name: Activar R8 en la build release (plantilla ya instalada por el APK)
         run: bash scripts/enable_android_r8.sh

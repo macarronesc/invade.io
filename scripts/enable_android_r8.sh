@@ -12,8 +12,7 @@
 set -euo pipefail
 
 BUILD_DIR="${1:-android/build}"
-APP_DIR="$BUILD_DIR/app"
-GRADLE="$APP_DIR/build.gradle"
+GRADLE="$BUILD_DIR/build.gradle"
 MARKER="// invadeio: R8 release"
 
 if [[ ! -f "$GRADLE" ]]; then
@@ -21,7 +20,7 @@ if [[ ! -f "$GRADLE" ]]; then
 	exit 1
 fi
 
-cp "$(dirname "$0")/../tools/android/proguard-rules.pro" "$APP_DIR/invadeio-proguard-rules.pro"
+cp "$(dirname "$0")/../tools/android/proguard-rules.pro" "$BUILD_DIR/invadeio-proguard-rules.pro"
 
 if grep -qF "$MARKER" "$GRADLE"; then
 	echo "R8 ya estaba activado en $GRADLE"
