@@ -33,9 +33,9 @@ indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se 
 ## 2. Lo que ya está hecho en el repositorio
 
 - `export_presets.cfg`: preset **Android AAB** (formato AAB, sólo arm64-v8a, minSdk 24, targetSdk 36,
-  versionCode 2, VIBRATE, iconos incluido el monocromo). La firma **no** está en el repositorio: se lee
-  de las variables `GODOT_ANDROID_KEYSTORE_RELEASE_*`. Antes de subir, confirma en Play Console que el
-  código 2 siga disponible; si ya se usó, elige el siguiente código libre.
+  versionName 0.2.0, versionCode 2, VIBRATE e iconos, incluido el monocromo). La firma **no** está
+  en el repositorio: se lee de las variables `GODOT_ANDROID_KEYSTORE_RELEASE_*`. Antes de subir,
+  confirma en Play Console que el código 2 siga disponible; si ya se usó, elige el siguiente código libre.
 - `.github/workflows/build-android.yml`: importa recursos, ejecuta la **suite completa** (3999
   comprobaciones), exporta el APK de pruebas, y si existen los secretos exporta el **AAB firmado** y
   lo verifica. Sólo la rama `main` puede firmar; protege esa rama y limita el acceso a los secretos de

@@ -151,8 +151,36 @@ Ni nube, ni cuentas, ni clasificación online, ni compras, ni anuncios, ni multi
 novedades deben describir sólo lo que la app hace. Tampoco conviene repetir palabras clave para
 posicionar: Play lo considera spam.
 
-## 4. Historial de versiones
+## 4. invade.io 0.2.0 — actualización
+
+`versionCode` 2 · `versionName` 0.2.0.
+
+Nombre interno del lanzamiento en Play Console: `0.2.0 (2) — Invasiones y 15 idiomas`.
+
+Notas de versión para Play Console (menos de 500 caracteres por idioma):
+
+```
+<es-ES>
+¡Nueva actualización de invade.io!
+• 36 regiones de invasión y 108 frentes, con progreso, recompensas y logros.
+• Juega en 15 idiomas, incluido el árabe con interfaz de derecha a izquierda.
+• Mejoras de navegación, resumen de batalla, contraste del mapa y respuesta táctil.
+• Estadísticas de uso e informes de fallos opcionales, desactivados de forma predeterminada.
+• Tu progreso anterior se conserva al actualizar.
+</es-ES>
+<en-US>
+A major update for invade.io!
+• Explore 36 invasion regions and 108 fronts, with progression, rewards, and achievements.
+• Play in 15 languages, including Arabic with a right-to-left interface.
+• Improved navigation, battle briefings, map contrast, and haptic feedback.
+• Usage analytics and crash reports are optional and off by default.
+• Your existing progress is preserved when you update.
+</en-US>
+```
+
+## 5. Historial de versiones
 
 | Versión | versionCode | Fecha | Qué cambió |
 |---|---|---|---|
 | 0.1.0 | 1 | *(al publicar)* | Primera versión pública: campaña de 30 niveles, conquista libre, desafío diario, misiones, logros, atlas y estética |
+| 0.2.0 | 2 | *(al publicar)* | 36 regiones y 108 frentes de invasión, 15 idiomas, privacidad opcional y mejoras de interfaz |
