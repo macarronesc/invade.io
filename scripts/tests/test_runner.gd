@@ -22,13 +22,21 @@ func _ready() -> void:
 
 	assert_true(bool(ProjectSettings.get_setting("rendering/textures/vram_compression/import_etc2_astc", false)),
 		"La exportación iOS habilita ETC2/ASTC explícitamente, sin depender del equipo")
+	var presets := ConfigFile.new()
+	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets se pueden leer")
+	assert_true(str(presets.get_value("preset.2", "custom_features", "")).split(",", false).has("aptabase_release"),
+		"El AAB de Play marca los eventos de Aptabase como Release")
+	assert_true(not str(presets.get_value("preset.1", "custom_features", "")).split(",", false).has("aptabase_release"),
+		"El APK de pruebas conserva el estado Debug de Aptabase")
 
 	await test_mobile_experience()
 	if "--mobile" in OS.get_cmdline_user_args():
-		test_settings_and_backups()
+		await test_settings_and_backups()
 	elif "--quick" in OS.get_cmdline_user_args():
 		test_packets_and_battle_feedback()
+		test_bezier_curves_and_marching_dots()
 		test_progression_overhaul()
+		test_confetti_geometry()
 		test_light_and_dark_mode()
 		test_new_ui_flows()
 		test_packet_combat_and_migration()
@@ -48,9 +56,10 @@ func _ready() -> void:
 		test_large_screen_layouts()
 		test_invasion_mode()
 		test_language_system()
-		test_locale_ui_fit()
+		await test_locale_ui_fit()
 	else:
-		run_all_tests()
+		await run_all_tests()
+	await test_aptabase_http_delivery()
 	# Vaciar los queue_free de las páginas reconstruidas antes de cerrar el proceso.
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -224,6 +233,7 @@ func run_all_tests() -> void:
 	test_ai_archetypes_decision_making()
 	test_slow_motion_and_time_scale_safety()
 	test_confetti_and_star_revelation()
+	test_confetti_geometry()
 	test_audio_fanfares_and_continental_conquest()
 	test_bezier_curves_and_marching_dots()
 	test_slice_gesture_and_troop_retreat()
@@ -248,13 +258,13 @@ func run_all_tests() -> void:
 	test_achievements_system()
 	test_daily_challenge_levels()
 	test_language_system()
-	test_locale_ui_fit()
+	await test_locale_ui_fit()
 	test_conquest_mode()
 	test_atlas_and_first_levels()
 	test_cosmetics_shop()
 	test_review_regressions()
 	test_daily_missions_xp_and_share()
-	test_settings_and_backups()
+	await test_settings_and_backups()
 	test_continent_mechanics()
 	test_invasion_mode()
 	test_cleanup_regressions()
@@ -466,6 +476,10 @@ func test_mobile_experience() -> void:
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets móviles se pueden leer")
 	assert_true(presets.get_value("preset.1.options", "permissions/vibrate", false), "Android exporta el permiso de vibración sin pedir permisos de usuario")
 	assert_true(presets.get_value("preset.0.options", "plugins/BackupFilePicker", false), "iOS habilita el selector nativo de copias")
+	assert_equals(presets.get_value("preset.0.options", "application/short_version", ""),
+		str(ProjectSettings.get_setting("application/config/version", "0.2.0")), "La versión de iOS coincide con la versión reportada por analítica")
+	assert_equals(presets.get_value("preset.3", "name", ""), "iOS Diagnostics", "Existe un preset de diagnóstico iOS separado de Release")
+	assert_true(not presets.get_value("preset.3.options", "plugins/BackupFilePicker", true), "La IPA de diagnóstico evita enlazar el selector nativo de copias")
 	var picker_plugin := ConfigFile.new()
 	assert_equals(picker_plugin.load("res://ios/plugins/backup_file_picker/BackupFilePicker.gdip.in"), OK, "La configuración del selector iOS se puede leer")
 
@@ -1840,6 +1854,11 @@ func test_confetti_and_star_revelation() -> void:
 	remove_child(hud)
 	hud.free()
 
+func test_confetti_geometry() -> void:
+	print("\n-> Test: Geometría no degenerada del confeti")
+	var half := BattleHUD._confetti_half_size(Vector2(12, 8), PI * 0.5)
+	assert_true(4.0 * half.x * half.y > 1.0, "El confeti de canto conserva área y no falla al triangular")
+
 func test_audio_fanfares_and_continental_conquest() -> void:
 	print("\n-> Test: Fanfarrias Triunfales, Conquista Continental y Sonidos Secuenciales de Estrellas")
 	assert_true(AudioManager != null, "AudioManager está disponible")
@@ -1915,6 +1934,22 @@ func test_bezier_curves_and_marching_dots() -> void:
 	# Robustez ante distancia cero entre puntos
 	var cp_zero = battle.get_bezier_control_point(p0, p0, Vector2(100, 100))
 	assert_true(cp_zero.is_equal_approx(p0), "get_bezier_control_point maneja distancia cero entre origen y destino sin errores de división por cero")
+
+	# Arrastres cortos y rápidos no deben doblar la cinta hasta autointersectarse.
+	var distances: Array[float] = [10.1, 12.0, 24.0, 80.0]
+	var lateral_velocities: Array[Vector2] = [Vector2(0, 1000), Vector2(0, -1000)]
+	for distance in distances:
+		var start := Vector2.ZERO
+		var end := Vector2(distance, 0.0)
+		for velocity in lateral_velocities:
+			var control: Vector2 = battle.get_bezier_control_point(start, end, velocity)
+			assert_true(absf(control.y) <= minf(50.0, distance * 0.2) + 0.001,
+				"La curvatura se limita según la distancia (%.1f px)" % distance)
+			var curve: PackedVector2Array = battle.sample_bezier_points(start, control, end, 16)
+			var glow: PackedVector2Array = battle._build_arrow_ribbon(curve, 20.0, 6.5)
+			var core: PackedVector2Array = battle._build_arrow_ribbon(curve, 13.0, 3.5)
+			assert_true(not Geometry2D.triangulate_polygon(glow).is_empty(), "El halo de la flecha se triangula (%.1f px)" % distance)
+			assert_true(not Geometry2D.triangulate_polygon(core).is_empty(), "El núcleo de la flecha se triangula (%.1f px)" % distance)
 
 	# 3. Muestreo de puntos de la curva
 	var sampled = battle.sample_bezier_points(p0, p1, p2, 24)
@@ -4443,3 +4478,128 @@ func test_telemetry_schema_and_privacy() -> void:
 	DirAccess.remove_absolute(GameManager.save_path + ".backup")
 	GameManager.reset_save()
 	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Reiniciar progreso conserva las opciones de privacidad")
+
+func test_aptabase_http_delivery() -> void:
+	print("\n-> Test: Envío HTTP de Aptabase contra servidor local")
+	Aptabase.disable()
+	var server := TCPServer.new()
+	var listen_error := server.listen(0, "127.0.0.1")
+	assert_equals(listen_error, OK, "El servidor HTTP local de prueba escucha en loopback")
+	if listen_error != OK:
+		return
+
+	var initialized := Aptabase.init("A-SH-CI", {
+		"base_url": "http://127.0.0.1:%d" % server.get_local_port(),
+		"app_version": "test",
+		"is_debug": false,
+		"flush_interval": 0.5,
+		"timeout": 10.0,
+	})
+	assert_true(initialized, "Aptabase confirma la inicialización con una clave de prueba")
+	if not initialized:
+		server.stop()
+		return
+
+	Aptabase.track("ci_smoke", {"flag": 1})
+	var request: Dictionary = await _receive_mock_aptabase_request(server)
+	assert_true(not request.is_empty(), "Aptabase envía un lote al servidor local")
+	if request.is_empty():
+		Aptabase.disable()
+		server.stop()
+		return
+
+	var headers: String = str(request["headers"])
+	assert_true(headers.begins_with("POST /api/v0/events "), "Aptabase usa la ruta de eventos")
+	assert_true(headers.to_lower().contains("app-key: a-sh-ci"), "Aptabase envía solo la clave de prueba")
+	assert_true(headers.to_lower().contains("content-type: application/json"), "Aptabase declara el cuerpo JSON")
+	var batch: Variant = JSON.parse_string(str(request["body"]))
+	assert_true(batch is Array and batch.size() == 1, "El cuerpo contiene un lote JSON de un evento")
+	if batch is Array and batch.size() == 1:
+		var event: Dictionary = batch[0]
+		assert_equals(event.get("eventName", ""), "ci_smoke", "El nombre del evento llega intacto")
+		var props: Dictionary = event.get("props", {})
+		assert_equals(props.get("flag", 0), 1, "Las propiedades del evento llegan intactas")
+	assert_equals(int(request.get("response_error", ERR_CANT_CONNECT)), OK, "El servidor local acepta la petición HTTP")
+
+	for _frame in 720:
+		if not Aptabase._request_in_flight:
+			break
+		await get_tree().process_frame
+	assert_true(not Aptabase._request_in_flight, "Aptabase termina la petición tras recibir HTTP 200")
+	assert_true(Aptabase._event_queue.is_empty(), "Aptabase elimina de la cola el lote aceptado")
+	var peer: StreamPeerTCP = request.get("peer")
+	if peer != null:
+		peer.disconnect_from_host()
+
+	var telemetry = load("res://scripts/autoload/telemetry.gd").new()
+	var previous_share_analytics: bool = GameManager.settings["share_analytics"]
+	GameManager.settings["share_analytics"] = true
+	telemetry._analytics_ready = true
+	Aptabase._flush_timer.stop()
+	telemetry._start_session()
+	assert_true(Aptabase._request_in_flight, "Al consentir, la sesión empieza a enviarse sin esperar el temporizador")
+	var session_request: Dictionary = await _receive_mock_aptabase_request(server)
+	assert_true(not session_request.is_empty(), "La sesión opt-in llega al servidor local")
+	if not session_request.is_empty():
+		var session_batch: Variant = JSON.parse_string(str(session_request["body"]))
+		assert_true(session_batch is Array and session_batch.size() == 1, "La sesión opt-in contiene un evento")
+		if session_batch is Array and session_batch.size() == 1:
+			assert_equals(session_batch[0].get("eventName", ""), "session_start", "El primer evento es session_start")
+		var session_peer: StreamPeerTCP = session_request.get("peer")
+		if session_peer != null:
+			session_peer.disconnect_from_host()
+	for _frame in 720:
+		if not Aptabase._request_in_flight:
+			break
+		await get_tree().process_frame
+	assert_true(not Aptabase._request_in_flight and Aptabase._event_queue.is_empty(), "Aptabase confirma la sesión antes de desactivar el cliente")
+	GameManager.settings["share_analytics"] = previous_share_analytics
+	telemetry.free()
+	Aptabase.disable()
+	server.stop()
+
+func _receive_mock_aptabase_request(server: TCPServer) -> Dictionary:
+	var peer: StreamPeerTCP
+	for _frame in 720:
+		if server.is_connection_available():
+			peer = server.take_connection()
+			break
+		await get_tree().process_frame
+	if peer == null:
+		return {}
+
+	var raw := PackedByteArray()
+	var headers := ""
+	var body := ""
+	var content_length := -1
+	var complete := false
+	for _frame in 720:
+		peer.poll()
+		if peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+			break
+		var available := peer.get_available_bytes()
+		if available > 0:
+			var received: Array = peer.get_partial_data(available)
+			if received[0] == OK:
+				raw.append_array(received[1])
+		var request_text := raw.get_string_from_utf8()
+		var header_end := request_text.find("\r\n\r\n")
+		if header_end >= 0:
+			headers = request_text.substr(0, header_end)
+			for line in headers.split("\r\n"):
+				if line.to_lower().begins_with("content-length:"):
+					content_length = int(line.get_slice(":", 1).strip_edges())
+					break
+			if content_length >= 0:
+				var body_bytes := raw.slice(header_end + 4)
+				if body_bytes.size() >= content_length:
+					body = body_bytes.slice(0, content_length).get_string_from_utf8()
+					complete = true
+					break
+		await get_tree().process_frame
+	if not complete:
+		peer.disconnect_from_host()
+		return {}
+
+	var response := "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+	return {"headers": headers, "body": body, "peer": peer, "response_error": peer.put_data(response.to_utf8_buffer())}

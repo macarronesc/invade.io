@@ -656,11 +656,16 @@ func _update_confetti(delta: float) -> void:
 			confetti_pieces.remove_at(i)
 	confetti_overlay.queue_redraw()
 
+static func _confetti_half_size(size: Vector2, wobble: float) -> Vector2:
+	var half := size * 0.5 * Vector2(1.0, absf(cos(wobble)))
+	half.y = maxf(half.y, 0.5)
+	return half
+
 func _draw_confetti() -> void:
 	for p in confetti_pieces:
-		var half = p["size"] * 0.5 * Vector2(1.0, absf(cos(p["wobble"])))
-		var xf = Transform2D(p["rot"], p["pos"])
-		var quad = PackedVector2Array([
+		var half := BattleHUD._confetti_half_size(p["size"], p["wobble"])
+		var xf := Transform2D(p["rot"], p["pos"])
+		var quad := PackedVector2Array([
 			xf * Vector2(-half.x, -half.y), xf * Vector2(half.x, -half.y),
 			xf * Vector2(half.x, half.y), xf * Vector2(-half.x, half.y)
 		])

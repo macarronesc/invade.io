@@ -16,6 +16,8 @@ const CUT_FLASH_TIME := 0.35
 const CLASH_FLASH_TIME := 0.3
 const BOSS_INTERVAL := 18.0
 const BOSS_REINFORCEMENT := 10
+const ARROW_MAX_BEND := 50.0
+const ARROW_BEND_RATIO := 0.2 # Keeps the curve radius above the 10px glow half-width.
 ## Segundos que se muestra la ficha de una base tras tocarla
 const INFO_SECONDS := 2.6
 ## Un toque que se mueve menos que esto no es un arrastre ni un corte
@@ -894,9 +896,10 @@ func get_bezier_control_point(p0: Vector2, p2: Vector2, vel: Vector2 = Vector2.Z
 		return mid
 	var normal = Vector2(-diff.y, diff.x) / dist
 	# Deformación lateral elástica basada en la velocidad de arrastre (recta en reposo)
-	var vel_offset = normal * clampf(vel.dot(normal) * 0.12, -50.0, 50.0)
+	var vel_offset = clampf(vel.dot(normal) * 0.12, -ARROW_MAX_BEND, ARROW_MAX_BEND)
 	var bow_amount = sin(marching_dots_phase * TAU) * 2.5
-	return mid + vel_offset + normal * bow_amount
+	var max_bend := minf(ARROW_MAX_BEND, dist * ARROW_BEND_RATIO)
+	return mid + normal * clampf(vel_offset + bow_amount, -max_bend, max_bend)
 
 func evaluate_quadratic_bezier(p0: Vector2, p1: Vector2, p2: Vector2, t: float) -> Vector2:
 	var u = 1.0 - t
@@ -908,6 +911,20 @@ func sample_bezier_points(p0: Vector2, p1: Vector2, p2: Vector2, segments: int =
 	for i in range(segments + 1):
 		pts[i] = evaluate_quadratic_bezier(p0, p1, p2, float(i) / float(segments))
 	return pts
+
+func _build_arrow_ribbon(curve_pts: PackedVector2Array, start_width: float, end_width: float) -> PackedVector2Array:
+	var n := curve_pts.size()
+	var polygon := PackedVector2Array()
+	polygon.resize(n * 2)
+	for i in n:
+		var t := float(i) / float(n - 1)
+		var pt := curve_pts[i]
+		var tangent := ((curve_pts[i + 1] - pt) if i < n - 1 else (pt - curve_pts[i - 1])).normalized()
+		var normal := Vector2(-tangent.y, tangent.x)
+		var half_width := lerpf(start_width, end_width, t) * 0.5
+		polygon[i] = pt + normal * half_width
+		polygon[n * 2 - 1 - i] = pt - normal * half_width
+	return polygon
 
 ## Tropas que se lanzarían al soltar ahora mismo desde las bases seleccionadas que siguen siendo nuestras
 func get_pending_attack_count(target: BaseNode = null) -> int:
@@ -976,25 +993,19 @@ func _draw_arrow(canvas: CanvasItem, start_pt: Vector2, end_pt: Vector2, player_
 	var p1 = get_bezier_control_point(start_pt, end_pt, drag_velocity)
 	var curve_pts = sample_bezier_points(start_pt, p1, end_pt, clampi(int(dist / 14.0), 16, 36))
 
-	# 1. Geometría de grosor cónico adaptativo (halo + núcleo)
-	var n = curve_pts.size()
-	var glow_poly = PackedVector2Array()
-	var core_poly = PackedVector2Array()
-	glow_poly.resize(n * 2)
-	core_poly.resize(n * 2)
-	for i in n:
-		var t = float(i) / float(n - 1)
-		var pt = curve_pts[i]
-		var tangent = ((curve_pts[i + 1] - pt) if i < n - 1 else (pt - curve_pts[i - 1])).normalized()
-		var normal = Vector2(-tangent.y, tangent.x)
-		var w_core = lerpf(13.0, 3.5, t) * 0.5
-		var w_glow = lerpf(20.0, 6.5, t) * 0.5
-		core_poly[i] = pt + normal * w_core
-		core_poly[n * 2 - 1 - i] = pt - normal * w_core
-		glow_poly[i] = pt + normal * w_glow
-		glow_poly[n * 2 - 1 - i] = pt - normal * w_glow
-	canvas.draw_colored_polygon(glow_poly, Color(1.0, 1.0, 1.0, 0.28))
-	canvas.draw_colored_polygon(core_poly, Color(player_color, 0.92))
+	# Bound curves and pre-triangulate the ribbons: fast short swipes can fold their offset edges.
+	var glow_poly := _build_arrow_ribbon(curve_pts, 20.0, 6.5)
+	var core_poly := _build_arrow_ribbon(curve_pts, 13.0, 3.5)
+	var glow_color := Color(1.0, 1.0, 1.0, 0.28)
+	var core_color := Color(player_color, 0.92)
+	var glow_indices := Geometry2D.triangulate_polygon(glow_poly)
+	var core_indices := Geometry2D.triangulate_polygon(core_poly)
+	if glow_indices.is_empty() or core_indices.is_empty():
+		canvas.draw_polyline(curve_pts, glow_color, 20.0, true)
+		canvas.draw_polyline(curve_pts, core_color, 10.0, true)
+	else:
+		RenderingServer.canvas_item_add_triangle_array(canvas.get_canvas_item(), glow_indices, glow_poly, PackedColorArray([glow_color]))
+		RenderingServer.canvas_item_add_triangle_array(canvas.get_canvas_item(), core_indices, core_poly, PackedColorArray([core_color]))
 
 	# 2. Puntos animados fluidos (Marching Dots)
 	var num_dots = clampi(int(dist / 38.0), 6, 14)

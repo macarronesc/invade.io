@@ -69,12 +69,11 @@ func _init_analytics() -> void:
 		return
 	if not is_instance_valid(Aptabase):
 		return
-	Aptabase.init(APTABASE_KEY, {
+	_analytics_ready = Aptabase.init(APTABASE_KEY, {
 		"app_version": _app_version(),
-		"is_debug": OS.is_debug_build(),
+		"is_debug": OS.is_debug_build() and not OS.has_feature("aptabase_release"),
 		"flush_interval": 10.0,
 	})
-	_analytics_ready = true
 
 func _init_crashes() -> void:
 	if _crash_ready or not _crash_allowed() or SENTRY_DSN.is_empty():
@@ -140,6 +139,8 @@ func _start_session() -> void:
 		"invasion_stars": GameManager.total_invasion_stars(),
 		"language": GameManager.language,
 	})
+	# Send the first opt-in event now instead of waiting for a mobile idle timer.
+	Aptabase.flush()
 
 func _end_session(reason: String) -> void:
 	if not _session_active:

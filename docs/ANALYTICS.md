@@ -24,6 +24,23 @@ Con las claves vacías el juego funciona igual y no envía nada. En tests headle
 `--no-telemetry` tampoco se inicializa nada. `--telemetry-debug` imprime los eventos por consola en
 una compilación de depuración.
 
+Al iniciar una sesión con consentimiento, `session_start` se intenta enviar de inmediato; los eventos
+siguientes se siguen agrupando con el intervalo normal.
+
+El preset **Android AAB** añade `aptabase_release` para que Aptabase marque sus eventos como Release;
+el APK de pruebas no lleva esa marca y conserva el estado Debug de la compilación.
+
+La IPA de GitHub Actions se compila como `Release`, por lo que los envíos correctos no se imprimen en
+esa compilación. Los fallos de transporte aparecen como avisos en la consola local de Godot/Xcode; no
+se adjuntan a Sentry (`attach_log = false`). La suite headless verifica el cliente contra un servidor
+HTTP local y no envía eventos ni claves reales a Aptabase.
+
+Para diagnosticar un iPhone, ejecuta manualmente **Build iOS IPA (SideStore)** con `diagnostic_ipa`
+activado e instala el artefacto `invade.io-debug.ipa`. En la consola del dispositivo, busca
+`[Aptabase] initialized`, `[Aptabase] sent` o los avisos de petición fallida. Esa IPA es solo para
+pruebas; usa el preset `iOS Diagnostics`, que omite el selector nativo de copias, y no la publiques en
+tiendas ni compartas sus logs, que pueden incluir la respuesta del servidor.
+
 ## Eventos
 
 Todas las propiedades personalizadas son cadenas o números. No se envían nombres, correos, texto
