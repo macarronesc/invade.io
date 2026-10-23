@@ -68,8 +68,8 @@ Juego vertical de estrategia territorial en Godot 4.7.
   velocidad, paleta accesible y privacidad. La velocidad afecta a ambos bandos y no acelera el reloj diario.
 - 15 idiomas de interfaz y datos: inglés, español, portugués (Brasil), francés, alemán,
   italiano, ruso, turco, árabe, hindi, indonesio, vietnamita, chino simplificado, japonés
-  y coreano. El árabe usa diseño RTL. El idioma inicial sigue al dispositivo y se puede
-  cambiar en Ajustes; las partidas antiguas conservan el suyo.
+  y coreano. El árabe usa diseño RTL. El idioma inicial sigue al dispositivo; el idioma
+  elegido y guardado prevalece, y las partidas antiguas sin idioma registrado también siguen al dispositivo.
 - Traducciones en `locale/strings.csv` (claves estables, sin texto duplicado en el código).
   Las fuentes Noto por escritura están en `assets/fonts/locale/`; los nombres de ciudad
   localizados vienen de Natural Earth dentro de `assets/data/geo.json`. Para añadir textos,

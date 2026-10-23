@@ -1027,8 +1027,8 @@ func _apply_save(data: Dictionary) -> void:
 		daily[key] = _as_int(saved_daily.get(key), daily[key])
 	var lang := LanguageCatalog.normalize(str(data.get("language", "")))
 	if lang == "":
-		# New install: follow the device. Old saves without a language keep Spanish.
-		lang = LanguageCatalog.preferred_from_system() if data.is_empty() else "es"
+		# New installs and saves without a valid language follow the device.
+		lang = LanguageCatalog.preferred_from_system()
 	language = lang
 	has_started = _as_bool(data.get("has_started"))
 	conquest_next = maxi(0, _as_int(data.get("conquest_next"), 0))

@@ -3108,6 +3108,20 @@ func test_cleanup_regressions() -> void:
 func test_language_system() -> void:
 	print("\n-> Test: Traducciones, Catálogo de Idiomas y Nombres Localizados")
 	GameManager.reset_save()
+	var system_language := LanguageCatalog.preferred_from_system()
+	GameManager._apply_save({})
+	assert_equals(GameManager.language, system_language, "Una partida nueva sigue el idioma del dispositivo")
+	assert_equals(TranslationServer.get_locale(), system_language, "El idioma del dispositivo se aplica a las traducciones")
+	assert_equals(GameManager.save_game(), OK, "El idioma inicial se puede guardar")
+	GameManager.load_game()
+	assert_equals(GameManager.language, system_language, "El idioma inicial se conserva al volver a cargar la partida")
+	var selected_language := "en" if system_language != "en" else "es"
+	GameManager.set_language(selected_language)
+	GameManager.load_game()
+	assert_equals(GameManager.language, selected_language, "El idioma elegido se conserva al volver a cargar la partida")
+	GameManager._apply_save({"version": 6, "coins": GameManager.DEFAULT_COINS})
+	assert_equals(GameManager.language, system_language, "Los guardados antiguos sin idioma siguen el idioma del dispositivo")
+	GameManager._apply_save({})
 	GameManager.set_language("es")
 	assert_equals(GameManager.language, "es", "Cambio a español")
 	assert_equals(LocaleStrings.text("play"), "Jugar", "Clave del menú en español")
@@ -3606,6 +3620,7 @@ func test_invasion_mode() -> void:
 	GameManager._apply_save({"version": 6, "coins": 100, "upgrades": {}, "completed_levels": {}})
 	assert_true(GameManager.invasion_stars.is_empty(), "Un guardado v6 no inventa invasiones")
 	assert_true(GameManager.invasion_rewards.is_empty(), "Un guardado v6 no inventa premios")
+	GameManager.set_language("es")
 
 	# 5. UI desbloqueada: mapa, regiones, frentes y resumen.
 	for i in range(1, LevelDatabase.LEVELS_PER_CONTINENT + 1):
@@ -3770,7 +3785,7 @@ func test_review_regressions() -> void:
 	assert_equals(GameManager.conquered_cities, ["madrid"] as Array[String], "El guardado filtra ciudades inválidas y duplicadas")
 	assert_equals(GameManager.cosmetics_equipped, GameManager.DEFAULT_COSMETICS_EQUIPPED, "No se equipan objetos no poseídos ni de otra categoría")
 	assert_true(GameManager.is_cosmetic_owned("color_blue"), "Los cosméticos gratuitos siempre están disponibles")
-	assert_equals(LocaleStrings.lang, "es", "Sólo hay un idioma activo incluso al cargar datos inválidos")
+	assert_equals(LocaleStrings.lang, LanguageCatalog.preferred_from_system(), "Un idioma guardado inválido sigue el idioma del dispositivo")
 	assert_equals(GameManager.conquest_next, 0, "La progresión corrupta vuelve a cero")
 	assert_true(not GameManager.conquer_city("no_existe"), "El atlas sólo admite ciudades reales")
 	var battle := BattleController.new()
@@ -3867,6 +3882,7 @@ func test_packets_and_battle_feedback() -> void:
 func test_progression_overhaul() -> void:
 	print("\n-> Test: Economía, Rangos, Premios, Medallas, Colecciones y Siguiente Objetivo")
 	GameManager.reset_save()
+	GameManager.set_language("es")
 	# 1. Economía: siempre hay una compra al alcance y la última no es desorbitada
 	assert_equals(GameManager.get_upgrade_cost("starting_troops"), 50, "Primera mejora: 50 de oro")
 	GameManager.upgrades["starting_troops"] = 9

@@ -77,6 +77,10 @@ Para estas funciones offline, antes de publicar:
 - Cerrar el proceso después de guardar y actualizar sin desinstalar: progreso intacto;
   la batalla interrumpida no se restaura. Desinstalar puede borrar los datos locales.
 - Revisar ajustes y pausa en ES/EN, claro/oscuro, pantallas pequeñas y zonas seguras.
+- Idioma en un perfil de prueba limpio (Android e iPhone): probar una locale compatible
+  (por ejemplo, `fr-FR` y `ar-EG`) y otra no compatible; elegir otro idioma, relanzar y confirmar
+  que prevalece la elección guardada aunque cambie la locale del dispositivo. Comprobar también
+  que una copia antigua sin `language` sigue la locale del dispositivo.
 
 La suite `--mobile` simula las notificaciones y fallos de escritura en archivos separados.
 No certifica la sensación háptica, las interrupciones reales del sistema ni una build firmada.
