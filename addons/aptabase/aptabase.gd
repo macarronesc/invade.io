@@ -60,8 +60,7 @@ var _request_in_flight := false
 
 
 ## Initialize the client. Safe to call once, typically from your main scene's
-## [code]_ready()[/code]. If the configuration is invalid, analytics are
-## disabled (a warning/error is logged) and all other calls become no-ops.
+## [code]_ready()[/code]. Returns whether the client is ready to accept events.
 ##
 ## [param app_key] is your Aptabase app key, e.g. [code]A-EU-0000000000[/code].
 ## [param options] may contain: [code]app_version[/code] (String),
@@ -69,18 +68,18 @@ var _request_in_flight := false
 ## [code]max_batch_size[/code] (int, max 25), [code]flush_interval[/code]
 ## (float seconds), [code]timeout[/code] (float seconds) and [code]base_url[/code]
 ## (String, required for self-hosted [code]A-SH-*[/code] keys).
-func init(app_key: String, options: Dictionary = {}) -> void:
+func init(app_key: String, options: Dictionary = {}) -> bool:
 	if _initialized:
 		push_warning("[Aptabase] init() called more than once; ignoring.")
-		return
+		return true
 
 	if app_key.is_empty():
 		push_error("[Aptabase] app_key is required. Analytics disabled.")
-		return
+		return false
 
 	if not (app_key.begins_with("A-EU-") or app_key.begins_with("A-US-") or app_key.begins_with("A-SH-")):
 		push_error("[Aptabase] Invalid app key format. Expected A-{REGION}-{ID}. Analytics disabled.")
-		return
+		return false
 
 	_app_key = app_key
 	_app_version = str(options.get("app_version", DEFAULT_APP_VERSION))
@@ -96,7 +95,7 @@ func init(app_key: String, options: Dictionary = {}) -> void:
 	_base_url = base_url_opt if not base_url_opt.is_empty() else _resolve_base_url(app_key)
 	if _base_url.is_empty():
 		push_error("[Aptabase] Could not resolve a base URL. Self-hosted keys (A-SH-*) require a 'base_url' option. Analytics disabled.")
-		return
+		return false
 	_base_url = _base_url.trim_suffix("/")
 
 	_system_props = _build_system_props()
@@ -105,6 +104,7 @@ func init(app_key: String, options: Dictionary = {}) -> void:
 
 	if _is_debug:
 		print("[Aptabase] initialized (region base: %s, flush every %.1fs)" % [_base_url, _flush_interval])
+	return true
 
 
 ## Stop collection immediately and discard unsent events when consent is withdrawn.

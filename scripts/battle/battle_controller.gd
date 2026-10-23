@@ -16,6 +16,8 @@ const CUT_FLASH_TIME := 0.35
 const CLASH_FLASH_TIME := 0.3
 const BOSS_INTERVAL := 18.0
 const BOSS_REINFORCEMENT := 10
+const ARROW_MAX_BEND := 50.0
+const ARROW_BEND_RATIO := 0.2 # Keeps the curve radius above the 10px glow half-width.
 ## Segundos que se muestra la ficha de una base tras tocarla
 const INFO_SECONDS := 2.6
 ## Un toque que se mueve menos que esto no es un arrastre ni un corte
@@ -79,6 +81,9 @@ var _remate_used := false
 @onready var arrow_overlay: Node2D = get_node_or_null("ArrowOverlay")
 @onready var territory_map: Node2D = get_node_or_null("TerritoryMap")
 @onready var camera: Camera2D = get_node_or_null("Camera2D")
+## Tablero del nivel en coordenadas de mundo (vertical u horizontal)
+var map_rect: Rect2 = LevelGenerator.MAP_RECT
+var _fit_zoom := 1.0
 
 func _notification(what: int) -> void:
 	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED]:
@@ -93,12 +98,31 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	load_level(GameManager.get_battle_level_id())
+	_fit_camera()
+	get_viewport().size_changed.connect(_fit_camera)
 	AudioManager.play_music("battle")
 	EventBus.base_captured.connect(_on_base_captured)
 	EventBus.troop_arrived.connect(_on_troop_arrived)
 	EventBus.settings_changed.connect(_refresh_colors)
 	if arrow_overlay:
 		arrow_overlay.draw.connect(_draw_drag_overlay)
+
+func _is_landscape() -> bool:
+	var size := get_viewport_rect().size
+	return size.x > size.y
+
+## Encaja todo el tablero en la vista: con la orientación del nivel es 1:1; si la pantalla gira o
+## se redimensiona a mitad de partida, el mapa se ve entero sin regenerar la batalla.
+func _fit_camera() -> void:
+	if not camera:
+		return
+	var view := get_viewport_rect().size
+	if view.x <= 0.0 or view.y <= 0.0 or map_rect.size.x <= 0.0 or map_rect.size.y <= 0.0:
+		return
+	var z := minf(view.x / map_rect.size.x, view.y / map_rect.size.y)
+	_fit_zoom = z
+	camera.zoom = Vector2(z, z)
+	camera.position = map_rect.get_center()
 
 func start_slow_motion() -> void:
 	is_slow_motion_active = true
@@ -123,7 +147,10 @@ func load_level(p_level_id: String) -> void:
 	_max_speed = float(GameManager.settings["speed"])
 	# El desafío diario se compara entre jugadores: se juega sin mejoras de combate
 	GameManager.normalized_battle = DailyRewards.is_challenge(level_id)
-	level_data = LevelDatabase.get_level_data(level_id)
+	# El tablero se monta en la orientación de la pantalla al entrar; si luego gira, la cámara lo reencaja
+	var landscape := is_inside_tree() and _is_landscape() and not DailyRewards.is_challenge(level_id)
+	level_data = LevelDatabase.get_level_data(level_id, landscape)
+	map_rect = level_data.get("map_rect", LevelGenerator.MAP_RECT)
 	target_time = level_data.get("target_time", 45.0)
 
 	# Curva de dificultad: los enemigos producen más rápido a medida que avanza la campaña
@@ -145,7 +172,7 @@ func load_level(p_level_id: String) -> void:
 	if territory_map:
 		var geo: Dictionary = level_data.get("geo", {})
 		# Con geografía, los territorios cubren toda la tierra visible (también en pantallas altas)
-		territory_map.generate_map(bases, LevelGenerator.GEO_CLIP_RECT if geo else Rect2(), geo)
+		territory_map.generate_map(bases, LevelGenerator.layout(map_rect.size.x > map_rect.size.y)["clip"] if geo else map_rect, geo)
 		_apply_map_theme()
 
 	# IA para cada facción enemiga
@@ -186,6 +213,13 @@ func _apply_map_theme() -> void:
 		territory_map.country_border_color = theme.get("country_border_color", territory_map.country_border_color)
 		territory_map.territory_alpha = theme.get("territory_alpha", territory_map.territory_alpha)
 		territory_map.neutral_alpha = theme.get("neutral_alpha", territory_map.neutral_alpha)
+		if GameManager.settings.get("high_contrast_map", false):
+			territory_map.border_color = Color("10263a") if _map_is_light else Color("ffffff")
+			territory_map.border_width = 5.5
+			territory_map.territory_alpha = 0.48
+			territory_map.neutral_alpha = 0.26
+		else:
+			territory_map.border_width = 3.5
 		for cell in territory_map.cells:
 			cell.current_color = territory_map.get_faction_territory_color(cell.base_node.faction)
 			cell.target_color = cell.current_color
@@ -267,6 +301,16 @@ func shake_camera(amount: float) -> void:
 	if not GameManager.settings["reduced_motion"]:
 		_shake = maxf(_shake, amount)
 
+func adjust_camera_zoom(step: float) -> void:
+	if camera:
+		var minimum := _fit_zoom * 0.75
+		var maximum := maxf(_fit_zoom, minf(2.0, _fit_zoom * 2.0))
+		camera.zoom = Vector2.ONE * clampf(camera.zoom.x + step * _fit_zoom, minimum, maximum)
+
+func center_camera_on(base: BaseNode) -> void:
+	if camera and is_instance_valid(base):
+		camera.global_position = base.global_position
+
 func _refresh_colors() -> void:
 	if GameManager.settings["reduced_motion"]:
 		_shake = 0.0
@@ -276,11 +320,7 @@ func _refresh_colors() -> void:
 		if is_instance_valid(troop):
 			troop.queue_redraw()
 	if territory_map:
-		for cell in territory_map.cells:
-			cell.current_color = territory_map.get_faction_territory_color(cell.base_node.faction)
-			cell.target_color = cell.current_color
-			cell.start_color = cell.current_color
-		territory_map.queue_redraw()
+		_apply_map_theme()
 
 ## El jefe recibe los refuerzos de su mapa mientras conserve su dueño original;
 ## un arco sobre la base anuncia la próxima oleada
@@ -595,7 +635,7 @@ func _handle_release(pos: Vector2) -> void:
 ## Ficha breve de una base tocada: tropas, producción y ventaja especial
 func show_base_info(base: BaseNode) -> void:
 	_info_base = base
-	_info_timer = INFO_SECONDS if base else 0.0
+	_info_timer = INFO_SECONDS * UIThemeHelper.font_scale() if base else 0.0
 
 func _add_selected_source(base: BaseNode) -> void:
 	if not selected_sources.has(base):
@@ -861,9 +901,10 @@ func get_bezier_control_point(p0: Vector2, p2: Vector2, vel: Vector2 = Vector2.Z
 		return mid
 	var normal = Vector2(-diff.y, diff.x) / dist
 	# Deformación lateral elástica basada en la velocidad de arrastre (recta en reposo)
-	var vel_offset = normal * clampf(vel.dot(normal) * 0.12, -50.0, 50.0)
+	var vel_offset = clampf(vel.dot(normal) * 0.12, -ARROW_MAX_BEND, ARROW_MAX_BEND)
 	var bow_amount = sin(marching_dots_phase * TAU) * 2.5
-	return mid + vel_offset + normal * bow_amount
+	var max_bend := minf(ARROW_MAX_BEND, dist * ARROW_BEND_RATIO)
+	return mid + normal * clampf(vel_offset + bow_amount, -max_bend, max_bend)
 
 func evaluate_quadratic_bezier(p0: Vector2, p1: Vector2, p2: Vector2, t: float) -> Vector2:
 	var u = 1.0 - t
@@ -875,6 +916,20 @@ func sample_bezier_points(p0: Vector2, p1: Vector2, p2: Vector2, segments: int =
 	for i in range(segments + 1):
 		pts[i] = evaluate_quadratic_bezier(p0, p1, p2, float(i) / float(segments))
 	return pts
+
+func _build_arrow_ribbon(curve_pts: PackedVector2Array, start_width: float, end_width: float) -> PackedVector2Array:
+	var n := curve_pts.size()
+	var polygon := PackedVector2Array()
+	polygon.resize(n * 2)
+	for i in n:
+		var t := float(i) / float(n - 1)
+		var pt := curve_pts[i]
+		var tangent := ((curve_pts[i + 1] - pt) if i < n - 1 else (pt - curve_pts[i - 1])).normalized()
+		var normal := Vector2(-tangent.y, tangent.x)
+		var half_width := lerpf(start_width, end_width, t) * 0.5
+		polygon[i] = pt + normal * half_width
+		polygon[n * 2 - 1 - i] = pt - normal * half_width
+	return polygon
 
 ## Tropas que se lanzarían al soltar ahora mismo desde las bases seleccionadas que siguen siendo nuestras
 func get_pending_attack_count(target: BaseNode = null) -> int:
@@ -943,25 +998,19 @@ func _draw_arrow(canvas: CanvasItem, start_pt: Vector2, end_pt: Vector2, player_
 	var p1 = get_bezier_control_point(start_pt, end_pt, drag_velocity)
 	var curve_pts = sample_bezier_points(start_pt, p1, end_pt, clampi(int(dist / 14.0), 16, 36))
 
-	# 1. Geometría de grosor cónico adaptativo (halo + núcleo)
-	var n = curve_pts.size()
-	var glow_poly = PackedVector2Array()
-	var core_poly = PackedVector2Array()
-	glow_poly.resize(n * 2)
-	core_poly.resize(n * 2)
-	for i in n:
-		var t = float(i) / float(n - 1)
-		var pt = curve_pts[i]
-		var tangent = ((curve_pts[i + 1] - pt) if i < n - 1 else (pt - curve_pts[i - 1])).normalized()
-		var normal = Vector2(-tangent.y, tangent.x)
-		var w_core = lerpf(13.0, 3.5, t) * 0.5
-		var w_glow = lerpf(20.0, 6.5, t) * 0.5
-		core_poly[i] = pt + normal * w_core
-		core_poly[n * 2 - 1 - i] = pt - normal * w_core
-		glow_poly[i] = pt + normal * w_glow
-		glow_poly[n * 2 - 1 - i] = pt - normal * w_glow
-	canvas.draw_colored_polygon(glow_poly, Color(1.0, 1.0, 1.0, 0.28))
-	canvas.draw_colored_polygon(core_poly, Color(player_color, 0.92))
+	# Bound curves and pre-triangulate the ribbons: fast short swipes can fold their offset edges.
+	var glow_poly := _build_arrow_ribbon(curve_pts, 20.0, 6.5)
+	var core_poly := _build_arrow_ribbon(curve_pts, 13.0, 3.5)
+	var glow_color := Color(1.0, 1.0, 1.0, 0.28)
+	var core_color := Color(player_color, 0.92)
+	var glow_indices := Geometry2D.triangulate_polygon(glow_poly)
+	var core_indices := Geometry2D.triangulate_polygon(core_poly)
+	if glow_indices.is_empty() or core_indices.is_empty():
+		canvas.draw_polyline(curve_pts, glow_color, 20.0, true)
+		canvas.draw_polyline(curve_pts, core_color, 10.0, true)
+	else:
+		RenderingServer.canvas_item_add_triangle_array(canvas.get_canvas_item(), glow_indices, glow_poly, PackedColorArray([glow_color]))
+		RenderingServer.canvas_item_add_triangle_array(canvas.get_canvas_item(), core_indices, core_poly, PackedColorArray([core_color]))
 
 	# 2. Puntos animados fluidos (Marching Dots)
 	var num_dots = clampi(int(dist / 38.0), 6, 14)
@@ -1047,9 +1096,11 @@ func _draw_target_preview(canvas: CanvasItem, target: BaseNode) -> void:
 
 static func _draw_map_text(canvas: CanvasItem, center: Vector2, text: String, size: int, color: Color) -> void:
 	var font := UIThemeHelper.bold_font()
-	var pos := center - Vector2(200.0, 0.0)
-	canvas.draw_string_outline(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, 400.0, size, 8, Color(0, 0, 0, 0.75))
-	canvas.draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, 400.0, size, color)
+	size = UIThemeHelper.scaled_font_size(size)
+	var width := 400.0 * UIThemeHelper.font_scale()
+	var pos := center - Vector2(width * 0.5, 0.0)
+	canvas.draw_string_outline(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, size, 8, Color(0, 0, 0, 0.75))
+	canvas.draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, size, color)
 
 ## Ficha de la base tocada: nombre, tropas / capacidad, producción y ventaja especial
 func _draw_base_info(canvas: CanvasItem) -> void:
@@ -1064,20 +1115,22 @@ func _draw_base_info(canvas: CanvasItem) -> void:
 	if perk != "":
 		lines.append(perk)
 	var font := UIThemeHelper.bold_font()
+	var font_size := UIThemeHelper.scaled_font_size(28)
+	var line_height := UIThemeHelper.scaled_font_size(38)
 	var width := 0.0
 	for line in lines:
-		width = maxf(width, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x)
-	var size := Vector2(width + 48.0, 20.0 + lines.size() * 38.0)
+		width = maxf(width, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x)
+	var size := Vector2(width + 48.0, 20.0 + lines.size() * line_height)
 	var top := b.global_position + Vector2(-size.x * 0.5, -b.radius - 40.0 - size.y)
 	if top.y < 260.0:
 		top.y = b.global_position.y + b.radius + 40.0
-	top.x = clampf(top.x, 16.0, LevelGenerator.MAP_RECT.size.x - 16.0 - size.x)
+	top.x = clampf(top.x, map_rect.position.x + 16.0, map_rect.end.x - 16.0 - size.x)
 	var rect := Rect2(canvas.to_local(top), size)
 	var box := UIThemeHelper.box(Color(0.06, 0.09, 0.14, 0.92 * alpha), 20, 0)
 	canvas.draw_style_box(box, rect)
 	for i in lines.size():
 		var color := BaseNode.MARKER_GOLD if i == 2 else Color(1, 1, 1, 1.0 if i == 0 else 0.8)
-		canvas.draw_string(font, rect.position + Vector2(24.0, 44.0 + i * 38.0), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(color, alpha))
+		canvas.draw_string(font, rect.position + Vector2(24.0, 44.0 + i * line_height), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(color, alpha))
 
 ## Mientras se traza un corte, las rutas de tus tropas en marcha se ven tenues
 func _draw_marching_routes(canvas: CanvasItem) -> void:

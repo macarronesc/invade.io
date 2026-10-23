@@ -171,6 +171,9 @@ func _build_map(continent_id: String) -> void:
 		btn.text = str(i + 1)
 		btn.add_theme_font_size_override("font_size", 26)
 		btn.add_theme_font_override("font", UIThemeHelper.bold_font())
+		var region := InvasionDatabase.get_region(region_id)
+		btn.accessibility_name = InvasionDatabase.region_name(region)
+		btn.accessibility_description = LocaleStrings.text("invasions_stars") % [GameManager.region_stars(region_id), InvasionDatabase.FRONTS * 3]
 		var selected := region_id == selected_region
 		_style_pin(btn, UIThemeHelper.colors.primary if selected else UIThemeHelper.colors.text,
 			UIThemeHelper.colors.ink if selected else UIThemeHelper.colors.ink)

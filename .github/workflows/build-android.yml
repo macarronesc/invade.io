@@ -84,6 +84,11 @@ jobs:
       - name: Ejecutar la suite completa de pruebas
         run: godot --headless --path . res://scenes/tests/test_runner.tscn
 
+      - name: Probar UI en 15 idiomas y ventana apaisada
+        run: |
+          xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --ui
+          xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --wide-ui
+
       - name: Exportar el APK de pruebas
         run: |
           mkdir -p build/android
@@ -93,6 +98,22 @@ jobs:
 
       - name: Comprobar el APK (target y min SDK, arquitecturas y permisos)
         run: bash scripts/verify_play_bundle.sh build/android/invadeio.apk
+
+      - name: Probar que la configuración R8 es idempotente y sólo activa release
+        run: |
+          test_root="$(mktemp -d "$RUNNER_TEMP/invadeio-r8-test.XXXXXX")"
+          trap 'rm -rf "$test_root"' EXIT
+          mkdir -p "$test_root/build"
+          cp android/build/build.gradle "$test_root/build/build.gradle"
+          bash scripts/enable_android_r8.sh "$test_root/build"
+          bash scripts/enable_android_r8.sh "$test_root/build"
+          test "$(grep -Fc '// invadeio: R8 release' "$test_root/build/build.gradle")" -eq 1
+          grep -Fq 'minifyEnabled true' "$test_root/build/build.gradle"
+          grep -Fq 'invadeio-proguard-rules.pro' "$test_root/build/build.gradle"
+          test -s "$test_root/build/invadeio-proguard-rules.pro"
+
+      - name: Activar R8 en la build release (plantilla ya instalada por el APK)
+        run: bash scripts/enable_android_r8.sh
 
       - name: Preparar la clave de subida de Play
         id: signing
@@ -116,7 +137,8 @@ jobs:
           GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_KEY_ALIAS }}
           GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          godot --headless --path . --install-android-build-template --export-release "Android AAB" build/android/invadeio.aab
+          # Sin reinstalar la plantilla: conserva la configuración de R8 del paso anterior
+          godot --headless --path . --export-release "Android AAB" build/android/invadeio.aab
           test -s build/android/invadeio.aab
 
       - name: Comprobar el paquete de Play (firma, 64 bits, 16 KB, permisos y contenido)
