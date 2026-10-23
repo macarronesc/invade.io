@@ -44,6 +44,10 @@ var btn_daily: Button
 var _silhouette: GeoSilhouette
 var _node_positions := PackedVector2Array()
 var _redraw_accum := 0.0
+## Mapa y ficha: uno sobre otra en vertical, lado a lado en pantallas anchas
+var _split: BoxContainer
+var _side: ScrollContainer
+const SIDE_WIDTH := 820.0
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 0)
@@ -54,9 +58,29 @@ func _ready() -> void:
 	_refresh_display()
 
 func _build() -> void:
+	_split = BoxContainer.new()
+	_split.add_theme_constant_override("separation", 0)
+	_split.size_flags_vertical = SIZE_EXPAND_FILL
+	add_child(_split)
+	var main := UIThemeHelper.vbox(0)
+	main.size_flags_horizontal = SIZE_EXPAND_FILL
+	main.size_flags_vertical = SIZE_EXPAND_FILL
+	_split.add_child(main)
+	_side = ScrollContainer.new()
+	_side.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_side.scroll_deadzone = UIThemeHelper.TOUCH_SCROLL_DEADZONE
+	_side.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_split.add_child(_side)
+	var side := UIThemeHelper.vbox(0)
+	side.size_flags_horizontal = SIZE_EXPAND_FILL
+	_side.add_child(side)
+	if not resized.is_connected(_apply_layout):
+		resized.connect(_apply_layout)
+	_apply_layout()
+
 	# Selector de continente
 	var header := UIThemeHelper.hbox(16)
-	add_child(UIThemeHelper.page_margin(header, 0, 8))
+	main.add_child(UIThemeHelper.page_margin(header, 0, 8))
 	btn_prev_continent = UIThemeHelper.icon_button("back", LocaleStrings.text("previous"))
 	btn_prev_continent.pressed.connect(_on_prev_continent)
 	header.add_child(btn_prev_continent)
@@ -80,7 +104,7 @@ func _build() -> void:
 	map_area.clip_contents = true
 	# El mapa es geografía, no texto: no se espeja en árabe. El resto de la ficha sí.
 	map_area.layout_direction = Control.LAYOUT_DIRECTION_LTR
-	add_child(map_area)
+	main.add_child(map_area)
 	route_container = Control.new()
 	route_container.layout_direction = Control.LAYOUT_DIRECTION_LTR
 	route_container.size = MAP_SIZE
@@ -104,7 +128,7 @@ func _build() -> void:
 
 	# Ficha del nivel seleccionado
 	var sheet_holder := UIThemeHelper.vbox(0)
-	add_child(UIThemeHelper.page_margin(sheet_holder, 0, 8))
+	side.add_child(UIThemeHelper.page_margin(sheet_holder, 0, 8))
 	var sheet := UIThemeHelper.card(sheet_holder, "", 16)
 	var top := UIThemeHelper.hbox(12)
 	sheet.add_child(top)
@@ -152,7 +176,7 @@ func _build() -> void:
 
 	# Otros modos, a un toque
 	var shortcuts := UIThemeHelper.vbox(16)
-	add_child(UIThemeHelper.page_margin(shortcuts, 0, 24))
+	side.add_child(UIThemeHelper.page_margin(shortcuts, 0, 24))
 	btn_conquest = UIThemeHelper.row_button("flag", LocaleStrings.text("conquest"), _conquest_subtitle(), "play")
 	btn_conquest.pressed.connect(UIThemeHelper.start_battle.bind(self, LevelGenerator.conquest_id(GameManager.conquest_next)))
 	shortcuts.add_child(btn_conquest)
@@ -164,6 +188,17 @@ func _build() -> void:
 	btn_daily.custom_minimum_size.y = 176
 	btn_daily.pressed.connect(UIThemeHelper.start_battle.bind(self, DailyRewards.challenge_id(DailyRewards.today())))
 	shortcuts.add_child(btn_daily)
+	# Arrastrar sobre los botones también desplaza la columna lateral
+	UIThemeHelper.pass_scroll_events(side)
+
+## En pantallas anchas la ficha pasa a una columna lateral desplazable junto al mapa
+func _apply_layout() -> void:
+	var wide := size.x > size.y and size.x >= SIDE_WIDTH * 2.0
+	_split.vertical = not wide
+	_side.custom_minimum_size.x = SIDE_WIDTH if wide else 0.0
+	_side.size_flags_vertical = Control.SIZE_EXPAND_FILL if wide else Control.SIZE_FILL
+	# En vertical la ficha mide lo que su contenido (sin scroll), como siempre
+	_side.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if wide else ScrollContainer.SCROLL_MODE_DISABLED
 
 static func _conquest_subtitle() -> String:
 	var index := GameManager.conquest_next

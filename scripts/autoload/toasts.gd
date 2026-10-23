@@ -16,6 +16,9 @@ var _showing: bool = false
 
 func _ready() -> void:
 	UIThemeHelper.install(get_tree(), GameManager.settings["light_mode"])
+	var window := get_window()
+	UIThemeHelper.fit_canvas(window)
+	window.size_changed.connect(UIThemeHelper.fit_canvas.bind(window))
 	EventBus.settings_changed.connect(func(): UIThemeHelper.apply_palette(get_tree(), GameManager.settings["light_mode"]))
 	layer = 100
 	process_mode = Node.PROCESS_MODE_ALWAYS

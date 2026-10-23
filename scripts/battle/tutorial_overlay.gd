@@ -261,13 +261,16 @@ func _draw_hand() -> void:
 	var font = UIThemeHelper.bold_font()
 	draw_string(font, pos + Vector2(-38, 72), "👆", HORIZONTAL_ALIGNMENT_LEFT, -1, 72, Color(1, 1, 1, alpha))
 
-## El aviso se centra en el ancho real del lienzo (en tabletas es más ancho que 1080).
+## El aviso se centra bajo el tablero (vertical u horizontal).
 func _draw_banner() -> void:
 	var font = UIThemeHelper.bold_font()
 	var font_size = 34
 	var width = 880.0
 	var text_size = font.get_multiline_string_size(_hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size)
-	var center_x := get_viewport_rect().size.x * 0.5
-	var rect = Rect2(Vector2(center_x - width * 0.5 - 36.0, 1680.0), Vector2(width + 72.0, text_size.y + 56.0))
+	var board: Rect2 = battle.map_rect
+	var size := Vector2(width + 72.0, text_size.y + 56.0)
+	# Vertical: franja libre bajo las bases. Apaisado: pegado al borde inferior.
+	var top := 1680.0 if board.size.y > board.size.x else board.end.y - size.y - 12.0
+	var rect = Rect2(Vector2(board.get_center().x - size.x * 0.5, top), size)
 	draw_style_box(_banner_style, rect)
 	draw_multiline_string(font, rect.position + Vector2(36.0, 28.0 + font.get_ascent(font_size)), _hint, HORIZONTAL_ALIGNMENT_CENTER, width, font_size, -1, UIThemeHelper.colors.text)

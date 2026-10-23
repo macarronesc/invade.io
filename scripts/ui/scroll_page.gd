@@ -12,6 +12,7 @@ func _ready() -> void:
 	scroll_deadzone = UIThemeHelper.TOUCH_SCROLL_DEADZONE
 	var margin := UIThemeHelper.page_margin(content, 8, 48)
 	margin.size_flags_horizontal = SIZE_EXPAND_FILL
+	margin.resized.connect(UIThemeHelper.cap_page_width.bind(margin))
 	add_child(margin)
 	EventBus.coins_updated.connect(rebuild.unbind(1))
 	rebuild()

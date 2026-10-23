@@ -112,7 +112,7 @@ func _cleanup_time_scale() -> void:
 func _ready() -> void:
 	_apply_texts()
 	UIThemeHelper.apply_locale_direction_children(self)
-	UIThemeHelper.apply_safe_area_top(top_bar)
+	_apply_safe_area()
 	confetti_overlay.draw.connect(_draw_confetti)
 	for entry in [[btn_pause, "pause"], [btn_pause_sound, "sound"], [btn_pause_music, "music"], [btn_resume, "play"],
 			[btn_retry, "retry"], [btn_next_level, "play"], [btn_how_to_play, "help"], [btn_settings, "gear"], [btn_share, "share"]]:
@@ -120,6 +120,10 @@ func _ready() -> void:
 	for entry in [[%GoldIcon, "coin", 52], [%TimeIcon, "clock", 40], [%CitiesIcon, "globe", 40]]:
 		entry[0].texture = Icons.texture(entry[1], entry[2])
 	_build_faction_bars()
+	for panel in [victory_panel, defeat_panel, pause_panel]:
+		panel.resized.connect(_fit_panel.bind(panel))
+	get_viewport().size_changed.connect(_fit_panels)
+	get_viewport().size_changed.connect(_apply_safe_area)
 
 	EventBus.battle_started.connect(_on_battle_started)
 	EventBus.battle_won.connect(_on_battle_won)
@@ -269,8 +273,30 @@ func _open_share() -> void:
 	back.pressed.connect(_utility_panel.queue_free)
 	confirm.get_parent().add_child(back)
 
+func _fit_panels() -> void:
+	for panel in [victory_panel, defeat_panel, pause_panel]:
+		_fit_panel(panel)
+
+func _apply_safe_area() -> void:
+	UIThemeHelper.apply_safe_area_top(top_bar)
+	UIThemeHelper.apply_safe_area_horizontal(top_bar)
+
+## Las fichas largas (victoria) se reducen para caber enteras en pantallas apaisadas
+func _fit_panel(panel: Control) -> void:
+	var room := get_viewport().get_visible_rect().size - Vector2(48, 48)
+	var s := minf(1.0, minf(room.x / maxf(panel.size.x, 1.0), room.y / maxf(panel.size.y, 1.0)))
+	var target := Vector2(s, s)
+	panel.pivot_offset = panel.size * 0.5
+	panel.set_meta("_modal_target_scale", target)
+	var tween = panel.get_meta("_modal_tween") if panel.has_meta("_modal_tween") else null
+	if panel.visible and tween is Tween and tween.is_running():
+		if panel.get_meta("_modal_animation", "") == "in":
+			UIThemeHelper.animate_modal_pop_in(panel)
+		return # Restart an opening at the new fit; let a closing finish normally.
+	panel.scale = target
+
 func _on_battle_started(level_id: String) -> void:
-	var data := LevelDatabase.get_level_data(level_id)
+	var data: Dictionary = battle_controller.level_data if battle_controller and battle_controller.level_id == level_id else LevelDatabase.get_level_data(level_id)
 	_opening_grace = LevelDatabase.get_balance(level_id)["grace"]
 	label_level_name.text = data["name"]
 	_rule_text = CampaignRules.description(data).strip_edges().get_slice("\n", 0)

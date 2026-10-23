@@ -22,7 +22,9 @@ indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se 
 | Política de privacidad | ✅ `docs/privacy-policy.html` | Actualizada para Aptabase y Sentry; hay que publicarla en una URL (paso 4) |
 | Icono 512×512 | ✅ | `assets/brand/play-store-icon-512.png` |
 | Gráfico destacado 1024×500 sin alfa | ✅ | `docs/store_assets/feature-graphic-1024x500.png` |
-| Al menos 2 capturas | ✅ 7 por idioma | `docs/store_assets/screenshots_{es,en,de,ru,ar,hi,zh_CN,ja}/` (1080×1920) |
+| Al menos 2 capturas | ✅ 7 por idioma | `docs/store_assets/screenshots_{en,es,pt_BR,fr,de,it,ru,tr,ar,hi,id,vi,zh_CN,ja,ko}/` (1080×1920) |
+| Orientación y redimensionado en pantallas grandes | ⚠️ Implementado; verificar el AAB/dispositivo | Sensor sin bloqueo; menú y batalla adaptan el tablero al apaisado y al cambio de tamaño |
+| Optimización R8 | ⚠️ Configurada en CI; verificar AAB firmado | Minificación sólo release; el AAB debe incluir el mapa R8 |
 | Título ≤ 30, corta ≤ 80, completa ≤ 4000 | ⚠️ | Los 15 borradores cumplen límites; revisar las traducciones antes de publicarlas |
 | Ficha, categoría y etiquetas | ⬜ | Paso 4 |
 | Declaraciones de contenido de Play Console | ⬜ | Paso 5 |
@@ -36,16 +38,30 @@ indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se 
   versionName 0.2.0, versionCode 3, VIBRATE e iconos, incluido el monocromo). La firma **no** está
   en el repositorio: se lee de las variables `GODOT_ANDROID_KEYSTORE_RELEASE_*`. Antes de subir,
   confirma en Play Console que el código 3 siga disponible; si ya se usó, elige el siguiente código libre.
-- `.github/workflows/build-android.yml`: importa recursos, ejecuta la **suite completa** (3999
-  comprobaciones), exporta el APK de pruebas, y si existen los secretos exporta el **AAB firmado** y
-  lo verifica. Sólo la rama `main` puede firmar; protege esa rama y limita el acceso a los secretos de
-  firma en la configuración de Actions. El AAB se publica como artefacto `invadeio-play-bundle`.
+- `project.godot`: permite redimensionado y rotación con `SCREEN_SENSOR`. La UI mantiene un lienzo con el lado corto
+  a 1080 unidades lógicas; Jugar coloca mapa/ficha en columnas en apaisado, y la batalla calcula un
+  tablero 1920×1080 con cámara que se vuelve a encajar al girar/redimensionar.
+- `.github/workflows/build-android.yml`: importa recursos, ejecuta la suite completa, exporta el APK
+  de pruebas y activa R8 en el módulo `app` de la plantilla Gradle generada. Si existen los secretos,
+  exporta el **AAB firmado** sin reinstalar la plantilla y lo verifica. Sólo la rama `main` puede
+  firmar; protege esa rama y limita el acceso a los secretos de firma en Actions. El AAB se publica
+  como artefacto `invadeio-play-bundle`.
+- `scripts/enable_android_r8.sh` + `tools/android/proguard-rules.pro`: parche reproducible e idempotente
+  para la plantilla Android que Godot genera en `android/build/` (esa carpeta está ignorada por Git).
+  R8 se activa sólo en `release`, sin resource shrinking. Las reglas conservan el acceso Java/JNI que
+  necesita Godot; la GDExtension de Sentry es nativa y no la optimiza R8.
 - `scripts/verify_play_bundle.sh`: puerta de calidad. En el **AAB**: ZIP íntegro, manifiesto,
   arm64 sin 32 bits, `geo.json` presente, sin código de test, **firma válida**, **segmentos ELF de
   todas las librerías a 16 KB**, **la alineación de 16 KB que el paquete pide** (con bundletool),
-  identificador, lista exacta de permisos, sin
-  `debuggable`. En el **APK**: target/min SDK, arquitecturas, permisos y **`zipalign -c -P 16`**, que
-  verifica el empaquetado real de las librerías.
+  identificador, lista exacta de permisos, sin `debuggable`, sin bloqueo de orientación/aspecto y con
+  el mapa de desofuscación R8. En el **APK**: target/min SDK, arquitecturas, permisos y **`zipalign -c -P 16`**,
+  que verifica el empaquetado real de las librerías.
+- `scripts/tests/test_runner.gd` comprueba que los 30 niveles de campaña, los 108 frentes de invasión,
+  conquista y desafío diario mantienen ciudades, fuerzas y tiempos, y que las bases apaisadas no se
+  solapan. `balance_check.tscn -- --wide-ui` prueba y captura menú y batalla a 1920×1080, incluido un
+  giro durante una partida.
+- Las 7 capturas de tienda se generan en los 15 idiomas existentes. `balance_check.tscn -- --ui`
+  primero crea las capturas por idioma; después `store_assets.tscn` las copia y ordena.
 - Correcciones de esta revisión: el tutorial de arrastre ya no puede congelar la batalla (caduca a los
   20 s), la tarjeta de ayuda abre y cierra bien con el botón atrás de Android, dos glifos que se veían
   como cuadros vacíos, el aviso de logro ya no tapa la cabecera de batalla, los botones de reclamar se
@@ -213,15 +229,24 @@ Los `version/code` ya usados no se pueden repetir nunca en la misma app.
 # Un APK suelto: target/min SDK, arquitecturas y permisos
 bash scripts/verify_play_bundle.sh build/android/invadeio.apk
 
-# El paquete de Play: firma, 16 KB, permisos, contenido y sin código de test.
-# Requiere Java y bundletool; el flujo de GitHub configura BUNDLETOOL_JAR automáticamente.
+# Instalación/actualización local del template: no vuelvas a instalarlo entre estos pasos.
+godot --headless --path . --install-android-build-template --export-debug "Android" build/android/invadeio.apk
+bash scripts/enable_android_r8.sh
+godot --headless --path . --export-release "Android AAB" build/android/invadeio.aab
+
+# El paquete de Play: firma, orientación, R8/mapa, 16 KB, permisos y contenido.
+# Requiere firma, Java y bundletool; CI configura estas variables/credenciales.
 BUNDLETOOL_JAR=/path/to/bundletool.jar bash scripts/verify_play_bundle.sh build/android/invadeio.aab build/android/invadeio.apk
 ```
 
 El script falla con un mensaje concreto en cuanto algo no cumple, así que sirve igual en local y en
 CI (es lo que ejecuta el flujo antes de publicar el artefacto). Lo que **no** puede comprobar y hay que
 ver en Play Console: que la clave de subida coincida con la registrada, la declaración de datos y el
-informe previo al lanzamiento.
+informe previo al lanzamiento. R8 optimiza Java/Kotlin; no reduce GDScript, el motor/librerías nativas,
+geografía ni fuentes, así que no se debe prometer una reducción de RAM sin medirla. Antes de producción,
+instala el AAB de prueba en un móvil y una tableta/plegable, gira y redimensiona la ventana durante menú
+y batalla, y activa temporalmente los informes de Sentry para comprobar el flujo nativo (R8 no procesa
+esa GDExtension nativa).
 
 ## 8. Decisiones y avisos
 

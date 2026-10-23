@@ -47,15 +47,16 @@ static var _built: Dictionary = {}
 const MAX_CACHED_LEVELS := 64
 
 ## Nivel listo para jugar: bases con posición en pantalla y geografía proyectada.
-## Se construye la primera vez que se pide y queda en caché (una entrada por idioma).
+## Se construye la primera vez que se pide y queda en caché (una entrada por idioma/orientación).
 ## Los desafíos diarios ("daily_<día>") y la conquista ("conquest_<n>") se generan al vuelo.
-static func get_level_data(level_id: String) -> Dictionary:
-	var cache_key := "%s|%s" % [level_id, LocaleStrings.lang]
+## `landscape` cambia sólo las coordenadas del tablero; contenido y reglas del nivel se mantienen.
+static func get_level_data(level_id: String, landscape: bool = false) -> Dictionary:
+	var cache_key := "%s|%s|%s" % [level_id, LocaleStrings.lang, "l" if landscape else "p"]
 	if not _built.has(cache_key):
 		var def := get_level_definition(level_id)
 		if def.is_empty():
-			return get_level_data(GameManager.FIRST_LEVEL_ID)
-		var built: Dictionary = LevelGenerator.build(def, get_difficulty(level_id))
+			return get_level_data(GameManager.FIRST_LEVEL_ID, landscape)
+		var built: Dictionary = LevelGenerator.build(def, get_difficulty(level_id), landscape)
 		_localize(built, def)
 		CampaignRules.apply(built)
 		if _built.size() >= MAX_CACHED_LEVELS:

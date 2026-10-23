@@ -15,6 +15,10 @@ const MAP_RECT := Rect2(0, 0, 1080, 1920)
 const PLAY_RECT := Rect2(100, 330, 880, 1400)
 ## Zona con geografía dibujada: más allá del mapa para pantallas más altas o anchas
 const GEO_CLIP_RECT := Rect2(-400, -500, 1880, 2920)
+## Las mismas zonas para pantallas apaisadas (tabletas, plegables, ventanas anchas)
+const LANDSCAPE_MAP_RECT := Rect2(0, 0, 1920, 1080)
+const LANDSCAPE_PLAY_RECT := Rect2(150, 300, 1620, 700)
+const LANDSCAPE_GEO_CLIP_RECT := Rect2(-500, -400, 2920, 1880)
 ## Separación mínima entre los bordes de dos bases
 const BASE_GAP := 90.0
 const MAX_EXTRA_NEUTRALS := 7
@@ -34,7 +38,15 @@ const DAILY_ANCHORS := 5
 const DAILY_ATTEMPTS := 40
 const DAILY_TARGET_TIME := 60
 
-static func build(def: Dictionary, difficulty: float) -> Dictionary:
+## Zonas del tablero según la orientación: {"map", "play", "clip"}
+static func layout(landscape: bool) -> Dictionary:
+	if landscape:
+		return {"map": LANDSCAPE_MAP_RECT, "play": LANDSCAPE_PLAY_RECT, "clip": LANDSCAPE_GEO_CLIP_RECT}
+	return {"map": MAP_RECT, "play": PLAY_RECT, "clip": GEO_CLIP_RECT}
+
+static func build(def: Dictionary, difficulty: float, landscape: bool = false) -> Dictionary:
+	var zones := layout(landscape)
+	var play_rect: Rect2 = zones["play"]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(def.get("id", ""))
 
@@ -54,19 +66,35 @@ static func build(def: Dictionary, difficulty: float) -> Dictionary:
 	var anchors: Array[Vector2] = []
 	for base in bases:
 		anchors.append(base["lonlat"])
-	var proj := fit_projection(anchors, PLAY_RECT)
+	var proj := fit_projection(anchors, play_rect)
 	for base in bases:
 		base["pos"] = proj.project(base["lonlat"])
-	relax_positions(bases)
+	if not landscape:
+		relax_positions(bases)
 
 	var extra_count := int(def.get("extra_neutrals", roundi(difficulty * MAX_EXTRA_NEUTRALS)))
-	var extras := _pick_extra_neutrals(proj, bases, maxi(0, extra_count), difficulty, rng)
+	# Pick bonus cities using the portrait projection in both modes, so rotating changes layout, not
+	# the level's cast, difficulty, or rewards.
+	var selection_proj := proj
+	var selection_bases := bases
+	if landscape:
+		selection_proj = fit_projection(anchors, PLAY_RECT)
+		selection_bases = bases.duplicate(true)
+		for i in selection_bases.size():
+			selection_bases[i]["pos"] = selection_proj.project(selection_bases[i]["lonlat"])
+		relax_positions(selection_bases, PLAY_RECT)
+	var extras := _pick_extra_neutrals(selection_proj, selection_bases, maxi(0, extra_count), difficulty, rng, PLAY_RECT)
+	for extra in extras:
+		extra["pos"] = proj.project(extra["lonlat"])
 	bases.append_array(extras)
+	if landscape:
+		_arrange_landscape_bases(bases, play_rect)
 
 	var level: Dictionary = def.duplicate()
 	level["bases"] = bases
 	level["target_time"] = def.get("target_time", 45) + extras.size() * EXTRA_TARGET_TIME
-	level["geo"] = project_geography(proj, GEO_CLIP_RECT)
+	level["geo"] = project_geography(proj, zones["clip"])
+	level["map_rect"] = zones["map"]
 	return level
 
 ## Definición del desafío de un día: la misma para todos los jugadores ese día.
@@ -232,12 +260,98 @@ static func min_distance(tier_a: int, tier_b: int) -> float:
 static func _radius(tier: int) -> float:
 	return BaseNode.TIER_PARAMS.get(tier, BaseNode.DEFAULT_TIER_PARAMS)["radius"]
 
-## Aparta las bases solapadas lo mínimo necesario y las mantiene dentro de PLAY_RECT
-static func relax_positions(bases: Array[Dictionary]) -> void:
+## Landscape is much shallower than portrait. The slot matching minimizes pin movement while
+## guaranteeing room for taps; the projected geography, city names and battle rules stay unchanged.
+static func _arrange_landscape_bases(bases: Array[Dictionary], bounds: Rect2) -> void:
+	if bases.size() < 2:
+		return
+	# shortcut: current content fits a max-radius grid; use tier-aware disk packing if a future level exceeds its capacity.
+	var margin := 0.0
+	var spacing := 0.0
+	for i in bases.size():
+		margin = maxf(margin, _radius(bases[i].get("tier", 1)))
+		for j in range(i + 1, bases.size()):
+			spacing = maxf(spacing, min_distance(bases[i].get("tier", 1), bases[j].get("tier", 1)))
+	var area := bounds.grow(-margin)
+	var max_cols := floori(area.size.x / spacing) + 1
+	var max_rows := floori(area.size.y / spacing) + 1
+	if max_cols < 1 or max_rows < 1:
+		push_error("LevelGenerator: el área apaisada es demasiado pequeña para las bases")
+		return
+	if bases.size() > max_cols * max_rows:
+		push_error("LevelGenerator: demasiadas bases para el tablero apaisado (%d)" % bases.size())
+		return
+	var cols := max_cols
+	var rows := max_rows
+
+	var slots: Array[Vector2] = []
+	var pitch_x := area.size.x / float(cols - 1) if cols > 1 else 0.0
+	for row in rows:
+		var y := area.get_center().y if rows == 1 else area.position.y + float(row) * area.size.y / float(rows - 1)
+		for col in cols:
+			var x := area.get_center().x if cols == 1 else area.position.x + float(col) * pitch_x
+			slots.append(Vector2(x, y))
+	_assign_bases_to_slots(bases, slots)
+
+## Minimum-total-distance matching keeps pins closest to their projected cities while respecting spacing.
+static func _assign_bases_to_slots(bases: Array[Dictionary], slots: Array[Vector2]) -> void:
+	var n := bases.size()
+	var m := slots.size()
+	var u := PackedFloat64Array()
+	var v := PackedFloat64Array()
+	var p := PackedInt32Array()
+	var way := PackedInt32Array()
+	u.resize(n + 1)
+	v.resize(m + 1)
+	p.resize(m + 1)
+	way.resize(m + 1)
+	for i in range(1, n + 1):
+		p[0] = i
+		var j0 := 0
+		var minv := PackedFloat64Array()
+		var used := PackedByteArray()
+		minv.resize(m + 1)
+		minv.fill(INF)
+		used.resize(m + 1)
+		while true:
+			used[j0] = 1
+			var i0: int = p[j0]
+			var delta := INF
+			var j1 := 0
+			for j in range(1, m + 1):
+				if used[j] != 0:
+					continue
+				var base_pos: Vector2 = bases[i0 - 1]["pos"]
+				var cost: float = base_pos.distance_squared_to(slots[j - 1]) - u[i0] - v[j]
+				if cost < minv[j]:
+					minv[j] = cost
+					way[j] = j0
+				if minv[j] < delta:
+					delta = minv[j]
+					j1 = j
+			for j in range(m + 1):
+				if used[j] != 0:
+					u[p[j]] += delta
+					v[j] -= delta
+				else:
+					minv[j] -= delta
+			j0 = j1
+			if p[j0] == 0:
+				break
+		while j0 != 0:
+			var j1 := way[j0]
+			p[j0] = p[j1]
+			j0 = j1
+	for j in range(1, m + 1):
+		if p[j] > 0:
+			bases[p[j] - 1]["pos"] = slots[j - 1]
+
+## Aparta las bases solapadas lo mínimo necesario y las mantiene dentro de `play_rect`
+static func relax_positions(bases: Array[Dictionary], play_rect: Rect2 = PLAY_RECT) -> void:
 	var points := PackedVector2Array()
 	for base in bases:
 		points.append(base["pos"])
-	points = separate_points(points, func(i, j): return min_distance(bases[i].get("tier", 1), bases[j].get("tier", 1)), PLAY_RECT)
+	points = separate_points(points, func(i, j): return min_distance(bases[i].get("tier", 1), bases[j].get("tier", 1)), play_rect)
 	for i in bases.size():
 		bases[i]["pos"] = points[i]
 
@@ -266,7 +380,7 @@ static func separate_points(points: PackedVector2Array, min_dist: Callable, boun
 	return pts
 
 ## Ciudades reales de la región, de más a menos pobladas, que caben sin solaparse
-static func _pick_extra_neutrals(proj: MapProjection, bases: Array[Dictionary], count: int, difficulty: float, rng: RandomNumberGenerator) -> Array[Dictionary]:
+static func _pick_extra_neutrals(proj: MapProjection, bases: Array[Dictionary], count: int, difficulty: float, rng: RandomNumberGenerator, play_rect: Rect2) -> Array[Dictionary]:
 	var extras: Array[Dictionary] = []
 	if count <= 0:
 		return extras
@@ -280,7 +394,7 @@ static func _pick_extra_neutrals(proj: MapProjection, bases: Array[Dictionary], 
 		if used.has(city["key"]):
 			continue
 		var pos := proj.project(city["lonlat"])
-		if not PLAY_RECT.has_point(pos):
+		if not play_rect.has_point(pos):
 			continue
 		var tier := 2 if city["population"] >= 5000000 else 1
 		if placed.any(func(b): return b["pos"].distance_to(pos) < min_distance(tier, b.get("tier", 1))):

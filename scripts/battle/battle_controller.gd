@@ -79,6 +79,8 @@ var _remate_used := false
 @onready var arrow_overlay: Node2D = get_node_or_null("ArrowOverlay")
 @onready var territory_map: Node2D = get_node_or_null("TerritoryMap")
 @onready var camera: Camera2D = get_node_or_null("Camera2D")
+## Tablero del nivel en coordenadas de mundo (vertical u horizontal)
+var map_rect: Rect2 = LevelGenerator.MAP_RECT
 
 func _notification(what: int) -> void:
 	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED]:
@@ -93,12 +95,30 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	load_level(GameManager.get_battle_level_id())
+	_fit_camera()
+	get_viewport().size_changed.connect(_fit_camera)
 	AudioManager.play_music("battle")
 	EventBus.base_captured.connect(_on_base_captured)
 	EventBus.troop_arrived.connect(_on_troop_arrived)
 	EventBus.settings_changed.connect(_refresh_colors)
 	if arrow_overlay:
 		arrow_overlay.draw.connect(_draw_drag_overlay)
+
+func _is_landscape() -> bool:
+	var size := get_viewport_rect().size
+	return size.x > size.y
+
+## Encaja todo el tablero en la vista: con la orientación del nivel es 1:1; si la pantalla gira o
+## se redimensiona a mitad de partida, el mapa se ve entero sin regenerar la batalla.
+func _fit_camera() -> void:
+	if not camera:
+		return
+	var view := get_viewport_rect().size
+	if view.x <= 0.0 or view.y <= 0.0 or map_rect.size.x <= 0.0 or map_rect.size.y <= 0.0:
+		return
+	var z := minf(view.x / map_rect.size.x, view.y / map_rect.size.y)
+	camera.zoom = Vector2(z, z)
+	camera.position = map_rect.get_center()
 
 func start_slow_motion() -> void:
 	is_slow_motion_active = true
@@ -123,7 +143,9 @@ func load_level(p_level_id: String) -> void:
 	_max_speed = float(GameManager.settings["speed"])
 	# El desafío diario se compara entre jugadores: se juega sin mejoras de combate
 	GameManager.normalized_battle = DailyRewards.is_challenge(level_id)
-	level_data = LevelDatabase.get_level_data(level_id)
+	# El tablero se monta en la orientación de la pantalla al entrar; si luego gira, la cámara lo reencaja
+	level_data = LevelDatabase.get_level_data(level_id, is_inside_tree() and _is_landscape())
+	map_rect = level_data.get("map_rect", LevelGenerator.MAP_RECT)
 	target_time = level_data.get("target_time", 45.0)
 
 	# Curva de dificultad: los enemigos producen más rápido a medida que avanza la campaña
@@ -145,7 +167,7 @@ func load_level(p_level_id: String) -> void:
 	if territory_map:
 		var geo: Dictionary = level_data.get("geo", {})
 		# Con geografía, los territorios cubren toda la tierra visible (también en pantallas altas)
-		territory_map.generate_map(bases, LevelGenerator.GEO_CLIP_RECT if geo else Rect2(), geo)
+		territory_map.generate_map(bases, LevelGenerator.layout(map_rect.size.x > map_rect.size.y)["clip"] if geo else map_rect, geo)
 		_apply_map_theme()
 
 	# IA para cada facción enemiga
@@ -1071,7 +1093,7 @@ func _draw_base_info(canvas: CanvasItem) -> void:
 	var top := b.global_position + Vector2(-size.x * 0.5, -b.radius - 40.0 - size.y)
 	if top.y < 260.0:
 		top.y = b.global_position.y + b.radius + 40.0
-	top.x = clampf(top.x, 16.0, LevelGenerator.MAP_RECT.size.x - 16.0 - size.x)
+	top.x = clampf(top.x, map_rect.position.x + 16.0, map_rect.end.x - 16.0 - size.x)
 	var rect := Rect2(canvas.to_local(top), size)
 	var box := UIThemeHelper.box(Color(0.06, 0.09, 0.14, 0.92 * alpha), 20, 0)
 	canvas.draw_style_box(box, rect)

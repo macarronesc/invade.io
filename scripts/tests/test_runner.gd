@@ -1,5 +1,8 @@
 extends Node
 
+class CameraHarness extends BattleController:
+	func _ready() -> void: pass
+
 ## TestRunner: Suite de pruebas de validación automatizada de mecánicas State.io
 
 var total_tests: int = 0
@@ -41,6 +44,7 @@ func _ready() -> void:
 		test_achievements_system()
 		test_telemetry_schema_and_privacy()
 		test_play_tab_campaign_route_and_briefing()
+		test_large_screen_layouts()
 		test_invasion_mode()
 		test_language_system()
 		test_locale_ui_fit()
@@ -226,6 +230,7 @@ func run_all_tests() -> void:
 	test_hud_force_counters()
 	test_main_menu_hub_navigation()
 	test_play_tab_campaign_route_and_briefing()
+	test_large_screen_layouts()
 	test_army_tab_upgrades_and_looks()
 	test_battle_hud_modals_and_sound_toggle()
 	test_theme_and_ui_helpers()
@@ -2248,6 +2253,103 @@ func test_main_menu_hub_navigation() -> void:
 	remove_child(menu)
 	menu.free()
 	GameManager.reset_save()
+
+
+## Tabletas, plegables y ventanas: el tablero, la cámara y el menú se adaptan a la orientación.
+func test_large_screen_layouts() -> void:
+	print("\n-> Test: Pantallas Grandes (Tablero Apaisado, Cámara y Menú en Dos Columnas)")
+	assert_equals(ProjectSettings.get_setting("display/window/handheld/orientation"), DisplayServer.SCREEN_SENSOR,
+		"Android no bloquea la orientación")
+	assert_true(bool(ProjectSettings.get_setting("display/window/size/resizable")), "La ventana/actividad permite redimensionado")
+	# 1. El mismo nivel en tablero apaisado: mismas bases, dentro de su zona y sin solaparse
+	var zones := LevelGenerator.layout(true)
+	assert_equals(zones["map"], LevelGenerator.LANDSCAPE_MAP_RECT, "El tablero apaisado mide 1920×1080")
+	var level_ids: Array = LevelDatabase.get_level_ids()
+	level_ids.append_array([LevelGenerator.conquest_id(7), DailyRewards.challenge_id(DailyRewards.today())])
+	for region in InvasionDatabase.get_regions():
+		level_ids.append_array(InvasionDatabase.get_region_level_ids(region["id"]))
+	for level_id in level_ids:
+		var tall: Dictionary = LevelDatabase.get_level_data(level_id)
+		var wide: Dictionary = LevelDatabase.get_level_data(level_id, true)
+		assert_equals(wide["bases"].size(), tall["bases"].size(), "Mismo número de bases en ambas orientaciones: " + level_id)
+		var mechanics := func(base): return [base.get("city", ""), base.get("faction"), base.get("troops"), base.get("tier"), base.get("type", ""), base.get("boss", false)]
+		assert_equals(wide["bases"].map(mechanics), tall["bases"].map(mechanics), "Mismas ciudades y mecánicas en ambas orientaciones: " + level_id)
+		assert_equals(wide["target_time"], tall["target_time"], "Mismo objetivo en ambas orientaciones: " + level_id)
+		assert_equals(wide["map_rect"], LevelGenerator.LANDSCAPE_MAP_RECT, "El nivel apaisado guarda su tablero: " + level_id)
+		var inside := true
+		var worst := INF
+		var bases: Array = wide["bases"]
+		for i in bases.size():
+			inside = inside and LevelGenerator.LANDSCAPE_PLAY_RECT.grow(1.0).has_point(bases[i]["pos"])
+			for j in range(i + 1, bases.size()):
+				var gap: float = bases[i]["pos"].distance_to(bases[j]["pos"]) - LevelGenerator.min_distance(bases[i].get("tier", 1), bases[j].get("tier", 1))
+				worst = minf(worst, gap)
+		assert_true(inside, "Bases dentro de la zona apaisada: " + level_id)
+		assert_true(worst >= -0.5, "Bases apaisadas sin solaparse (%s, holgura %.1f px)" % [level_id, worst])
+	assert_equals(LevelDatabase.get_level_data("europe_1")["map_rect"], LevelGenerator.MAP_RECT, "El vertical no cambia")
+
+	# 2. La cámara encaja el tablero entero en cualquier ventana
+	var battle := CameraHarness.new()
+	battle.map_rect = LevelGenerator.MAP_RECT
+	var test_camera := Camera2D.new()
+	test_camera.name = "Camera2D"
+	battle.add_child(test_camera)
+	add_child(battle)
+	battle.camera = test_camera
+	battle._fit_camera()
+	var view := battle.get_viewport_rect().size
+	var shown: Vector2 = LevelGenerator.MAP_RECT.size * battle.camera.zoom.x
+	assert_true(shown.x <= view.x + 0.5 and shown.y <= view.y + 0.5, "El tablero cabe en la vista")
+	assert_true(is_equal_approx(shown.x, view.x) or is_equal_approx(shown.y, view.y), "Y la aprovecha al máximo")
+	assert_equals(battle.camera.position, LevelGenerator.MAP_RECT.get_center(), "La cámara centra el tablero")
+	remove_child(battle)
+	battle.free()
+
+	# 3. El lienzo conserva 1080 en el lado corto al girar
+	var window := Window.new()
+	window.size = Vector2i(2400, 1080)
+	UIThemeHelper.fit_canvas(window)
+	assert_equals(window.content_scale_size, UIThemeHelper.LANDSCAPE_CANVAS, "Lienzo apaisado en ventanas anchas")
+	window.size = Vector2i(1080, 2400)
+	UIThemeHelper.fit_canvas(window)
+	assert_equals(window.content_scale_size, UIThemeHelper.PORTRAIT_CANVAS, "Lienzo vertical en ventanas altas")
+	window.free()
+
+	# 4. Jugar: mapa y ficha uno sobre otra en vertical, lado a lado en ancho
+	GameManager.reset_save()
+	var play = load("res://scripts/ui/play_tab.gd").new()
+	add_child(play)
+	play.size = Vector2(1920, 900)
+	play._apply_layout()
+	assert_true(not play._split.vertical and play._side.custom_minimum_size.x > 0, "En ancho la ficha va en una columna lateral")
+	assert_equals(play._side.vertical_scroll_mode, ScrollContainer.SCROLL_MODE_AUTO, "La columna lateral se desplaza")
+	play.size = Vector2(1080, 1700)
+	play._apply_layout()
+	assert_true(play._split.vertical and play._side.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED, "En vertical se apilan como siempre")
+	remove_child(play)
+	play.free()
+
+	# 5. Páginas con ancho máximo y fichas de batalla que caben en alto
+	var margin := UIThemeHelper.page_margin(Control.new())
+	margin.size = Vector2(2400, 100)
+	UIThemeHelper.cap_page_width(margin)
+	assert_equals(margin.get_theme_constant("margin_left"), 600, "El contenido queda centrado con ancho máximo")
+	margin.size = Vector2(1080, 100)
+	UIThemeHelper.cap_page_width(margin)
+	assert_equals(margin.get_theme_constant("margin_left"), UIThemeHelper.PAGE_MARGIN, "En el móvil conserva su margen")
+	margin.free()
+	var hud: BattleHUD = load("res://scenes/ui/battle_hud.tscn").instantiate()
+	add_child(hud)
+	hud.victory_panel.size = Vector2(900, 4000)
+	hud._fit_panel(hud.victory_panel)
+	assert_true(hud.victory_panel.size.y * hud.victory_panel.scale.y <= hud.get_viewport().get_visible_rect().size.y, "La ficha de victoria cabe entera")
+	var small_panel := Control.new()
+	small_panel.size = Vector2(100, 100)
+	hud._fit_panel(small_panel)
+	assert_equals(small_panel.scale, Vector2.ONE, "Una ficha corta no se reduce")
+	small_panel.free()
+	remove_child(hud)
+	hud.free()
 
 func test_play_tab_campaign_route_and_briefing() -> void:
 	print("\n-> Test: Jugar (Mapa del Continente, Ficha del Nivel y Accesos Directos)")
