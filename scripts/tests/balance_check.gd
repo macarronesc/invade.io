@@ -13,8 +13,6 @@ class Simulation extends BattleController:
 
 ## Idiomas con captura visual. Los dos primeros cubren claro/oscuro; el resto,
 ## sólo el tema oscuro, para revisar expansión, RTL y alfabetos sin multiplicar el tiempo.
-const UI_LANGS := ["es", "en", "de", "ru", "ar", "hi", "zh_CN", "ja"]
-
 var _failed := false
 var _completed := false
 
@@ -35,6 +33,10 @@ func _ready() -> void:
 		GameManager.save_path = "user://balance_invasion_ui_test_save.json"
 		OS.low_processor_usage_mode = false
 		await _check_invasion_ui()
+	elif "--wide-ui" in OS.get_cmdline_user_args():
+		GameManager.save_path = "user://balance_wide_ui_test_save.json"
+		OS.low_processor_usage_mode = false
+		await _check_wide_ui()
 	else:
 		_check_campaign()
 	_require(_completed, "La comprobación termina todos sus pasos sin errores de script")
@@ -192,7 +194,7 @@ func _ui_langs() -> Array:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--lang="):
 			return [arg.substr(7)]
-	return UI_LANGS
+	return LanguageCatalog.codes()
 
 func _check_ui() -> void:
 	# La ficha de Play exige capturas de 1080×1920; el override de escritorio es 540×960.
@@ -350,6 +352,89 @@ func _check_ui() -> void:
 	var toast_rect := toast.get_global_rect()
 	_require(toast_rect.position.x >= 0 and toast_rect.end.x <= get_viewport().get_visible_rect().end.x, "El aviso de logro cabe en el ancho de pantalla")
 	_require(toast_rect.position.y >= 0 and toast_rect.end.y <= get_viewport().get_visible_rect().end.y, "El aviso de logro cabe en la altura de pantalla")
+	battle.free()
+	_completed = true
+
+## Runtime layout smoke test for a 1920×1080 resizable window (not only computed positions).
+func _check_wide_ui() -> void:
+	get_window().size = Vector2i(1920, 1080)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var view := get_viewport().get_visible_rect()
+	_require(view.size.x > view.size.y, "La ventana de prueba está apaisada")
+	UIThemeHelper.fit_canvas(get_window())
+	_require(get_window().content_scale_size == UIThemeHelper.LANDSCAPE_CANVAS, "El lienzo usa la escala apaisada")
+	GameManager._apply_save({})
+	GameManager.has_started = true
+	GameManager.play_level("europe_4")
+	GameManager.coins = 420
+	var menu: MainMenuUI = load(MainMenuUI.SCENE).instantiate()
+	add_child(menu)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var play = menu._content.get_child(0)
+	_require(not play._split.vertical, "Jugar presenta mapa y ficha en dos columnas")
+	_require(play._side.get_global_rect().end.x <= view.end.x + 1.0, "La ficha lateral no sale de la pantalla")
+	_require(play._side.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y + 1.0,
+		"La ficha lateral termina antes de la barra inferior: %s / %s" % [play._side.get_global_rect(), menu._nav["play"].get_global_rect()])
+	await _snapshot("wide_menu")
+	var side_scroll: int = play._side.scroll_vertical
+	var conquest_before: int = GameManager.conquest_next
+	var touch_pos: Vector2 = play.btn_conquest.get_global_rect().get_center() * Vector2(DisplayServer.window_get_size()) / view.size
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.position = touch_pos
+	press.pressed = true
+	Input.parse_input_event(press)
+	await get_tree().process_frame
+	var drag := InputEventMouseMotion.new()
+	drag.position = touch_pos - Vector2(0, 160)
+	drag.relative = Vector2(0, -160)
+	drag.button_mask = MOUSE_BUTTON_MASK_LEFT
+	Input.parse_input_event(drag)
+	await get_tree().process_frame
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.position = drag.position
+	Input.parse_input_event(release)
+	await get_tree().process_frame
+	_require(play._side.scroll_vertical > side_scroll, "Arrastrar la ficha lateral desplaza el contenido")
+	_require(GameManager.conquest_next == conquest_before, "Desplazarse sobre la ficha no inicia conquista")
+	menu.queue_free()
+	await get_tree().process_frame
+	GameManager.seen_tips = ["factory", "fortress", "drag", "rival_0"]
+	var battle: BattleController = load(UIThemeHelper.BATTLE_SCENE).instantiate()
+	add_child(battle)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_require(battle.level_data["map_rect"] == LevelGenerator.LANDSCAPE_MAP_RECT, "La batalla crea el tablero apaisado")
+	_require(battle.camera.position == LevelGenerator.LANDSCAPE_MAP_RECT.get_center(), "La cámara centra el tablero apaisado")
+	var shown: Vector2 = battle.map_rect.size * battle.camera.zoom.x
+	_require(shown.x <= view.size.x + 1.0 and shown.y <= view.size.y + 1.0, "El tablero cabe en la ventana apaisada")
+	await _snapshot("wide_battle")
+	var hud: BattleHUD = battle.get_node("BattleHUD")
+	battle.is_game_over = true
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 170, "xp": 60, "level_id": "europe_4"})
+	await get_tree().create_timer(0.25).timeout
+	var modal_rect := hud.victory_panel.get_global_rect()
+	_require(modal_rect.position.x >= 0.0 and modal_rect.position.y >= 0.0
+		and modal_rect.end.x <= view.end.x and modal_rect.end.y <= view.end.y,
+		"La ficha de victoria apaisada cabe entera")
+	await _snapshot("wide_victory")
+	get_window().size = Vector2i(1080, 1920)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	view = get_viewport().get_visible_rect()
+	shown = battle.map_rect.size * battle.camera.zoom.x
+	_require(battle.level_data["map_rect"] == LevelGenerator.LANDSCAPE_MAP_RECT, "Girar no reinicia ni cambia el mapa activo")
+	_require(shown.x <= view.size.x + 1.0 and shown.y <= view.size.y + 1.0, "La cámara vuelve a encajar el tablero al girar")
+	modal_rect = hud.victory_panel.get_global_rect()
+	_require(modal_rect.position.x >= 0.0 and modal_rect.position.y >= 0.0
+		and modal_rect.end.x <= view.end.x and modal_rect.end.y <= view.end.y,
+		"La ficha de victoria vuelve a caber en vertical al girar")
+	get_window().size = Vector2i(1920, 1080)
+	await get_tree().process_frame
+	await get_tree().process_frame
 	battle.free()
 	_completed = true
 

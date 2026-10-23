@@ -39,13 +39,14 @@ settings/gdscript/always_track_call_stacks=true
 
 [display]
 
+window/size/resizable=true
 window/size/viewport_width=1080
 window/size/viewport_height=1920
 window/size/window_width_override=540
 window/size/window_height_override=960
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
-window/handheld/orientation=1
+window/handheld/orientation=6
 
 [gui]
 

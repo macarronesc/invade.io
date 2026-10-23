@@ -510,11 +510,46 @@ static func start_battle(from: Node, level_id: String = "") -> void:
 		GameManager.play_level(level_id)
 	go_to(from, BATTLE_SCENE)
 
+## Lienzo lógico por orientación: el lado corto mide siempre 1080, así la interfaz conserva su
+## tamaño al girar la tableta o al redimensionar la ventana (pantalla dividida, escritorio).
+const PORTRAIT_CANVAS := Vector2i(1080, 1920)
+const LANDSCAPE_CANVAS := Vector2i(1920, 1080)
+## Ancho máximo de las páginas: en pantallas anchas el contenido no se estira de borde a borde
+const MAX_PAGE_WIDTH := 1200.0
+
+static func fit_canvas(window: Window) -> void:
+	var wide := window.size.x > window.size.y
+	window.content_scale_size = LANDSCAPE_CANVAS if wide else PORTRAIT_CANVAS
+
+## Márgenes laterales que centran `margin` con como mucho MAX_PAGE_WIDTH de contenido
+static func cap_page_width(margin: MarginContainer) -> void:
+	var left := get_safe_area_left(margin)
+	var right := get_safe_area_right(margin)
+	var side := maxi(PAGE_MARGIN, int((margin.size.x - left - right - MAX_PAGE_WIDTH) * 0.5))
+	left += side
+	right += side
+	if margin.get_theme_constant("margin_left") != left or margin.get_theme_constant("margin_right") != right:
+		margin.add_theme_constant_override("margin_left", left)
+		margin.add_theme_constant_override("margin_right", right)
+
 ## Desplaza hacia abajo una cabecera anclada arriba para que no quede bajo el notch o la cámara
 static func apply_safe_area_top(control: Control) -> void:
 	var inset := get_safe_area_top(control)
-	control.offset_top += inset
-	control.offset_bottom += inset
+	var previous := int(control.get_meta("_safe_top_inset", 0))
+	control.offset_top += inset - previous
+	control.offset_bottom += inset - previous
+	control.set_meta("_safe_top_inset", inset)
+
+## Inset lateral para cámaras/notches cuando Android cambia a apaisado.
+static func apply_safe_area_horizontal(control: Control) -> void:
+	var left := get_safe_area_left(control)
+	var right := get_safe_area_right(control)
+	var previous_left := int(control.get_meta("_safe_left_inset", 0))
+	var previous_right := int(control.get_meta("_safe_right_inset", 0))
+	control.offset_left += left - previous_left
+	control.offset_right -= right - previous_right
+	control.set_meta("_safe_left_inset", left)
+	control.set_meta("_safe_right_inset", right)
 
 ## Alto de la muesca o barra de estado del móvil en coordenadas del lienzo (0 en escritorio)
 static func get_safe_area_top(control: Control) -> int:
@@ -523,6 +558,24 @@ static func get_safe_area_top(control: Control) -> int:
 ## Alto de la barra de gestos inferior en coordenadas del lienzo (0 en escritorio)
 static func get_safe_area_bottom(control: Control) -> int:
 	return _safe_insets(control).y
+
+static func get_safe_area_left(control: Control) -> int:
+	if not OS.has_feature("mobile"):
+		return 0
+	var window_w := DisplayServer.window_get_size().x
+	if window_w <= 0:
+		return 0
+	var safe := DisplayServer.get_display_safe_area()
+	return int(maxi(0, safe.position.x) * control.get_viewport_rect().size.x / float(window_w))
+
+static func get_safe_area_right(control: Control) -> int:
+	if not OS.has_feature("mobile"):
+		return 0
+	var window_w := DisplayServer.window_get_size().x
+	if window_w <= 0:
+		return 0
+	var safe := DisplayServer.get_display_safe_area()
+	return int(maxi(0, window_w - safe.end.x) * control.get_viewport_rect().size.x / float(window_w))
 
 static func _safe_insets(control: Control) -> Vector2i:
 	if not OS.has_feature("mobile"):
@@ -545,6 +598,16 @@ static func overlay_page(root: Control, title: String, close: Callable) -> VBoxC
 	var column := vbox(32)
 	var margin := page_margin(column, 36 + get_safe_area_top(root), 24 + get_safe_area_bottom(root))
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var apply_insets := func():
+		var left := get_safe_area_left(root)
+		var right := get_safe_area_right(root)
+		var extra := maxi(PAGE_MARGIN, int((margin.size.x - left - right - MAX_PAGE_WIDTH) * 0.5))
+		margin.add_theme_constant_override("margin_left", left + extra)
+		margin.add_theme_constant_override("margin_top", 36 + get_safe_area_top(root))
+		margin.add_theme_constant_override("margin_right", right + extra)
+		margin.add_theme_constant_override("margin_bottom", 24 + get_safe_area_bottom(root))
+	margin.resized.connect(apply_insets)
+	apply_insets.call()
 	root.add_child(margin)
 	var header := hbox(24)
 	var back := icon_button("back", LocaleStrings.text("back"))
@@ -644,18 +707,20 @@ static func animate_modal_pop_in(modal: Control) -> void:
 	if not is_instance_valid(modal) or not modal.is_inside_tree():
 		return
 	_kill_meta_tween(modal, "_modal_tween")
+	var target_scale: Vector2 = modal.get_meta("_modal_target_scale", Vector2.ONE)
 	modal.visible = true
 	if GameManager.settings["reduced_motion"]:
-		modal.scale = Vector2.ONE
+		modal.scale = target_scale
 		modal.modulate = Color.WHITE
 		return
 	modal.pivot_offset = modal.size * 0.5
-	modal.scale = Vector2(0.94, 0.94)
+	modal.scale = target_scale * 0.94
 	modal.modulate = Color(1, 1, 1, 0.0)
 	var tw := modal.create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	modal.set_meta("_modal_tween", tw)
-	tw.tween_property(modal, "scale", Vector2.ONE, 0.2)
+	modal.set_meta("_modal_animation", "in")
+	tw.tween_property(modal, "scale", target_scale, 0.2)
 	tw.parallel().tween_property(modal, "modulate:a", 1.0, 0.16)
 
 ## `on_complete` se llama siempre (también sin animación), porque suele reanudar la partida.
@@ -667,9 +732,10 @@ static func animate_modal_pop_out(modal: Control, on_complete: Callable = Callab
 			on_complete.call()
 		return
 	_kill_meta_tween(modal, "_modal_tween")
+	var target_scale: Vector2 = modal.get_meta("_modal_target_scale", Vector2.ONE)
 	if GameManager.settings["reduced_motion"]:
 		modal.visible = false
-		modal.scale = Vector2.ONE
+		modal.scale = target_scale
 		modal.modulate = Color.WHITE
 		if on_complete.is_valid():
 			on_complete.call()
@@ -678,12 +744,13 @@ static func animate_modal_pop_out(modal: Control, on_complete: Callable = Callab
 	var tw := modal.create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	modal.set_meta("_modal_tween", tw)
-	tw.tween_property(modal, "scale", Vector2(0.96, 0.96), 0.12)
+	modal.set_meta("_modal_animation", "out")
+	tw.tween_property(modal, "scale", target_scale * 0.96, 0.12)
 	tw.parallel().tween_property(modal, "modulate:a", 0.0, 0.12)
 	tw.tween_callback(func():
 		if is_instance_valid(modal):
 			modal.visible = false
-			modal.scale = Vector2.ONE
+			modal.scale = Vector2(modal.get_meta("_modal_target_scale", Vector2.ONE))
 			modal.modulate = Color.WHITE
 		if on_complete.is_valid():
 			on_complete.call()

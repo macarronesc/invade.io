@@ -143,8 +143,10 @@ godot --headless --path . res://scenes/tests/balance_check.tscn -- --invasions
 godot --path . res://scenes/tests/balance_check.tscn -- --invasion-ui
 # Botones reales: victoria → compra → siguiente nivel; derrota → compra → reintento.
 godot --headless --path . res://scenes/tests/balance_check.tscn -- --flow
-# En escritorio: capturas ES/EN, claro/oscuro, interacción y límites de pantalla.
+# Capturas y comprobaciones de interacción en los 15 idiomas.
 godot --path . res://scenes/tests/balance_check.tscn -- --ui
+# Ventana apaisada 1920×1080: menú a dos columnas, batalla, giro durante la partida.
+xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --wide-ui
 ```
 
 Para la ficha de Google Play (necesita pantalla real o `xvfb-run`):
@@ -152,13 +154,18 @@ Para la ficha de Google Play (necesita pantalla real o `xvfb-run`):
 ```sh
 # Gráfico destacado 1024×500 y capturas ordenadas en docs/store_assets/
 godot --path . res://scenes/tests/store_assets.tscn
-# Antes de subir: firma, 64 bits, 16 KB, permisos y contenido del APK o del AAB
+# Plantilla Gradle + R8 para exportar localmente; se ejecuta una vez por plantilla instalada.
+godot --headless --path . --install-android-build-template --export-debug "Android" build/android/invadeio.apk
+bash scripts/enable_android_r8.sh
+godot --headless --path . --export-release "Android AAB" build/android/invadeio.aab
+# Antes de subir: firma, 64 bits, 16 KB, orientación, R8 y contenido del APK/AAB.
 BUNDLETOOL_JAR=/path/to/bundletool.jar bash scripts/verify_play_bundle.sh build/android/invadeio.aab build/android/invadeio.apk
 ```
 
 Estos comprobadores usan guardados separados y devuelven error si falla una condición. Las capturas
-de escritorio no sustituyen las pruebas de ergonomía y rendimiento en un móvil real ni las
-pruebas de retención con nuevos jugadores.
+no sustituyen las pruebas de ergonomía y rendimiento en un móvil real ni las pruebas de retención con
+nuevos jugadores. La exportación local del AAB necesita las variables de firma descritas en
+`docs/PLAY_STORE.md`.
 
 ## Integración móvil
 

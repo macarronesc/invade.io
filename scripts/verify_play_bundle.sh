@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Comprueba un paquete de Google Play sin Android Studio y sin publicarlo:
-# firma, 64 bits, alineación de 16 KB, permisos, contenido y que no viaja código de test.
+# firma, pantallas grandes, R8, 64 bits, alineación de 16 KB, permisos y contenido.
 #
 #   BUNDLETOOL_JAR=/path/to/bundletool.jar bash scripts/verify_play_bundle.sh build/android/invadeio.aab
 #   bash scripts/verify_play_bundle.sh build/android/invadeio.apk                # APK suelto
@@ -211,9 +211,44 @@ PY
 				else
 					bad "no se pudo decodificar el manifiesto del AAB para validar permisos"
 				fi
+				# Pantallas grandes: Play avisa si la actividad bloquea la orientación o el redimensionado
+				if LOCKS="$(python3 - "$MANIFEST_XML" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+android = "{http://schemas.android.com/apk/res/android}"
+unrestricted = {"", "unspecified", "sensor", "fullSensor", "fullUser", "user", "-1", "2", "4", "10", "13"}
+problems = []
+for activity in ET.parse(sys.argv[1]).getroot().iter("activity"):
+	name = activity.attrib.get(android + "name", "?")
+	orientation = activity.attrib.get(android + "screenOrientation", "")
+	if orientation not in unrestricted:
+		problems.append("%s screenOrientation=%s" % (name, orientation))
+	if activity.attrib.get(android + "resizeableActivity", "true") == "false":
+		problems.append("%s resizeableActivity=false" % name)
+	for attr in ("maxAspectRatio", "minAspectRatio"):
+		if android + attr in activity.attrib:
+			problems.append("%s %s" % (name, attr))
+print("; ".join(problems))
+PY
+)"; then
+					if [ -z "$LOCKS" ]; then
+						ok "sin bloqueo de orientación ni de redimensionado (pantallas grandes)"
+					else
+						bad "restricciones para pantallas grandes: $LOCKS"
+					fi
+				else
+					bad "no se pudo leer la orientación del manifiesto"
+				fi
 			else
 				bad "bundletool no pudo leer el manifiesto del AAB"
 			fi
+		fi
+		# AGP guarda el mapa de R8 dentro del AAB: Play lo usa para desofuscar fallos y ANR
+		if grep -qF "BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map" <<<"$LIST"; then
+			ok "optimizado con R8 (incluye el mapa de desofuscación)"
+		else
+			bad "sin R8: falta el mapa de desofuscación (ejecuta scripts/enable_android_r8.sh antes de exportar)"
 		fi
 		if grep -qF "debuggable" <<<"$STRINGS"; then
 			bad "el paquete está marcado como depurable: Play no acepta builds de depuración"
