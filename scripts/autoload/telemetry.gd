@@ -71,7 +71,7 @@ func _init_analytics() -> void:
 		return
 	_analytics_ready = Aptabase.init(APTABASE_KEY, {
 		"app_version": _app_version(),
-		"is_debug": OS.is_debug_build(),
+		"is_debug": OS.is_debug_build() and not OS.has_feature("aptabase_release"),
 		"flush_interval": 10.0,
 	})
 

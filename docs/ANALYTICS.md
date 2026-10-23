@@ -27,6 +27,9 @@ una compilación de depuración.
 Al iniciar una sesión con consentimiento, `session_start` se intenta enviar de inmediato; los eventos
 siguientes se siguen agrupando con el intervalo normal.
 
+El preset **Android AAB** añade `aptabase_release` para que Aptabase marque sus eventos como Release;
+el APK de pruebas no lleva esa marca y conserva el estado Debug de la compilación.
+
 La IPA de GitHub Actions se compila como `Release`, por lo que los envíos correctos no se imprimen en
 esa compilación. Los fallos de transporte aparecen como avisos en la consola local de Godot/Xcode; no
 se adjuntan a Sentry (`attach_log = false`). La suite headless verifica el cliente contra un servidor

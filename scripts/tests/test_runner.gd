@@ -19,6 +19,12 @@ func _ready() -> void:
 
 	assert_true(bool(ProjectSettings.get_setting("rendering/textures/vram_compression/import_etc2_astc", false)),
 		"La exportación iOS habilita ETC2/ASTC explícitamente, sin depender del equipo")
+	var presets := ConfigFile.new()
+	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets se pueden leer")
+	assert_true(str(presets.get_value("preset.2", "custom_features", "")).split(",", false).has("aptabase_release"),
+		"El AAB de Play marca los eventos de Aptabase como Release")
+	assert_true(not str(presets.get_value("preset.1", "custom_features", "")).split(",", false).has("aptabase_release"),
+		"El APK de pruebas conserva el estado Debug de Aptabase")
 
 	await test_mobile_experience()
 	if "--mobile" in OS.get_cmdline_user_args():
