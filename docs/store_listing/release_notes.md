@@ -153,9 +153,9 @@ posicionar: Play lo considera spam.
 
 ## 4. invade.io 0.2.0 — actualización
 
-`versionCode` 2 · `versionName` 0.2.0.
+`versionCode` 3 · `versionName` 0.2.0.
 
-Nombre interno del lanzamiento en Play Console: `0.2.0 (2) — Invasiones y 15 idiomas`.
+Nombre interno del lanzamiento en Play Console: `0.2.0 (3) — Invasiones y 15 idiomas`.
 
 Notas de versión para Play Console (menos de 500 caracteres por idioma):
 
@@ -183,4 +183,4 @@ A major update for invade.io!
 | Versión | versionCode | Fecha | Qué cambió |
 |---|---|---|---|
 | 0.1.0 | 1 | *(al publicar)* | Primera versión pública: campaña de 30 niveles, conquista libre, desafío diario, misiones, logros, atlas y estética |
-| 0.2.0 | 2 | *(al publicar)* | 36 regiones y 108 frentes de invasión, 15 idiomas, privacidad opcional y mejoras de interfaz |
+| 0.2.0 | 3 | *(al publicar)* | 36 regiones y 108 frentes de invasión, 15 idiomas, privacidad opcional y mejoras de interfaz |
