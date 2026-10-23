@@ -139,6 +139,8 @@ func _start_session() -> void:
 		"invasion_stars": GameManager.total_invasion_stars(),
 		"language": GameManager.language,
 	})
+	# Send the first opt-in event now instead of waiting for a mobile idle timer.
+	Aptabase.flush()
 
 func _end_session(reason: String) -> void:
 	if not _session_active:

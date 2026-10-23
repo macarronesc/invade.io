@@ -3,6 +3,12 @@ name: Build iOS IPA (SideStore)
 on:
   push:
   workflow_dispatch:
+    inputs:
+      diagnostic_ipa:
+        description: Build an optional Debug IPA for on-device diagnostics
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -89,6 +95,54 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           path: ${{ runner.temp }}/ios/invade.io.ipa
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Exportar el proyecto iOS de diagnóstico
+        if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_ipa
+        run: |
+          mkdir -p "$RUNNER_TEMP/ios-debug"
+          godot --headless --path . --export-debug "iOS" "$RUNNER_TEMP/ios-debug/invadeio.xcodeproj"
+
+      - name: Compilar IPA Debug para diagnóstico
+        if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_ipa
+        run: |
+          xcodebuild archive -quiet \
+            -project "$RUNNER_TEMP/ios-debug/invadeio.xcodeproj" \
+            -scheme invadeio \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/ios-debug/invadeio.xcarchive" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
+
+      - name: Empaquetar y comprobar IPA Debug
+        if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_ipa
+        run: |
+          cd "$RUNNER_TEMP/ios-debug"
+          mkdir -p Payload
+          cp -R invadeio.xcarchive/Products/Applications/invadeio.app Payload/
+          test -s Payload/invadeio.app/invadeio
+          test -s Payload/invadeio.app/invadeio.pck
+          test ! -e Payload/invadeio.app/embedded.mobileprovision
+          plutil -lint Payload/invadeio.app/Info.plist
+          lipo Payload/invadeio.app/invadeio -verify_arch arm64
+          zip -q -r invade.io-debug.ipa Payload
+          unzip -tq invade.io-debug.ipa
+
+      - name: Publicar IPA Debug de diagnóstico
+        if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_ipa
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: invadeio-ios-debug
+          path: ${{ runner.temp }}/ios-debug/invade.io-debug.ipa
           archive: false
           if-no-files-found: error
           retention-days: 7

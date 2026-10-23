@@ -25,6 +25,7 @@ func _ready() -> void:
 		await test_settings_and_backups()
 	elif "--quick" in OS.get_cmdline_user_args():
 		test_packets_and_battle_feedback()
+		test_bezier_curves_and_marching_dots()
 		test_progression_overhaul()
 		test_confetti_geometry()
 		test_light_and_dark_mode()
@@ -1914,6 +1915,22 @@ func test_bezier_curves_and_marching_dots() -> void:
 	# Robustez ante distancia cero entre puntos
 	var cp_zero = battle.get_bezier_control_point(p0, p0, Vector2(100, 100))
 	assert_true(cp_zero.is_equal_approx(p0), "get_bezier_control_point maneja distancia cero entre origen y destino sin errores de división por cero")
+
+	# Arrastres cortos y rápidos no deben doblar la cinta hasta autointersectarse.
+	var distances: Array[float] = [10.1, 12.0, 24.0, 80.0]
+	var lateral_velocities: Array[Vector2] = [Vector2(0, 1000), Vector2(0, -1000)]
+	for distance in distances:
+		var start := Vector2.ZERO
+		var end := Vector2(distance, 0.0)
+		for velocity in lateral_velocities:
+			var control: Vector2 = battle.get_bezier_control_point(start, end, velocity)
+			assert_true(absf(control.y) <= minf(50.0, distance * 0.2) + 0.001,
+				"La curvatura se limita según la distancia (%.1f px)" % distance)
+			var curve: PackedVector2Array = battle.sample_bezier_points(start, control, end, 16)
+			var glow: PackedVector2Array = battle._build_arrow_ribbon(curve, 20.0, 6.5)
+			var core: PackedVector2Array = battle._build_arrow_ribbon(curve, 13.0, 3.5)
+			assert_true(not Geometry2D.triangulate_polygon(glow).is_empty(), "El halo de la flecha se triangula (%.1f px)" % distance)
+			assert_true(not Geometry2D.triangulate_polygon(core).is_empty(), "El núcleo de la flecha se triangula (%.1f px)" % distance)
 
 	# 3. Muestreo de puntos de la curva
 	var sampled = battle.sample_bezier_points(p0, p1, p2, 24)
@@ -4275,6 +4292,31 @@ func test_aptabase_http_delivery() -> void:
 	var peer: StreamPeerTCP = request.get("peer")
 	if peer != null:
 		peer.disconnect_from_host()
+
+	var telemetry = load("res://scripts/autoload/telemetry.gd").new()
+	var previous_share_analytics: bool = GameManager.settings["share_analytics"]
+	GameManager.settings["share_analytics"] = true
+	telemetry._analytics_ready = true
+	Aptabase._flush_timer.stop()
+	telemetry._start_session()
+	assert_true(Aptabase._request_in_flight, "Al consentir, la sesión empieza a enviarse sin esperar el temporizador")
+	var session_request: Dictionary = await _receive_mock_aptabase_request(server)
+	assert_true(not session_request.is_empty(), "La sesión opt-in llega al servidor local")
+	if not session_request.is_empty():
+		var session_batch: Variant = JSON.parse_string(str(session_request["body"]))
+		assert_true(session_batch is Array and session_batch.size() == 1, "La sesión opt-in contiene un evento")
+		if session_batch is Array and session_batch.size() == 1:
+			assert_equals(session_batch[0].get("eventName", ""), "session_start", "El primer evento es session_start")
+		var session_peer: StreamPeerTCP = session_request.get("peer")
+		if session_peer != null:
+			session_peer.disconnect_from_host()
+	for _frame in 720:
+		if not Aptabase._request_in_flight:
+			break
+		await get_tree().process_frame
+	assert_true(not Aptabase._request_in_flight and Aptabase._event_queue.is_empty(), "Aptabase confirma la sesión antes de desactivar el cliente")
+	GameManager.settings["share_analytics"] = previous_share_analytics
+	telemetry.free()
 	Aptabase.disable()
 	server.stop()
 
