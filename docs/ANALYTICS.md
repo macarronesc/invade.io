@@ -33,7 +33,7 @@ se adjuntan a Sentry (`attach_log = false`). La suite headless verifica el clien
 HTTP local y no envía eventos ni claves reales a Aptabase.
 
 Para diagnosticar un iPhone, ejecuta manualmente **Build iOS IPA (SideStore)** con `diagnostic_ipa`
-activado e instala el artefacto `invadeio-ios-debug`. En la consola del dispositivo, busca
+activado e instala el artefacto `invade.io-debug.ipa`. En la consola del dispositivo, busca
 `[Aptabase] initialized`, `[Aptabase] sent` o los avisos de petición fallida. Esa IPA es solo para
 pruebas; usa el preset `iOS Diagnostics`, que omite el selector nativo de copias, y no la publiques en
 tiendas ni compartas sus logs, que pueden incluir la respuesta del servidor.
