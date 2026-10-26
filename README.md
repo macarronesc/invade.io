@@ -150,6 +150,10 @@ godot --headless --path . res://scenes/tests/balance_check.tscn -- --flow
 godot --path . res://scenes/tests/balance_check.tscn -- --ui
 # Ventana apaisada 1920×1080: menú a dos columnas, batalla, giro durante la partida.
 xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --wide-ui
+# Móvil 1080×2340 ↔ 2340×1080: tablero, tropas en marcha, pausa/victoria y atajos al girar.
+xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --rotate-ui
+# Gestos reales (táctil y ratón, ambas orientaciones): desplazar ajustes y arrastrar tropas.
+xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --gestures
 ```
 
 Para la ficha de Google Play (necesita pantalla real o `xvfb-run`):

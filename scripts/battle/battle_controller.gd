@@ -99,7 +99,7 @@ func _exit_tree() -> void:
 func _ready() -> void:
 	load_level(GameManager.get_battle_level_id())
 	_fit_camera()
-	get_viewport().size_changed.connect(_fit_camera)
+	get_viewport().size_changed.connect(_on_view_resized)
 	AudioManager.play_music("battle")
 	EventBus.base_captured.connect(_on_base_captured)
 	EventBus.troop_arrived.connect(_on_troop_arrived)
@@ -111,8 +111,41 @@ func _is_landscape() -> bool:
 	var size := get_viewport_rect().size
 	return size.x > size.y
 
-## Encaja todo el tablero en la vista: con la orientación del nivel es 1:1; si la pantalla gira o
-## se redimensiona a mitad de partida, el mapa se ve entero sin regenerar la batalla.
+## Rotating mid-battle moves the same bases to the layout made for the new orientation
+## (LevelDatabase keeps content and rules; only coordinates differ). The daily challenge keeps
+## its single board so times stay comparable between players.
+func _on_view_resized() -> void:
+	var landscape := _is_landscape()
+	if landscape != (map_rect.size.x > map_rect.size.y) and not level_id.is_empty() and not DailyRewards.is_challenge(level_id):
+		_relayout(landscape)
+	_fit_camera()
+
+func _relayout(landscape: bool) -> void:
+	var data := LevelDatabase.get_level_data(level_id, landscape)
+	var defs: Array = data.get("bases", [])
+	if defs.size() != bases.size():
+		return
+	_cancel_gesture()
+	level_data = data
+	map_rect = data.get("map_rect", LevelGenerator.MAP_RECT)
+	for i in bases.size():
+		bases[i].position = defs[i]["pos"]
+	for t in active_troops:
+		if _is_alive(t):
+			t.relayout()
+	_build_territory()
+	if arrow_overlay:
+		arrow_overlay.queue_redraw()
+
+func _build_territory() -> void:
+	if not territory_map:
+		return
+	var geo: Dictionary = level_data.get("geo", {})
+	# Con geografía, los territorios cubren toda la tierra visible (también en pantallas altas)
+	territory_map.generate_map(bases, LevelGenerator.layout(map_rect.size.x > map_rect.size.y)["clip"] if geo else map_rect, geo)
+	_apply_map_theme()
+
+## Encaja todo el tablero en la vista (1:1 con la orientación del tablero).
 func _fit_camera() -> void:
 	if not camera:
 		return
@@ -169,11 +202,7 @@ func load_level(p_level_id: String) -> void:
 			enemy_factions_present.append(f)
 
 	# Mapa político de estados y partición territorial Voronoi
-	if territory_map:
-		var geo: Dictionary = level_data.get("geo", {})
-		# Con geografía, los territorios cubren toda la tierra visible (también en pantallas altas)
-		territory_map.generate_map(bases, LevelGenerator.layout(map_rect.size.x > map_rect.size.y)["clip"] if geo else map_rect, geo)
-		_apply_map_theme()
+	_build_territory()
 
 	# IA para cada facción enemiga
 	for ef in enemy_factions_present:

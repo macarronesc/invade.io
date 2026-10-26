@@ -603,7 +603,7 @@ static func get_safe_area_bottom(control: Control) -> int:
 	return _safe_insets(control).y
 
 static func get_safe_area_left(control: Control) -> int:
-	if not OS.has_feature("mobile"):
+	if not OS.has_feature("mobile") or not control.is_inside_tree():
 		return 0
 	var window_w := DisplayServer.window_get_size().x
 	if window_w <= 0:
@@ -612,7 +612,7 @@ static func get_safe_area_left(control: Control) -> int:
 	return int(maxi(0, safe.position.x) * control.get_viewport_rect().size.x / float(window_w))
 
 static func get_safe_area_right(control: Control) -> int:
-	if not OS.has_feature("mobile"):
+	if not OS.has_feature("mobile") or not control.is_inside_tree():
 		return 0
 	var window_w := DisplayServer.window_get_size().x
 	if window_w <= 0:
@@ -621,7 +621,7 @@ static func get_safe_area_right(control: Control) -> int:
 	return int(maxi(0, window_w - safe.end.x) * control.get_viewport_rect().size.x / float(window_w))
 
 static func _safe_insets(control: Control) -> Vector2i:
-	if not OS.has_feature("mobile"):
+	if not OS.has_feature("mobile") or not control.is_inside_tree():
 		return Vector2i.ZERO
 	var window_h := DisplayServer.window_get_size().y
 	if window_h <= 0:
