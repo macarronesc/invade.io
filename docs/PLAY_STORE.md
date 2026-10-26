@@ -35,9 +35,9 @@ indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se 
 ## 2. Lo que ya está hecho en el repositorio
 
 - `export_presets.cfg`: preset **Android AAB** (formato AAB, sólo arm64-v8a, minSdk 24, targetSdk 36,
-  versionName 0.2.0, versionCode 3, VIBRATE e iconos, incluido el monocromo). La firma **no** está
+  versionName 0.3.0, versionCode 4, VIBRATE e iconos, incluido el monocromo). La firma **no** está
   en el repositorio: se lee de las variables `GODOT_ANDROID_KEYSTORE_RELEASE_*`. Antes de subir,
-  confirma en Play Console que el código 3 siga disponible; si ya se usó, elige el siguiente código libre.
+  confirma en Play Console que el código 4 siga disponible; si ya se usó, elige el siguiente código libre.
 - `project.godot`: permite redimensionado y rotación con `SCREEN_SENSOR`. La UI mantiene un lienzo con el lado corto
   a 1080 unidades lógicas; Jugar coloca mapa/ficha en columnas en apaisado, y la batalla calcula un
   tablero 1920×1080 con cámara que se vuelve a encajar al girar/redimensionar.
@@ -214,7 +214,7 @@ así que conviene reclutarlos **antes** de subir el primer AAB.
 ## 6. Publicar una actualización
 
 1. Cambiar `version/code` en los dos presets Android (debe crecer siempre) y, si procede,
-   `version/name` (por ejemplo `0.2.0`). Mantén `application/config/version` en `project.godot`
+   `version/name` (por ejemplo `0.3.0`). Mantén `application/config/version` en `project.godot`
    sincronizado: Sentry lo usa como identificador de release.
 2. `git commit` y `git push`: GitHub Actions ejecuta las pruebas, exporta y verifica el AAB nuevo.
 3. Descargar el artefacto `invadeio-play-bundle`, subirlo a la pista correspondiente, escribir las
