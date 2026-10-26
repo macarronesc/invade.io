@@ -178,9 +178,35 @@ A major update for invade.io!
 </en-US>
 ```
 
-## 5. Historial de versiones
+## 5. invade.io 0.3.0 — accesibilidad y pantallas grandes
+
+`versionCode` 4 · `versionName` 0.3.0.
+
+Notas de versión para Play Console (menos de 500 caracteres por idioma):
+
+```
+<es-ES>
+¡Nueva actualización de invade.io!
+• Más accesibilidad: texto grande, más contraste y controles de batalla para lector de pantalla.
+• Menús y batallas para tabletas y apaisado, incluso al girar durante una partida.
+• Partidas nuevas y guardados sin idioma siguen el idioma del dispositivo; se conserva tu elección.
+• Más estabilidad en iPhone y diagnósticos opcionales.
+• Tu progreso se conserva al actualizar.
+</es-ES>
+<en-US>
+New invade.io update!
+• Accessibility options: larger text, stronger map contrast, and screen-reader-friendly battle controls.
+• Menus and battles adapt to tablets and landscape screens, including rotation during a match.
+• New games and older saves without a saved language follow your device language; saved choices stay in place.
+• Improved iPhone stability and optional diagnostics.
+• Your progress is preserved when you update.
+</en-US>
+```
+
+## 6. Historial de versiones
 
 | Versión | versionCode | Fecha | Qué cambió |
 |---|---|---|---|
 | 0.1.0 | 1 | *(al publicar)* | Primera versión pública: campaña de 30 niveles, conquista libre, desafío diario, misiones, logros, atlas y estética |
 | 0.2.0 | 3 | *(al publicar)* | 36 regiones y 108 frentes de invasión, 15 idiomas, privacidad opcional y mejoras de interfaz |
+| 0.3.0 | 4 | *(al publicar)* | Controles accesibles, adaptación a pantallas grandes, mejoras de iOS y selección automática del idioma del dispositivo |
