@@ -759,20 +759,18 @@ static func animate_modal_pop_in(modal: Control) -> void:
 	if not is_instance_valid(modal) or not modal.is_inside_tree():
 		return
 	_kill_meta_tween(modal, "_modal_tween")
-	var target_scale: Vector2 = modal.get_meta("_modal_target_scale", Vector2.ONE)
 	modal.visible = true
 	if GameManager.settings["reduced_motion"]:
-		modal.scale = target_scale
+		modal.scale = Vector2.ONE
 		modal.modulate = Color.WHITE
 		return
 	modal.pivot_offset = modal.size * 0.5
-	modal.scale = target_scale * 0.94
+	modal.scale = Vector2(0.94, 0.94)
 	modal.modulate = Color(1, 1, 1, 0.0)
 	var tw := modal.create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	modal.set_meta("_modal_tween", tw)
-	modal.set_meta("_modal_animation", "in")
-	tw.tween_property(modal, "scale", target_scale, 0.2)
+	tw.tween_property(modal, "scale", Vector2.ONE, 0.2)
 	tw.parallel().tween_property(modal, "modulate:a", 1.0, 0.16)
 
 ## `on_complete` se llama siempre (también sin animación), porque suele reanudar la partida.
@@ -784,10 +782,9 @@ static func animate_modal_pop_out(modal: Control, on_complete: Callable = Callab
 			on_complete.call()
 		return
 	_kill_meta_tween(modal, "_modal_tween")
-	var target_scale: Vector2 = modal.get_meta("_modal_target_scale", Vector2.ONE)
 	if GameManager.settings["reduced_motion"]:
 		modal.visible = false
-		modal.scale = target_scale
+		modal.scale = Vector2.ONE
 		modal.modulate = Color.WHITE
 		if on_complete.is_valid():
 			on_complete.call()
@@ -796,13 +793,12 @@ static func animate_modal_pop_out(modal: Control, on_complete: Callable = Callab
 	var tw := modal.create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	modal.set_meta("_modal_tween", tw)
-	modal.set_meta("_modal_animation", "out")
-	tw.tween_property(modal, "scale", target_scale * 0.96, 0.12)
+	tw.tween_property(modal, "scale", Vector2(0.96, 0.96), 0.12)
 	tw.parallel().tween_property(modal, "modulate:a", 0.0, 0.12)
 	tw.tween_callback(func():
 		if is_instance_valid(modal):
 			modal.visible = false
-			modal.scale = Vector2(modal.get_meta("_modal_target_scale", Vector2.ONE))
+			modal.scale = Vector2.ONE
 			modal.modulate = Color.WHITE
 		if on_complete.is_valid():
 			on_complete.call()
