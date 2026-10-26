@@ -83,6 +83,18 @@ func _set_path(from: Vector2, to: Vector2, target_radius: float) -> void:
 	move_dir = path_vec / path_length if path_length > 0.001 else Vector2.RIGHT
 	arrival_dist = maxf(10.0, path_length - target_radius * 0.45)
 
+## The board moved (screen rotation): keep each column at the same share of its route.
+## start_pos always sits on origin_base, also after abort_mission swaps the ends.
+func relayout() -> void:
+	if not is_instance_valid(origin_base) or not is_instance_valid(target_base):
+		return
+	var progress := head_dist / maxf(path_length, 0.001)
+	_set_path(origin_base.global_position, target_base.global_position, target_base.radius)
+	head_dist = progress * path_length
+	var f := front_index()
+	global_position = start_pos + move_dir * maxf(0.0, packet_dist(f)) if f >= 0 else start_pos
+	queue_redraw()
+
 func _ready() -> void:
 	EventBus.battle_won.connect(_on_battle_ended.unbind(1))
 	EventBus.battle_lost.connect(_on_battle_ended)

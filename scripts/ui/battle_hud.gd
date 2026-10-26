@@ -188,6 +188,10 @@ func _wrap_modal_contents() -> void:
 		panel.add_child(scroll)
 		scroll.owner = panel.owner
 		scroll.add_child(content)
+		# ScrollContainer only widens children that expand; otherwise text wraps into a narrow, tall column.
+		content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# Wrapped text re-measures after layout; refit then so the card hugs its content.
+		content.minimum_size_changed.connect(_fit_panel.bind(panel), CONNECT_DEFERRED)
 
 ## Textos estáticos de capas y botones en el idioma actual
 func _apply_texts() -> void:
@@ -297,8 +301,9 @@ func _open_accessible_controls() -> void:
 	_accessible_panel.name = "AccessibleBattleControlsPanel"
 	_accessible_panel.accessibility_name = LocaleStrings.text("accessible_battle_controls")
 	_accessible_panel.accessibility_description = LocaleStrings.text("accessible_battle_help")
-	var content := UIThemeHelper.overlay_page(_accessible_panel, LocaleStrings.text("accessible_battle_controls"), _close_accessible_controls)
+	# In the tree first: overlay_page reads the viewport for safe-area insets.
 	add_child(_accessible_panel)
+	var content := UIThemeHelper.overlay_page(_accessible_panel, LocaleStrings.text("accessible_battle_controls"), _close_accessible_controls)
 	UIThemeHelper.apply_locale_direction(_accessible_panel)
 	content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("accessible_battle_help")))
 	UIThemeHelper.section(content, LocaleStrings.text("accessible_sources"), "", "Heading")
