@@ -47,12 +47,6 @@ var _redraw_accum := 0.0
 ## Mapa y ficha: uno sobre otra en vertical, lado a lado en pantallas anchas
 var _split: BoxContainer
 var _side: ScrollContainer
-var _main: VBoxContainer
-var _side_column: VBoxContainer
-## Conquista y diario: bajo la ficha en vertical; en pantallas anchas, lado a lado bajo el mapa,
-## porque la columna lateral no tiene alto para ficha y atajos sin desplazarse.
-var _shortcuts: BoxContainer
-var _map_area: Control
 const SIDE_WIDTH := 820.0
 
 func _ready() -> void:
@@ -70,7 +64,6 @@ func _build() -> void:
 	_split.size_flags_vertical = SIZE_EXPAND_FILL
 	add_child(_split)
 	var main := UIThemeHelper.vbox(0)
-	_main = main
 	main.size_flags_horizontal = SIZE_EXPAND_FILL
 	main.size_flags_vertical = SIZE_EXPAND_FILL
 	_split.add_child(main)
@@ -79,8 +72,8 @@ func _build() -> void:
 	_side.scroll_deadzone = UIThemeHelper.TOUCH_SCROLL_DEADZONE
 	_side.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_split.add_child(_side)
+	_side.resized.connect(_fit_side_column)
 	var side := UIThemeHelper.vbox(0)
-	_side_column = side
 	side.size_flags_horizontal = SIZE_EXPAND_FILL
 	_side.add_child(side)
 	if not resized.is_connected(_apply_layout):
@@ -110,7 +103,6 @@ func _build() -> void:
 	map_area.name = "MapArea"
 	map_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	map_area.custom_minimum_size.y = 320
-	_map_area = map_area
 	map_area.clip_contents = true
 	# El mapa es geografía, no texto: no se espeja en árabe. El resto de la ficha sí.
 	map_area.layout_direction = Control.LAYOUT_DIRECTION_LTR
@@ -185,14 +177,11 @@ func _build() -> void:
 	sheet.add_child(btn_start_level)
 
 	# Otros modos, a un toque
-	_shortcuts = BoxContainer.new()
-	_shortcuts.vertical = true
-	_shortcuts.add_theme_constant_override("separation", 16)
-	side.add_child(UIThemeHelper.page_margin(_shortcuts, 0, 24))
+	var shortcuts := UIThemeHelper.vbox(16)
+	side.add_child(UIThemeHelper.page_margin(shortcuts, 0, 24))
 	btn_conquest = UIThemeHelper.row_button("flag", LocaleStrings.text("conquest"), _conquest_subtitle(), "play")
 	btn_conquest.pressed.connect(UIThemeHelper.start_battle.bind(self, LevelGenerator.conquest_id(GameManager.conquest_next)))
-	btn_conquest.size_flags_horizontal = SIZE_EXPAND_FILL
-	_shortcuts.add_child(btn_conquest)
+	shortcuts.add_child(btn_conquest)
 	var done := GameManager.is_daily_challenge_done()
 	var daily_sub := LocaleStrings.text("daily_row_done") if done else LocaleStrings.text("daily_row") % DailyRewards.DAILY_CHALLENGE_GOLD
 	daily_sub += "\n" + LocaleStrings.text("daily_short_rules")
@@ -200,17 +189,14 @@ func _build() -> void:
 		UIThemeHelper.colors.success if done else UIThemeHelper.colors.gold)
 	btn_daily.custom_minimum_size.y = 176
 	btn_daily.pressed.connect(UIThemeHelper.start_battle.bind(self, DailyRewards.challenge_id(DailyRewards.today())))
-	btn_daily.size_flags_horizontal = SIZE_EXPAND_FILL
-	_shortcuts.add_child(btn_daily)
+	shortcuts.add_child(btn_daily)
 	# A Button ignores its children's size: grow each card whenever its wrapped text re-measures.
-	# Titles wrap too, because side by side a card can be narrower than a long translation.
 	for card in [btn_conquest, btn_daily]:
 		var texts := card.get_child(0).get_child(1) as Control
 		(texts.get_child(0) as Label).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		texts.minimum_size_changed.connect(_fit_shortcut_cards, CONNECT_DEFERRED)
 	# Arrastrar sobre los botones también desplaza la columna lateral
 	UIThemeHelper.pass_scroll_events(side)
-	_apply_layout()
 
 ## En pantallas anchas la ficha pasa a una columna lateral desplazable junto al mapa
 func _apply_layout() -> void:
@@ -220,15 +206,22 @@ func _apply_layout() -> void:
 	_side.size_flags_vertical = Control.SIZE_EXPAND_FILL if wide else Control.SIZE_FILL
 	# En vertical la ficha mide lo que su contenido (sin scroll), como siempre
 	_side.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if wide else ScrollContainer.SCROLL_MODE_DISABLED
-	if _shortcuts:
-		var holder := _shortcuts.get_parent()
-		var column := _main if wide else _side_column
-		if holder.get_parent() != column:
-			holder.reparent(column, false)
-		_shortcuts.vertical = not wide
-		# The route map scales; on short landscape screens it yields height to the shortcuts.
-		_map_area.custom_minimum_size.y = 200 if wide else 320
 	call_deferred("_fit_shortcut_cards")
+
+## On a short landscape column the level sheet folds its secondary lines (description, chips, rule)
+## into «More details», one at a time, so Continue and both shortcuts fit without scrolling.
+func _fit_side_column() -> void:
+	if not is_instance_valid(level_rule):
+		return
+	var optional: Array[Control] = [level_desc, level_chips, level_rule]
+	for c in optional:
+		c.visible = c != level_rule or level_rule.text != ""
+	if _split.vertical or details_open or _side.size.y <= 0.0:
+		return
+	for c in optional:
+		if _side.get_child(0).get_combined_minimum_size().y <= _side.size.y:
+			break
+		c.visible = false
 
 func _fit_shortcut_cards() -> void:
 	for entry in [[btn_conquest, 128.0], [btn_daily, 176.0]]:
@@ -236,9 +229,11 @@ func _fit_shortcut_cards() -> void:
 		if not is_instance_valid(card) or not card.is_inside_tree():
 			continue
 		var text_column := card.get_child(0).get_child(1) as Control
+		# Before the first layout the column has no width and would measure every word on its own line.
 		if text_column.size.x <= 0.0:
 			continue
 		card.custom_minimum_size.y = maxf(entry[1], maxf(80.0, text_column.get_combined_minimum_size().y) + 36.0)
+	_fit_side_column()
 
 static func _conquest_subtitle() -> String:
 	var index := GameManager.conquest_next
@@ -379,6 +374,7 @@ func _toggle_details() -> void:
 	details_open = not details_open
 	level_details.visible = details_open
 	_refresh_details_button()
+	_fit_side_column()
 
 func _refresh_details_button() -> void:
 	if not is_instance_valid(btn_details):
@@ -404,6 +400,7 @@ func _update_briefing_card() -> void:
 			level_rule.text += " · " + LocaleStrings.text("boss_gold_preview") % roundi(GameManager.FIRST_BOSS_GOLD * GameManager.get_gold_multiplier())
 	level_rule.visible = level_rule.text != ""
 	UIThemeHelper.set_stars(level_stars, stars)
+	_fit_side_column.call_deferred()
 
 	var bases: Array = data.get("bases", [])
 	var rivals := {}

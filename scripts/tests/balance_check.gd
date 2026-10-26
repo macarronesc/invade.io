@@ -41,6 +41,10 @@ func _ready() -> void:
 		GameManager.save_path = "user://balance_rotate_ui_test_save.json"
 		OS.low_processor_usage_mode = false
 		await _check_rotate_ui()
+	elif "--gestures" in OS.get_cmdline_user_args():
+		GameManager.save_path = "user://balance_gestures_test_save.json"
+		OS.low_processor_usage_mode = false
+		await _check_gestures()
 	else:
 		_check_campaign()
 	_require(_completed, "La comprobación termina todos sus pasos sin errores de script")
@@ -228,7 +232,7 @@ func _check_ui() -> void:
 			await _snapshot("menu_details_%s_%s" % [lang, str(light)])
 			play.btn_details.pressed.emit()
 			_require(not play.level_details.visible, "Detalles vuelve a plegarse")
-			_require(play.btn_daily.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y, "Accesos secundarios no quedan bajo la navegación (%s): %s / %s, mapa %s" % [lang, play.btn_daily.get_global_rect(), menu._nav["play"].get_global_rect(), play._map_area.get_global_rect()])
+			_require(play.btn_daily.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y, "Accesos secundarios no quedan bajo la navegación (%s): %s / %s" % [lang, play.btn_daily.get_global_rect(), menu._nav["play"].get_global_rect()])
 			for label in play.btn_daily.find_children("*", "Label", true, false):
 				_require(play.btn_daily.get_global_rect().grow(6).encloses(label.get_global_rect()), "El texto del desafío diario queda dentro de su tarjeta")
 			menu.show_tab("challenges")
@@ -406,7 +410,7 @@ func _check_wide_ui() -> void:
 	await get_tree().process_frame
 	_require(play.btn_conquest.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y + 1.0
 		and play.btn_daily.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y + 1.0,
-		"Conquista y diario quedan visibles bajo el mapa sin desplazar")
+		"Conquista y diario quedan visibles en la columna lateral sin desplazar")
 	_require(GameManager.conquest_next == conquest_before, "Desplazarse sobre la ficha no inicia conquista")
 	menu.queue_free()
 	await get_tree().process_frame
@@ -540,9 +544,18 @@ func _check_rotate_ui() -> void:
 		await get_tree().process_frame
 		var play = menu._content.get_child(0)
 		var nav_top: float = menu._nav["play"].get_global_rect().position.y
-		for card in [play.btn_conquest, play.btn_daily]:
-			_require(card.get_global_rect().end.y <= nav_top + 1.0 and card.size.y <= 260.0,
-				"Atajo visible sin desplazar y con su alto (%s): %s / nav %s" % [size, card.get_global_rect(), nav_top])
+		for card in [play.btn_conquest, play.btn_daily, play.btn_start_level]:
+			_require(card.get_global_rect().end.y <= nav_top + 1.0 and card.size.y <= 260.0 and card.is_visible_in_tree(),
+				"Visible sin desplazar y con su alto (%s): %s / nav %s" % [size, card.get_global_rect(), nav_top])
+			_require(play._side.is_ancestor_of(card), "Los atajos siguen en la columna de la ficha (%s)" % size)
+		if size.x > size.y:
+			_require(play._side.scroll_vertical == 0 and play._side.get_child(0).get_combined_minimum_size().y <= play._side.size.y,
+				"La columna lateral cabe sin desplazar (%s): min %s / alto %s, desc %s chips %s regla %s" % [size, play._side.get_child(0).get_combined_minimum_size().y, play._side.size.y, play.level_desc.visible, play.level_chips.visible, play.level_rule.visible])
+			play.btn_details.pressed.emit()
+			await get_tree().process_frame
+			_require(play.level_desc.visible and play.level_chips.visible, "Más detalles muestra lo plegado (%s)" % size)
+			play.btn_details.pressed.emit()
+			await _settle()
 	await _snapshot("rotate_menu")
 	menu.free()
 	GameManager.seen_tips = ["factory", "fortress", "drag", "rival_0"]
@@ -591,6 +604,109 @@ func _check_rotate_ui() -> void:
 		await _snapshot("rotate_victory_%s" % ("l" if size.x > size.y else "p"))
 	battle.free()
 	_completed = true
+
+## Finger gestures sent through the real window (press → moves → release), in both orientations:
+## scrolling pages, dragging troops between bases, and an idle layout that stops re-sorting.
+func _check_gestures() -> void:
+	GameManager._apply_save({})
+	GameManager.has_started = true
+	GameManager.play_level("europe_4")
+	GameManager.seen_tips = ["factory", "fortress", "drag", "rival_0"]
+	for size in [Vector2i(1080, 2340), Vector2i(2340, 1080)]:
+		await _resize(size)
+		var menu: MainMenuUI = load(MainMenuUI.SCENE).instantiate()
+		add_child(menu)
+		await _settle()
+		var menu_sorts := await _idle_sorts(menu)
+		_require(menu_sorts == 0, "El menú en reposo no se recoloca cada fotograma (%s): %d" % [size, menu_sorts])
+		menu._open_settings()
+		await _settle()
+		var scroll: ScrollContainer = menu._utility_panel.find_children("*", "ScrollContainer", true, false)[0]
+		var center := scroll.get_global_rect().get_center()
+		for touch in [true, false]:
+			scroll.scroll_vertical = 0
+			await _swipe(center + Vector2(0, 300), center - Vector2(0, 300), touch)
+			_require(scroll.scroll_vertical > 0, "Deslizar desplaza los ajustes (%s, táctil=%s)" % [size, touch])
+		menu.free()
+		var battle: BattleController = load(UIThemeHelper.BATTLE_SCENE).instantiate()
+		add_child(battle)
+		await _settle()
+		battle.set_simulation_paused(true)
+		var hud: BattleHUD = battle.get_node("BattleHUD")
+		_require(await _idle_sorts(hud) == 0, "El HUD en reposo no se recoloca cada fotograma (%s)" % size)
+		var home: BaseNode = battle.bases.filter(func(b): return b.faction == GameManager.Faction.PLAYER)[0]
+		var target: BaseNode = battle.bases.filter(func(b): return b.faction != GameManager.Faction.PLAYER)[0]
+		var to_screen := battle.get_viewport().get_canvas_transform()
+		for touch in [true, false]:
+			var sent := battle.active_troops.size()
+			home.troops = 30
+			await _swipe(to_screen * home.global_position, to_screen * target.global_position, touch)
+			_require(battle.active_troops.size() > sent, "Arrastrar de una base a otra envía tropas (%s, táctil=%s)" % [size, touch])
+		battle.free()
+	_completed = true
+
+func _settle() -> void:
+	for i in 6:
+		await get_tree().process_frame
+
+## Controls re-sorted during 20 idle frames: a layout feedback loop keeps this above zero.
+func _idle_sorts(root: Node) -> int:
+	var count := [0]
+	var bump := func(): count[0] += 1
+	var containers := root.find_children("*", "Container", true, false)
+	for c in containers:
+		c.sort_children.connect(bump)
+	for i in 20:
+		await get_tree().process_frame
+	for c in containers:
+		if is_instance_valid(c):
+			c.sort_children.disconnect(bump)
+	return count[0]
+
+## Press, move in steps and release, in canvas coordinates. `touch` sends what Android sends
+## (screen touch/drag; Godot derives mouse events from them); otherwise a desktop mouse.
+func _swipe(from: Vector2, to: Vector2, touch := true) -> void:
+	var to_window := Vector2(DisplayServer.window_get_size()) / get_viewport().get_visible_rect().size
+	_send_point(from * to_window, true, touch)
+	await get_tree().process_frame
+	var last := from
+	for i in range(1, 9):
+		var p := from.lerp(to, i / 8.0)
+		if touch:
+			var drag := InputEventScreenDrag.new()
+			drag.position = p * to_window
+			drag.relative = (p - last) * to_window
+			drag.screen_relative = drag.relative
+			Input.parse_input_event(drag)
+		else:
+			var motion := InputEventMouseMotion.new()
+			motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+			motion.position = p * to_window
+			motion.global_position = motion.position
+			motion.relative = (p - last) * to_window
+			Input.parse_input_event(motion)
+		last = p
+		if touch:
+			# Android re-emits size changes (system bars, insets) while a finger is down.
+			get_viewport().size_changed.emit()
+		await get_tree().process_frame
+	_send_point(to * to_window, false, touch)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+func _send_point(pos: Vector2, pressed: bool, touch: bool) -> void:
+	if touch:
+		var t := InputEventScreenTouch.new()
+		t.position = pos
+		t.pressed = pressed
+		Input.parse_input_event(t)
+		return
+	var b := InputEventMouseButton.new()
+	b.button_index = MOUSE_BUTTON_LEFT
+	b.pressed = pressed
+	b.position = pos
+	b.global_position = pos
+	Input.parse_input_event(b)
 
 func _resize(size: Vector2i) -> void:
 	get_window().size = size
