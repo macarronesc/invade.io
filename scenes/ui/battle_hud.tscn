@@ -560,6 +560,16 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Cómo jugar"
 
+[node name="BtnAccessibility" type="Button" parent="PausePanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Accesibilidad"
+
+[node name="BtnAccessibleControls" type="Button" parent="PausePanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Controles de batalla"
+
 [node name="BtnSettings" type="Button" parent="PausePanel/VBox"]
 unique_name_in_owner = true
 layout_mode = 2

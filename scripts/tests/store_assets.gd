@@ -11,7 +11,6 @@ const OUT_DIR := "res://docs/store_assets"
 const SHOTS_DIR := "user://"
 ## Capturas de la ficha, en orden: lo que explica el juego en cinco segundos
 const SHOTS := ["menu", "invasion", "march", "victory", "army", "challenges", "progress"]
-const LANGS := ["es", "en", "de", "ru", "ar", "hi", "zh_CN", "ja"]
 const OBSOLETE_SHOTS := ["2_battle.png", "3_victory.png", "4_army.png", "5_challenges.png", "6_progress.png"]
 const BANNER := Vector2i(1024, 500)
 
@@ -22,10 +21,11 @@ func _ready() -> void:
 	UIThemeHelper.apply_palette(get_tree(), true)
 	_icon = load("res://icon.svg") # Vectorial: conserva las esquinas redondeadas de la marca
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
-	for lang in LANGS:
+	var langs := LanguageCatalog.codes()
+	for lang in langs:
 		DirAccess.make_dir_recursive_absolute("%s/screenshots_%s" % [OUT_DIR, lang])
 	await _save_feature_graphic()
-	_copy_screenshots()
+	_copy_screenshots(langs)
 	get_tree().quit()
 
 ## Gráfico destacado: fondo, mapa de territorios tenue y la marca (baldosa + nombre).
@@ -89,9 +89,9 @@ func _wordmark() -> Control:
 	return block
 
 ## Copia las capturas del comprobador con el nombre y el orden que espera la ficha
-func _copy_screenshots() -> void:
+func _copy_screenshots(langs: Array[String]) -> void:
 	var sources := {}
-	for lang in LANGS:
+	for lang in langs:
 		sources[lang] = {}
 		for shot in SHOTS:
 			# La ficha prefiere la presentación clara; los idiomas nuevos se capturan
@@ -104,7 +104,7 @@ func _copy_screenshots() -> void:
 				return
 			sources[lang][shot] = source
 
-	for lang in LANGS:
+	for lang in langs:
 		var target_dir := "%s/screenshots_%s" % [OUT_DIR, lang]
 		for shot in SHOTS:
 			var target := "%s/screenshots_%s/%d_%s.png" % [OUT_DIR, lang, SHOTS.find(shot) + 1, shot]

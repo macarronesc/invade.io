@@ -65,11 +65,14 @@ Juego vertical de estrategia territorial en Godot 4.7.
   comprados, invasiones y las misiones del día se conservan. Un guardado v6 carga con las
   invasiones a cero. Al día siguiente entran los nuevos objetivos.
 - Ajustes desde el menú y la pausa: idioma, sonido, música, volúmenes, vibración,
-  velocidad, paleta accesible y privacidad. La velocidad afecta a ambos bandos y no acelera el reloj diario.
+  velocidad, tamaño del texto, paleta accesible, contraste del mapa y privacidad. La velocidad afecta a ambos bandos y no acelera el reloj diario.
+- La pausa ofrece controles de batalla accesibles para elegir bases, enviar o retirar tropas,
+  centrar el mapa y ajustar el zoom. También se puede ampliar el texto y reforzar las fronteras
+  del mapa sin cambiar el estilo predeterminado.
 - 15 idiomas de interfaz y datos: inglés, español, portugués (Brasil), francés, alemán,
   italiano, ruso, turco, árabe, hindi, indonesio, vietnamita, chino simplificado, japonés
-  y coreano. El árabe usa diseño RTL. El idioma inicial sigue al dispositivo y se puede
-  cambiar en Ajustes; las partidas antiguas conservan el suyo.
+  y coreano. El árabe usa diseño RTL. El idioma inicial sigue al dispositivo; el idioma
+  elegido y guardado prevalece, y las partidas antiguas sin idioma registrado también siguen al dispositivo.
 - Traducciones en `locale/strings.csv` (claves estables, sin texto duplicado en el código).
   Las fuentes Noto por escritura están en `assets/fonts/locale/`; los nombres de ciudad
   localizados vienen de Natural Earth dentro de `assets/data/geo.json`. Para añadir textos,
@@ -143,8 +146,14 @@ godot --headless --path . res://scenes/tests/balance_check.tscn -- --invasions
 godot --path . res://scenes/tests/balance_check.tscn -- --invasion-ui
 # Botones reales: victoria → compra → siguiente nivel; derrota → compra → reintento.
 godot --headless --path . res://scenes/tests/balance_check.tscn -- --flow
-# En escritorio: capturas ES/EN, claro/oscuro, interacción y límites de pantalla.
+# Capturas y comprobaciones de interacción en los 15 idiomas.
 godot --path . res://scenes/tests/balance_check.tscn -- --ui
+# Ventana apaisada 1920×1080: menú a dos columnas, batalla, giro durante la partida.
+xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --wide-ui
+# Móvil 1080×2340 ↔ 2340×1080: tablero, tropas en marcha, pausa/victoria y atajos al girar.
+xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --rotate-ui
+# Gestos reales (táctil y ratón, ambas orientaciones): desplazar ajustes y arrastrar tropas.
+xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --gestures
 ```
 
 Para la ficha de Google Play (necesita pantalla real o `xvfb-run`):
@@ -152,13 +161,18 @@ Para la ficha de Google Play (necesita pantalla real o `xvfb-run`):
 ```sh
 # Gráfico destacado 1024×500 y capturas ordenadas en docs/store_assets/
 godot --path . res://scenes/tests/store_assets.tscn
-# Antes de subir: firma, 64 bits, 16 KB, permisos y contenido del APK o del AAB
+# Plantilla Gradle + R8 para exportar localmente; se ejecuta una vez por plantilla instalada.
+godot --headless --path . --install-android-build-template --export-debug "Android" build/android/invadeio.apk
+bash scripts/enable_android_r8.sh
+godot --headless --path . --export-release "Android AAB" build/android/invadeio.aab
+# Antes de subir: firma, 64 bits, 16 KB, orientación, R8 y contenido del APK/AAB.
 BUNDLETOOL_JAR=/path/to/bundletool.jar bash scripts/verify_play_bundle.sh build/android/invadeio.aab build/android/invadeio.apk
 ```
 
 Estos comprobadores usan guardados separados y devuelven error si falla una condición. Las capturas
-de escritorio no sustituyen las pruebas de ergonomía y rendimiento en un móvil real ni las
-pruebas de retención con nuevos jugadores.
+no sustituyen las pruebas de ergonomía y rendimiento en un móvil real ni las pruebas de retención con
+nuevos jugadores. La exportación local del AAB necesita las variables de firma descritas en
+`docs/PLAY_STORE.md`.
 
 ## Integración móvil
 

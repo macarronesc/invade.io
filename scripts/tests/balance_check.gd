@@ -13,8 +13,6 @@ class Simulation extends BattleController:
 
 ## Idiomas con captura visual. Los dos primeros cubren claro/oscuro; el resto,
 ## sólo el tema oscuro, para revisar expansión, RTL y alfabetos sin multiplicar el tiempo.
-const UI_LANGS := ["es", "en", "de", "ru", "ar", "hi", "zh_CN", "ja"]
-
 var _failed := false
 var _completed := false
 
@@ -35,6 +33,18 @@ func _ready() -> void:
 		GameManager.save_path = "user://balance_invasion_ui_test_save.json"
 		OS.low_processor_usage_mode = false
 		await _check_invasion_ui()
+	elif "--wide-ui" in OS.get_cmdline_user_args():
+		GameManager.save_path = "user://balance_wide_ui_test_save.json"
+		OS.low_processor_usage_mode = false
+		await _check_wide_ui()
+	elif "--rotate-ui" in OS.get_cmdline_user_args():
+		GameManager.save_path = "user://balance_rotate_ui_test_save.json"
+		OS.low_processor_usage_mode = false
+		await _check_rotate_ui()
+	elif "--gestures" in OS.get_cmdline_user_args():
+		GameManager.save_path = "user://balance_gestures_test_save.json"
+		OS.low_processor_usage_mode = false
+		await _check_gestures()
 	else:
 		_check_campaign()
 	_require(_completed, "La comprobación termina todos sus pasos sin errores de script")
@@ -192,7 +202,7 @@ func _ui_langs() -> Array:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--lang="):
 			return [arg.substr(7)]
-	return UI_LANGS
+	return LanguageCatalog.codes()
 
 func _check_ui() -> void:
 	# La ficha de Play exige capturas de 1080×1920; el override de escritorio es 540×960.
@@ -222,7 +232,7 @@ func _check_ui() -> void:
 			await _snapshot("menu_details_%s_%s" % [lang, str(light)])
 			play.btn_details.pressed.emit()
 			_require(not play.level_details.visible, "Detalles vuelve a plegarse")
-			_require(play.btn_daily.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y, "Accesos secundarios no quedan bajo la navegación (%s)" % lang)
+			_require(play.btn_daily.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y, "Accesos secundarios no quedan bajo la navegación (%s): %s / %s" % [lang, play.btn_daily.get_global_rect(), menu._nav["play"].get_global_rect()])
 			for label in play.btn_daily.find_children("*", "Label", true, false):
 				_require(play.btn_daily.get_global_rect().grow(6).encloses(label.get_global_rect()), "El texto del desafío diario queda dentro de su tarjeta")
 			menu.show_tab("challenges")
@@ -313,12 +323,14 @@ func _check_ui() -> void:
 			hud._on_battle_lost()
 			await _snapshot("defeat_%s_%s" % [lang, str(light)])
 			_require(hud.btn_defeat_upgrade.visible and hud.btn_defeat_upgrade.theme_type_variation == "Button", "Compra útil, secundaria, visible tras perder")
-			_require(hud.defeat_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y, "Derrota cabe en pantalla")
+			_require(hud.defeat_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y,
+				"Derrota cabe en pantalla: %s / %s" % [hud.defeat_panel.get_global_rect(), get_viewport().get_visible_rect()])
 			hud.defeat_panel.hide()
 			hud.deploy_victory_modal({"stars": 3, "gold_earned": 170, "xp_before": 0, "xp": 60, "level_id": "europe_4"})
 			await _snapshot("victory_%s_%s" % [lang, str(light)])
 			_require(hud.btn_result_action.visible and hud.btn_result_action.theme_type_variation == "Button", "Mejorar y seguir visible, secundario, tras ganar")
-			_require(hud.victory_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y, "Victoria cabe en pantalla")
+			_require(hud.victory_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y,
+				"Victoria cabe en pantalla: %s / %s" % [hud.victory_panel.get_global_rect(), get_viewport().get_visible_rect()])
 			hud.deploy_victory_modal({"stars": 2, "gold_earned": 150, "is_daily_challenge": true,
 				"level_id": DailyRewards.challenge_id(DailyRewards.today())})
 			await _snapshot("daily_result_%s_%s" % [lang, str(light)])
@@ -329,7 +341,8 @@ func _check_ui() -> void:
 				"is_continent_conquest": true, "boss_gold": 150})
 			await _snapshot("boss_%s_%s" % [lang, str(light)])
 			_require(hud.btn_result_action.visible and hud.btn_equip_reward.visible, "Equipar el premio no queda oculto por la sugerencia de compra")
-			_require(hud.victory_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y, "Victoria de jefe con desbloqueos cabe en pantalla")
+			_require(hud.victory_panel.get_global_rect().end.y <= get_viewport().get_visible_rect().end.y,
+				"Victoria de jefe con desbloqueos cabe en pantalla: %s / %s" % [hud.victory_panel.get_global_rect(), get_viewport().get_visible_rect()])
 			hud.btn_equip_reward.pressed.emit()
 			_require(GameManager.cosmetics_equipped["map_theme"] == "theme_ocean", "Equipar premio desde el resultado funciona")
 			GameManager.experience = 0
@@ -351,6 +364,104 @@ func _check_ui() -> void:
 	_require(toast_rect.position.x >= 0 and toast_rect.end.x <= get_viewport().get_visible_rect().end.x, "El aviso de logro cabe en el ancho de pantalla")
 	_require(toast_rect.position.y >= 0 and toast_rect.end.y <= get_viewport().get_visible_rect().end.y, "El aviso de logro cabe en la altura de pantalla")
 	battle.free()
+	_completed = true
+
+## Runtime layout smoke test for a 1920×1080 resizable window (not only computed positions).
+func _check_wide_ui() -> void:
+	get_window().size = Vector2i(1920, 1080)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var view := get_viewport().get_visible_rect()
+	_require(view.size.x > view.size.y, "La ventana de prueba está apaisada")
+	UIThemeHelper.fit_canvas(get_window())
+	_require(get_window().content_scale_size == UIThemeHelper.LANDSCAPE_CANVAS, "El lienzo usa la escala apaisada")
+	GameManager._apply_save({})
+	GameManager.has_started = true
+	GameManager.play_level("europe_4")
+	GameManager.coins = 420
+	var menu: MainMenuUI = load(MainMenuUI.SCENE).instantiate()
+	add_child(menu)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var play = menu._content.get_child(0)
+	_require(not play._split.vertical, "Jugar presenta mapa y ficha en dos columnas")
+	_require(play._side.get_global_rect().end.x <= view.end.x + 1.0, "La ficha lateral no sale de la pantalla")
+	_require(play._side.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y + 1.0,
+		"La ficha lateral termina antes de la barra inferior: %s / %s" % [play._side.get_global_rect(), menu._nav["play"].get_global_rect()])
+	await _snapshot("wide_menu")
+	var conquest_before: int = GameManager.conquest_next
+	var touch_pos: Vector2 = play.btn_conquest.get_global_rect().get_center() * Vector2(DisplayServer.window_get_size()) / view.size
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.position = touch_pos
+	press.pressed = true
+	Input.parse_input_event(press)
+	await get_tree().process_frame
+	var drag := InputEventMouseMotion.new()
+	drag.position = touch_pos - Vector2(0, 160)
+	drag.relative = Vector2(0, -160)
+	drag.button_mask = MOUSE_BUTTON_MASK_LEFT
+	Input.parse_input_event(drag)
+	await get_tree().process_frame
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.position = drag.position
+	Input.parse_input_event(release)
+	await get_tree().process_frame
+	_require(play.btn_conquest.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y + 1.0
+		and play.btn_daily.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y + 1.0,
+		"Conquista y diario quedan visibles en la columna lateral sin desplazar")
+	_require(GameManager.conquest_next == conquest_before, "Desplazarse sobre la ficha no inicia conquista")
+	menu.queue_free()
+	await get_tree().process_frame
+	GameManager.seen_tips = ["factory", "fortress", "drag", "rival_0"]
+	var battle: BattleController = load(UIThemeHelper.BATTLE_SCENE).instantiate()
+	add_child(battle)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_require(battle.level_data["map_rect"] == LevelGenerator.LANDSCAPE_MAP_RECT, "La batalla crea el tablero apaisado")
+	_require(battle.camera.position == LevelGenerator.LANDSCAPE_MAP_RECT.get_center(), "La cámara centra el tablero apaisado")
+	var shown: Vector2 = battle.map_rect.size * battle.camera.zoom.x
+	_require(shown.x <= view.size.x + 1.0 and shown.y <= view.size.y + 1.0, "El tablero cabe en la ventana apaisada")
+	await _snapshot("wide_battle")
+	var hud: BattleHUD = battle.get_node("BattleHUD")
+	battle.is_game_over = true
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 170, "xp": 60, "level_id": "europe_4"})
+	await get_tree().create_timer(0.25).timeout
+	var modal_rect := hud.victory_panel.get_global_rect()
+	_require(modal_rect.position.x >= 0.0 and modal_rect.position.y >= 0.0
+		and modal_rect.end.x <= view.end.x and modal_rect.end.y <= view.end.y,
+		"La ficha de victoria apaisada cabe entera")
+	await _snapshot("wide_victory")
+	get_window().size = Vector2i(1080, 1920)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	view = get_viewport().get_visible_rect()
+	shown = battle.map_rect.size * battle.camera.zoom.x
+	_require(battle.level_data["map_rect"] == LevelGenerator.MAP_RECT, "Girar recoloca el tablero en vertical sin reiniciar")
+	_require(shown.x <= view.size.x + 1.0 and shown.y <= view.size.y + 1.0, "La cámara vuelve a encajar el tablero al girar")
+	modal_rect = hud.victory_panel.get_global_rect()
+	_require(modal_rect.position.x >= 0.0 and modal_rect.position.y >= 0.0
+		and modal_rect.end.x <= view.end.x and modal_rect.end.y <= view.end.y,
+		"La ficha de victoria vuelve a caber en vertical al girar")
+	get_window().size = Vector2i(1920, 1080)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	battle.free()
+	var daily_id := DailyRewards.challenge_id(DailyRewards.today())
+	GameManager.play_level(daily_id)
+	var daily_battle: BattleController = load(UIThemeHelper.BATTLE_SCENE).instantiate()
+	add_child(daily_battle)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var canonical_daily := LevelDatabase.get_level_data(daily_id)
+	_require(daily_battle.level_data["map_rect"] == LevelGenerator.MAP_RECT,
+		"El desafío diario conserva el mismo tablero de simulación en apaisado")
+	_require(daily_battle.level_data["bases"].map(func(base): return base["pos"])
+		== canonical_daily["bases"].map(func(base): return base["pos"]),
+		"El desafío diario conserva las distancias comparables en apaisado")
+	daily_battle.free()
+	GameManager.play_level("europe_4")
 	_completed = true
 
 ## Pulsar los botones reales recorre victoria → compra → siguiente batalla
@@ -416,6 +527,202 @@ func _check_flow() -> void:
 	_require(battle.level_id == "europe_5", "Volver tras perder reintenta la misma batalla")
 	print("FLOW: victoria → mejora → siguiente; derrota → mejora → reintento verificados")
 	_completed = true
+
+## Phone rotation mid-battle and mid-menu (1080×2340 ↔ 2340×1080), as reported from Android.
+func _check_rotate_ui() -> void:
+	const PORTRAIT := Vector2i(1080, 2340)
+	const LANDSCAPE := Vector2i(2340, 1080)
+	GameManager._apply_save({})
+	GameManager.has_started = true
+	GameManager.play_level("europe_4")
+	GameManager.coins = 420
+	await _resize(LANDSCAPE)
+	var menu: MainMenuUI = load(MainMenuUI.SCENE).instantiate()
+	add_child(menu)
+	for size in [LANDSCAPE, PORTRAIT, LANDSCAPE]:
+		await _resize(size)
+		await get_tree().process_frame
+		var play = menu._content.get_child(0)
+		var nav_top: float = menu._nav["play"].get_global_rect().position.y
+		for card in [play.btn_conquest, play.btn_daily, play.btn_start_level]:
+			_require(card.get_global_rect().end.y <= nav_top + 1.0 and card.size.y <= 260.0 and card.is_visible_in_tree(),
+				"Visible sin desplazar y con su alto (%s): %s / nav %s" % [size, card.get_global_rect(), nav_top])
+			_require(play._side.is_ancestor_of(card), "Los atajos siguen en la columna de la ficha (%s)" % size)
+		if size.x > size.y:
+			_require(play._side.scroll_vertical == 0 and play._side.get_child(0).get_combined_minimum_size().y <= play._side.size.y,
+				"La columna lateral cabe sin desplazar (%s): min %s / alto %s, desc %s chips %s regla %s" % [size, play._side.get_child(0).get_combined_minimum_size().y, play._side.size.y, play.level_desc.visible, play.level_chips.visible, play.level_rule.visible])
+			play.btn_details.pressed.emit()
+			await get_tree().process_frame
+			_require(play.level_desc.visible and play.level_chips.visible, "Más detalles muestra lo plegado (%s)" % size)
+			play.btn_details.pressed.emit()
+			await _settle()
+	await _snapshot("rotate_menu")
+	menu.free()
+	GameManager.seen_tips = ["factory", "fortress", "drag", "rival_0"]
+	await _resize(PORTRAIT)
+	var battle: BattleController = load(UIThemeHelper.BATTLE_SCENE).instantiate()
+	add_child(battle)
+	await get_tree().process_frame
+	battle.set_simulation_paused(true)
+	var hud: BattleHUD = battle.get_node("BattleHUD")
+	var start_troops: Array = battle.bases.map(func(b): return b.troops)
+	var home: BaseNode = battle.bases.filter(func(b): return b.faction == GameManager.Faction.PLAYER)[0]
+	var far: BaseNode = battle.bases.reduce(func(a, b): return b if b.global_position.distance_to(home.global_position) > a.global_position.distance_to(home.global_position) else a)
+	_require(battle.dispatch_troops(home, far), "Se puede enviar una columna antes de girar")
+	var column: Troop = battle.active_troops.back()
+	await _resize(LANDSCAPE)
+	var on_route := Geometry2D.get_closest_point_to_segment(column.global_position, home.global_position, far.global_position)
+	_require(is_instance_valid(column) and column.global_position.distance_to(on_route) < 1.0 and column.target_base == far,
+		"La columna en marcha sigue su ruta tras girar: %s" % column.global_position)
+	start_troops = battle.bases.map(func(b): return b.troops)
+	for size in [LANDSCAPE, PORTRAIT, LANDSCAPE]:
+		await _resize(size)
+		var view := get_viewport().get_visible_rect()
+		var landscape: bool = size.x > size.y
+		_require((battle.map_rect == LevelGenerator.LANDSCAPE_MAP_RECT) == landscape, "El tablero sigue la orientación (%s)" % size)
+		var hud_bottom: float = hud.top_bar.get_global_rect().end.y
+		for base in battle.bases:
+			var p: Vector2 = battle.get_viewport().get_canvas_transform() * base.global_position
+			_require(view.grow(-8).has_point(p) and p.y - 40.0 > hud_bottom,
+				"La base %s se ve bajo el HUD tras girar (%s): %s, HUD %s" % [base.name, size, p, hud_bottom])
+		_require(battle.bases.map(func(b): return b.troops) == start_troops, "Girar conserva las tropas")
+		await _snapshot("rotate_battle_%s" % ("l" if landscape else "p"))
+	for size in [PORTRAIT, LANDSCAPE, PORTRAIT]:
+		hud._on_pause_pressed()
+		await _resize(size)
+		await get_tree().create_timer(0.3, true, false, true).timeout
+		_require_modal_fills(hud.pause_panel, "pausa %s" % size)
+		await _snapshot("rotate_pause_%s" % ("l" if size.x > size.y else "p"))
+		hud._on_resume_pressed()
+		await get_tree().create_timer(0.3, true, false, true).timeout
+	battle.is_game_over = true
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 170, "xp": 60, "level_id": "europe_4"})
+	for size in [PORTRAIT, LANDSCAPE, PORTRAIT]:
+		await _resize(size)
+		await get_tree().create_timer(0.3, true, false, true).timeout
+		_require_modal_fills(hud.victory_panel, "victoria %s" % size)
+		await _snapshot("rotate_victory_%s" % ("l" if size.x > size.y else "p"))
+	battle.free()
+	_completed = true
+
+## Finger gestures sent through the real window (press → moves → release), in both orientations:
+## scrolling pages, dragging troops between bases, and an idle layout that stops re-sorting.
+func _check_gestures() -> void:
+	GameManager._apply_save({})
+	GameManager.has_started = true
+	GameManager.play_level("europe_4")
+	GameManager.seen_tips = ["factory", "fortress", "drag", "rival_0"]
+	for size in [Vector2i(1080, 2340), Vector2i(2340, 1080)]:
+		await _resize(size)
+		var menu: MainMenuUI = load(MainMenuUI.SCENE).instantiate()
+		add_child(menu)
+		await _settle()
+		var menu_sorts := await _idle_sorts(menu)
+		_require(menu_sorts == 0, "El menú en reposo no se recoloca cada fotograma (%s): %d" % [size, menu_sorts])
+		menu._open_settings()
+		await _settle()
+		var scroll: ScrollContainer = menu._utility_panel.find_children("*", "ScrollContainer", true, false)[0]
+		var center := scroll.get_global_rect().get_center()
+		for touch in [true, false]:
+			scroll.scroll_vertical = 0
+			await _swipe(center + Vector2(0, 300), center - Vector2(0, 300), touch)
+			_require(scroll.scroll_vertical > 0, "Deslizar desplaza los ajustes (%s, táctil=%s)" % [size, touch])
+		menu.free()
+		var battle: BattleController = load(UIThemeHelper.BATTLE_SCENE).instantiate()
+		add_child(battle)
+		await _settle()
+		battle.set_simulation_paused(true)
+		var hud: BattleHUD = battle.get_node("BattleHUD")
+		_require(await _idle_sorts(hud) == 0, "El HUD en reposo no se recoloca cada fotograma (%s)" % size)
+		var home: BaseNode = battle.bases.filter(func(b): return b.faction == GameManager.Faction.PLAYER)[0]
+		var target: BaseNode = battle.bases.filter(func(b): return b.faction != GameManager.Faction.PLAYER)[0]
+		var to_screen := battle.get_viewport().get_canvas_transform()
+		for touch in [true, false]:
+			var sent := battle.active_troops.size()
+			home.troops = 30
+			await _swipe(to_screen * home.global_position, to_screen * target.global_position, touch)
+			_require(battle.active_troops.size() > sent, "Arrastrar de una base a otra envía tropas (%s, táctil=%s)" % [size, touch])
+		battle.free()
+	_completed = true
+
+func _settle() -> void:
+	for i in 6:
+		await get_tree().process_frame
+
+## Controls re-sorted during 20 idle frames: a layout feedback loop keeps this above zero.
+func _idle_sorts(root: Node) -> int:
+	var count := [0]
+	var bump := func(): count[0] += 1
+	var containers := root.find_children("*", "Container", true, false)
+	for c in containers:
+		c.sort_children.connect(bump)
+	for i in 20:
+		await get_tree().process_frame
+	for c in containers:
+		if is_instance_valid(c):
+			c.sort_children.disconnect(bump)
+	return count[0]
+
+## Press, move in steps and release, in canvas coordinates. `touch` sends what Android sends
+## (screen touch/drag; Godot derives mouse events from them); otherwise a desktop mouse.
+func _swipe(from: Vector2, to: Vector2, touch := true) -> void:
+	var to_window := Vector2(DisplayServer.window_get_size()) / get_viewport().get_visible_rect().size
+	_send_point(from * to_window, true, touch)
+	await get_tree().process_frame
+	var last := from
+	for i in range(1, 9):
+		var p := from.lerp(to, i / 8.0)
+		if touch:
+			var drag := InputEventScreenDrag.new()
+			drag.position = p * to_window
+			drag.relative = (p - last) * to_window
+			drag.screen_relative = drag.relative
+			Input.parse_input_event(drag)
+		else:
+			var motion := InputEventMouseMotion.new()
+			motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+			motion.position = p * to_window
+			motion.global_position = motion.position
+			motion.relative = (p - last) * to_window
+			Input.parse_input_event(motion)
+		last = p
+		if touch:
+			# Android re-emits size changes (system bars, insets) while a finger is down.
+			get_viewport().size_changed.emit()
+		await get_tree().process_frame
+	_send_point(to * to_window, false, touch)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+func _send_point(pos: Vector2, pressed: bool, touch: bool) -> void:
+	if touch:
+		var t := InputEventScreenTouch.new()
+		t.position = pos
+		t.pressed = pressed
+		Input.parse_input_event(t)
+		return
+	var b := InputEventMouseButton.new()
+	b.button_index = MOUSE_BUTTON_LEFT
+	b.pressed = pressed
+	b.position = pos
+	b.global_position = pos
+	Input.parse_input_event(b)
+
+func _resize(size: Vector2i) -> void:
+	get_window().size = size
+	UIThemeHelper.fit_canvas(get_window())
+	for i in 4:
+		await get_tree().process_frame
+
+## A modal fits the screen, its content spans its width and it has no empty tail below the content.
+func _require_modal_fills(panel: Control, label: String) -> void:
+	var view := get_viewport().get_visible_rect()
+	var rect := panel.get_global_rect()
+	var content := (panel.find_child("PanelScroll", true, false) as ScrollContainer).get_child(0) as Control
+	var inner := content.get_global_rect()
+	_require(view.encloses(rect), "La ficha cabe (%s): %s / %s" % [label, rect, view])
+	_require(inner.size.x >= rect.size.x - 160.0, "El contenido ocupa el ancho (%s): %s / %s" % [label, inner, rect])
+	_require(rect.end.y - inner.end.y <= 120.0 or inner.end.y > rect.end.y, "Sin hueco bajo el contenido (%s): %s / %s" % [label, inner, rect])
 
 func _snapshot(name: String) -> void:
 	await get_tree().process_frame

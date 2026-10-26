@@ -1,5 +1,8 @@
 extends Node
 
+class CameraHarness extends BattleController:
+	func _ready() -> void: pass
+
 ## TestRunner: Suite de pruebas de validación automatizada de mecánicas State.io
 
 var total_tests: int = 0
@@ -19,13 +22,21 @@ func _ready() -> void:
 
 	assert_true(bool(ProjectSettings.get_setting("rendering/textures/vram_compression/import_etc2_astc", false)),
 		"La exportación iOS habilita ETC2/ASTC explícitamente, sin depender del equipo")
+	var presets := ConfigFile.new()
+	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets se pueden leer")
+	assert_true(str(presets.get_value("preset.2", "custom_features", "")).split(",", false).has("aptabase_release"),
+		"El AAB de Play marca los eventos de Aptabase como Release")
+	assert_true(not str(presets.get_value("preset.1", "custom_features", "")).split(",", false).has("aptabase_release"),
+		"El APK de pruebas conserva el estado Debug de Aptabase")
 
 	await test_mobile_experience()
 	if "--mobile" in OS.get_cmdline_user_args():
-		test_settings_and_backups()
+		await test_settings_and_backups()
 	elif "--quick" in OS.get_cmdline_user_args():
 		test_packets_and_battle_feedback()
+		test_bezier_curves_and_marching_dots()
 		test_progression_overhaul()
+		test_confetti_geometry()
 		test_light_and_dark_mode()
 		test_new_ui_flows()
 		test_packet_combat_and_migration()
@@ -35,17 +46,20 @@ func _ready() -> void:
 		test_slice_gesture_and_troop_retreat()
 		test_voronoi_halfplane_clipping_geometry()
 		test_territory_map_generation_and_coverage()
+		test_accessible_battle_controls()
 		test_theme_and_ui_helpers()
 		test_ui_glyph_coverage()
 		test_toast_notifications()
 		test_achievements_system()
 		test_telemetry_schema_and_privacy()
 		test_play_tab_campaign_route_and_briefing()
+		test_large_screen_layouts()
 		test_invasion_mode()
 		test_language_system()
-		test_locale_ui_fit()
+		await test_locale_ui_fit()
 	else:
-		run_all_tests()
+		await run_all_tests()
+	await test_aptabase_http_delivery()
 	# Vaciar los queue_free de las páginas reconstruidas antes de cerrar el proceso.
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -128,6 +142,9 @@ func test_ui_glyph_coverage() -> void:
 	assert_equals(empty_keys, [] as Array, "Todas las claves tienen texto en todos los idiomas")
 	assert_equals(bad_markers, [] as Array, "Los marcadores conservan tipo y orden en todos los idiomas")
 	assert_equals(missing.keys(), [] as Array, "Ningún texto visible acaba en cuadro vacío")
+	GameManager.set_language("hi")
+	assert_equals(LocaleStrings.text("section_data"), "डेटा", "La etiqueta hindi de Datos conserva su escritura")
+	GameManager.set_language("es")
 
 ## Todo texto que puede acabar en pantalla: literales de los scripts que se exportan,
 ## escenas, nombres de ciudades del atlas y el texto compartido del desafío diario.
@@ -219,13 +236,16 @@ func run_all_tests() -> void:
 	test_ai_archetypes_decision_making()
 	test_slow_motion_and_time_scale_safety()
 	test_confetti_and_star_revelation()
+	test_confetti_geometry()
 	test_audio_fanfares_and_continental_conquest()
 	test_bezier_curves_and_marching_dots()
 	test_slice_gesture_and_troop_retreat()
 	test_under_siege_alert_trigger_and_deactivation()
 	test_hud_force_counters()
+	test_accessible_battle_controls()
 	test_main_menu_hub_navigation()
 	test_play_tab_campaign_route_and_briefing()
+	test_large_screen_layouts()
 	test_army_tab_upgrades_and_looks()
 	test_battle_hud_modals_and_sound_toggle()
 	test_theme_and_ui_helpers()
@@ -241,13 +261,13 @@ func run_all_tests() -> void:
 	test_achievements_system()
 	test_daily_challenge_levels()
 	test_language_system()
-	test_locale_ui_fit()
+	await test_locale_ui_fit()
 	test_conquest_mode()
 	test_atlas_and_first_levels()
 	test_cosmetics_shop()
 	test_review_regressions()
 	test_daily_missions_xp_and_share()
-	test_settings_and_backups()
+	await test_settings_and_backups()
 	test_continent_mechanics()
 	test_invasion_mode()
 	test_cleanup_regressions()
@@ -367,7 +387,11 @@ func test_mobile_experience() -> void:
 			assert_true(knob.is_equal_approx(UIThemeHelper.colors.text), "El control de intensidad conserva contraste en ambos temas")
 	GameManager.set_language("es")
 	GameManager.set_setting("light_mode", false)
+	(settings.find_child("TextSize", true, false) as Control).grab_focus()
 	settings._build()
+	await get_tree().process_frame
+	assert_true(get_viewport().gui_get_focus_owner() == settings.find_child("TextSize", true, false),
+		"Ajustes restaura el foco al mismo control tras reconstruirse")
 	var real_test_path := GameManager.save_path
 	GameManager.save_path = "user://test_mobile_missing_dir/save.json"
 	GameManager.save_game()
@@ -455,6 +479,15 @@ func test_mobile_experience() -> void:
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets móviles se pueden leer")
 	assert_true(presets.get_value("preset.1.options", "permissions/vibrate", false), "Android exporta el permiso de vibración sin pedir permisos de usuario")
 	assert_true(presets.get_value("preset.0.options", "plugins/BackupFilePicker", false), "iOS habilita el selector nativo de copias")
+	var app_version := str(ProjectSettings.get_setting("application/config/version", "0.3.0"))
+	assert_equals(app_version, "0.3.0", "La versión del proyecto avanza a 0.3.0")
+	assert_equals(presets.get_value("preset.0.options", "application/short_version", ""),
+		app_version, "La versión de iOS coincide con la versión reportada por analítica")
+	for preset in ["preset.1.options", "preset.2.options"]:
+		assert_equals(presets.get_value(preset, "version/name", ""), app_version, "El nombre de versión Android coincide: " + preset)
+		assert_equals(presets.get_value(preset, "version/code", 0), 4, "Android usa el siguiente versionCode: " + preset)
+	assert_equals(presets.get_value("preset.3", "name", ""), "iOS Diagnostics", "Existe un preset de diagnóstico iOS separado de Release")
+	assert_true(not presets.get_value("preset.3.options", "plugins/BackupFilePicker", true), "La IPA de diagnóstico evita enlazar el selector nativo de copias")
 	var picker_plugin := ConfigFile.new()
 	assert_equals(picker_plugin.load("res://ios/plugins/backup_file_picker/BackupFilePicker.gdip.in"), OK, "La configuración del selector iOS se puede leer")
 
@@ -1789,11 +1822,11 @@ func test_confetti_and_star_revelation() -> void:
 	assert_true(hud.confetti_pieces[0]["pos"].y > initial_y or hud.confetti_pieces[0]["vel"].y != 0.0, "Piezas de confeti actualizan su posición y física en _process")
 
 	# 3. Verificar contenedor de estrellas y labels individuales
-	var stars_container = hud.get_node_or_null("%StarsContainer")
+	var stars_container = hud.victory_panel.find_child("StarsContainer", true, false)
 	assert_true(stars_container != null, "StarsContainer presente en VictoryPanel")
-	var star1 = hud.get_node_or_null("%Star1")
-	var star2 = hud.get_node_or_null("%Star2")
-	var star3 = hud.get_node_or_null("%Star3")
+	var star1: Label = hud.star_1
+	var star2: Label = hud.star_2
+	var star3: Label = hud.star_3
 	assert_true(star1 != null and star2 != null and star3 != null, "Las 3 estrellas individuales (Star1, Star2, Star3) existen en VictoryPanel")
 
 	# 4. Probar configuración con 1 estrella
@@ -1818,7 +1851,7 @@ func test_confetti_and_star_revelation() -> void:
 	# 7. Probar despliegue completo de modal con conquista continental
 	hud.deploy_victory_modal({"stars": 3, "gold_earned": 150, "is_continent_conquest": true})
 	assert_true(hud.victory_panel.visible, "VictoryPanel es visible tras deploy_victory_modal()")
-	var title = hud.get_node_or_null("%VictoryTitle")
+	var title: Label = hud.victory_title
 	assert_true(title != null, "Label de título en VictoryPanel existe")
 	assert_equals(title.text, "¡Continente conquistado!", "Título de continente conquistado al completar nivel 5")
 
@@ -1828,6 +1861,11 @@ func test_confetti_and_star_revelation() -> void:
 
 	remove_child(hud)
 	hud.free()
+
+func test_confetti_geometry() -> void:
+	print("\n-> Test: Geometría no degenerada del confeti")
+	var half := BattleHUD._confetti_half_size(Vector2(12, 8), PI * 0.5)
+	assert_true(4.0 * half.x * half.y > 1.0, "El confeti de canto conserva área y no falla al triangular")
 
 func test_audio_fanfares_and_continental_conquest() -> void:
 	print("\n-> Test: Fanfarrias Triunfales, Conquista Continental y Sonidos Secuenciales de Estrellas")
@@ -1904,6 +1942,22 @@ func test_bezier_curves_and_marching_dots() -> void:
 	# Robustez ante distancia cero entre puntos
 	var cp_zero = battle.get_bezier_control_point(p0, p0, Vector2(100, 100))
 	assert_true(cp_zero.is_equal_approx(p0), "get_bezier_control_point maneja distancia cero entre origen y destino sin errores de división por cero")
+
+	# Arrastres cortos y rápidos no deben doblar la cinta hasta autointersectarse.
+	var distances: Array[float] = [10.1, 12.0, 24.0, 80.0]
+	var lateral_velocities: Array[Vector2] = [Vector2(0, 1000), Vector2(0, -1000)]
+	for distance in distances:
+		var start := Vector2.ZERO
+		var end := Vector2(distance, 0.0)
+		for velocity in lateral_velocities:
+			var control: Vector2 = battle.get_bezier_control_point(start, end, velocity)
+			assert_true(absf(control.y) <= minf(50.0, distance * 0.2) + 0.001,
+				"La curvatura se limita según la distancia (%.1f px)" % distance)
+			var curve: PackedVector2Array = battle.sample_bezier_points(start, control, end, 16)
+			var glow: PackedVector2Array = battle._build_arrow_ribbon(curve, 20.0, 6.5)
+			var core: PackedVector2Array = battle._build_arrow_ribbon(curve, 13.0, 3.5)
+			assert_true(not Geometry2D.triangulate_polygon(glow).is_empty(), "El halo de la flecha se triangula (%.1f px)" % distance)
+			assert_true(not Geometry2D.triangulate_polygon(core).is_empty(), "El núcleo de la flecha se triangula (%.1f px)" % distance)
 
 	# 3. Muestreo de puntos de la curva
 	var sampled = battle.sample_bezier_points(p0, p1, p2, 24)
@@ -2249,6 +2303,119 @@ func test_main_menu_hub_navigation() -> void:
 	menu.free()
 	GameManager.reset_save()
 
+
+## Tabletas, plegables y ventanas: el tablero, la cámara y el menú se adaptan a la orientación.
+func test_large_screen_layouts() -> void:
+	print("\n-> Test: Pantallas Grandes (Tablero Apaisado, Cámara y Menú en Dos Columnas)")
+	assert_equals(ProjectSettings.get_setting("display/window/handheld/orientation"), DisplayServer.SCREEN_SENSOR,
+		"Android no bloquea la orientación")
+	assert_true(bool(ProjectSettings.get_setting("display/window/size/resizable")), "La ventana/actividad permite redimensionado")
+	# 1. El mismo nivel en tablero apaisado: mismas bases, dentro de su zona y sin solaparse
+	var zones := LevelGenerator.layout(true)
+	assert_equals(zones["map"], LevelGenerator.LANDSCAPE_MAP_RECT, "El tablero apaisado mide 1920×1080")
+	var level_ids: Array = LevelDatabase.get_level_ids()
+	level_ids.append_array([LevelGenerator.conquest_id(7), DailyRewards.challenge_id(DailyRewards.today())])
+	for region in InvasionDatabase.get_regions():
+		level_ids.append_array(InvasionDatabase.get_region_level_ids(region["id"]))
+	for level_id in level_ids:
+		var tall: Dictionary = LevelDatabase.get_level_data(level_id)
+		var wide: Dictionary = LevelDatabase.get_level_data(level_id, true)
+		assert_equals(wide["bases"].size(), tall["bases"].size(), "Mismo número de bases en ambas orientaciones: " + level_id)
+		var mechanics := func(base): return [base.get("city", ""), base.get("faction"), base.get("troops"), base.get("tier"), base.get("type", ""), base.get("boss", false)]
+		assert_equals(wide["bases"].map(mechanics), tall["bases"].map(mechanics), "Mismas ciudades y mecánicas en ambas orientaciones: " + level_id)
+		assert_equals(wide["target_time"], tall["target_time"], "Mismo objetivo en ambas orientaciones: " + level_id)
+		if tall.has("sea_lanes") or wide.has("sea_lanes"):
+			assert_equals(wide.get("sea_lanes", []), tall.get("sea_lanes", []), "Mismas rutas de mar en ambas orientaciones: " + level_id)
+		assert_equals(wide["map_rect"], LevelGenerator.LANDSCAPE_MAP_RECT, "El nivel apaisado guarda su tablero: " + level_id)
+		var inside := true
+		var worst := INF
+		var bases: Array = wide["bases"]
+		for i in bases.size():
+			inside = inside and LevelGenerator.LANDSCAPE_PLAY_RECT.grow(1.0).has_point(bases[i]["pos"])
+			for j in range(i + 1, bases.size()):
+				var gap: float = bases[i]["pos"].distance_to(bases[j]["pos"]) - LevelGenerator.min_distance(bases[i].get("tier", 1), bases[j].get("tier", 1))
+				worst = minf(worst, gap)
+		assert_true(inside, "Bases dentro de la zona apaisada: " + level_id)
+		assert_true(worst >= -0.5, "Bases apaisadas sin solaparse (%s, holgura %.1f px)" % [level_id, worst])
+	assert_equals(LevelDatabase.get_level_data("europe_1")["map_rect"], LevelGenerator.MAP_RECT, "El vertical no cambia")
+
+	# 2. La cámara encaja el tablero entero en cualquier ventana
+	var battle := CameraHarness.new()
+	battle.map_rect = LevelGenerator.MAP_RECT
+	var test_camera := Camera2D.new()
+	test_camera.name = "Camera2D"
+	battle.add_child(test_camera)
+	add_child(battle)
+	battle.camera = test_camera
+	battle._fit_camera()
+	var view := battle.get_viewport_rect().size
+	var shown: Vector2 = LevelGenerator.MAP_RECT.size * battle.camera.zoom.x
+	assert_true(shown.x <= view.x + 0.5 and shown.y <= view.y + 0.5, "El tablero cabe en la vista")
+	assert_true(is_equal_approx(shown.x, view.x) or is_equal_approx(shown.y, view.y), "Y la aprovecha al máximo")
+	assert_equals(battle.camera.position, LevelGenerator.MAP_RECT.get_center(), "La cámara centra el tablero")
+	battle._fit_zoom = 0.5625
+	battle.camera.zoom = Vector2.ONE * battle._fit_zoom
+	battle.adjust_camera_zoom(-0.25)
+	assert_true(battle.camera.zoom.x < 0.5625,
+		"Alejar mantiene su sentido cuando una partida apaisada cabe dentro de una pantalla vertical")
+	remove_child(battle)
+	battle.free()
+
+	# 3. El lienzo conserva 1080 en el lado corto al girar
+	var window := Window.new()
+	window.size = Vector2i(2400, 1080)
+	UIThemeHelper.fit_canvas(window)
+	assert_equals(window.content_scale_size, UIThemeHelper.LANDSCAPE_CANVAS, "Lienzo apaisado en ventanas anchas")
+	window.size = Vector2i(1080, 2400)
+	UIThemeHelper.fit_canvas(window)
+	assert_equals(window.content_scale_size, UIThemeHelper.PORTRAIT_CANVAS, "Lienzo vertical en ventanas altas")
+	window.free()
+
+	# 4. Jugar: mapa y ficha uno sobre otra en vertical, lado a lado en ancho
+	GameManager.reset_save()
+	var play = load("res://scripts/ui/play_tab.gd").new()
+	add_child(play)
+	play.size = Vector2(1920, 900)
+	play._apply_layout()
+	assert_true(not play._split.vertical and play._side.custom_minimum_size.x > 0, "En ancho la ficha va en una columna lateral")
+	assert_equals(play._side.vertical_scroll_mode, ScrollContainer.SCROLL_MODE_AUTO, "La columna lateral se desplaza")
+	play.size = Vector2(1080, 1700)
+	play._apply_layout()
+	assert_true(play._split.vertical and play._side.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED, "En vertical se apilan como siempre")
+	remove_child(play)
+	play.free()
+
+	# 5. Páginas con ancho máximo y fichas de batalla que caben en alto
+	var margin := UIThemeHelper.page_margin(Control.new())
+	margin.size = Vector2(2400, 100)
+	UIThemeHelper.cap_page_width(margin)
+	assert_equals(margin.get_theme_constant("margin_left"), 600, "El contenido queda centrado con ancho máximo")
+	margin.size = Vector2(1080, 100)
+	UIThemeHelper.cap_page_width(margin)
+	assert_equals(margin.get_theme_constant("margin_left"), UIThemeHelper.PAGE_MARGIN, "En el móvil conserva su margen")
+	margin.free()
+	GameManager.set_setting("text_scale", 1.0)
+	var hud: BattleHUD = load("res://scenes/ui/battle_hud.tscn").instantiate()
+	add_child(hud)
+	hud.victory_panel.size = Vector2(900, 4000)
+	hud._fit_panel(hud.victory_panel)
+	var modal_scroll := hud.victory_panel.find_child("PanelScroll", true, false) as ScrollContainer
+	assert_true(is_instance_valid(modal_scroll), "La ficha de victoria puede desplazarse sin reducir el texto")
+	if is_instance_valid(modal_scroll):
+		(modal_scroll.get_child(0) as Control).custom_minimum_size.y = 4000
+	hud._fit_panel(hud.victory_panel)
+	assert_true(hud.victory_panel.size.y <= hud.get_viewport().get_visible_rect().size.y - 48.0,
+		"La ficha se limita a la pantalla cuando su texto ocupa varias pantallas")
+	assert_equals(hud.victory_panel.scale, Vector2.ONE, "La ficha conserva su tamaño táctil y de texto")
+	var small_panel := Control.new()
+	small_panel.size = Vector2(100, 100)
+	hud._fit_panel(small_panel)
+	assert_equals(small_panel.scale, Vector2.ONE, "Una ficha corta no se reduce")
+	small_panel.free()
+	remove_child(hud)
+	hud.free()
+	GameManager.set_setting("text_scale", 0.0)
+
 func test_play_tab_campaign_route_and_briefing() -> void:
 	print("\n-> Test: Jugar (Mapa del Continente, Ficha del Nivel y Accesos Directos)")
 	GameManager.reset_save()
@@ -2446,6 +2613,68 @@ func test_battle_hud_modals_and_sound_toggle() -> void:
 	remove_child(hud)
 	hud.free()
 
+func test_accessible_battle_controls() -> void:
+	print("\n-> Test: Controles Accesibles de Batalla")
+	GameManager.reset_save()
+	GameManager.play_level("europe_1")
+	for tip in ["drag", "chain", "slice", "factory", "fortress"]:
+		GameManager.mark_tip_seen(tip)
+	var battle: BattleController = load("res://scenes/battle/battle_field.tscn").instantiate()
+	add_child(battle)
+	var hud: BattleHUD = battle.get_node("BattleHUD")
+	var source: BaseNode = battle.bases.filter(func(base): return base.faction == GameManager.Faction.PLAYER)[0]
+	var target: BaseNode = battle.bases.filter(func(base): return base.faction != GameManager.Faction.PLAYER)[0]
+	source.troops = 40
+	source._update_label()
+	hud._on_pause_pressed()
+	hud._open_accessible_controls()
+	assert_true(is_instance_valid(hud._accessible_panel), "La pausa abre el panel de bases y órdenes")
+	assert_true(get_tree().paused, "Los controles accesibles mantienen la batalla en pausa")
+	assert_true(hud._accessible_source_buttons.has(source) and hud._accessible_target_buttons.has(target), "El panel lista origen y destino")
+	assert_equals(hud._accessible_status.text, LocaleStrings.text("accessible_no_sources"), "El panel explica por qué Enviar está desactivado")
+	assert_true(hud._accessible_send_button.get_index() < hud._accessible_orders_list.get_index(), "Enviar aparece antes de la lista de órdenes para reducir desplazamiento")
+	GameManager.set_setting("high_contrast_map", true)
+	var map := battle.territory_map as TerritoryMap2D
+	assert_equals(map.border_width, 5.5, "El alto contraste refuerza los bordes del mapa")
+	assert_equals(map.territory_alpha, 0.48, "El alto contraste hace más visibles los territorios")
+	GameManager.set_setting("high_contrast_map", false)
+	(hud._accessible_source_buttons[source] as Button).set_pressed(true)
+	hud._select_accessible_target(source)
+	assert_true(hud._accessible_send_button.disabled, "No se puede enviar desde una base a sí misma")
+	hud._select_accessible_target(target)
+	(hud._accessible_target_buttons[target] as Button).pressed.emit()
+	assert_true(not hud._accessible_send_button.disabled, "Enviar se habilita al elegir una ruta válida")
+	hud._send_accessible_order()
+	assert_equals(source.troops, 1, "Enviar desde el panel usa la misma regla de tropas que el gesto")
+	assert_true(hud._accessible_status.text.contains(target.base_name), "El resultado del envío se anuncia en el panel")
+	assert_true(not battle.active_troops.is_empty(), "El panel crea una orden de tropas real")
+	var source_button: Button = hud._accessible_source_buttons[source]
+	assert_true(source_button.accessibility_description.contains("1"), "El resumen del origen se actualiza al enviar")
+	(hud._accessible_source_buttons[source] as Button).set_pressed(true)
+	assert_true(hud._accessible_send_button.disabled, "Enviar se desactiva si no queda tropa disponible")
+	assert_equals(hud._accessible_status.text, LocaleStrings.text("accessible_no_troops"), "La falta de tropas se anuncia claramente")
+	var troop: Troop = battle.active_troops[0]
+	hud._retreat_accessible_order(troop)
+	assert_true(troop.is_retreating, "La orden accesible de retirada invierte el mismo flujo de tropas")
+	assert_true(source_button.accessibility_description.contains("40"), "El resumen del origen se actualiza al retirar una orden")
+	var camera := battle.get_node_or_null("Camera2D") as Camera2D
+	assert_true(is_instance_valid(camera), "La escena de batalla contiene cámara para los controles de zoom")
+	battle.adjust_camera_zoom(0.25)
+	if is_instance_valid(camera):
+		assert_true(camera.zoom.x > 1.0, "Los controles pueden ampliar el mapa")
+		battle.adjust_camera_zoom(-5.0)
+		assert_equals(camera.zoom.x, 0.75, "El zoom de salida tiene un límite inferior seguro")
+		battle.adjust_camera_zoom(5.0)
+		assert_equals(camera.zoom.x, 2.0, "El zoom de entrada tiene un límite superior seguro")
+	battle.center_camera_on(target)
+	if is_instance_valid(camera):
+		assert_true(camera.global_position.is_equal_approx(target.global_position), "La selección centra el mapa en la base")
+	hud._close_accessible_controls()
+	get_tree().paused = false
+	remove_child(battle)
+	battle.free()
+	GameManager.reset_save()
+
 func test_theme_and_ui_helpers() -> void:
 	print("\n-> Test: Tema Visual Global, Iconos y Piezas de Interfaz")
 	var theme := ThemeDB.get_default_theme()
@@ -2460,6 +2689,44 @@ func test_theme_and_ui_helpers() -> void:
 		var ink: float = theme.get_color("font_color", type).srgb_to_linear().get_luminance()
 		var background: float = (theme.get_stylebox("normal", type) as StyleBoxFlat).bg_color.srgb_to_linear().get_luminance()
 		assert_true((maxf(ink, background) + 0.05) / (minf(ink, background) + 0.05) >= 4.5, "El texto de %s tiene contraste accesible" % type)
+	var previous_light_mode: bool = GameManager.settings["light_mode"]
+	GameManager.set_setting("light_mode", false)
+	assert_true(UIThemeHelper.contrast_ratio(UIThemeHelper.colors.text, UIThemeHelper.colors.surface_2) >= 4.5,
+		"El texto alternativo de chips supera el contraste normal en el tema oscuro")
+	var danger_chip := UIThemeHelper.chip("Rival", "target", UIThemeHelper.colors.danger)
+	var danger_label := danger_chip.find_children("*", "Label", true, false)[0] as Label
+	assert_equals(danger_label.get_theme_color("font_color"), UIThemeHelper.colors.text,
+		"El texto de un chip peligroso usa tinta legible cuando el color semántico no contrasta")
+	danger_chip.free()
+	var icon_button := UIThemeHelper.icon_button("gear", LocaleStrings.text("settings"))
+	assert_equals(icon_button.accessibility_name, LocaleStrings.text("settings"), "El botón sólo con icono tiene nombre accesible")
+	icon_button.free()
+	var scaled_label := UIThemeHelper.label("Readable", "Caption")
+	add_child(scaled_label)
+	var base_font_size := scaled_label.get_theme_font_size("font_size")
+	GameManager.set_setting("text_scale", 0.5)
+	assert_equals(scaled_label.get_theme_font_size("font_size"), UIThemeHelper.scaled_font_size(base_font_size),
+		"El tamaño del texto se actualiza en controles ya creados")
+	var scaled_button := Button.new()
+	scaled_button.add_theme_font_size_override("font_size", 40)
+	add_child(scaled_button)
+	GameManager.set_setting("text_scale", 0.5)
+	assert_equals(scaled_button.get_theme_font_size("font_size"), 50,
+		"Los tamaños explícitos de botones también se amplían una sola vez")
+	assert_equals(ThemeDB.get_default_theme().get_font_size("font_size", "PopupMenu"), UIThemeHelper.scaled_font_size(UIThemeHelper.FONT_BODY),
+		"El tamaño de texto también se aplica a menús desplegables")
+	GameManager.set_setting("text_scale", 2.0)
+	assert_equals(GameManager.settings["text_scale"], 1.0, "El tamaño del texto se limita al último tamaño disponible")
+	GameManager.set_setting("text_scale", 0.0)
+	remove_child(scaled_button)
+	scaled_button.free()
+	remove_child(scaled_label)
+	scaled_label.free()
+	GameManager.set_setting("high_contrast_map", true)
+	assert_equals(GameManager.faction_color(GameManager.Faction.PLAYER), GameManager.ACCESSIBLE_FACTION_COLORS[GameManager.Faction.PLAYER],
+		"El mapa de alto contraste usa la paleta segura de facciones")
+	GameManager.set_setting("high_contrast_map", false)
+	GameManager.set_setting("light_mode", previous_light_mode)
 
 	# Feedback táctil automático y sin duplicar señales
 	var btn := Button.new()
@@ -3108,6 +3375,20 @@ func test_cleanup_regressions() -> void:
 func test_language_system() -> void:
 	print("\n-> Test: Traducciones, Catálogo de Idiomas y Nombres Localizados")
 	GameManager.reset_save()
+	var system_language := LanguageCatalog.preferred_from_system()
+	GameManager._apply_save({})
+	assert_equals(GameManager.language, system_language, "Una partida nueva sigue el idioma del dispositivo")
+	assert_equals(TranslationServer.get_locale(), system_language, "El idioma del dispositivo se aplica a las traducciones")
+	assert_equals(GameManager.save_game(), OK, "El idioma inicial se puede guardar")
+	GameManager.load_game()
+	assert_equals(GameManager.language, system_language, "El idioma inicial se conserva al volver a cargar la partida")
+	var selected_language := "en" if system_language != "en" else "es"
+	GameManager.set_language(selected_language)
+	GameManager.load_game()
+	assert_equals(GameManager.language, selected_language, "El idioma elegido se conserva al volver a cargar la partida")
+	GameManager._apply_save({"version": 6, "coins": GameManager.DEFAULT_COINS})
+	assert_equals(GameManager.language, system_language, "Los guardados antiguos sin idioma siguen el idioma del dispositivo")
+	GameManager._apply_save({})
 	GameManager.set_language("es")
 	assert_equals(GameManager.language, "es", "Cambio a español")
 	assert_equals(LocaleStrings.text("play"), "Jugar", "Clave del menú en español")
@@ -3178,7 +3459,7 @@ func test_locale_ui_fit() -> void:
 		var play = menu._content.get_child(0)
 		for label in play.btn_daily.find_children("*", "Label", true, false):
 			assert_true(play.btn_daily.get_global_rect().grow(8).encloses(label.get_global_rect()),
-				"La tarjeta diaria contiene su texto (%s)" % code)
+				"La tarjeta diaria contiene su texto (%s): '%s' en %s, tarjeta %s" % [code, label.text, label.get_global_rect(), play.btn_daily.get_global_rect()])
 		menu._open_settings()
 		await get_tree().process_frame
 		var settings = menu._utility_panel
@@ -3445,9 +3726,12 @@ func test_settings_and_backups() -> void:
 	assert_equals(GameManager.settings["volume"], 0.0, "Volumen no puede ser negativo")
 	GameManager.set_setting("vibration", false)
 	GameManager.set_setting("colorblind", true)
+	GameManager.set_setting("high_contrast_map", true)
+	GameManager.set_setting("text_scale", 0.5)
 	assert_true(GameManager.faction_color(1) != GameManager.faction_color(2), "Paleta accesible distingue rivales")
 	GameManager.load_game()
-	assert_true(not GameManager.settings["vibration"] and GameManager.settings["colorblind"], "Ajustes persisten")
+	assert_true(not GameManager.settings["vibration"] and GameManager.settings["colorblind"] and GameManager.settings["high_contrast_map"], "Ajustes accesibles persisten")
+	assert_equals(GameManager.settings["text_scale"], 0.5, "La escala de texto persiste")
 	var original_path := GameManager.save_path
 	var export_path := "user://test_export.json"
 	var import_path := "user://test_import.json"
@@ -3470,6 +3754,7 @@ func test_settings_and_backups() -> void:
 	GameManager._apply_save({"settings": {"volume": "no", "music_volume": INF, "speed": -4, "vibration": "sí"}})
 	assert_equals(GameManager.settings["music_volume"], 0.8, "Ajuste no finito usa valor inicial")
 	assert_equals(GameManager.settings["speed"], 0.75, "Velocidad mínima validada")
+	assert_equals(GameManager.settings["text_scale"], 0.0, "Los ajustes de accesibilidad ausentes conservan valores predeterminados")
 	var panel = load("res://scripts/ui/settings_panel.gd").new()
 	add_child(panel)
 	var backup_path := "user://test_backup_export.json"
@@ -3478,8 +3763,10 @@ func test_settings_and_backups() -> void:
 	assert_true(exported_data is Dictionary and exported_data.has("completed_levels"), "La copia exportada conserva el formato del juego")
 	DirAccess.remove_absolute(backup_path)
 	assert_equals(panel.find_children("*", "HSlider", true, false).size(), 3, "Volúmenes e intensidad háptica con controles nativos")
-	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 7, "Sonido, música, vibración, paleta, reducir movimiento, analítica y fallos")
-	assert_equals(panel.find_children("*", "OptionButton", true, false).size(), 3, "Apariencia, idioma y velocidad")
+	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 8, "Sonido, música, vibración, paleta, contraste, reducir movimiento, analítica y fallos")
+	assert_equals(panel.find_children("*", "OptionButton", true, false).size(), 4, "Apariencia, idioma, velocidad y tamaño del texto")
+	var text_size_option := panel.find_child("TextSize", true, false) as OptionButton
+	assert_true(text_size_option.accessibility_name == LocaleStrings.text("accessibility_font_size"), "El tamaño de texto tiene nombre accesible")
 	assert_equals(panel.find_children("*", "ScrollContainer", true, false)[0].scroll_deadzone, UIThemeHelper.TOUCH_SCROLL_DEADZONE, "Ajustes distingue toques y arrastres")
 	assert_true(panel._content.find_children("*", "BaseButton", true, false).all(func(b): return b.mouse_filter == Control.MOUSE_FILTER_PASS), "Los botones de ajustes dejan pasar gestos de desplazamiento")
 	assert_true(panel.find_children("*", "HSlider", true, false).all(func(s): return s.mouse_filter == Control.MOUSE_FILTER_PASS), "Los deslizadores de ajustes dejan pasar gestos de desplazamiento")
@@ -3606,6 +3893,7 @@ func test_invasion_mode() -> void:
 	GameManager._apply_save({"version": 6, "coins": 100, "upgrades": {}, "completed_levels": {}})
 	assert_true(GameManager.invasion_stars.is_empty(), "Un guardado v6 no inventa invasiones")
 	assert_true(GameManager.invasion_rewards.is_empty(), "Un guardado v6 no inventa premios")
+	GameManager.set_language("es")
 
 	# 5. UI desbloqueada: mapa, regiones, frentes y resumen.
 	for i in range(1, LevelDatabase.LEVELS_PER_CONTINENT + 1):
@@ -3770,7 +4058,7 @@ func test_review_regressions() -> void:
 	assert_equals(GameManager.conquered_cities, ["madrid"] as Array[String], "El guardado filtra ciudades inválidas y duplicadas")
 	assert_equals(GameManager.cosmetics_equipped, GameManager.DEFAULT_COSMETICS_EQUIPPED, "No se equipan objetos no poseídos ni de otra categoría")
 	assert_true(GameManager.is_cosmetic_owned("color_blue"), "Los cosméticos gratuitos siempre están disponibles")
-	assert_equals(LocaleStrings.lang, "es", "Sólo hay un idioma activo incluso al cargar datos inválidos")
+	assert_equals(LocaleStrings.lang, LanguageCatalog.preferred_from_system(), "Un idioma guardado inválido sigue el idioma del dispositivo")
 	assert_equals(GameManager.conquest_next, 0, "La progresión corrupta vuelve a cero")
 	assert_true(not GameManager.conquer_city("no_existe"), "El atlas sólo admite ciudades reales")
 	var battle := BattleController.new()
@@ -3866,7 +4154,10 @@ func test_packets_and_battle_feedback() -> void:
 
 func test_progression_overhaul() -> void:
 	print("\n-> Test: Economía, Rangos, Premios, Medallas, Colecciones y Siguiente Objetivo")
+	var previous_language := GameManager.language
+	GameManager.set_language("es")
 	GameManager.reset_save()
+	GameManager.set_language("es")
 	# 1. Economía: siempre hay una compra al alcance y la última no es desorbitada
 	assert_equals(GameManager.get_upgrade_cost("starting_troops"), 50, "Primera mejora: 50 de oro")
 	GameManager.upgrades["starting_troops"] = 9
@@ -3936,6 +4227,7 @@ func test_progression_overhaul() -> void:
 			ids[m["id"]] = true
 	assert_equals(ids.size(), DailyMissions.POOL.size(), "Todas las misiones aparecen a lo largo de los días")
 	GameManager.reset_save()
+	GameManager.set_language(previous_language)
 
 func test_new_ui_flows() -> void:
 	print("\n-> Test: Flujos de interfaz y objetivos diarios")
@@ -4213,3 +4505,128 @@ func test_telemetry_schema_and_privacy() -> void:
 	DirAccess.remove_absolute(GameManager.save_path + ".backup")
 	GameManager.reset_save()
 	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Reiniciar progreso conserva las opciones de privacidad")
+
+func test_aptabase_http_delivery() -> void:
+	print("\n-> Test: Envío HTTP de Aptabase contra servidor local")
+	Aptabase.disable()
+	var server := TCPServer.new()
+	var listen_error := server.listen(0, "127.0.0.1")
+	assert_equals(listen_error, OK, "El servidor HTTP local de prueba escucha en loopback")
+	if listen_error != OK:
+		return
+
+	var initialized := Aptabase.init("A-SH-CI", {
+		"base_url": "http://127.0.0.1:%d" % server.get_local_port(),
+		"app_version": "test",
+		"is_debug": false,
+		"flush_interval": 0.5,
+		"timeout": 10.0,
+	})
+	assert_true(initialized, "Aptabase confirma la inicialización con una clave de prueba")
+	if not initialized:
+		server.stop()
+		return
+
+	Aptabase.track("ci_smoke", {"flag": 1})
+	var request: Dictionary = await _receive_mock_aptabase_request(server)
+	assert_true(not request.is_empty(), "Aptabase envía un lote al servidor local")
+	if request.is_empty():
+		Aptabase.disable()
+		server.stop()
+		return
+
+	var headers: String = str(request["headers"])
+	assert_true(headers.begins_with("POST /api/v0/events "), "Aptabase usa la ruta de eventos")
+	assert_true(headers.to_lower().contains("app-key: a-sh-ci"), "Aptabase envía solo la clave de prueba")
+	assert_true(headers.to_lower().contains("content-type: application/json"), "Aptabase declara el cuerpo JSON")
+	var batch: Variant = JSON.parse_string(str(request["body"]))
+	assert_true(batch is Array and batch.size() == 1, "El cuerpo contiene un lote JSON de un evento")
+	if batch is Array and batch.size() == 1:
+		var event: Dictionary = batch[0]
+		assert_equals(event.get("eventName", ""), "ci_smoke", "El nombre del evento llega intacto")
+		var props: Dictionary = event.get("props", {})
+		assert_equals(props.get("flag", 0), 1, "Las propiedades del evento llegan intactas")
+	assert_equals(int(request.get("response_error", ERR_CANT_CONNECT)), OK, "El servidor local acepta la petición HTTP")
+
+	for _frame in 720:
+		if not Aptabase._request_in_flight:
+			break
+		await get_tree().process_frame
+	assert_true(not Aptabase._request_in_flight, "Aptabase termina la petición tras recibir HTTP 200")
+	assert_true(Aptabase._event_queue.is_empty(), "Aptabase elimina de la cola el lote aceptado")
+	var peer: StreamPeerTCP = request.get("peer")
+	if peer != null:
+		peer.disconnect_from_host()
+
+	var telemetry = load("res://scripts/autoload/telemetry.gd").new()
+	var previous_share_analytics: bool = GameManager.settings["share_analytics"]
+	GameManager.settings["share_analytics"] = true
+	telemetry._analytics_ready = true
+	Aptabase._flush_timer.stop()
+	telemetry._start_session()
+	assert_true(Aptabase._request_in_flight, "Al consentir, la sesión empieza a enviarse sin esperar el temporizador")
+	var session_request: Dictionary = await _receive_mock_aptabase_request(server)
+	assert_true(not session_request.is_empty(), "La sesión opt-in llega al servidor local")
+	if not session_request.is_empty():
+		var session_batch: Variant = JSON.parse_string(str(session_request["body"]))
+		assert_true(session_batch is Array and session_batch.size() == 1, "La sesión opt-in contiene un evento")
+		if session_batch is Array and session_batch.size() == 1:
+			assert_equals(session_batch[0].get("eventName", ""), "session_start", "El primer evento es session_start")
+		var session_peer: StreamPeerTCP = session_request.get("peer")
+		if session_peer != null:
+			session_peer.disconnect_from_host()
+	for _frame in 720:
+		if not Aptabase._request_in_flight:
+			break
+		await get_tree().process_frame
+	assert_true(not Aptabase._request_in_flight and Aptabase._event_queue.is_empty(), "Aptabase confirma la sesión antes de desactivar el cliente")
+	GameManager.settings["share_analytics"] = previous_share_analytics
+	telemetry.free()
+	Aptabase.disable()
+	server.stop()
+
+func _receive_mock_aptabase_request(server: TCPServer) -> Dictionary:
+	var peer: StreamPeerTCP
+	for _frame in 720:
+		if server.is_connection_available():
+			peer = server.take_connection()
+			break
+		await get_tree().process_frame
+	if peer == null:
+		return {}
+
+	var raw := PackedByteArray()
+	var headers := ""
+	var body := ""
+	var content_length := -1
+	var complete := false
+	for _frame in 720:
+		peer.poll()
+		if peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+			break
+		var available := peer.get_available_bytes()
+		if available > 0:
+			var received: Array = peer.get_partial_data(available)
+			if received[0] == OK:
+				raw.append_array(received[1])
+		var request_text := raw.get_string_from_utf8()
+		var header_end := request_text.find("\r\n\r\n")
+		if header_end >= 0:
+			headers = request_text.substr(0, header_end)
+			for line in headers.split("\r\n"):
+				if line.to_lower().begins_with("content-length:"):
+					content_length = int(line.get_slice(":", 1).strip_edges())
+					break
+			if content_length >= 0:
+				var body_bytes := raw.slice(header_end + 4)
+				if body_bytes.size() >= content_length:
+					body = body_bytes.slice(0, content_length).get_string_from_utf8()
+					complete = true
+					break
+		await get_tree().process_frame
+	if not complete:
+		peer.disconnect_from_host()
+		return {}
+
+	var response := "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+	return {"headers": headers, "body": body, "peer": peer, "response_error": peer.put_data(response.to_utf8_buffer())}

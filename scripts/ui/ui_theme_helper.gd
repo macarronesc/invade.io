@@ -115,7 +115,40 @@ static func install(tree: SceneTree, light: bool) -> void:
 	apply_palette(tree, light)
 	tree.node_added.connect(func(node: Node):
 		if node is BaseButton:
-			setup_press_feedback(node))
+			setup_press_feedback(node)
+		if node is Control:
+			_apply_font_scale_to_control(node))
+	apply_text_scale(tree.root)
+
+static func font_scale() -> float:
+	return 1.0 + float(GameManager.settings.get("text_scale", 0.0)) * 0.5
+
+static func scaled_font_size(size: int) -> int:
+	return maxi(1, roundi(size * font_scale()))
+
+static func apply_text_scale(root: Node) -> void:
+	var theme := ThemeDB.get_default_theme()
+	theme.set_font_size("font_size", "PopupMenu", scaled_font_size(FONT_BODY))
+	theme.set_font_size("title_font_size", "Window", scaled_font_size(FONT_BODY))
+	_apply_text_scale_tree(root)
+
+static func _apply_text_scale_tree(root: Node) -> void:
+	if root is Control:
+		_apply_font_scale_to_control(root)
+	for child in root.get_children():
+		_apply_text_scale_tree(child)
+
+static func _apply_font_scale_to_control(control: Control) -> void:
+	if not (control is Label or control is BaseButton or control is RichTextLabel or control is LineEdit or control is TextEdit or control is SpinBox):
+		return
+	if not control.has_theme_font_size("font_size"):
+		return
+	if not control.has_meta("_base_font_size"):
+		var base_size := control.get_theme_font_size("font_size")
+		if base_size <= 0:
+			return
+		control.set_meta("_base_font_size", base_size)
+	control.add_theme_font_size_override("font_size", scaled_font_size(int(control.get_meta("_base_font_size"))))
 
 ## Cambia entre modo claro y oscuro al instante, sin recargar escenas. Los colores fijados
 ## con overrides los refresca cada pantalla al recibir EventBus.settings_changed.
@@ -131,6 +164,7 @@ static func apply_palette(tree: SceneTree, light: bool) -> void:
 	ThemeDB.get_default_theme().merge_with(build_theme())
 	if tree.root:
 		tree.root.propagate_notification(Control.NOTIFICATION_THEME_CHANGED)
+		apply_text_scale(tree.root)
 
 static func build_theme() -> Theme:
 	var t := Theme.new()
@@ -366,6 +400,7 @@ static func set_icon(b: Button, icon: String, size: int = 44) -> void:
 static func icon_button(icon: String, tooltip: String) -> Button:
 	var b := button("", "IconButton", icon)
 	b.tooltip_text = tooltip
+	b.accessibility_name = tooltip
 	return b
 
 static func vbox(separation: int = SPACE) -> VBoxContainer:
@@ -432,10 +467,16 @@ static func chip(text: String, icon: String = "", color: Color = Color.TRANSPARE
 	panel.add_child(row)
 	if icon != "":
 		row.add_child(Icons.rect(icon, 32, color))
-	var l := label(text, "Caption", color)
+	var text_color: Color = color if contrast_ratio(color, colors.surface_2) >= 4.5 else colors.text
+	var l := label(text, "Caption", text_color)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(l)
 	return panel
+
+static func contrast_ratio(first: Color, second: Color) -> float:
+	var a := first.srgb_to_linear().get_luminance()
+	var b := second.srgb_to_linear().get_luminance()
+	return (maxf(a, b) + 0.05) / (minf(a, b) + 0.05)
 
 static func progress(value: float, max_value: float, variation: String = "") -> ProgressBar:
 	var bar := ProgressBar.new()
@@ -454,6 +495,8 @@ static func row_button(icon: String, title: String, subtitle: String, trailing: 
 		tint = colors.primary
 	var b := button("", "RowButton")
 	b.custom_minimum_size.y = 128
+	b.accessibility_name = title
+	b.accessibility_description = subtitle
 	var row := item_row(round_badge(Icons.rect(icon, 52, tint), tint, 80), title, subtitle, Icons.rect(trailing, 40, colors.muted))
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	row.offset_left = 24
@@ -510,11 +553,46 @@ static func start_battle(from: Node, level_id: String = "") -> void:
 		GameManager.play_level(level_id)
 	go_to(from, BATTLE_SCENE)
 
+## Lienzo lógico por orientación: el lado corto mide siempre 1080, así la interfaz conserva su
+## tamaño al girar la tableta o al redimensionar la ventana (pantalla dividida, escritorio).
+const PORTRAIT_CANVAS := Vector2i(1080, 1920)
+const LANDSCAPE_CANVAS := Vector2i(1920, 1080)
+## Ancho máximo de las páginas: en pantallas anchas el contenido no se estira de borde a borde
+const MAX_PAGE_WIDTH := 1200.0
+
+static func fit_canvas(window: Window) -> void:
+	var wide := window.size.x > window.size.y
+	window.content_scale_size = LANDSCAPE_CANVAS if wide else PORTRAIT_CANVAS
+
+## Márgenes laterales que centran `margin` con como mucho MAX_PAGE_WIDTH de contenido
+static func cap_page_width(margin: MarginContainer) -> void:
+	var left := get_safe_area_left(margin)
+	var right := get_safe_area_right(margin)
+	var side := maxi(PAGE_MARGIN, int((margin.size.x - left - right - MAX_PAGE_WIDTH) * 0.5))
+	left += side
+	right += side
+	if margin.get_theme_constant("margin_left") != left or margin.get_theme_constant("margin_right") != right:
+		margin.add_theme_constant_override("margin_left", left)
+		margin.add_theme_constant_override("margin_right", right)
+
 ## Desplaza hacia abajo una cabecera anclada arriba para que no quede bajo el notch o la cámara
 static func apply_safe_area_top(control: Control) -> void:
 	var inset := get_safe_area_top(control)
-	control.offset_top += inset
-	control.offset_bottom += inset
+	var previous := int(control.get_meta("_safe_top_inset", 0))
+	control.offset_top += inset - previous
+	control.offset_bottom += inset - previous
+	control.set_meta("_safe_top_inset", inset)
+
+## Inset lateral para cámaras/notches cuando Android cambia a apaisado.
+static func apply_safe_area_horizontal(control: Control) -> void:
+	var left := get_safe_area_left(control)
+	var right := get_safe_area_right(control)
+	var previous_left := int(control.get_meta("_safe_left_inset", 0))
+	var previous_right := int(control.get_meta("_safe_right_inset", 0))
+	control.offset_left += left - previous_left
+	control.offset_right -= right - previous_right
+	control.set_meta("_safe_left_inset", left)
+	control.set_meta("_safe_right_inset", right)
 
 ## Alto de la muesca o barra de estado del móvil en coordenadas del lienzo (0 en escritorio)
 static func get_safe_area_top(control: Control) -> int:
@@ -524,8 +602,26 @@ static func get_safe_area_top(control: Control) -> int:
 static func get_safe_area_bottom(control: Control) -> int:
 	return _safe_insets(control).y
 
+static func get_safe_area_left(control: Control) -> int:
+	if not OS.has_feature("mobile") or not control.is_inside_tree():
+		return 0
+	var window_w := DisplayServer.window_get_size().x
+	if window_w <= 0:
+		return 0
+	var safe := DisplayServer.get_display_safe_area()
+	return int(maxi(0, safe.position.x) * control.get_viewport_rect().size.x / float(window_w))
+
+static func get_safe_area_right(control: Control) -> int:
+	if not OS.has_feature("mobile") or not control.is_inside_tree():
+		return 0
+	var window_w := DisplayServer.window_get_size().x
+	if window_w <= 0:
+		return 0
+	var safe := DisplayServer.get_display_safe_area()
+	return int(maxi(0, window_w - safe.end.x) * control.get_viewport_rect().size.x / float(window_w))
+
 static func _safe_insets(control: Control) -> Vector2i:
-	if not OS.has_feature("mobile"):
+	if not OS.has_feature("mobile") or not control.is_inside_tree():
 		return Vector2i.ZERO
 	var window_h := DisplayServer.window_get_size().y
 	if window_h <= 0:
@@ -545,9 +641,20 @@ static func overlay_page(root: Control, title: String, close: Callable) -> VBoxC
 	var column := vbox(32)
 	var margin := page_margin(column, 36 + get_safe_area_top(root), 24 + get_safe_area_bottom(root))
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var apply_insets := func():
+		var left := get_safe_area_left(root)
+		var right := get_safe_area_right(root)
+		var extra := maxi(PAGE_MARGIN, int((margin.size.x - left - right - MAX_PAGE_WIDTH) * 0.5))
+		margin.add_theme_constant_override("margin_left", left + extra)
+		margin.add_theme_constant_override("margin_top", 36 + get_safe_area_top(root))
+		margin.add_theme_constant_override("margin_right", right + extra)
+		margin.add_theme_constant_override("margin_bottom", 24 + get_safe_area_bottom(root))
+	margin.resized.connect(apply_insets)
+	apply_insets.call()
 	root.add_child(margin)
 	var header := hbox(24)
 	var back := icon_button("back", LocaleStrings.text("back"))
+	back.name = "BtnBack"
 	back.pressed.connect(close)
 	header.add_child(back)
 	var heading := label(title, "Title")
@@ -568,6 +675,10 @@ static func overlay_page(root: Control, title: String, close: Callable) -> VBoxC
 ## contenedor a pantalla completa que hay que añadir a la escena; la tarjeta aparece animada.
 ## Con `backdrop` oscurece el fondo y bloquea los toques (si la escena no se pausa por debajo).
 static func create_modal_card(title: String, body: String, button_text: String, on_press: Callable, backdrop: bool = false) -> Control:
+	var previous_focus: Control
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		previous_focus = tree.root.gui_get_focus_owner()
 	var panel := PanelContainer.new()
 	panel.theme_type_variation = "Sheet"
 	panel.custom_minimum_size = Vector2(880, 0)
@@ -599,10 +710,14 @@ static func create_modal_card(title: String, body: String, button_text: String, 
 	root.tree_entered.connect(func():
 		root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		confirm.grab_focus.call_deferred()
 		# Diferido para conocer el tamaño final; la tarjeta puede cerrarse antes
 		var panel_ref = weakref(panel)
 		(func(): if panel_ref.get_ref(): animate_modal_pop_in(panel_ref.get_ref())).call_deferred()
 	, CONNECT_ONE_SHOT)
+	root.tree_exited.connect(func():
+		if is_instance_valid(previous_focus) and previous_focus.is_inside_tree():
+			previous_focus.grab_focus.call_deferred(), CONNECT_ONE_SHOT)
 	return root
 
 ## Tarjeta con los gestos del juego (se consulta en cualquier momento); se cierra sola

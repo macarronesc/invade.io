@@ -23,6 +23,8 @@ var current_tab := ""
 var coins_label: Label
 var btn_settings: Button
 var _content: Control
+var _header_margin: MarginContainer
+var _nav_margin: MarginContainer
 var _nav: Dictionary = {}
 var _badges: Dictionary = {}
 var _utility_panel: Control = null
@@ -47,6 +49,8 @@ func _ready() -> void:
 		UIThemeHelper.start_battle.bind(self, GameManager.FIRST_LEVEL_ID).call_deferred()
 		return
 	_build()
+	get_viewport().size_changed.connect(_apply_safe_area)
+	_apply_safe_area()
 	UIThemeHelper.apply_locale_direction(self)
 	_appearance = _appearance_key()
 	EventBus.settings_changed.connect(_refresh_appearance)
@@ -71,7 +75,8 @@ func _build() -> void:
 	add_child(column)
 
 	var bar := UIThemeHelper.hbox(16)
-	column.add_child(UIThemeHelper.page_margin(bar, 32 + UIThemeHelper.get_safe_area_top(self), 16))
+	_header_margin = UIThemeHelper.page_margin(bar, 32 + UIThemeHelper.get_safe_area_top(self), 16)
+	column.add_child(_header_margin)
 	bar.add_child(_logo_tile())
 	var wordmark := UIThemeHelper.hbox(0)
 	# La marca se lee siempre "invade.io", también en RTL.
@@ -100,11 +105,10 @@ func _build() -> void:
 	var nav := PanelContainer.new()
 	nav.theme_type_variation = "NavBar"
 	column.add_child(nav)
-	var nav_margin := MarginContainer.new()
-	nav_margin.add_theme_constant_override("margin_bottom", UIThemeHelper.get_safe_area_bottom(self))
-	nav.add_child(nav_margin)
+	_nav_margin = MarginContainer.new()
+	nav.add_child(_nav_margin)
 	var items := UIThemeHelper.hbox(0)
-	nav_margin.add_child(items)
+	_nav_margin.add_child(items)
 	var group := ButtonGroup.new()
 	for id in TABS:
 		var btn := UIThemeHelper.button(LocaleStrings.text(TABS[id]["title"]), "NavButton")
@@ -129,6 +133,17 @@ func _build() -> void:
 		btn.add_child(badge)
 		_badges[id] = badge
 		btn.resized.connect(func(): badge.position = Vector2(btn.size.x * 0.5 + 18, 16))
+
+func _apply_safe_area() -> void:
+	if not is_instance_valid(_header_margin) or not is_instance_valid(_nav_margin):
+		return
+	_header_margin.add_theme_constant_override("margin_left", UIThemeHelper.PAGE_MARGIN + UIThemeHelper.get_safe_area_left(self))
+	_header_margin.add_theme_constant_override("margin_top", 32 + UIThemeHelper.get_safe_area_top(self))
+	_header_margin.add_theme_constant_override("margin_right", UIThemeHelper.PAGE_MARGIN + UIThemeHelper.get_safe_area_right(self))
+	_header_margin.add_theme_constant_override("margin_bottom", 16)
+	_nav_margin.add_theme_constant_override("margin_left", UIThemeHelper.get_safe_area_left(self))
+	_nav_margin.add_theme_constant_override("margin_right", UIThemeHelper.get_safe_area_right(self))
+	_nav_margin.add_theme_constant_override("margin_bottom", UIThemeHelper.get_safe_area_bottom(self))
 
 func show_tab(id: String) -> void:
 	if not TABS.has(id):
@@ -179,6 +194,7 @@ func _open_settings() -> void:
 	_utility_panel = load("res://scripts/ui/settings_panel.gd").new()
 	_utility_panel.closed.connect(_refresh_appearance)
 	_utility_panel.closed.connect(func(): Telemetry.screen_opened("menu"))
+	_utility_panel.closed.connect(func(): btn_settings.grab_focus.call_deferred())
 	add_child(_utility_panel)
 
 func _appearance_key() -> String:
@@ -194,6 +210,7 @@ func _refresh_appearance() -> void:
 	_logo_io.add_theme_color_override("font_color", UIThemeHelper.colors.primary)
 	coins_label.add_theme_color_override("font_color", UIThemeHelper.colors.text)
 	btn_settings.tooltip_text = LocaleStrings.text("settings")
+	btn_settings.accessibility_name = LocaleStrings.text("settings")
 	for id in TABS:
 		_nav[id].text = LocaleStrings.text(TABS[id]["title"])
 	if _content.get_child_count() > 0:

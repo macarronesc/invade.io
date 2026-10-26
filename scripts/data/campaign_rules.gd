@@ -43,7 +43,7 @@ static func apply(level: Dictionary) -> void:
 		"south_america":
 			level["travel_multiplier"] = 0.8
 		"oceania":
-			level["sea_lanes"] = sea_lanes(bases)
+			level["sea_lanes"] = sea_lanes(bases, level.get("_route_positions", []))
 	if DailyRewards.is_challenge(id):
 		if continent in ["europe", "africa"]:
 			level["objective"] = "hold_capital"
@@ -89,7 +89,7 @@ static func _apply_invasion(level: Dictionary, region_id: String) -> void:
 		"jungle":
 			level["travel_multiplier"] = 0.8
 		"sea_lanes":
-			level["sea_lanes"] = sea_lanes(bases)
+			level["sea_lanes"] = sea_lanes(bases, level.get("_route_positions", []))
 	if bases.any(func(base): return base.get("boss", false)):
 		var balance := LevelDatabase.get_balance(str(level.get("id", "")))
 		level["boss_interval"] = balance["boss_interval"]
@@ -109,10 +109,12 @@ static func _first_neutral_without_type(bases: Array) -> Dictionary:
 
 ## ponytail: árbol de rutas O(n³), n≤16; Prim con heap si se añaden mapas masivos.
 ## Siempre conectado: ninguna isla ni facción queda aislada.
-static func sea_lanes(bases: Array) -> Array[Vector2i]:
+static func sea_lanes(bases: Array, route_positions: Array = []) -> Array[Vector2i]:
 	var routes: Array[Vector2i] = []
 	if bases.is_empty():
 		return routes
+	if route_positions.size() != bases.size():
+		route_positions = bases.map(func(base): return base["pos"])
 	var reached := [0]
 	while reached.size() < bases.size():
 		var best := Vector2i(-1, -1)
@@ -121,7 +123,7 @@ static func sea_lanes(bases: Array) -> Array[Vector2i]:
 			for j in bases.size():
 				if reached.has(j):
 					continue
-				var d: float = bases[i]["pos"].distance_squared_to(bases[j]["pos"])
+				var d: float = route_positions[i].distance_squared_to(route_positions[j])
 				if d < distance:
 					distance = d
 					best = Vector2i(i, j)
