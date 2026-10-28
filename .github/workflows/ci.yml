@@ -35,13 +35,17 @@ jobs:
         run: |
           bash tools/install_security_tools.sh "$RUNNER_TEMP/security-tools"
           echo "$RUNNER_TEMP/security-tools" >> "$GITHUB_PATH"
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
       - name: Scan history and current files without exposing findings
         run: |
           gitleaks git --log-opts=--all --redact=100 --no-banner --max-decode-depth=3 .
           gitleaks dir --redact=100 --no-banner --max-decode-depth=3 .
           python3 tools/check_repository.py
       - name: Test security and release checks
-        # The runner includes a JDK; never silently skip the signing regression test in CI.
+        # Exercise the same JDK as production; never skip the disposable-key regression in CI.
         run: |
           command -v keytool
           command -v jarsigner
@@ -154,6 +158,15 @@ jobs:
           archive: false
           if-no-files-found: error
           retention-days: 7
+
+      - name: Verify the raw artifact handoff used by the isolated signer
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: invadeio-unsigned.aab
+          path: ${{ runner.temp }}/artifact-roundtrip
+          skip-decompress: true
+      - name: Check downloaded candidate bytes
+        run: cmp build/android/invadeio-unsigned.aab "$RUNNER_TEMP/artifact-roundtrip/invadeio-unsigned.aab"
 
   build-ios:
     needs: checks
