@@ -120,6 +120,19 @@ jobs:
           godot --headless --path . res://scenes/tests/test_runner.tscn
           xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --ui
           xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --wide-ui
+      - name: Generate and validate localized store material
+        run: |
+          timeout 620 xvfb-run -a godot --audio-driver Dummy --path . res://scenes/tests/store_assets.tscn -- --no-telemetry
+          python3 tools/build_store_listings.py --package
+      - name: Upload store listing material for review (never publish to Play)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: play-store-listing
+          path: |
+            build/play-store-listing.zip
+            build/store_capture/contact_*.png
+          if-no-files-found: error
+          retention-days: 7
       - name: Configure unsigned export and build Debug APK
         run: |
           godot --headless --path . --script tools/configure_ci_export.gd

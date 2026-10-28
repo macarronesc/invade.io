@@ -1,0 +1,647 @@
+{
+  "en": {
+    "conquer": {
+      "headline": "Drag. Send. Conquer.",
+      "subtitle": "Offline strategy. No ads.",
+      "alt": "Blue troops advance from Athens toward a neutral base on a real-world map."
+    },
+    "tactics": {
+      "headline": "Every base changes the battle",
+      "subtitle": "Factories, fortresses and boss battles.",
+      "alt": "Troops move across Europe, where a factory and a fortress stand between the player and the boss."
+    },
+    "invasions": {
+      "headline": "36 regions. 108 fronts.",
+      "subtitle": "Three fronts. One region to master.",
+      "alt": "The final invasion front in Iberia, with troops advancing toward the region's capital."
+    },
+    "campaign": {
+      "headline": "Six continents. More to conquer.",
+      "subtitle": "30 campaign levels + conquest expeditions.",
+      "alt": "The campaign map shows earned stars, the next battle and access to free-conquest expeditions."
+    },
+    "daily": {
+      "headline": "A different challenge every day",
+      "subtitle": "Equal forces. Beat your personal best.",
+      "alt": "A daily challenge battle with its special rule and objective displayed above the map."
+    },
+    "upgrades": {
+      "headline": "Build a stronger army",
+      "subtitle": "Recruit faster. Strike sooner.",
+      "alt": "The army screen shows earned upgrades to starting troops, recruitment and march speed."
+    },
+    "cosmetics": {
+      "headline": "Make every conquest yours",
+      "subtitle": "Army colors, base shapes and map themes.",
+      "alt": "The army appearance screen shows different troop styles and base previews."
+    },
+    "atlas": {
+      "headline": "Track every conquest",
+      "subtitle": "Cities, ranks and 20 achievements.",
+      "alt": "The world atlas marks conquered cities in blue, with progress totals by continent."
+    },
+    "feature_alt": "Blue and red armies face each other across a real-world map in invade.io."
+  },
+  "es": {
+    "conquer": {
+      "headline": "Arrastra. Envía. Conquista.",
+      "subtitle": "Estrategia sin conexión y sin anuncios.",
+      "alt": "Las tropas azules avanzan desde Atenas hacia una base neutral sobre un mapa real."
+    },
+    "tactics": {
+      "headline": "Cada base cambia la batalla",
+      "subtitle": "Fábricas, fortalezas y batallas contra jefes.",
+      "alt": "Las tropas avanzan por Europa, con una fábrica y una fortaleza entre el jugador y el jefe."
+    },
+    "invasions": {
+      "headline": "36 regiones. 108 frentes.",
+      "subtitle": "Tres frentes. Una región por dominar.",
+      "alt": "El frente final de la invasión de Iberia, con tropas avanzando hacia la capital de la región."
+    },
+    "campaign": {
+      "headline": "Seis continentes por conquistar",
+      "subtitle": "30 niveles de campaña y expediciones libres.",
+      "alt": "El mapa de campaña muestra estrellas ganadas, la próxima batalla y acceso a expediciones de conquista libre."
+    },
+    "daily": {
+      "headline": "Un desafío diferente cada día",
+      "subtitle": "Fuerzas iguales. Bate tu propia marca.",
+      "alt": "Una batalla de desafío diario con su regla y objetivo especial sobre el mapa."
+    },
+    "upgrades": {
+      "headline": "Haz crecer tu ejército",
+      "subtitle": "Recluta más rápido. Ataca antes.",
+      "alt": "La pantalla de ejército muestra mejoras ganadas de guarnición, reclutamiento y velocidad de marcha."
+    },
+    "cosmetics": {
+      "headline": "Dale tu estilo a la conquista",
+      "subtitle": "Colores, formas de base y temas de mapa.",
+      "alt": "La pantalla de aspecto muestra estilos de tropa y vistas previas de las bases."
+    },
+    "atlas": {
+      "headline": "Cada conquista deja huella",
+      "subtitle": "Ciudades, rangos y 20 logros.",
+      "alt": "El atlas marca las ciudades conquistadas en azul sobre el mundo, con progreso por continente."
+    },
+    "feature_alt": "Los ejércitos azul y rojo se enfrentan sobre un mapa real en invade.io."
+  },
+  "pt_BR": {
+    "conquer": {
+      "headline": "Arraste. Envie. Conquiste.",
+      "subtitle": "Estratégia off-line. Sem anúncios.",
+      "alt": "As tropas azuis avançam de Atenas em direção a uma base neutra num mapa do mundo real."
+    },
+    "tactics": {
+      "headline": "Cada base muda a batalha",
+      "subtitle": "Fábricas, fortalezas e batalhas contra chefes.",
+      "alt": "As tropas movem-se pela Europa, onde uma fábrica e uma fortaleza se interpõem entre o jogador e o chefe."
+    },
+    "invasions": {
+      "headline": "36 regiões. 108 frentes.",
+      "subtitle": "Três frentes. Uma região para dominar.",
+      "alt": "A última frente de invasão na Península Ibérica, com tropas avançando em direção à capital da região."
+    },
+    "campaign": {
+      "headline": "Seis continentes. Mais para conquistar.",
+      "subtitle": "30 níveis de campanha + expedições de conquista.",
+      "alt": "O mapa da campanha mostra estrelas conquistadas, a próxima batalha e expedições de conquista livre."
+    },
+    "daily": {
+      "headline": "Um desafio diferente todos os dias",
+      "subtitle": "Forças iguais. Bata o seu recorde pessoal.",
+      "alt": "Uma batalha de desafio diário com regras e objetivos especiais exibidos acima do mapa."
+    },
+    "upgrades": {
+      "headline": "Construa um exército mais forte",
+      "subtitle": "Recrute mais rápido. Ataque mais cedo.",
+      "alt": "A tela do exército mostra atualizações conquistadas para tropas iniciais, recrutamento e velocidade de marcha."
+    },
+    "cosmetics": {
+      "headline": "Faça com que cada conquista seja sua",
+      "subtitle": "Cores do exército, formas de base e temas de mapas.",
+      "alt": "A tela de aparência mostra estilos de tropas e prévias das bases."
+    },
+    "atlas": {
+      "headline": "Acompanhe cada conquista",
+      "subtitle": "Cidades, patentes e 20 conquistas.",
+      "alt": "O atlas marca cidades conquistadas em azul no mapa mundial, com progresso por continente."
+    },
+    "feature_alt": "Os exércitos azul e vermelho se enfrentam em um mapa do mundo real em invade.io."
+  },
+  "fr": {
+    "conquer": {
+      "headline": "Glissez. Envoyez. Conquérez.",
+      "subtitle": "Stratégie hors ligne. Aucune publicité.",
+      "alt": "Les troupes bleues avancent depuis Athènes vers une base neutre sur une carte du monde réel."
+    },
+    "tactics": {
+      "headline": "Chaque base change la bataille",
+      "subtitle": "Usines, forteresses et combats de boss.",
+      "alt": "Des troupes traversent l'Europe, avec une usine et une forteresse entre le joueur et le boss."
+    },
+    "invasions": {
+      "headline": "36 régions. 108 fronts.",
+      "subtitle": "Trois fronts. Une région à maîtriser.",
+      "alt": "Le dernier front d'invasion en Ibérie, avec des troupes avançant vers la capitale de la région."
+    },
+    "campaign": {
+      "headline": "Six continents. Plus à conquérir.",
+      "subtitle": "30 niveaux de campagne + expéditions de conquête.",
+      "alt": "La carte de campagne montre les étoiles gagnées, la prochaine bataille et les expéditions de conquête libre."
+    },
+    "daily": {
+      "headline": "Un défi différent chaque jour",
+      "subtitle": "Forces égales. Battez votre record personnel.",
+      "alt": "Un défi quotidien avec sa règle spéciale et son objectif affichés au-dessus de la carte."
+    },
+    "upgrades": {
+      "headline": "Construisez une armée plus forte",
+      "subtitle": "Recrutez plus rapidement. Frappez plus tôt.",
+      "alt": "L'écran de l'armée affiche les améliorations obtenues concernant les troupes de départ, le recrutement et la vitesse de marche."
+    },
+    "cosmetics": {
+      "headline": "Appropriez-vous chaque conquête",
+      "subtitle": "Couleurs de l'armée, formes de base et thèmes de carte.",
+      "alt": "L'écran d'apparence montre différents styles de troupes et des aperçus des bases."
+    },
+    "atlas": {
+      "headline": "Suivez chaque conquête",
+      "subtitle": "Villes, rangs et 20 succès.",
+      "alt": "L'atlas marque les villes conquises en bleu sur le monde, avec la progression par continent."
+    },
+    "feature_alt": "Les armées bleues et rouges s'affrontent sur une carte du monde réel dans invade.io."
+  },
+  "de": {
+    "conquer": {
+      "headline": "Ziehen. Senden. Erobern.",
+      "subtitle": "Offline-Strategie. Keine Werbung.",
+      "alt": "Auf einer realen Karte rücken blaue Truppen von Athen aus in Richtung einer neutralen Basis vor."
+    },
+    "tactics": {
+      "headline": "Jede Basis verändert den Kampf",
+      "subtitle": "Fabriken, Festungen und Bosskämpfe.",
+      "alt": "Truppen ziehen durch Europa, wo eine Fabrik und eine Festung zwischen dem Spieler und dem Boss stehen."
+    },
+    "invasions": {
+      "headline": "36 Regionen. 108 Fronten.",
+      "subtitle": "Drei Fronten. Eine Region meistern.",
+      "alt": "Die letzte Invasionsfront in Iberia, mit Truppen, die in Richtung der Hauptstadt der Region vorrücken."
+    },
+    "campaign": {
+      "headline": "Sechs Kontinente. Mehr zu erobern.",
+      "subtitle": "30 Kampagnenlevel + Eroberungsexpeditionen.",
+      "alt": "Die Kampagnenkarte zeigt verdiente Sterne, die nächste Schlacht und freie Eroberungsexpeditionen."
+    },
+    "daily": {
+      "headline": "Jeden Tag eine andere Herausforderung",
+      "subtitle": "Gleiche Kräfte. Übertriff deinen Rekord.",
+      "alt": "Ein täglicher Herausforderungskampf, dessen Sonderregel und Ziel über der Karte angezeigt werden."
+    },
+    "upgrades": {
+      "headline": "Baue eine stärkere Armee auf",
+      "subtitle": "Schneller rekrutieren. Früher angreifen.",
+      "alt": "Der Armeebildschirm zeigt verdiente Upgrades für Starttruppen, Rekrutierung und Marschgeschwindigkeit."
+    },
+    "cosmetics": {
+      "headline": "Deine Eroberung. Dein Stil.",
+      "subtitle": "Armeefarben, Basisformen und Kartenthemen.",
+      "alt": "Die Armeeansicht zeigt verschiedene Truppenstile und Basisvorschauen."
+    },
+    "atlas": {
+      "headline": "Behalte jede Eroberung im Blick",
+      "subtitle": "Städte, Ränge und 20 Erfolge.",
+      "alt": "Der Weltatlas markiert eroberte Städte in Blau und zeigt den Fortschritt je Kontinent."
+    },
+    "feature_alt": "In invade.io stehen sich blaue und rote Armeen auf einer realen Karte gegenüber."
+  },
+  "it": {
+    "conquer": {
+      "headline": "Trascina. Invia. Conquista.",
+      "subtitle": "Strategia offline. Nessuna pubblicità.",
+      "alt": "Le truppe blu avanzano da Atene verso una base neutrale su una mappa del mondo reale."
+    },
+    "tactics": {
+      "headline": "Ogni base cambia la battaglia",
+      "subtitle": "Fabbriche, fortezze e battaglie contro i boss.",
+      "alt": "Le truppe si muovono attraverso l'Europa, dove una fabbrica e una fortezza si frappongono tra il giocatore e il boss."
+    },
+    "invasions": {
+      "headline": "36 regioni. 108 fronti.",
+      "subtitle": "Tre fronti. Una regione da padroneggiare.",
+      "alt": "L'ultimo fronte d'invasione in Iberia, con le truppe che avanzano verso la capitale della regione."
+    },
+    "campaign": {
+      "headline": "Sei continenti. Altro da conquistare.",
+      "subtitle": "30 livelli di campagna + spedizioni di conquista.",
+      "alt": "La mappa della campagna mostra le stelle guadagnate, la battaglia successiva e l'accesso alle spedizioni di conquista libera."
+    },
+    "daily": {
+      "headline": "Ogni giorno una sfida diversa",
+      "subtitle": "Forze uguali. Batti il tuo record.",
+      "alt": "Una battaglia sfida quotidiana con regole speciali e obiettivo visualizzati sopra la mappa."
+    },
+    "upgrades": {
+      "headline": "Costruisci un esercito più forte",
+      "subtitle": "Recluta più velocemente. Colpisci prima.",
+      "alt": "La schermata dell'esercito mostra i potenziamenti ottenuti per le truppe iniziali, il reclutamento e la velocità di marcia."
+    },
+    "cosmetics": {
+      "headline": "Fai tua ogni conquista",
+      "subtitle": "Colori, forme delle basi e temi della mappa.",
+      "alt": "La schermata dell'aspetto mostra stili delle truppe e anteprime delle basi."
+    },
+    "atlas": {
+      "headline": "Tieni traccia di ogni conquista",
+      "subtitle": "Città, gradi e 20 obiettivi.",
+      "alt": "L'atlante mondiale segna le città conquistate in blu e mostra i progressi per continente."
+    },
+    "feature_alt": "Gli eserciti blu e rossi si affrontano su una mappa del mondo reale in invade.io."
+  },
+  "ru": {
+    "conquer": {
+      "headline": "Проведи. Отправь. Завоюй.",
+      "subtitle": "Стратегия без интернета и рекламы.",
+      "alt": "Синие войска продвигаются из Афин к нейтральной базе на реальной карте."
+    },
+    "tactics": {
+      "headline": "Каждая база меняет ход битвы",
+      "subtitle": "Заводы, крепости и битвы с боссами.",
+      "alt": "Войска перемещаются по Европе, где между игроком и боссом стоят фабрика и крепость."
+    },
+    "invasions": {
+      "headline": "36 регионов. 108 фронтов.",
+      "subtitle": "Три фронта. Один регион для победы.",
+      "alt": "Последний фронт вторжения в Иберию, войска продвигаются к столице региона."
+    },
+    "campaign": {
+      "headline": "Шесть континентов ждут",
+      "subtitle": "30 уровней кампании + завоевательные экспедиции.",
+      "alt": "На карте кампании показаны заработанные звезды, следующая битва и доступ к экспедициям свободного завоевания."
+    },
+    "daily": {
+      "headline": "Новый вызов каждый день",
+      "subtitle": "Равные силы. Побей свой личный рекорд.",
+      "alt": "Ежедневная битва-вызов, особые правила и цель которой отображаются над картой."
+    },
+    "upgrades": {
+      "headline": "Создай сильную армию",
+      "subtitle": "Быстрее набор. Раньше атака.",
+      "alt": "На экране армии отображаются заработанные улучшения стартовых войск, набора и скорости марша."
+    },
+    "cosmetics": {
+      "headline": "Твои победы. Твой стиль.",
+      "subtitle": "Цвета армии, формы баз и темы карт.",
+      "alt": "Экран внешнего вида показывает разные стили войск и предварительный вид баз."
+    },
+    "atlas": {
+      "headline": "Следи за каждой победой",
+      "subtitle": "Города, звания и 20 достижений.",
+      "alt": "На карте мира завоёванные города отмечены синим, рядом показан прогресс по континентам."
+    },
+    "feature_alt": "Синие и красные армии встречаются друг с другом на реальной карте в invade.io."
+  },
+  "tr": {
+    "conquer": {
+      "headline": "Sürükle. Gönder. Fethet.",
+      "subtitle": "Çevrimdışı strateji. Reklam yok.",
+      "alt": "Mavi birlikler Atina'dan gerçek dünya haritasındaki tarafsız bir üsse doğru ilerliyor."
+    },
+    "tactics": {
+      "headline": "Her üs savaşı değiştirir",
+      "subtitle": "Fabrikalar, kaleler ve bölüm sonu savaşları.",
+      "alt": "Avrupa haritasında birlikler, bir fabrika ve kaleden geçerek güçlü düşmana ilerliyor."
+    },
+    "invasions": {
+      "headline": "36 bölge. 108 cephe.",
+      "subtitle": "Üç cephe. Uzmanlaşılacak bir bölge.",
+      "alt": "Birliklerin bölgenin başkentine doğru ilerlediği İberya'daki son işgal cephesi."
+    },
+    "campaign": {
+      "headline": "Fethedilecek altı kıta",
+      "subtitle": "30 kampanya seviyesi + fetih seferi.",
+      "alt": "Sefer haritası kazanılan yıldızları, sıradaki savaşı ve serbest fetih seferlerine erişimi gösterir."
+    },
+    "daily": {
+      "headline": "Her gün farklı bir meydan okuma",
+      "subtitle": "Eşit kuvvetler. Kişisel rekorunuzu kırın.",
+      "alt": "Haritanın üzerinde gösterilen özel kuralı ve hedefi olan günlük bir meydan okuma savaşı."
+    },
+    "upgrades": {
+      "headline": "Daha güçlü bir ordu kurun",
+      "subtitle": "Daha hızlı asker topla. Önce saldır.",
+      "alt": "Ordu ekranı, başlangıç ​​birliklerinde, asker toplamada ve yürüyüş hızında kazanılan yükseltmeleri gösterir."
+    },
+    "cosmetics": {
+      "headline": "Her fetih senin tarzında",
+      "subtitle": "Ordu renkleri, üs şekilleri ve harita temaları.",
+      "alt": "Görünüm ekranı farklı birlik stillerini ve üs önizlemelerini gösterir."
+    },
+    "atlas": {
+      "headline": "Her fethi takip edin",
+      "subtitle": "Şehirler, rütbeler ve 20 başarı.",
+      "alt": "Dünya atlası fethedilen şehirleri maviyle ve kıtalara göre ilerleme toplamlarıyla gösterir."
+    },
+    "feature_alt": "Mavi ve kırmızı ordular invade.io'da gerçek dünya haritasında karşı karşıya geliyor."
+  },
+  "ar": {
+    "conquer": {
+      "headline": "اسحب. أرسل. اغزُ.",
+      "subtitle": "استراتيجية دون اتصال وبلا إعلانات.",
+      "alt": "تتقدم القوات الزرقاء من أثينا باتجاه قاعدة محايدة على خريطة العالم الحقيقي."
+    },
+    "tactics": {
+      "headline": "كل قاعدة تغير المعركة",
+      "subtitle": "المصانع والحصون ومعارك الزعماء.",
+      "alt": "تتحرك القوات عبر أوروبا، حيث يقف المصنع والقلعة بين اللاعب والزعيم."
+    },
+    "invasions": {
+      "headline": "36 منطقة. 108 جبهات.",
+      "subtitle": "ثلاث جبهات. منطقة واحدة لإتقانها.",
+      "alt": "جبهة الغزو الأخيرة في أيبيريا، مع تقدم القوات نحو عاصمة المنطقة."
+    },
+    "campaign": {
+      "headline": "ست قارات تنتظر غزوك",
+      "subtitle": "30 مستوى للحملة + حملات الغزو.",
+      "alt": "تُظهر خريطة الحملة النجوم المكتسبة والمعركة التالية وإمكانية الوصول إلى حملات الغزو الحر."
+    },
+    "daily": {
+      "headline": "تحدٍّ مختلف كل يوم",
+      "subtitle": "قوات متساوية. حطّم رقمك الشخصي.",
+      "alt": "معركة تحدي يومية بقاعدتها الخاصة وهدفها المعروض فوق الخريطة."
+    },
+    "upgrades": {
+      "headline": "ابنِ جيشًا أقوى",
+      "subtitle": "جنّد أسرع. هاجم أبكر.",
+      "alt": "تعرض شاشة الجيش الترقيات المكتسبة لبدء القوات والتجنيد وسرعة المسيرة."
+    },
+    "cosmetics": {
+      "headline": "اجعل لكل غزو طابعك",
+      "subtitle": "ألوان الجيش وأشكال القواعد وسمات الخرائط.",
+      "alt": "تعرض شاشة المظهر أنماطًا مختلفة للقوات ومعاينات للقواعد."
+    },
+    "atlas": {
+      "headline": "تتبّع كل انتصار",
+      "subtitle": "مدن ورتب و20 إنجازًا.",
+      "alt": "يُظهر الأطلس المدن المفتوحة بالأزرق على خريطة العالم، مع التقدّم حسب القارة."
+    },
+    "feature_alt": "يواجه الجيشان الأزرق والأحمر بعضهما البعض عبر خريطة العالم الحقيقي في invade.io."
+  },
+  "hi": {
+    "conquer": {
+      "headline": "खींचें। भेजें। जीतें।",
+      "subtitle": "ऑफ़लाइन रणनीति। कोई विज्ञापन नहीं।",
+      "alt": "नीली सेना एथेंस से वास्तविक दुनिया के मानचित्र पर तटस्थ आधार की ओर आगे बढ़ती है।"
+    },
+    "tactics": {
+      "headline": "हर बेस बदले लड़ाई का रुख",
+      "subtitle": "कारखाने, किले और बॉस की लड़ाइयाँ।",
+      "alt": "सेनाएँ पूरे यूरोप में घूमती हैं, जहाँ खिलाड़ी और बॉस के बीच एक फ़ैक्टरी और एक किला खड़ा होता है।"
+    },
+    "invasions": {
+      "headline": "36 क्षेत्र. 108 मोर्चे.",
+      "subtitle": "तीन मोर्चे। एक क्षेत्र पर जीत।",
+      "alt": "इबेरिया में अंतिम आक्रमण मोर्चा, जिसमें सैनिक क्षेत्र की राजधानी की ओर बढ़ रहे हैं।"
+    },
+    "campaign": {
+      "headline": "जीतने के लिए छह महाद्वीप",
+      "subtitle": "30 अभियान स्तर + विजय अभियान।",
+      "alt": "अभियान मानचित्र अर्जित सितारों, अगली लड़ाई और मुक्त-विजय अभियानों तक पहुंच दिखाता है।"
+    },
+    "daily": {
+      "headline": "हर दिन एक अलग चुनौती",
+      "subtitle": "बराबर सेनाएँ। अपना रिकॉर्ड तोड़ें।",
+      "alt": "मानचित्र के ऊपर प्रदर्शित अपने विशेष नियम और उद्देश्य के साथ एक दैनिक चुनौती लड़ाई।"
+    },
+    "upgrades": {
+      "headline": "अपनी सेना मज़बूत बनाएँ",
+      "subtitle": "तेज़ भर्ती करें। पहले हमला करें।",
+      "alt": "सेना स्क्रीन शुरुआती सैनिकों, भर्ती और मार्च गति में अर्जित उन्नयन दिखाती है।"
+    },
+    "cosmetics": {
+      "headline": "हर विजय को अपना बनाओ",
+      "subtitle": "सेना के रंग, बेस के आकार और नक्शों की थीम।",
+      "alt": "सेना की रूप-रंग स्क्रीन में सैनिक शैलियाँ और बेस के पूर्वावलोकन दिखाई देते हैं।"
+    },
+    "atlas": {
+      "headline": "हर विजय पर नज़र रखें",
+      "subtitle": "शहर, रैंक और 20 उपलब्धियाँ।",
+      "alt": "एटलस में जीते हुए शहर विश्व नक्शे पर नीले रंग में और हर महाद्वीप की प्रगति के साथ दिखते हैं।"
+    },
+    "feature_alt": "invade.io में वास्तविक दुनिया के मानचित्र पर नीली और लाल सेनाएँ एक-दूसरे का सामना करती हैं।"
+  },
+  "id": {
+    "conquer": {
+      "headline": "Seret. Kirim. Taklukkan.",
+      "subtitle": "Strategi offline. Tanpa iklan.",
+      "alt": "Pasukan biru maju dari Athena menuju pangkalan netral di peta dunia nyata."
+    },
+    "tactics": {
+      "headline": "Setiap pangkalan mengubah pertempuran",
+      "subtitle": "Pabrik, benteng, dan pertarungan bos.",
+      "alt": "Pasukan bergerak melintasi Eropa, di mana sebuah pabrik dan benteng berdiri di antara pemain dan bos."
+    },
+    "invasions": {
+      "headline": "36 wilayah. 108 front.",
+      "subtitle": "Tiga front. Satu wilayah untuk dikuasai.",
+      "alt": "Front invasi terakhir di Iberia, dengan pasukan maju menuju ibu kota wilayah tersebut."
+    },
+    "campaign": {
+      "headline": "Enam benua untuk ditaklukkan",
+      "subtitle": "30 level kampanye + ekspedisi penaklukan.",
+      "alt": "Peta kampanye menunjukkan bintang, pertempuran berikutnya, dan akses ke ekspedisi penaklukan bebas."
+    },
+    "daily": {
+      "headline": "Tantangan yang berbeda setiap hari",
+      "subtitle": "Kekuatan setara. Pecahkan rekormu.",
+      "alt": "Pertarungan tantangan harian dengan aturan dan tujuan khusus yang ditampilkan di atas peta."
+    },
+    "upgrades": {
+      "headline": "Bangun pasukan yang lebih kuat",
+      "subtitle": "Rekrut lebih cepat. Serang lebih cepat.",
+      "alt": "Layar tentara menunjukkan peningkatan yang diperoleh pada pasukan awal, rekrutmen, dan kecepatan perjalanan."
+    },
+    "cosmetics": {
+      "headline": "Jadikan setiap penaklukan milik Anda",
+      "subtitle": "Warna pasukan, bentuk pangkalan, tema peta.",
+      "alt": "Layar tampilan menunjukkan beragam gaya pasukan dan pratinjau pangkalan."
+    },
+    "atlas": {
+      "headline": "Lacak setiap penaklukan",
+      "subtitle": "Kota, peringkat dan 20 prestasi.",
+      "alt": "Atlas dunia menandai kota yang ditaklukkan dengan warna biru dan menampilkan progres tiap benua."
+    },
+    "feature_alt": "Pasukan biru dan merah saling berhadapan di peta dunia nyata di invade.io."
+  },
+  "vi": {
+    "conquer": {
+      "headline": "Kéo. Gửi quân. Chinh phục.",
+      "subtitle": "Chiến thuật ngoại tuyến. Không quảng cáo.",
+      "alt": "Quân xanh tiến từ Athens tới căn cứ trung lập trên bản đồ thế giới thực."
+    },
+    "tactics": {
+      "headline": "Mỗi căn cứ đều thay đổi trận chiến",
+      "subtitle": "Nhà máy, pháo đài và trận đánh trùm.",
+      "alt": "Quân đội tiến qua châu Âu, với nhà máy và pháo đài nằm giữa người chơi và trùm."
+    },
+    "invasions": {
+      "headline": "36 khu vực. 108 mặt trận.",
+      "subtitle": "Ba mặt trận. Một khu vực để làm chủ.",
+      "alt": "Mặt trận xâm lược cuối cùng ở Iberia, với quân đội tiến về thủ đô của khu vực."
+    },
+    "campaign": {
+      "headline": "Sáu lục địa để chinh phục",
+      "subtitle": "30 màn chiến dịch và các cuộc viễn chinh.",
+      "alt": "Bản đồ chiến dịch hiển thị số sao kiếm được, trận chiến tiếp theo và quyền truy cập vào các cuộc thám hiểm chinh phục miễn phí."
+    },
+    "daily": {
+      "headline": "Một thử thách khác nhau mỗi ngày",
+      "subtitle": "Lực lượng ngang nhau. Phá kỷ lục của bạn.",
+      "alt": "Trận chiến thử thách hàng ngày với quy tắc và mục tiêu đặc biệt được hiển thị phía trên bản đồ."
+    },
+    "upgrades": {
+      "headline": "Xây dựng một đội quân mạnh hơn",
+      "subtitle": "Tuyển quân nhanh hơn. Tấn công sớm hơn.",
+      "alt": "Màn hình quân đội hiển thị các nâng cấp kiếm được về quân xuất phát, tuyển quân và tốc độ hành quân."
+    },
+    "cosmetics": {
+      "headline": "Chinh phục theo cách của bạn",
+      "subtitle": "Màu sắc quân đội, hình dạng căn cứ và chủ đề bản đồ.",
+      "alt": "Màn hình ngoại hình hiển thị các kiểu quân và hình xem trước của căn cứ."
+    },
+    "atlas": {
+      "headline": "Theo dõi mọi cuộc chinh phục",
+      "subtitle": "Thành phố, cấp bậc và 20 thành tích.",
+      "alt": "Bản đồ thế giới đánh dấu thành phố đã chinh phục bằng màu xanh, cùng tiến trình theo lục địa."
+    },
+    "feature_alt": "Đội quân xanh và đỏ đối đầu nhau trên bản đồ thế giới thực trong invade.io."
+  },
+  "zh_CN": {
+    "conquer": {
+      "headline": "拖动。派兵。征服。",
+      "subtitle": "离线策略，无广告。",
+      "alt": "蓝军从雅典出发，向现实世界地图上的中立基地前进。"
+    },
+    "tactics": {
+      "headline": "每个基地都会改变战斗",
+      "subtitle": "工厂、堡垒和头目战。",
+      "alt": "军队穿越欧洲，玩家与首领之间有一座工厂和一座堡垒。"
+    },
+    "invasions": {
+      "headline": "36个地区。 108条战线。",
+      "subtitle": "突破三条战线，征服整个地区。",
+      "alt": "伊比利亚的最后入侵战线，部队向该地区的首府挺进。"
+    },
+    "campaign": {
+      "headline": "六大洲等你征服",
+      "subtitle": "30 个战役关卡 + 征服探险。",
+      "alt": "战役地图显示了获得的星星、下一场战斗以及免费征服探险的机会。"
+    },
+    "daily": {
+      "headline": "每天都有不同的挑战",
+      "subtitle": "相同兵力，挑战个人最佳纪录。",
+      "alt": "每日挑战战斗，其特殊规则和目标显示在地图上方。"
+    },
+    "upgrades": {
+      "headline": "建设一支更强大的军队",
+      "subtitle": "加速招募，抢先出击。",
+      "alt": "军队屏幕显示了对起始部队、招募和行军速度的获得升级。"
+    },
+    "cosmetics": {
+      "headline": "让每一次征服都属于你",
+      "subtitle": "军队颜色、基地形状和地图主题。",
+      "alt": "军队外观界面展示不同部队风格和基地预览。"
+    },
+    "atlas": {
+      "headline": "追踪每一次征服",
+      "subtitle": "城市、军衔和20项成就。",
+      "alt": "世界图集用蓝色标记已征服的城市，并显示各大洲的进度。"
+    },
+    "feature_alt": "在 invade.io 中，蓝军和红军在现实世界地图上对峙。"
+  },
+  "ja": {
+    "conquer": {
+      "headline": "ドラッグ。出撃。征服。",
+      "subtitle": "オフラインで戦略を。広告なし。",
+      "alt": "現実世界の地図上で、青の軍隊がアテネから中立基地に向かって前進します。"
+    },
+    "tactics": {
+      "headline": "あらゆる拠点が戦いを変える",
+      "subtitle": "工場、要塞、ボス戦。",
+      "alt": "軍隊はヨーロッパ中を移動し、プレイヤーとボスの間には工場や要塞が立ちはだかります。"
+    },
+    "invasions": {
+      "headline": "36の地域。前線は108。",
+      "subtitle": "3つの戦線を突破し、地域を制覇。",
+      "alt": "イベリア半島最後の侵攻戦線。軍隊はこの地域の首都に向かって前進している。"
+    },
+    "campaign": {
+      "headline": "6大陸を征服しよう",
+      "subtitle": "30のキャンペーンステージと征服遠征。",
+      "alt": "キャンペーン マップには、獲得したスター、次の戦闘、自由征服遠征へのアクセスが表示されます。"
+    },
+    "daily": {
+      "headline": "毎日違う挑戦",
+      "subtitle": "同じ戦力で、自己ベストに挑戦。",
+      "alt": "マップ上に特別なルールと目標が表示されるデイリーチャレンジバトル。"
+    },
+    "upgrades": {
+      "headline": "自分の軍を強化しよう",
+      "subtitle": "徴兵を速め、先手を取ろう。",
+      "alt": "軍隊画面には、開始部隊、徴兵、行軍速度に対する獲得したアップグレードが表示されます。"
+    },
+    "cosmetics": {
+      "headline": "征服を自分のスタイルで",
+      "subtitle": "軍の色、拠点の形、マップテーマ。",
+      "alt": "軍の外観画面に、さまざまな部隊スタイルと拠点のプレビューが表示されます。"
+    },
+    "atlas": {
+      "headline": "征服の歩みを記録しよう",
+      "subtitle": "都市、ランク、20の実績。",
+      "alt": "世界地図帳では、征服した都市を青で示し、大陸ごとの進行状況を表示します。"
+    },
+    "feature_alt": "invade.io の現実世界の地図上で青軍と赤軍が対峙します。"
+  },
+  "ko": {
+    "conquer": {
+      "headline": "드래그. 출격. 정복.",
+      "subtitle": "광고 없는 오프라인 전략.",
+      "alt": "파란색 군대는 실제 지도에서 아테네에서 중립 기지를 향해 진군합니다."
+    },
+    "tactics": {
+      "headline": "기지마다 전투가 달라집니다",
+      "subtitle": "공장, 요새, 보스 전투.",
+      "alt": "군대는 플레이어와 보스 사이에 공장과 요새가 있는 유럽 전역으로 이동합니다."
+    },
+    "invasions": {
+      "headline": "36개 지역. 108개 전선.",
+      "subtitle": "세 전선을 돌파하고 지역을 정복하세요.",
+      "alt": "군대가 지역의 수도를 향해 진군하는 이베리아의 마지막 침공 전선입니다."
+    },
+    "campaign": {
+      "headline": "정복을 기다리는 6개 대륙",
+      "subtitle": "30개의 캠페인 레벨 + 정복 탐험.",
+      "alt": "캠페인 지도에는 획득한 별, 다음 전투, 무료 정복 원정에 대한 액세스가 표시됩니다."
+    },
+    "daily": {
+      "headline": "매일 다른 도전",
+      "subtitle": "동등한 힘. 개인 최고 기록을 경신하세요.",
+      "alt": "지도 위에 특별한 규칙과 목표가 표시되는 일일 도전 전투입니다."
+    },
+    "upgrades": {
+      "headline": "더 강한 군대를 만드세요",
+      "subtitle": "더 빠르게 모집하고 먼저 공격하세요.",
+      "alt": "군대 화면에는 병력 시작, 모집 및 행군 속도에 대한 획득한 업그레이드가 표시됩니다."
+    },
+    "cosmetics": {
+      "headline": "나만의 스타일로 정복하세요",
+      "subtitle": "군대 색상, 기지 모양, 지도 테마.",
+      "alt": "군대 외형 화면은 다양한 부대 스타일과 기지 미리보기를 보여줍니다."
+    },
+    "atlas": {
+      "headline": "정복의 발자취를 기록하세요",
+      "subtitle": "도시, 계급, 20개의 업적.",
+      "alt": "세계 도감은 정복한 도시를 파란색으로 표시하고 대륙별 진행 상황을 보여줍니다."
+    },
+    "feature_alt": "invade.io의 실제 지도에서 파란색 군대와 빨간색 군대가 서로 대결합니다."
+  }
+}

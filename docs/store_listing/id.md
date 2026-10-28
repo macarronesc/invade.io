@@ -1,23 +1,41 @@
 # invade.io — Google Play (Bahasa Indonesia)
 
-## Nama aplikasi (9/30)
+## Nama aplikasi
 
 ```
-invade.io
+invade.io: Strategi Wilayah
 ```
 
 ## Deskripsi singkat
 
 ```
-Taklukkan wilayah basis demi basis. Strategi cepat, offline, tanpa iklan.
+Taklukkan peta dunia nyata. Strategi wilayah offline tanpa iklan
 ```
 
 ## Deskripsi lengkap
 
 ```
-invade.io adalah game strategi wilayah yang cepat: pilih pangkalan, geser jari, dan pasukanmu bergerak ke pangkalan berikutnya. Lima detik untuk paham, 30 level kampanye, dan lebih dari 100 front invasi.
+Mulai dari satu pangkalan, lalu perluas penaklukanmu ke enam benua.
 
-Petanya adalah dunia nyata dengan garis pantai, perbatasan, dan lebih dari seribu kota. Setiap benua menambah aturan: ibu kota, pabrik, hutan, oasis, benteng, dan jalur laut. Selesaikan kampanye untuk membuka invasi regional dengan tiga front, bintang, dan bos akhir.
+invade.io adalah game strategi wilayah offline untuk satu pemain dengan peta dunia nyata. Seret dari satu pangkalan ke pangkalan lain untuk mengirim pasukan. Gabungkan kekuatanmu dan tentukan kapan menyerang atau mundur.
 
-Ada juga tantangan harian dengan aturan berganti dan penaklukan bebas dalam ekspedisi lima wilayah. Main offline, tanpa iklan dan tanpa pembelian: emas didapat dengan bermain. 15 bahasa, tema terang dan gelap, palet buta warna, gerakan dikurangi, dan getaran yang bisa diatur.
+Setiap keputusan mengubah pertempuran
+Rebut pabrik untuk mempercepat perekrutan, kuasai ibu kota penting, dan tembus pertahanan benteng. Hutan, oasis, jalur laut, serta bos dengan bala bantuan menghadirkan taktik berbeda di setiap benua. Hubungkan beberapa pangkalan sekutu dalam satu gerakan atau potong rute untuk memanggil pasukan kembali.
+
+Kampanye dan penaklukan berikutnya
+Hadapi 30 level kampanye di enam benua. Selesaikan kampanye tiap benua untuk membuka invasi wilayahnya: total 36 wilayah dan 108 front. Kumpulkan bintang, raih emas dengan menyelesaikan wilayah, dan buka hadiah tampilan saat menuntaskan benua.
+
+Dalam penaklukan bebas, setiap ekspedisi melewati lima wilayah dan berakhir dengan pertarungan bos. Tantangan harian memiliki aturan berganti dan kekuatan awal setara, tanpa peningkatan tempur. Pecahkan rekor pribadi dan salin kartu hasil untuk dibagikan kepada teman. Tantangan dimainkan di perangkatmu, bukan melawan pemain lain secara langsung.
+
+Kemajuan dari bermain
+Tingkatkan garnisun, perekrutan, kecepatan mars, dan hadiah emas. Naikkan pangkat, kumpulkan kota kampanye dalam atlas, dan selesaikan 20 pencapaian. Buka warna pasukan, bentuk pangkalan, gaya pasukan, dan tema peta. Tampilan tidak mengubah kekuatan tempur.
+
+Mainkan dengan caramu
+• Offline, tanpa iklan dan tanpa pembelian dalam aplikasi. Emas didapat dengan bermain.
+• 15 bahasa, termasuk Bahasa Indonesia. Bahasa Arab mendukung antarmuka kanan ke kiri.
+• Tema terang dan gelap, ukuran teks, palet ramah buta warna, pengurangan gerakan, kontras peta, kecepatan game, dan getaran dapat disesuaikan.
+• Tanpa akun. Progres tersimpan di perangkat, dengan cadangan yang bisa diekspor dan diimpor. Tidak ada penyimpanan cloud.
+
+Privasi
+Statistik penggunaan dan laporan error bersifat opsional dan aktif secara default pada versi ini. Matikan masing-masing di Pengaturan → Privasi; pilihan yang tersimpan tetap dihormati. Bermain tidak membutuhkan internet. Lihat kebijakan privasi untuk detailnya.
 ```
