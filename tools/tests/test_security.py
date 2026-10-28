@@ -63,6 +63,11 @@ class SecurityChecks(unittest.TestCase):
         output = subprocess.check_output(["bash", "-c", 'BADGING="$1"; ' + line + '; printf "%s" "$PERMS"', "test", badging], text=True)
         self.assertIn("com.google.android.gms.permission.AD_ID", output)
 
+    def test_native_picker_rejects_unknown_mode_before_downloading(self):
+        result = subprocess.run(["bash", str(ROOT / "scripts/build_ios_backup_picker.sh"), "unknown"], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("[Debug|Release]", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

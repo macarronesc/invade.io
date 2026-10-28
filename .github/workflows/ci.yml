@@ -192,8 +192,12 @@ jobs:
           mkdir -p "$templates"
           unzip -q -j templates.tpz templates/ios.zip -d "$templates"
       - name: Build native picker, import and test
+        env:
+          PRODUCTION: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         run: |
-          bash scripts/build_ios_backup_picker.sh
+          mode=Debug
+          if [[ "$PRODUCTION" == true ]]; then mode=Release; fi
+          bash scripts/build_ios_backup_picker.sh "$mode"
           godot --headless --path . --editor --import
           godot --headless --path . res://scenes/tests/test_runner.tscn -- --quick
       - name: Choose build mode

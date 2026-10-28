@@ -95,3 +95,7 @@ platform entries in `sentry.gdextension` and Godot's `.uid`, not modified execut
 Sentry 2.4.0 is available; availability alone is not evidence that 2.3.0 is vulnerable. Check its
 changelog and native/device compatibility before upgrading. Dependabot does not audit these
 vendored binaries or automatically update checksum-pinned download URLs.
+
+The iOS picker must match the engine template ABI: `bash scripts/build_ios_backup_picker.sh Debug`
+for Debug exports, or `Release` (the default) for Release. CI chooses the matching mode explicitly;
+never disable the picker just to make a Debug archive link.

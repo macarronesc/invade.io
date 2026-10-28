@@ -2,6 +2,12 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Godot's ClassDB binding ABI differs between Debug and Release templates.
+case "${1:-Release}" in
+	Debug) mode_flag="-DDEBUG_ENABLED" ;;
+	Release) mode_flag="-UDEBUG_ENABLED" ;;
+	*) echo 'usage: build_ios_backup_picker.sh [Debug|Release]' >&2; exit 1 ;;
+esac
 build="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/invadeio-backup-picker.XXXXXX")"
 trap 'rm -rf "$build"' EXIT
 headers="$build/headers"
@@ -27,6 +33,7 @@ xcrun --sdk iphoneos clang++ \
 	-arch arm64 -isysroot "$sdk" -miphoneos-version-min=15.0 \
 	-std=c++17 -fobjc-arc -fmodules -fcxx-modules -fno-exceptions -fno-rtti \
 	-DIOS_ENABLED -DUNIX_ENABLED -DPTRCALL_ENABLED -DTYPED_METHOD_BIND \
+	"$mode_flag" \
 	-I"$headers" -I"$headers/platform/ios" -I"$headers/drivers/apple_embedded" \
 	-c "$src" -o "$obj"
 libtool -static -o "$lib" "$obj"
