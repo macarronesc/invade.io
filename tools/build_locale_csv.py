@@ -121,8 +121,8 @@ def rows_from_source(src: dict) -> list[dict]:
     add("share_analytics", "Estadísticas de uso", "Usage statistics")
     add("share_crashes", "Informes de fallos", "Crash reports")
     add("privacy_note",
-        "Las estadísticas de uso y los informes de fallos son opcionales. Activa cada opción para compartirlos; puedes desactivarla cuando quieras.",
-        "Usage statistics and crash reports are optional. Turn on each option to share; you can turn either off at any time.")
+        "Las estadísticas de uso y los informes de fallos son opcionales y están activados de forma predeterminada. Puedes desactivar cada opción cuando quieras; se conserva tu elección.",
+        "Usage statistics and crash reports are optional and enabled by default. You can turn either option off at any time; your choice is saved.")
     add("privacy_policy", "Política de privacidad", "Privacy policy")
     return rows
 

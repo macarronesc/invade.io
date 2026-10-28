@@ -60,7 +60,7 @@ el combate, sólo cómo se ve tu conquista.
 ★ PENSADO PARA EL MÓVIL
 • Se juega con una mano en vertical, sin tutoriales largos: el primer nivel ya es una batalla.
 • Sin conexión: se puede jugar en modo avión. Las estadísticas de uso y los informes de fallos son
-  opcionales, están desactivados de forma predeterminada y se activan por separado en Ajustes.
+  opcionales, están activados de forma predeterminada y se pueden desactivar por separado en Ajustes.
 • Sin anuncios y sin compras. El oro se gana jugando.
 • Privacidad: sin cuentas ni identificadores persistentes; compartir datos es opcional.
 • Guardado local con copia de seguridad exportable e importable cuando quieras.

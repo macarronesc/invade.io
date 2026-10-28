@@ -81,8 +81,8 @@ Contribuciones: [CONTRIBUTING.md](CONTRIBUTING.md). Vulnerabilidades y credencia
   localizados vienen de Natural Earth dentro de `assets/data/geo.json`. Para añadir textos,
   edita `locale/strings.csv` y ejecuta `python3 tools/build_locale_csv.py --translate --overrides`;
   después regenera las fuentes con `python3 tools/build_locale_fonts.py <fuentes Noto>`.
-- Estadísticas de uso e informes de fallos opcionales (Aptabase y Sentry), desactivados de forma
-  predeterminada y activables por separado en Ajustes → Privacidad. No hay cuentas ni identificadores
+- Estadísticas de uso e informes de fallos opcionales (Aptabase y Sentry), activados de forma
+  predeterminada y desactivables por separado en Ajustes → Privacidad; se respetan los ajustes guardados. No hay cuentas ni identificadores
   persistentes; el juego sigue funcionando sin conexión. Configuración y eventos en `docs/ANALYTICS.md`.
 - Respuesta táctil con intensidad persistente y botón de prueba en móviles compatibles,
   un pulso por asalto y límite de repetición. No requiere plugins nativos.

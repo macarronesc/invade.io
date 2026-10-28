@@ -185,6 +185,9 @@ A major update for invade.io!
 - Licencias de código abierto disponibles sin conexión desde Ajustes.
 - Builds de pruebas separadas de la instalación publicada y su guardado.
 - CI para PR, comprobaciones de secretos/paquetes y firma de producción aislada y aprobada.
+- Estadísticas e informes de fallos activados por defecto, sin cambiar preferencias guardadas;
+  separación Debug/Release según la compilación real. Publicar la política y revisar Data Safety
+  y los requisitos de consentimiento antes de distribuir.
 
 ## 5. invade.io 0.3.0 — accesibilidad y pantallas grandes
 

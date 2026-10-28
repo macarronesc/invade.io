@@ -10,7 +10,7 @@ No se muestran botones de conexión que simulen servicios inexistentes.
 El lanzamiento previsto es Android e iOS, sin backend. Ajustes muestra el estado real del
 guardado local, su alcance y la posibilidad de perderlo al desinstalar; no promete nube.
 El preset Android habilita `VIBRATE`, `INTERNET` y `ACCESS_NETWORK_STATE` (estadísticas de uso e
-informes de fallos, ambos opt-in) y target SDK 36; requiere instalar la plantilla Gradle y configurar
+informes de fallos, ambos activados por defecto con baja independiente) y target SDK 36; requiere instalar la plantilla Gradle y configurar
 el SDK y la firma antes de exportar.
 
 Godot 4.7.2 expone el árbol de accesibilidad a lectores de pantalla en escritorio, pero no a
