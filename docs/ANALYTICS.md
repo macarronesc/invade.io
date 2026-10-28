@@ -20,18 +20,30 @@ const APTABASE_KEY := "A-EU-..."
 const SENTRY_DSN := "https://...@o....ingest.sentry.io/..."
 ```
 
-Con las claves vacías el juego funciona igual y no envía nada. En tests headless, en el editor y con
-`--no-telemetry` tampoco se inicializa nada. `--telemetry-debug` imprime los eventos por consola en
-una compilación de depuración.
+Con las claves vacías el juego funciona igual y no envía nada. El editor en sí, las escenas de
+`scenes/tests/` (también con ventana), las ejecuciones headless y `--no-telemetry` no inicializan
+proveedores, ni siquiera al cambiar ajustes. Jugar desde el editor o por MCP sí es una ejecución
+Debug y puede enviar datos si los ajustes lo permiten. Para una prueba manual sin envíos, usa
+`godot --path . -- --no-telemetry`. `--telemetry-debug` imprime los eventos por consola en Debug.
 
-Al iniciar una sesión con consentimiento, `session_start` se intenta enviar de inmediato; los eventos
+Al iniciar una sesión con estadísticas habilitadas, `session_start` se intenta enviar de inmediato; los eventos
 siguientes se siguen agrupando con el intervalo normal.
 
-El preset **Android AAB** añade `aptabase_release` para que Aptabase marque sus eventos como Release;
-el APK de pruebas no lleva esa marca y conserva el estado Debug de la compilación.
+Ambos proveedores usan `OS.is_debug_build()`, sin marcas de preset ni condiciones de rama en el
+cliente: Aptabase envía `systemProps.isDebug` y Sentry usa el entorno `debug` o `production`.
+Comparten la App Key/DSN existentes; los datos se separan por esas dimensiones, no por proyectos distintos.
 
-La IPA de `main` se compila como `Release`; las de PR/otras ramas son `Debug` y Sentry las marca
-como `debug`, no `production`. Los envíos correctos no se imprimen en Release. Los fallos de transporte aparecen como avisos en la consola local de Godot/Xcode; no
+| Ejecución o artefacto | Aptabase | Sentry |
+|---|---|---|
+| Juego desde editor/MCP o CLI con el binario editor | Debug | `debug` |
+| APK de CI, en cualquier rama (también el adjunto a la release) | Debug | `debug` |
+| AAB de CI, incluso el candidato sin firma de PR | Release | `production` |
+| IPA de un push a `main` | Release | `production` |
+| IPA de PR, otras ramas o ejecución manual (también en `main`) | Debug | `debug` |
+
+Un AAB exportado manualmente con `--export-debug` también es Debug; un APK con `--export-release`
+es Release. El formato, el identificador de paquete y la firma no cambian la clasificación.
+Los envíos correctos no se imprimen en Release. Los fallos de transporte aparecen como avisos en la consola local de Godot/Xcode; no
 se adjuntan a Sentry (`attach_log = false`). La suite headless verifica el cliente contra un servidor
 HTTP local y no envía eventos ni claves reales a Aptabase.
 
@@ -94,7 +106,10 @@ GameAnalytics).
 
 ## Privacidad
 
-`Ajustes → Privacidad` permite activar por separado estadísticas y fallos; ambos empiezan desactivados.
+`Ajustes → Privacidad` permite controlar por separado estadísticas y fallos; ambos empiezan activados
+en instalaciones nuevas y guardados sin esas claves. Cualquier valor guardado prevalece, incluido
+`false`: los guardados existentes no distinguen el antiguo valor predeterminado de una baja explícita,
+por lo que no se fuerzan a `true`. No hace falta migrar el formato de guardado.
 Al retirar una opción, se descarta la cola de analítica no enviada y se detiene la captura futura. Una
 solicitud que ya esté en curso aún podría completarse. La política pública está en
 `docs/privacy-policy.html` y la declaración de Play en `docs/PLAY_STORE.md`. Declara actividad de la
@@ -104,6 +119,9 @@ de los proveedores; declara también que no se usan para tracking.
 
 La configuración minimiza los datos, pero la base legal y las declaraciones finales dependen de tu
 jurisdicción y de la retención configurada en cada proveedor. Revísalas con asesoría antes de publicar.
+Activar por defecto no equivale a obtener consentimiento: si la región o la política de la tienda lo
+exige, este cambio por sí solo no basta y hace falta un flujo de consentimiento previo. Publica la
+política actualizada y revisa Data Safety antes de distribuir esta versión.
 Las opciones de privacidad se conservan al reiniciar el progreso o importar una copia.
 
 Sentry se configura con `send_default_pii = false`, sin logs adjuntos, sin capturas, sin árbol de

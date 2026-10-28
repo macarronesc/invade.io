@@ -12,6 +12,12 @@ Every branch produces a Debug APK and non-main builds produce a Debug IPA, with 
 on PRs so the AAB pipeline is checked before merge, without any production credential. Never
 distribute that validation AAB as a signed release. Artifacts expire after seven days.
 
+Telemetry defaults to enabled unless a saved preference disables it. Classification follows the
+engine build, not the branch, signing, or package format: all CI APKs are Debug, all candidate AABs
+are Release, and only the IPA from a push to main is Release. Aptabase uses `isDebug`; Sentry uses
+`debug`/`production`. Editor-launched gameplay is Debug; automated test scenes and headless runs
+never initialize providers. See `docs/ANALYTICS.md` for the privacy and pre-publication checks.
+
 Only `push` to `refs/heads/main` can request production signing. Manual runs and PRs cannot.
 `sign-android` waits for both platform jobs and checks, then requests owner approval through
 `play-release`. It uses a fresh runner, no checkout, no Gradle, and no game/contributor scripts.

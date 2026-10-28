@@ -3,6 +3,24 @@ extends Node
 class CameraHarness extends BattleController:
 	func _ready() -> void: pass
 
+class SentryStub extends RefCounted:
+	var options := {}
+	var enabled := false
+	func init(configure: Callable) -> void:
+		configure.call(options)
+		enabled = true
+	func is_enabled() -> bool:
+		return enabled
+	func close() -> void:
+		enabled = false
+
+class TelemetryHarness extends "res://scripts/autoload/telemetry.gd":
+	var sdk := SentryStub.new()
+	func _is_test_runtime() -> bool:
+		return false
+	func _sentry() -> Object:
+		return sdk
+
 ## TestRunner: Suite de pruebas de validación automatizada de mecánicas State.io
 
 var total_tests: int = 0
@@ -25,10 +43,11 @@ func _ready() -> void:
 		"La exportación iOS habilita ETC2/ASTC explícitamente, sin depender del equipo")
 	var presets := ConfigFile.new()
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets se pueden leer")
-	assert_true(str(presets.get_value("preset.2", "custom_features", "")).split(",", false).has("aptabase_release"),
-		"El AAB de Play marca los eventos de Aptabase como Release")
-	assert_true(not str(presets.get_value("preset.1", "custom_features", "")).split(",", false).has("aptabase_release"),
-		"El APK de pruebas conserva el estado Debug de Aptabase")
+	for preset in ["preset.0", "preset.1", "preset.2", "preset.3"]:
+		assert_true(not str(presets.get_value(preset, "custom_features", "")).split(",", false).has("aptabase_release"),
+			"La telemetría sigue el tipo de compilación, no el preset: " + preset)
+	assert_true(not ProjectSettings.get_setting("sentry/options/auto_init", true),
+		"Sentry espera a cargar los ajustes de privacidad antes de inicializarse")
 
 	await test_mobile_experience()
 	if "--mobile" in OS.get_cmdline_user_args():
@@ -4429,10 +4448,42 @@ func test_light_and_dark_mode() -> void:
 	GameManager.reset_save()
 
 func test_telemetry_schema_and_privacy() -> void:
-	print("\n-> Test: Telemetría Opt-in y Privacidad")
+	print("\n-> Test: Telemetría por Defecto, Variante y Privacidad")
 	GameManager._apply_save({})
-	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "La telemetría empieza desactivada hasta que el jugador la active")
-	assert_true(Telemetry._is_test_runtime(), "La suite headless nunca inicializa analítica ni red")
+	assert_true(GameManager.settings["share_analytics"] and GameManager.settings["share_crashes"], "La telemetría empieza activada en una instalación nueva")
+	assert_true(Telemetry._is_test_runtime(), "Las pruebas gráficas y headless nunca inicializan proveedores reales")
+	Telemetry._init_analytics()
+	Telemetry._init_crashes()
+	Telemetry._on_settings_changed()
+	assert_true(not Telemetry._analytics_ready and not Telemetry._crash_ready and not Aptabase._initialized,
+		"Ni el arranque ni cambiar ajustes activa los proveedores durante las pruebas")
+	var telemetry := TelemetryHarness.new()
+	# Inicializar no envía eventos: el stub de Sentry y la cola vacía evitan tráfico real.
+	telemetry._init_analytics()
+	assert_true(telemetry._analytics_ready, "La analítica se inicializa con el ajuste predeterminado")
+	assert_equals(Aptabase._system_props.get("isDebug"), OS.is_debug_build(), "Aptabase usa la variante real del motor")
+	assert_true(Aptabase._event_queue.is_empty() and not Aptabase._request_in_flight, "Comprobar la variante no envía eventos reales")
+	Aptabase.disable()
+	telemetry._analytics_ready = false
+	telemetry._init_crashes()
+	assert_true(telemetry._crash_ready, "Los informes de fallos se inicializan con el ajuste predeterminado")
+	assert_equals(telemetry.sdk.options.get("environment"), "debug" if OS.is_debug_build() else "production", "Sentry usa la misma variante que Aptabase")
+	assert_true(not telemetry.sdk.options["send_default_pii"] and not telemetry.sdk.options["attach_log"] and not telemetry.sdk.options["attach_scene_tree"], "Sentry mantiene las restricciones de privacidad")
+	GameManager.settings["share_crashes"] = false
+	GameManager.settings["share_analytics"] = false
+	telemetry._on_settings_changed()
+	assert_true(not telemetry._crash_ready and not telemetry.sdk.enabled, "Desactivar los fallos cierra Sentry inmediatamente")
+	telemetry._init_analytics()
+	telemetry._init_crashes()
+	assert_true(not telemetry._analytics_ready and not telemetry._crash_ready and not Aptabase._initialized,
+		"Los ajustes desactivados impiden reinicializar ambos proveedores")
+	GameManager.settings["share_crashes"] = true
+	telemetry._on_settings_changed()
+	assert_true(telemetry._crash_ready and not telemetry._analytics_ready, "Reactivar fallos no reactiva estadísticas")
+	GameManager.settings["share_crashes"] = false
+	telemetry._on_settings_changed()
+	telemetry.free()
+	GameManager._apply_save({})
 	assert_true(EventBus.has_signal("battle_finished"), "La batalla publica un resultado único para analítica")
 	assert_equals(Telemetry._mode("europe_1"), "campaign", "Nivel de campaña identificado")
 	assert_equals(Telemetry._mode(DailyRewards.challenge_id(20000)), "daily", "Desafío diario identificado")
@@ -4466,7 +4517,14 @@ func test_telemetry_schema_and_privacy() -> void:
 	GameManager.load_game()
 	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "La privacidad persiste entre sesiones")
 	GameManager._apply_save({"version": 6, "upgrades": {}, "completed_levels": {}})
-	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Un guardado antiguo no activa la telemetría sin consentimiento")
+	assert_true(GameManager.settings["share_analytics"] and GameManager.settings["share_crashes"], "Un guardado sin opciones de telemetría recibe los valores predeterminados")
+	GameManager._apply_save({"settings": {"share_analytics": false}})
+	assert_true(not GameManager.settings["share_analytics"] and GameManager.settings["share_crashes"], "Sólo las opciones ausentes reciben el valor predeterminado")
+	GameManager._apply_save({"settings": {"share_analytics": false, "share_crashes": true}})
+	assert_true(not GameManager.settings["share_analytics"] and GameManager.settings["share_crashes"], "Las preferencias guardadas prevalecen por separado")
+	GameManager._apply_save({"settings": {"share_analytics": true, "share_crashes": false}})
+	assert_true(GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Desactivar los fallos no desactiva la analítica")
+	GameManager._apply_save({"settings": {"share_analytics": false, "share_crashes": false}})
 
 	# Retirar el consentimiento descarta la cola y cierra el contexto analítico de la batalla.
 	Telemetry._analytics_ready = true
@@ -4550,6 +4608,7 @@ func test_aptabase_http_delivery() -> void:
 	if batch is Array and batch.size() == 1:
 		var event: Dictionary = batch[0]
 		assert_equals(event.get("eventName", ""), "ci_smoke", "El nombre del evento llega intacto")
+		assert_equals(event.get("systemProps", {}).get("isDebug"), false, "La variante Release llega intacta en el JSON HTTP")
 		var props: Dictionary = event.get("props", {})
 		assert_equals(props.get("flag", 0), 1, "Las propiedades del evento llegan intactas")
 	assert_equals(int(request.get("response_error", ERR_CANT_CONNECT)), OK, "El servidor local acepta la petición HTTP")
@@ -4570,12 +4629,12 @@ func test_aptabase_http_delivery() -> void:
 	telemetry._analytics_ready = true
 	Aptabase._flush_timer.stop()
 	telemetry._start_session()
-	assert_true(Aptabase._request_in_flight, "Al consentir, la sesión empieza a enviarse sin esperar el temporizador")
+	assert_true(Aptabase._request_in_flight, "Con estadísticas habilitadas, la sesión se envía sin esperar el temporizador")
 	var session_request: Dictionary = await _receive_mock_aptabase_request(server)
-	assert_true(not session_request.is_empty(), "La sesión opt-in llega al servidor local")
+	assert_true(not session_request.is_empty(), "La sesión llega al servidor local")
 	if not session_request.is_empty():
 		var session_batch: Variant = JSON.parse_string(str(session_request["body"]))
-		assert_true(session_batch is Array and session_batch.size() == 1, "La sesión opt-in contiene un evento")
+		assert_true(session_batch is Array and session_batch.size() == 1, "La sesión contiene un evento")
 		if session_batch is Array and session_batch.size() == 1:
 			assert_equals(session_batch[0].get("eventName", ""), "session_start", "El primer evento es session_start")
 		var session_peer: StreamPeerTCP = session_request.get("peer")

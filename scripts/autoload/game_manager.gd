@@ -60,7 +60,7 @@ const FIRST_LEVEL_ID := "europe_1"
 const SAVE_VERSION = 7
 const DEFAULT_SETTINGS := {"volume": 0.8, "music_volume": 0.8, "vibration": true, "speed": 1.0, "colorblind": false,
 	"light_mode": true, "reduced_motion": false, "high_contrast_map": false, "text_scale": 0.0, "vibration_intensity": 0.55,
-	"share_analytics": false, "share_crashes": false}
+	"share_analytics": true, "share_crashes": true}
 const MAX_SAVE_BYTES := 2_000_000
 const HAPTIC_INTERVAL_MS := 80
 const GAME_SPEEDS := [0.75, 1.0, 1.5, 2.0]

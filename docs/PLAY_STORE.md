@@ -18,7 +18,7 @@ indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se 
 | 64 bits | ✅ | Sólo `arm64-v8a` |
 | 16 KB de página (obligatorio para API 35+, exigible a las actualizaciones desde el 1 feb 2027) | ✅ | AGP 8.6.1 + NDK 29 alinean a 16 KB; lo comprueba el script |
 | Permisos mínimos | ✅ | `VIBRATE`, `INTERNET` y `ACCESS_NETWORK_STATE`; la red sólo se usa si el jugador activa estadísticas o informes de fallos |
-| Declaración de datos (Data Safety) | ⬜ revisar en Play Console | Actividad de la app, diagnósticos y país aproximado derivado de la IP; las opciones empiezan desactivadas |
+| Declaración de datos (Data Safety) | ⬜ revisar en Play Console | Actividad de la app, diagnósticos y país aproximado derivado de la IP; opciones activadas por defecto, con baja independiente |
 | Política de privacidad | ✅ `docs/privacy-policy.html` | Actualizada para Aptabase y Sentry; hay que publicarla en una URL (paso 4) |
 | Icono 512×512 | ✅ | `assets/brand/play-store-icon-512.png` |
 | Gráfico destacado 1024×500 sin alfa | ✅ | `docs/store_assets/feature-graphic-1024x500.png` |
@@ -176,7 +176,9 @@ Todo esto se hace en la web de Play Console; el orden importa.
    - **Seguridad de los datos**: *¿La app recoge o comparte datos?* → **Sí**. Declara actividad en la
      app, diagnósticos y ubicación aproximada (país inferido por Aptabase a partir de la IP). Los
      eventos de uso incluyen un identificador temporal de sesión. No hay cuentas ni publicidad; cada
-     envío está desactivado hasta que el usuario lo active en Ajustes → Privacidad. Revisa en Play
+     opción está activada por defecto y se puede desactivar en Ajustes → Privacidad; se respetan
+     las bajas guardadas. Antes de publicar, revisa si la región o la tienda exige consentimiento
+     previo: un valor predeterminado activo no lo sustituye. Revisa en Play
      Console si el identificador temporal se clasifica como «Device or other IDs». Google considera
      «recogida» cualquier dato que salga del dispositivo, incluida la IP recibida por los proveedores.
    - **Noticias, COVID-19, apps gubernamentales, financieras y de salud**: No.
@@ -254,7 +256,7 @@ ver en Play Console: que la clave de subida coincida con la registrada, la decla
 informe previo al lanzamiento. R8 optimiza Java/Kotlin; no reduce GDScript, el motor/librerías nativas,
 geografía ni fuentes, así que no se debe prometer una reducción de RAM sin medirla. Antes de producción,
 instala el AAB de prueba en un móvil y una tableta/plegable, gira y redimensiona la ventana durante menú
-y batalla, y activa temporalmente los informes de Sentry para comprobar el flujo nativo (R8 no procesa
+y batalla, y comprueba el flujo nativo de Sentry con los informes habilitados (R8 no procesa
 esa GDExtension nativa).
 
 ## 8. Decisiones y avisos

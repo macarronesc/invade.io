@@ -58,8 +58,8 @@ your conquest looks.
 
 ★ BUILT FOR PHONES
 • One-handed portrait play, no long tutorial: your first level is already a battle.
-• Works offline: you can play in airplane mode. Optional usage statistics and crash reports are off
-  by default and can be enabled separately in Settings.
+• Works offline: you can play in airplane mode. Optional usage statistics and crash reports are on
+  by default and can be disabled separately in Settings.
 • No ads and no purchases. Gold is earned by playing.
 • Privacy: no accounts or persistent identifiers; data sharing is optional.
 • Local save with an exportable, importable backup whenever you want.

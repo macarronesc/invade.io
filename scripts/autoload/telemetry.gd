@@ -1,6 +1,6 @@
 extends Node
 
-## Telemetry: estadísticas de uso opt-in (Aptabase) e informes de fallos opt-in (Sentry).
+## Telemetry: estadísticas de uso (Aptabase) e informes de fallos (Sentry), con baja en Ajustes.
 ##
 ## No envía cuentas, nombres, correos, ubicación precisa ni identificadores
 ## persistentes del dispositivo. Los proveedores sí reciben la IP de conexión.
@@ -44,18 +44,19 @@ func _ready() -> void:
 		_start_session()
 	_set_screen("menu")
 
-## En tests y ejecuciones headless no se inicializa ni se envía nada.
+## El juego desde el editor es Debug; el editor, los tests y headless no envían nada.
 func _is_test_runtime() -> bool:
 	return DisplayServer.get_name() == "headless" \
 		or OS.has_feature("headless") \
-		or OS.has_feature("editor") \
+		or Engine.is_editor_hint() \
+		or "\n".join(OS.get_cmdline_args()).replace("\\", "/").contains("scenes/tests/") \
 		or OS.get_cmdline_user_args().has("--no-telemetry")
 
 func _analytics_allowed() -> bool:
-	return bool(GameManager.settings.get("share_analytics", false))
+	return bool(GameManager.settings.get("share_analytics", GameManager.DEFAULT_SETTINGS["share_analytics"]))
 
 func _crash_allowed() -> bool:
-	return bool(GameManager.settings.get("share_crashes", false))
+	return bool(GameManager.settings.get("share_crashes", GameManager.DEFAULT_SETTINGS["share_crashes"]))
 
 func _app_version() -> String:
 	return str(ProjectSettings.get_setting("application/config/version", "0.3.1"))
@@ -65,18 +66,18 @@ func _app_version() -> String:
 # =========================================================================
 
 func _init_analytics() -> void:
-	if _analytics_ready or not _analytics_allowed() or APTABASE_KEY.is_empty():
+	if _is_test_runtime() or _analytics_ready or not _analytics_allowed() or APTABASE_KEY.is_empty():
 		return
 	if not is_instance_valid(Aptabase):
 		return
 	_analytics_ready = Aptabase.init(APTABASE_KEY, {
 		"app_version": _app_version(),
-		"is_debug": OS.is_debug_build() and not OS.has_feature("aptabase_release"),
+		"is_debug": OS.is_debug_build(),
 		"flush_interval": 10.0,
 	})
 
 func _init_crashes() -> void:
-	if _crash_ready or not _crash_allowed() or SENTRY_DSN.is_empty():
+	if _is_test_runtime() or _crash_ready or not _crash_allowed() or SENTRY_DSN.is_empty():
 		return
 	var sdk := _sentry()
 	if sdk == null or not sdk.has_method("init"):
@@ -139,7 +140,7 @@ func _start_session() -> void:
 		"invasion_stars": GameManager.total_invasion_stars(),
 		"language": GameManager.language,
 	})
-	# Send the first opt-in event now instead of waiting for a mobile idle timer.
+	# Send the first session event now instead of waiting for a mobile idle timer.
 	Aptabase.flush()
 
 func _end_session(reason: String) -> void:
