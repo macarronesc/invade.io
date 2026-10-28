@@ -189,6 +189,24 @@ A major update for invade.io!
   separación Debug/Release según la compilación real. Publicar la política y revisar Data Safety
   y los requisitos de consentimiento antes de distribuir.
 
+Textos propuestos **sólo si se publica el binario 0.3.1**, no para una renovación de ficha sin build.
+Cada bloque está por debajo de 500 caracteres. Confirmar primero el comportamiento de producción:
+
+```text
+<es-ES>
+• Consulta las licencias de código abierto desde Ajustes, también sin conexión.
+• Las estadísticas de uso y los informes de fallos empiezan activados; se respetan tus preferencias guardadas. Desactiva cada opción en Ajustes → Privacidad.
+• Se conserva tu progreso al actualizar.
+</es-ES>
+<en-US>
+• Open-source licenses are available in Settings, including offline.
+• Usage statistics and crash reports now start enabled; your saved choices are respected. Turn either off in Settings → Privacy.
+• Your existing progress is preserved when you update.
+</en-US>
+```
+
+Material de la ficha y pasos de actualización: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
+
 ## 5. invade.io 0.3.0 — accesibilidad y pantallas grandes
 
 `versionCode` 4 · `versionName` 0.3.0.

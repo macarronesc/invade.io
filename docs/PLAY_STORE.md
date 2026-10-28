@@ -1,5 +1,9 @@
 # Publicar invade.io en Google Play
 
+> **La aplicación ya está publicada.** Para renovar la ficha, las capturas, los idiomas
+> y las declaraciones de una actualización, usa [PLAY_STORE_UPDATE.md](PLAY_STORE_UPDATE.md).
+> Los pasos de alta inicial que aparecen más abajo son referencia histórica, no trabajo pendiente.
+
 Plan completo y comprobaciones para subir el juego a Google Play sin Android Studio. Cada punto
 indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se comprueba**.
 
@@ -17,12 +21,12 @@ indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se 
 | Build firmada y no depurable | ✅ | El flujo firma con la clave de subida; la verificación rechaza paquetes depurables |
 | 64 bits | ✅ | Sólo `arm64-v8a` |
 | 16 KB de página (obligatorio para API 35+, exigible a las actualizaciones desde el 1 feb 2027) | ✅ | AGP 8.6.1 + NDK 29 alinean a 16 KB; lo comprueba el script |
-| Permisos mínimos | ✅ | `VIBRATE`, `INTERNET` y `ACCESS_NETWORK_STATE`; la red sólo se usa si el jugador activa estadísticas o informes de fallos |
+| Permisos mínimos | ✅ | `VIBRATE`, `INTERNET` y `ACCESS_NETWORK_STATE`; estadísticas e informes de fallos empiezan activos en 0.3.1, con baja independiente |
 | Declaración de datos (Data Safety) | ⬜ revisar en Play Console | Actividad de la app, diagnósticos y país aproximado derivado de la IP; opciones activadas por defecto, con baja independiente |
 | Política de privacidad | ✅ `docs/privacy-policy.html` | Actualizada para Aptabase y Sentry; hay que publicarla en una URL (paso 4) |
 | Icono 512×512 | ✅ | `assets/brand/play-store-icon-512.png` |
 | Gráfico destacado 1024×500 sin alfa | ✅ | `docs/store_assets/feature-graphic-1024x500.png` |
-| Al menos 2 capturas | ✅ 7 por idioma | `docs/store_assets/screenshots_{en,es,pt_BR,fr,de,it,ru,tr,ar,hi,id,vi,zh_CN,ja,ko}/` (1080×1920) |
+| Capturas de tienda | ✅ generador de 8 por idioma | `docs/store_assets/screenshots_<idioma>/` (1080×1920), más 4 capturas de tableta por idioma; validar antes de subir |
 | Orientación y redimensionado en pantallas grandes | ⚠️ Implementado; verificar el AAB/dispositivo | Sensor sin bloqueo; menú y batalla adaptan el tablero al apaisado y al cambio de tamaño |
 | Optimización R8 | ⚠️ Configurada en CI; verificar AAB firmado | Minificación sólo release; el AAB debe incluir el mapa R8 |
 | Título ≤ 30, corta ≤ 80, completa ≤ 4000 | ⚠️ | Los 15 borradores cumplen límites; revisar las traducciones antes de publicarlas |
@@ -61,8 +65,9 @@ indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se 
   conquista y desafío diario mantienen ciudades, fuerzas y tiempos, y que las bases apaisadas no se
   solapan. `balance_check.tscn -- --wide-ui` prueba y captura menú y batalla a 1920×1080, incluido un
   giro durante una partida.
-- Las 7 capturas de tienda se generan en los 15 idiomas existentes. `balance_check.tscn -- --ui`
-  primero crea las capturas por idioma; después `store_assets.tscn` las copia y ordena.
+- Las capturas de tienda se generan directamente desde escenas reales, con titulares localizados,
+  en los 15 idiomas. `store_assets.tscn` ya no depende de una ejecución anterior de `--ui`.
+  La suite `balance_check.tscn -- --ui` sigue siendo una comprobación de interfaz independiente.
 - Correcciones de esta revisión: el tutorial de arrastre ya no puede congelar la batalla (caduca a los
   20 s), la tarjeta de ayuda abre y cierra bien con el botón atrás de Android, dos glifos que se veían
   como cuadros vacíos, el aviso de logro ya no tapa la cabecera de batalla, los botones de reclamar se
@@ -150,8 +155,8 @@ servidor propio:
 Los recursos gráficos se regeneran cuando cambien los mapas o el tema:
 
 ```sh
-godot --path . res://scenes/tests/store_assets.tscn      # requiere pantalla (o xvfb-run)
-godot --path . res://scenes/tests/balance_check.tscn -- --ui   # antes, para las capturas
+xvfb-run -a godot --audio-driver Dummy --path . res://scenes/tests/store_assets.tscn -- --no-telemetry
+python3 tools/build_store_listings.py --package  # valida y crea build/play-store-listing.zip
 ```
 
 ## 5. Falta: Play Console (camino crítico)

@@ -1,23 +1,42 @@
 # invade.io — Google Play (Italiano)
 
-## Nome dell'app (9/30)
+## Nome dell'app
 
 ```
-invade.io
+invade.io: Conquista territori
 ```
 
 ## Descrizione breve
 
 ```
-Conquista territori base dopo base. Strategia veloce, offline, senza pubblicità.
+Conquista mappe reali. Strategia territoriale offline e senza pubblicità
 ```
 
 ## Descrizione completa
 
 ```
-invade.io è un veloce gioco di strategia territoriale: scegli una base, trascina il dito e le tue truppe marciano verso la successiva. Cinque secondi per capire, 30 livelli di campagna e oltre 100 fronti d'invasione da padroneggiare.
+Trasforma una base in una conquista che abbraccia tutto il continente.
 
-La mappa è il mondo reale, con coste, confini e più di mille città. Ogni continente aggiunge una regola: capitali, fabbriche, giungla, oasi, fortezze e rotte marittime. Completa la campagna per aprire invasioni regionali a tre fronti, con stelle e un boss finale.
+invade.io è un gioco di strategia territoriale offline per giocatore singolo giocato su mappe del mondo reale. Trascina tra le basi per inviare truppe, unire le tue forze e decidere quando attaccare o ritirarsi. Semplici controlli mettono la mossa successiva nelle tue mani.
 
-Ci sono anche sfide giornaliere con regole a rotazione e conquiste libere in spedizioni di cinque regioni. Gioca offline, senza pubblicità e senza acquisti: l'oro si guadagna giocando. 15 lingue, temi chiaro e scuro, palette per daltonici, movimento ridotto e vibrazione regolabile.
+OGNI MOSSA CONTA
+Cattura fabbriche per reclutare più velocemente, conquista città capitali strategiche e sfonda le difese fortificate. Ogni continente introduce giungle, oasi, rotte marittime o boss con rinforzi. Collega più basi alleate con un solo gesto o taglia una rotta per richiamare le tue truppe.
+
+UNA CAMPAGNA E MOLTO ALTRO
+ Combatti attraverso 30 livelli di campagna in sei continenti. Completa la campagna di ogni continente per sbloccare le sue invasioni regionali: 36 regioni, 108 fronti e stelle da dominare. Completa una regione in cambio di oro e guadagna ricompense cosmetiche man mano che completi i continenti.
+
+ALTRI MODI PER CONQUISTARE
+Nella conquista libera, ogni spedizione attraversa cinque regioni e termina con un boss. Affronta una sfida quotidiana con regole variabili e forze iniziali uguali, senza potenziamenti di combattimento. Batti il tuo record e copia una scheda dei risultati da condividere con gli amici. Le sfide si giocano sul tuo dispositivo, non contro avversari in tempo reale.
+
+PROGRESSI GUADAGNATI GIOCANDO
+Migliora la guarnigione, il reclutamento, la velocità di marcia e le ricompense in oro. Sali di grado, raccogli le città della campagna nel tuo atlante e completa 20 obiettivi. Sblocca i colori dell'esercito, le forme delle basi, gli stili delle truppe e i temi della mappa. Gli oggetti estetici cambiano l'aspetto, non la forza di combattimento.
+
+GIOCA A MODO TUO
+• Gameplay offline, senza pubblicità e senza acquisti in-app. L'oro si guadagna giocando.
+• 15 lingue: inglese, spagnolo, portoghese brasiliano, francese, tedesco, italiano, russo, turco, arabo, hindi, indonesiano, vietnamita, cinese semplificato, giapponese e coreano. L'arabo include un'interfaccia da destra a sinistra.
+• Temi chiari e scuri, dimensione del testo regolabile, tavolozza per daltonici, movimento ridotto, contrasto della mappa, velocità di gioco e feedback tattile.
+• Nessun account richiesto. I progressi rimangono sul tuo dispositivo, con backup esportabili e importabili; non è disponibile alcun salvataggio nel cloud.
+
+PRIVACY
+Le statistiche sull'utilizzo e i report sugli arresti anomali sono facoltativi e abilitati per impostazione predefinita in questa versione. Disattivali separatamente in Impostazioni → Privacy; le scelte salvate vengono rispettate. Il gioco non richiede una connessione Internet. Consulta l'informativa sulla privacy per i dettagli.
 ```

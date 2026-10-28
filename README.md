@@ -4,6 +4,7 @@ Juego vertical de estrategia territorial en Godot 4.7.
 
 Contribuciones: [CONTRIBUTING.md](CONTRIBUTING.md). Vulnerabilidades y credenciales:
 [SECURITY.md](SECURITY.md). Flujo de CI, firma y publicación: [docs/RELEASES.md](docs/RELEASES.md).
+Ficha de Play, material gráfico y guía de actualización: [docs/PLAY_STORE_UPDATE.md](docs/PLAY_STORE_UPDATE.md).
 
 ## Experiencia de jugador
 
@@ -164,8 +165,9 @@ xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --gestures
 Para la ficha de Google Play (necesita pantalla real o `xvfb-run`):
 
 ```sh
-# Gráfico destacado 1024×500 y capturas ordenadas en docs/store_assets/
-godot --path . res://scenes/tests/store_assets.tscn
+# 8 capturas promocionales y 4 de tableta por idioma, desde escenas reales (sin un --ui previo).
+xvfb-run -a godot --audio-driver Dummy --path . res://scenes/tests/store_assets.tscn -- --no-telemetry
+python3 tools/build_store_listings.py --package  # material listo en build/play-store-listing.zip
 # Plantilla Gradle + R8 para exportar localmente; se ejecuta una vez por plantilla instalada.
 godot --headless --path . --install-android-build-template --export-debug "Android" build/android/invadeio.apk
 bash scripts/enable_android_r8.sh
