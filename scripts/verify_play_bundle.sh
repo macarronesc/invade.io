@@ -24,9 +24,6 @@ else
 fi
 
 PACKAGE="${EXPECTED_PACKAGE:-macarronesc.invadeio}"
-if [ -n "$APK" ] && [ -z "$BUNDLE" ]; then
-	PACKAGE="${EXPECTED_PACKAGE:-macarronesc.invadeio.debug}"
-fi
 EXPECTED_TARGET_SDK="36"
 EXPECTED_MIN_SDK="24"
 MIN_PAGE_ALIGN=16384
@@ -172,7 +169,12 @@ if [ -n "$BUNDLE" ]; then
 	while IFS= read -r so; do
 		[ "$so" = "$ENGINE_SO" ] && continue
 		unzip -p "$BUNDLE" "$so" >"$TMP/extra.so"
-		for a in $(readelf -lW "$TMP/extra.so" | awk '$1 == "LOAD" { print $NF }'); do
+		ALIGNS="$(readelf -lW "$TMP/extra.so" | awk '$1 == "LOAD" { print $NF }')"
+		if [ -z "$ALIGNS" ]; then
+			bad "$(basename "$so") no contiene segmentos ELF LOAD"
+			continue
+		fi
+		for a in $ALIGNS; do
 			if [ "$((a))" -lt "$MIN_PAGE_ALIGN" ]; then
 				bad "$(basename "$so") tiene segmentos ELF por debajo de 16 KB"
 				continue 2
@@ -266,6 +268,8 @@ PY
 		else
 			bad "sin R8: falta el mapa de desofuscación (ejecuta scripts/enable_android_r8.sh antes de exportar)"
 		fi
+	else
+		bad "el manifiesto del AAB está vacío o no se pudo leer"
 	fi
 
 	# Si algo del paquete no cuadra, se muestra su estructura para diagnosticar sin otra ejecución
@@ -279,6 +283,8 @@ fi
 # APK: target/min SDK, arquitecturas y permisos declarados
 # --------------------------------------------------------------------------
 if [ -n "$APK" ] && [ -f "$APK" ]; then
+	# A combined AAB + APK check sees the production bundle and the separate Debug app.
+	PACKAGE="${EXPECTED_PACKAGE:-macarronesc.invadeio.debug}"
 	AAPT2="$(find_build_tool aapt2 || true)"
 	if [ -z "$AAPT2" ]; then
 		die "aapt2 es obligatorio para verificar el APK"

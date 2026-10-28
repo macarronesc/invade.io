@@ -26,7 +26,8 @@ class SecurityChecks(unittest.TestCase):
     def test_export_boundaries(self):
         notices = (NOTICES, build().encode())
         check_entries([notices, ("scripts/main.gdc", b"game")])
-        check_entries([("base/assets/" + notices[0], notices[1])])
+        for prefix in ("assets/", "base/assets/", "assetPackInstallTime/assets/"):
+            check_entries([(prefix + notices[0], notices[1])])
         for path in ("build/headers/a.import", "scripts/tests/test.gdc", "../escape", "upload.jks", ".tmp", ".git/config"):
             with self.subTest(path=path), self.assertRaises(ValueError):
                 check_entries([notices, (path, b"data")])

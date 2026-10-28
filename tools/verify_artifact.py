@@ -41,12 +41,11 @@ def resource_path(name):
     parts = pathlib.PurePosixPath(name).parts
     if name.startswith("/") or ".." in parts:
         raise ValueError("Unsafe archive path")
+    # Strip exactly one container prefix: APK assets/assets vs AAB module/assets/assets.
+    if name.startswith("assets/"):
+        return name[len("assets/"):]
     if "/assets/" in name:
         return name.split("/assets/", 1)[1]
-    for prefix in ("assets/",):
-        if name.startswith(prefix):
-            # Android stores Godot's res://assets under assets/assets.
-            return name[len(prefix):]
     return name
 
 
