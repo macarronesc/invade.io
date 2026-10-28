@@ -178,6 +178,14 @@ A major update for invade.io!
 </en-US>
 ```
 
+## Próxima versión: invade.io 0.3.1 — contribuciones y builds seguras
+
+`versionCode` 5 · **pendiente de comprobar disponibilidad en Play Console**.
+
+- Licencias de código abierto disponibles sin conexión desde Ajustes.
+- Builds de pruebas separadas de la instalación publicada y su guardado.
+- CI para PR, comprobaciones de secretos/paquetes y firma de producción aislada y aprobada.
+
 ## 5. invade.io 0.3.0 — accesibilidad y pantallas grandes
 
 `versionCode` 4 · `versionName` 0.3.0.

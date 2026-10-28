@@ -31,7 +31,12 @@ func _focus_control(control_name: String) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
-		_close()
+		var licenses := get_node_or_null("LicenseDetails")
+		if licenses != null:
+			licenses.queue_free()
+			call_deferred("_focus_control", "OpenSourceLicenses")
+		else:
+			_close()
 
 func _close() -> void:
 	if is_queued_for_deletion():
@@ -114,6 +119,7 @@ func _build(restore_focus: String = "") -> void:
 		GameManager.set_setting("share_crashes", value))
 	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("privacy_note")))
 	_button("privacy_policy", func(): OS.shell_open(Telemetry.PRIVACY_URL), "shield")
+	_button("open_source_licenses", _show_licenses, "help")
 
 	_section("section_data")
 	_group.add_child(UIThemeHelper.label(LocaleStrings.text("save_auto"), "Heading"))
@@ -140,6 +146,25 @@ func _restore_focus_and_scroll(control_name: String, scroll_position: int) -> vo
 		var control := find_child(control_name, true, false)
 		if control is Control:
 			control.grab_focus()
+
+func _show_licenses() -> void:
+	var panel := Control.new()
+	panel.name = "LicenseDetails"
+	add_child(panel)
+	var close := func():
+		panel.queue_free()
+		call_deferred("_focus_control", "OpenSourceLicenses")
+	var content := UIThemeHelper.overlay_page(panel, LocaleStrings.text("open_source_licenses"), close)
+	var text := TextEdit.new()
+	text.editable = false
+	text.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	text.custom_minimum_size = Vector2(0, 1000)
+	text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	text.accessibility_name = LocaleStrings.text("open_source_licenses")
+	text.text = FileAccess.get_file_as_string("res://assets/legal/notices.txt") + "\n\nGodot Engine\n" + Engine.get_license_text()
+	text.text += "\n\n" + JSON.stringify(Engine.get_copyright_info(), "\t") + "\n\n" + JSON.stringify(Engine.get_license_info(), "\t")
+	content.add_child(text)
+	text.grab_focus()
 
 func _refresh_save_status() -> void:
 	var key := "save_local_ok"

@@ -35,16 +35,17 @@ indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se 
 ## 2. Lo que ya está hecho en el repositorio
 
 - `export_presets.cfg`: preset **Android AAB** (formato AAB, sólo arm64-v8a, minSdk 24, targetSdk 36,
-  versionName 0.3.0, versionCode 4, VIBRATE e iconos, incluido el monocromo). La firma **no** está
+  versionName 0.3.1, versionCode 5, VIBRATE e iconos, incluido el monocromo). La firma **no** está
   en el repositorio: se lee de las variables `GODOT_ANDROID_KEYSTORE_RELEASE_*`. Antes de subir,
-  confirma en Play Console que el código 4 siga disponible; si ya se usó, elige el siguiente código libre.
+  confirma en Play Console que el código 5 siga disponible; si ya se usó, elige el siguiente código libre.
 - `project.godot`: permite redimensionado y rotación con `SCREEN_SENSOR`. La UI mantiene un lienzo con el lado corto
   a 1080 unidades lógicas; Jugar coloca mapa/ficha en columnas en apaisado, y la batalla calcula un
   tablero 1920×1080 con cámara que se vuelve a encajar al girar/redimensionar.
-- `.github/workflows/build-android.yml`: importa recursos, ejecuta la suite completa y las pruebas
-  visuales, exporta el APK de prueba y activa R8 en `android/build/build.gradle`. El AAB firmado se
-  genera y verifica sólo cuando existe la firma del entorno `play-release`, restringido a `main`;
-  el artefacto se publica como `invadeio-play-bundle`.
+- `.github/workflows/ci.yml`: comprueba secretos/versiones, ejecuta la suite completa y las pruebas
+  visuales, exporta el APK Debug con identificador `.debug` y valida un AAB **sin firma** en todas
+  las ramas/PR. Sólo un push a `main` puede solicitar `play-release`: un runner nuevo, sin checkout
+  ni ejecución del juego, firma el AAB aprobado. Faltan credenciales: falla, nunca omite la firma.
+  Tras pasar todas las comprobaciones publica una release de GitHub; no sube a Play automáticamente.
 - `scripts/enable_android_r8.sh` + `tools/android/proguard-rules.pro`: parche reproducible e idempotente
   para la plantilla Android que Godot genera en `android/build/` (Godot aplana allí los archivos del
   subdirectorio `app/`; esa carpeta está ignorada por Git). R8 se activa sólo en `release`, sin resource
@@ -93,10 +94,15 @@ gh secret set ANDROID_KEYSTORE_BASE64 --env play-release --repo macarronesc/inva
 gh secret set ANDROID_KEY_ALIAS      --env play-release --repo macarronesc/invade.io --body 'upload'
 gh secret set ANDROID_KEY_PASSWORD   --env play-release --repo macarronesc/invade.io
 # Sin gh: Settings → Environments → play-release → Environment secrets
+# 5. Huella SHA-256 PÚBLICA del certificado de subida; compárala con Play Console.
+gh variable set ANDROID_UPLOAD_CERT_SHA256 --env play-release --repo macarronesc/invade.io
 ```
 
 Si ya existen secretos homónimos a nivel de repositorio, elimínalos después de comprobar el Environment.
 La protección del Environment y de la rama `main` es parte del límite de seguridad de la firma.
+El propietario debe aprobar manualmente la firma; no hay bypass de administrador. Mientras sólo
+haya un mantenedor, se permite su autoaprobación del despliegue (no es revisión independiente).
+La huella inicial se obtuvo del último AAB de `main`, no de acceso a Play Console: compruébala allí.
 
 **La contraseña debe ser sólo ASCII**: letras, números y signos como `! $ = ? # - . _ + @ ~ | &`.
 Un solo carácter fuera de ASCII (por ejemplo `£`, `ñ`, `á`) hace fallar la creación de la clave con
@@ -135,8 +141,8 @@ Guardas a tener en cuenta:
 los diagnósticos y el país aproximado derivado de la IP. Para publicarla con una URL activa, sin
 servidor propio:
 
-1. GitHub → repositorio → **Settings → Pages** → *Source*: `Deploy from a branch` →
-   rama `main`, carpeta `/docs` → **Save**.
+1. GitHub → **Settings → Pages** → *Source*: `GitHub Actions`. El workflow `pages.yml`
+   despliega únicamente `docs/privacy-policy.html` desde `main`, con Actions fijadas por SHA.
 2. En un minuto estará en `https://macarronesc.github.io/invade.io/privacy-policy.html`.
    Ese es el enlace que se pega en Play Console (App content → Privacy policy).
 3. Alternativa: cualquier hosting estático propio; sólo cambia la URL.
@@ -177,7 +183,7 @@ Todo esto se hace en la web de Play Console; el orden importa.
    - **Permisos peligrosos**: ninguno (VIBRATE, INTERNET y ACCESS_NETWORK_STATE no lo son), así que no
      hay formulario.
 4. **Prueba interna** (Probar y publicar → Pruebas → Prueba interna): subir
-   `invadeio-play-bundle` desde el artefacto de GitHub Actions, añadirte como probador y comprobar en
+   `invadeio.aab` desde la release de GitHub, añadirte como probador y comprobar en
    tu móvil que instala, abre y guarda. Si el AAB no sube, Play dirá el motivo exacto (normalmente
    versión repetida o firma).
 5. **Prueba cerrada** (obligatoria para cuentas personales nuevas): crear la pista, invitar a
@@ -214,14 +220,17 @@ así que conviene reclutarlos **antes** de subir el primer AAB.
 ## 6. Publicar una actualización
 
 1. Cambiar `version/code` en los dos presets Android (debe crecer siempre) y, si procede,
-   `version/name` (por ejemplo `0.3.0`). Mantén `application/config/version` en `project.godot`
+   `version/name` (por ejemplo `0.3.1`). Mantén `application/config/version` en `project.godot`
    sincronizado: Sentry lo usa como identificador de release.
-2. `git commit` y `git push`: GitHub Actions ejecuta las pruebas, exporta y verifica el AAB nuevo.
-3. Descargar el artefacto `invadeio-play-bundle`, subirlo a la pista correspondiente, escribir las
+2. Abre una PR de release a `main` con versión y códigos mayores. Tras el merge, CI verifica el
+   candidato; aprueba la firma sólo después de revisar commit, checks, permisos y código de Play.
+3. Descarga `invadeio.aab` de la release de GitHub, verifica `SHA256SUMS` y súbelo a la pista correspondiente; escribe las
    notas de la versión (el texto de cada publicación está en
    [store_listing/release_notes.md](store_listing/release_notes.md)) y publicar.
 
 Los `version/code` ya usados no se pueden repetir nunca en la misma app.
+El APK se llama `invadeio-debug.apk`, usa `.debug` y no actualiza la instalación de Play.
+Detalles y recuperación de publicaciones parciales: [RELEASES.md](RELEASES.md).
 
 ## 7. Comprobar antes de subir
 

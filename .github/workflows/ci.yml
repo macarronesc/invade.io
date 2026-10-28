@@ -1,0 +1,355 @@
+name: CI and releases
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  GODOT_VERSION: '4.7.2'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install checksum-verified security tools
+        run: |
+          bash tools/install_security_tools.sh "$RUNNER_TEMP/security-tools"
+          echo "$RUNNER_TEMP/security-tools" >> "$GITHUB_PATH"
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Scan history and current files without exposing findings
+        run: |
+          gitleaks git --log-opts=--all --redact=100 --no-banner --max-decode-depth=3 .
+          gitleaks dir --redact=100 --no-banner --max-decode-depth=3 .
+          python3 tools/check_repository.py
+      - name: Test security and release checks
+        # Exercise the same JDK as production; never skip the disposable-key regression in CI.
+        run: |
+          command -v keytool
+          command -v jarsigner
+          python3 -m unittest discover -s tools/tests -v
+          actionlint
+          shellcheck scripts/*.sh tools/install_security_tools.sh
+      - name: Validate release version
+        id: version
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          args=()
+          if [[ "$EVENT" == pull_request && "$BASE_REF" == main ]]; then
+            args=(--base origin/main)
+          elif [[ "$EVENT" == push && "$GITHUB_REF" == refs/heads/main ]]; then
+            args=(--base HEAD^)
+          fi
+          version="$(python3 tools/check_release.py "${args[@]}")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build-android:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - name: Install Android components
+        run: |
+          sdkmanager --sdk_root="$ANDROID_HOME" "build-tools;36.1.0" "platforms;android-36" "ndk;29.0.14206865"
+      - name: Install Godot and Android template
+        run: |
+          cd "$RUNNER_TEMP"
+          release="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o godot.zip
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o templates.tpz
+          echo '9aa00f7a605200940bce3027a567b782f49bd8e940dd06ae9e987bd65aee1b1467edd56ed84fcdcbdd44354bf613bdbb4e5d2913e925850368e150c59ed54c65  godot.zip' | sha512sum --check -
+          echo 'ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1648d2e5f40980c9adc28d23e1b92e732ee7bf3461997aa804af74ec2fcd7a93ccb84079  templates.tpz' | sha512sum --check -
+          unzip -q godot.zip
+          mkdir -p "$RUNNER_TEMP/bin"
+          chmod +x "Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          ln -s "$RUNNER_TEMP/Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$RUNNER_TEMP/bin/godot"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          templates="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$templates"
+          unzip -q -j templates.tpz templates/android_source.zip -d "$templates"
+      - name: Configure SDK paths
+        run: |
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.7.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          EOF
+      - name: Install verified bundletool
+        run: |
+          cd "$RUNNER_TEMP"
+          curl --fail --location --retry 3 -o bundletool.jar 'https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar'
+          echo '50feda5f3f00931bad943a37b7cfc33d8ea53b33bd9bfa83832f612da6e99b72146206695ae25df5044030e305e1d718c833ad51c12b944079c263bba3cbffa0  bundletool.jar' | sha512sum --check -
+          echo "BUNDLETOOL_JAR=$RUNNER_TEMP/bundletool.jar" >> "$GITHUB_ENV"
+      - name: Import and run complete tests
+        run: |
+          godot --headless --path . --editor --import
+          godot --headless --path . res://scenes/tests/test_runner.tscn
+          xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --ui
+          xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --wide-ui
+      - name: Configure unsigned export and build Debug APK
+        run: |
+          godot --headless --path . --script tools/configure_ci_export.gd
+          mkdir -p build/android
+          godot --headless --path . --install-android-build-template --export-debug Android build/android/invadeio-debug.apk
+          bash scripts/verify_play_bundle.sh build/android/invadeio-debug.apk
+          python3 tools/verify_artifact.py build/android/invadeio-debug.apk
+      - name: Check R8 idempotence
+        run: |
+          test_root="$(mktemp -d "$RUNNER_TEMP/invadeio-r8-test.XXXXXX")"
+          trap 'rm -rf "$test_root"' EXIT
+          mkdir -p "$test_root/build"
+          cp android/build/build.gradle "$test_root/build/build.gradle"
+          bash scripts/enable_android_r8.sh "$test_root/build"
+          bash scripts/enable_android_r8.sh "$test_root/build"
+          test "$(grep -Fc '// invadeio: R8 release' "$test_root/build/build.gradle")" -eq 1
+          grep -Fq 'minifyEnabled true' "$test_root/build/build.gradle"
+          test -s "$test_root/build/invadeio-proguard-rules.pro"
+      - name: Build and verify unsigned production candidate (no production secrets)
+        env:
+          ALLOW_UNSIGNED_AAB: 'true'
+        run: |
+          bash scripts/enable_android_r8.sh
+          godot --headless --path . --export-release 'Android AAB' build/android/invadeio-unsigned.aab
+          bash scripts/verify_play_bundle.sh build/android/invadeio-unsigned.aab build/android/invadeio-debug.apk
+          python3 tools/verify_artifact.py build/android/invadeio-unsigned.aab
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          path: build/android/invadeio-debug.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          path: build/android/invadeio-unsigned.aab
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Verify the raw artifact handoff used by the isolated signer
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: invadeio-unsigned.aab
+          path: ${{ runner.temp }}/artifact-roundtrip
+          skip-decompress: true
+      - name: Check downloaded candidate bytes
+        run: cmp build/android/invadeio-unsigned.aab "$RUNNER_TEMP/artifact-roundtrip/invadeio-unsigned.aab"
+
+  build-ios:
+    needs: checks
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Godot and iOS template
+        run: |
+          cd "$RUNNER_TEMP"
+          release="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_macos.universal.zip" -o godot.zip
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o templates.tpz
+          echo 'c58a24e31d720be9d62f60cb5627c4e695fb72f21b0cfe1bc9ccaa9a3b3ba63e  godot.zip' | shasum -a 256 -c -
+          echo 'f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011  templates.tpz' | shasum -a 256 -c -
+          unzip -q godot.zip
+          mkdir -p "$RUNNER_TEMP/bin"
+          ln -s "$RUNNER_TEMP/Godot.app/Contents/MacOS/Godot" "$RUNNER_TEMP/bin/godot"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          templates="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$templates"
+          unzip -q -j templates.tpz templates/ios.zip -d "$templates"
+      - name: Build native picker, import and test
+        env:
+          PRODUCTION: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          mode=Debug
+          if [[ "$PRODUCTION" == true ]]; then mode=Release; fi
+          bash scripts/build_ios_backup_picker.sh "$mode"
+          godot --headless --path . --editor --import
+          godot --headless --path . res://scenes/tests/test_runner.tscn -- --quick
+      - name: Choose build mode
+        env:
+          PRODUCTION: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          if [[ "$PRODUCTION" == true ]]; then
+            godot --headless --path . --script tools/configure_ci_export.gd -- --production
+            {
+              echo 'IOS_CONFIGURATION=Release'
+              echo 'IOS_EXPORT=--export-release'
+              echo 'IPA_NAME=invade.io.ipa'
+            } >> "$GITHUB_ENV"
+          else
+            godot --headless --path . --script tools/configure_ci_export.gd
+            {
+              echo 'IOS_CONFIGURATION=Debug'
+              echo 'IOS_EXPORT=--export-debug'
+              echo 'IPA_NAME=invade.io-debug.ipa'
+            } >> "$GITHUB_ENV"
+          fi
+      - name: Export and archive without Apple signing credentials
+        run: |
+          mkdir -p "$RUNNER_TEMP/ios"
+          godot --headless --path . "$IOS_EXPORT" iOS "$RUNNER_TEMP/ios/invadeio.xcodeproj"
+          xcodebuild archive -quiet -project "$RUNNER_TEMP/ios/invadeio.xcodeproj" -scheme invadeio \
+            -configuration "$IOS_CONFIGURATION" -sdk iphoneos -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/ios/invadeio.xcarchive" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='' \
+            DEVELOPMENT_TEAM='' PROVISIONING_PROFILE_SPECIFIER='' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
+      - name: Package and verify IPA
+        run: |
+          cd "$RUNNER_TEMP/ios"
+          mkdir -p Payload
+          cp -R invadeio.xcarchive/Products/Applications/invadeio.app Payload/
+          test -s Payload/invadeio.app/invadeio
+          test -s Payload/invadeio.app/invadeio.pck
+          test ! -e Payload/invadeio.app/embedded.mobileprovision
+          plutil -lint Payload/invadeio.app/Info.plist
+          lipo Payload/invadeio.app/invadeio -verify_arch arm64
+          zip -q -r "$IPA_NAME" Payload
+          python3 "$GITHUB_WORKSPACE/tools/verify_artifact.py" "$IPA_NAME"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          path: ${{ runner.temp }}/ios/${{ env.IPA_NAME }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+  sign-android:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [checks, build-android, build-ios]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: play-release
+    steps:
+      # No checkout, game execution, Gradle, or contributor-provided scripts in this job.
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: invadeio-unsigned.aab
+          path: ${{ runner.temp }}/signing
+          skip-decompress: true
+      - name: Sign verified candidate with the expected upload certificate
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          EXPECTED_CERT: ${{ vars.ANDROID_UPLOAD_CERT_SHA256 }}
+        run: |
+          : "${KEYSTORE_BASE64:?Missing upload keystore}"
+          : "${ANDROID_KEY_ALIAS:?Missing upload alias}"
+          : "${ANDROID_KEY_PASSWORD:?Missing upload password}"
+          : "${EXPECTED_CERT:?Missing public certificate fingerprint}"
+          umask 077
+          key="$RUNNER_TEMP/upload.keystore"
+          trap 'rm -f "$key"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$key"
+          cd "$RUNNER_TEMP/signing"
+          # An already-signed candidate is never promoted or stripped/re-signed.
+          entries="$(unzip -Z1 invadeio-unsigned.aab)"
+          if grep -Eqi '^META-INF/[^/]+\.(RSA|DSA|EC|SF)$' <<< "$entries"; then
+            echo 'Expected an unsigned bundle' >&2
+            exit 1
+          fi
+          jarsigner -keystore "$key" -storepass:env ANDROID_KEY_PASSWORD -keypass:env ANDROID_KEY_PASSWORD \
+            -signedjar invadeio.aab invadeio-unsigned.aab "$ANDROID_KEY_ALIAS"
+          jarsigner -verify -certs invadeio.aab > verification.txt
+          grep -q 'jar verified' verification.txt
+          if grep -qi 'unsigned entries' verification.txt; then exit 1; fi
+          actual="$(keytool -printcert -jarfile invadeio.aab | sed -n 's/^[[:space:]]*SHA256: //p' | tr -d ':[:space:]')"
+          expected="$(printf '%s' "$EXPECTED_CERT" | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          [[ "$expected" =~ ^[0-9A-F]{64}$ && "$actual" == "$expected" ]]
+      - name: Remove signing material even after failure
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.keystore"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          path: ${{ runner.temp }}/signing/invadeio.aab
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [checks, build-android, build-ios, sign-android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: invadeio.aab
+          path: release
+          skip-decompress: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: invade.io.ipa
+          path: release
+          skip-decompress: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: invadeio-debug.apk
+          path: release
+          skip-decompress: true
+      - name: Publish once, for the exact tested commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.checks.outputs.version }}
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          tag="v$VERSION"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo 'Release already exists; refusing to replace published assets.' >&2
+            exit 1
+          fi
+          if gh api "repos/$GH_REPO/git/ref/tags/$tag" >/dev/null 2>&1; then
+            echo 'Tag already exists; refusing to move or reuse it.' >&2
+            exit 1
+          fi
+          # Atomic creation also rejects an existing/racing tag or an API/network failure.
+          gh api "repos/$GH_REPO/git/refs" --method POST -f ref="refs/tags/$tag" -f sha="$GITHUB_SHA" >/dev/null
+          cd release
+          printf '%s\n' "$GITHUB_SHA" > COMMIT.txt
+          sha256sum invadeio.aab invade.io.ipa invadeio-debug.apk COMMIT.txt > SHA256SUMS
+          # Assemble assets as a draft; only expose a complete release.
+          gh release create "$tag" --verify-tag --target "$GITHUB_SHA" --title "invade.io $VERSION" --generate-notes --draft \
+            --notes 'AAB: Google Play upload. IPA: unsigned SideStore build, not App Store/TestFlight. APK: Debug with a separate application ID, not a Play update. See SHA256SUMS and COMMIT.txt.'
+          gh release upload "$tag" invadeio.aab invade.io.ipa invadeio-debug.apk COMMIT.txt SHA256SUMS
+          gh release edit "$tag" --draft=false
