@@ -145,6 +145,9 @@ var _last_haptic_duration := 0
 var _save_blocked := false
 
 func _init() -> void:
+	# Autoloads run before the test scene can select its per-suite save file.
+	if "\n".join(OS.get_cmdline_args()).replace("\\", "/").contains("scenes/tests/"):
+		save_path = "user://automation_startup_save.json"
 	_apply_save({})
 
 func _ready() -> void:
