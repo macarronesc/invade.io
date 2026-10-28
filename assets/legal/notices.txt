@@ -5,6 +5,22 @@ Natural Earth geographical data is public domain.
 Godot Engine and its third-party licenses are displayed alongside these notices in Settings.
 
 ========================================================================
+NOTICE
+
+invade.io
+
+Original invade.io code
+Copyright 2026 macarronesc
+
+This product includes original code from invade.io, created by macarronesc.
+Original project: https://github.com/macarronesc/invade.io
+
+Other contributors retain copyright in their respective contributions.
+Third-party components retain their own copyright and license notices.
+Attribution does not imply endorsement of modified or redistributed versions.
+
+
+========================================================================
 LICENSE
 
                                  Apache License

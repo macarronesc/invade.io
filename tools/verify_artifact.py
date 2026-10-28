@@ -6,6 +6,7 @@ import struct
 import zipfile
 
 from check_repository import sensitive_content, sensitive_path
+from build_notices import ROOT
 
 NOTICES = "assets/legal/notices.txt"
 
@@ -62,12 +63,13 @@ def check_entries(entries, require_notices=True):
         if path == ".tmp" or path.startswith(("build/", "tools/", "docs/", ".git/", ".github/", "scripts/tests/", "scenes/tests/")):
             raise ValueError("Development resource in artifact: " + name)
         if path == NOTICES or name == NOTICES:
-            notices = b"Apache License" in data and b"Copyright (c) 2025 Aptabase" in data
+            notices = (b"Apache License" in data and b"Copyright (c) 2025 Aptabase" in data
+                       and (ROOT / "NOTICE").read_bytes().strip() in data)
         if name.endswith(".pck"):
             check_entries(pck_entries(data), require_notices=True)
             notices = True
     if require_notices and not notices:
-        raise ValueError("Missing bundled license notices")
+        raise ValueError("Missing bundled license notices or original-author attribution")
 
 
 def verify(path):

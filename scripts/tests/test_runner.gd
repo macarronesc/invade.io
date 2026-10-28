@@ -365,7 +365,7 @@ func test_mobile_experience() -> void:
 	assert_true(settings.find_child("LocalSaveStatus", true, false).text == LocaleStrings.text("save_local_ok"), "Ajustes muestra el guardado local incluso desde la pausa")
 	settings._show_licenses()
 	var licenses := settings.get_node("LicenseDetails").find_children("*", "TextEdit", true, false)[0] as TextEdit
-	assert_true(not licenses.editable and licenses.text.contains("Apache License") and licenses.text.contains("Godot Engine"), "Las licencias del proyecto y motor están disponibles sin conexión")
+	assert_true(not licenses.editable and licenses.text.contains("Apache License") and licenses.text.contains("created by macarronesc") and licenses.text.contains("Godot Engine"), "La autoría original y las licencias del proyecto y motor están disponibles sin conexión")
 	settings._notification(NOTIFICATION_WM_GO_BACK_REQUEST)
 	assert_true(not settings.is_queued_for_deletion(), "Volver desde las licencias conserva Ajustes")
 	assert_true(settings.find_child("BackupImport", true, false) == null, "Durante la batalla no se ofrece sustituir la partida")

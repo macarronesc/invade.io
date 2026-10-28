@@ -71,9 +71,14 @@ PCK variants and missing notices. `scripts/verify_play_bundle.sh` requires Andro
 tools, checks all permission namespaces, and allows unsigned AABs **only** when explicitly requested
 by the pre-signing build. SDK/permission/orientation/R8/alignment checks still apply to that candidate.
 
-The project remains Apache-2.0. Original contributions retain their copyright; third-party licenses
-remain separate. Regenerate bundled notices with `python3 tools/build_notices.py` after changes.
-Settings shows those notices and Godot's built-in license/copyright information offline.
+The project remains Apache-2.0. `NOTICE` credits **macarronesc** for the original code and links
+to the original repository. Redistributed derivatives must retain relevant attribution under
+Apache-2.0 section 4(d); commercial/proprietary use remains allowed. Other contributors retain
+their copyrights and third-party licenses remain separate. This does not add a private-use or
+main-screen credit requirement. Existing license grants are not retroactively changed.
+Regenerate bundled notices with `python3 tools/build_notices.py` after NOTICE/license changes.
+Settings shows the original-author credit, those notices and Godot's license information offline.
+Package checks reject exports missing the original NOTICE attribution.
 
 ## Dependency inventory
 

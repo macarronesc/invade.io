@@ -23,6 +23,15 @@ Review executable third-party/native changes particularly carefully; CI cannot p
 Follow [SECURITY.md](SECURITY.md) for private reports. First-party code/assets remain Apache-2.0;
 submitted contributions are under that license (section 5), and third-party notices must remain.
 
+`NOTICE` identifies **macarronesc** as the original author of invade.io's code. Commercial use,
+modification, and proprietary derivatives remain permitted. When redistributing the original or
+derivative code, preserve relevant copyright and attribution notices under Apache-2.0 sections
+4(c) and 4(d), whether modified or not. Include the relevant NOTICE attribution in at least one
+license-permitted location: a distributed NOTICE file, source/documentation, or a product notice
+display. Our builds include it in the offline license viewer. This does not require public credit
+for private/internal use or a main-screen credit, add new license conditions, or relicense third-party
+work. Regenerate `assets/legal/notices.txt` after editing NOTICE or license files.
+
 Workflow, signing, native-plugin, telemetry, and license changes need explicit maintainer scrutiny.
 Fork workflows require approval. CI tests pushed tips and PR merge results, not each intermediate
 game snapshot in a multi-commit push; the secret scan covers commit history too.

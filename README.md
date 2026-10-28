@@ -230,7 +230,18 @@ El código y los recursos propios del proyecto se distribuyen bajo Apache-2.0 (v
 componentes de terceros conservan sus licencias y avisos: Aptabase y Sentry bajo MIT
 (`addons/aptabase/LICENSE` y `addons/sentry/LICENSE.md`), las fuentes bajo OFL
 (`assets/fonts/LICENSE-OFL.txt`) y los datos cartográficos de Natural Earth en el dominio público.
+
+El autor del código original de invade.io es **macarronesc**, identificado en `NOTICE` junto con
+el enlace al proyecto original. Se permite usar, modificar, redistribuir y vender el código, incluso
+dentro de productos de código cerrado, cumpliendo Apache-2.0. Al redistribuir el código original o
+sus derivados, con o sin modificaciones, deben conservarse los avisos de copyright y la atribución
+pertinentes conforme a las secciones 4(c) y 4(d). La atribución de `NOTICE` debe acompañar a la
+distribución en al menos uno de los lugares permitidos: un archivo NOTICE, el código fuente o la
+documentación distribuida, o una pantalla de avisos del producto. No se exige una mención pública
+por uso privado/interno ni un crédito en la pantalla principal. Estos avisos no añaden condiciones
+a Apache-2.0 ni cambian retroactivamente licencias ya concedidas.
+
 Las builds incluyen `assets/legal/notices.txt` y Ajustes → Licencias de código abierto muestra
-también las licencias del motor. Regenera los avisos con `python3 tools/build_notices.py` tras
-cambiar una licencia. Apache-2.0 no concede derechos sobre marcas ni permite retirar los permisos
+también la atribución original y las licencias del motor. Regenera los avisos con
+`python3 tools/build_notices.py` tras cambiar `NOTICE` o una licencia. Apache-2.0 no concede derechos sobre marcas ni permite retirar los permisos
 ya concedidos a versiones anteriores.

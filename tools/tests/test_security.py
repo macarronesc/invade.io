@@ -49,6 +49,13 @@ class SecurityChecks(unittest.TestCase):
 
     def test_notices_are_current(self):
         self.assertEqual((ROOT / NOTICES).read_text(), build())
+        self.assertIn((ROOT / "NOTICE").read_text().strip(), build())
+        self.assertIn("created by macarronesc", build())
+
+    def test_artifacts_require_original_author_attribution(self):
+        without_credit = build().replace((ROOT / "NOTICE").read_text().strip(), "").encode()
+        with self.assertRaisesRegex(ValueError, "original-author attribution"):
+            check_entries([(NOTICES, without_credit)])
 
     def test_version_consistency(self):
         project = (ROOT / "project.godot").read_text()

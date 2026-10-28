@@ -3,7 +3,7 @@
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SOURCES = ["LICENSE", "addons/aptabase/LICENSE", "addons/sentry/LICENSE.md", "assets/fonts/LICENSE-OFL.txt"]
+SOURCES = ["NOTICE", "LICENSE", "addons/aptabase/LICENSE", "addons/sentry/LICENSE.md", "assets/fonts/LICENSE-OFL.txt"]
 
 
 def build():
