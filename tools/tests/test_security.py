@@ -1,8 +1,11 @@
+import os
 import pathlib
 import struct
 import subprocess
 import sys
+import tempfile
 import unittest
+import zipfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from build_notices import ROOT, build
@@ -54,14 +57,38 @@ class SecurityChecks(unittest.TestCase):
             versions(project.replace('config/version="', 'config/version="99'), presets)
 
     def test_apk_permission_gate(self):
-        script = (ROOT / "scripts/verify_play_bundle.sh").read_text()
-        line = next(line for line in script.splitlines() if 'PERMS="$(grep' in line)
-        badging = "\n".join("uses-permission: name='%s'" % name for name in (
-            "android.permission.ACCESS_NETWORK_STATE", "android.permission.INTERNET",
-            "android.permission.VIBRATE", "com.google.android.gms.permission.AD_ID"))
-        # Execute the real filter rather than a second Python implementation.
-        output = subprocess.check_output(["bash", "-c", 'BADGING="$1"; ' + line + '; printf "%s" "$PERMS"', "test", badging], text=True)
-        self.assertIn("com.google.android.gms.permission.AD_ID", output)
+        # Exercise the entire script against controlled Android-tool output, not a copied filter.
+        with tempfile.TemporaryDirectory(prefix="invade-apk-", dir=os.environ.get("RUNNER_TEMP", os.environ.get("TMPDIR"))) as tmp:
+            root = pathlib.Path(tmp)
+            apk = root / "fixture.apk"
+            with zipfile.ZipFile(apk, "w") as archive:
+                archive.writestr("lib/arm64-v8a/libgodot_android.so", b"fixture")
+            aapt = root / "aapt2"
+            aapt.write_text('''#!/bin/bash
+if [[ "${BROKEN_TOOL:-false}" == true ]]; then exit 1; fi
+cat <<EOF
+package: name='macarronesc.invadeio.debug'
+targetSdkVersion:'36'
+sdkVersion:'${MIN_SDK:-24}'
+native-code: 'arm64-v8a'
+uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.VIBRATE'
+EOF
+if [[ "${EXTRA_PERMISSION:-false}" == true ]]; then echo "uses-permission: name='com.google.android.gms.permission.AD_ID'"; fi
+exit 0
+''')
+            aapt.chmod(0o755)
+            align = root / "zipalign"
+            align.write_text("#!/bin/sh\nexit 0\n")
+            align.chmod(0o755)
+            env = dict(os.environ, PATH=tmp + os.pathsep + os.environ["PATH"], EXPECTED_PACKAGE="macarronesc.invadeio.debug", MIN_SDK="24", EXTRA_PERMISSION="false", BROKEN_TOOL="false")
+            def execute(values):
+                return subprocess.run(["bash", str(ROOT / "scripts/verify_play_bundle.sh"), str(apk)], env=values, capture_output=True)
+            self.assertEqual(execute(env).returncode, 0)
+            for overrides in ({"EXTRA_PERMISSION": "true"}, {"MIN_SDK": "23"}, {"BROKEN_TOOL": "true"}):
+                with self.subTest(overrides=overrides):
+                    self.assertNotEqual(execute(dict(env, **overrides)).returncode, 0)
 
     def test_native_picker_rejects_unknown_mode_before_downloading(self):
         result = subprocess.run(["bash", str(ROOT / "scripts/build_ios_backup_picker.sh"), "unknown"], capture_output=True, text=True)

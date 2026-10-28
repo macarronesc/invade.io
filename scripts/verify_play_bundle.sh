@@ -298,16 +298,10 @@ if [ -n "$APK" ] && [ -f "$APK" ]; then
 		else
 			bad "target SDK distinto de $EXPECTED_TARGET_SDK (encontrado: ${TARGET_SDK:-no declarado})"
 		fi
-		# Play no impone un min SDK, pero el motor necesita 24 y el paquete debe declararlo
-		MIN_REQUIRED=21
-		if [ -z "$MIN_SDK" ]; then
-			bad "el APK no declara minSdkVersion: el sistema no sabría en qué dispositivos instalar"
-		elif [ "$MIN_SDK" -lt "$MIN_REQUIRED" ]; then
-			bad "min SDK $MIN_SDK: por debajo de Android 5.0 (API $MIN_REQUIRED)"
-		elif [ "$MIN_SDK" != "$EXPECTED_MIN_SDK" ]; then
-			echo "  [AVISO] min SDK $MIN_SDK (el preset AAB fija $EXPECTED_MIN_SDK: Godot usa 29 por defecto si el renderizador es Vulkan)"
-		else
+		if [ "$MIN_SDK" = "$EXPECTED_MIN_SDK" ]; then
 			ok "min SDK $MIN_SDK"
+		else
+			bad "min SDK distinto de $EXPECTED_MIN_SDK (encontrado: ${MIN_SDK:-no declarado})"
 		fi
 		CODES="$(grep -oE "native-code: '.*'" <<<"$BADGING" || echo "native-code: ''")"
 		if grep -q "arm64-v8a" <<<"$CODES"; then

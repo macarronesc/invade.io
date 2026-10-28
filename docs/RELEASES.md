@@ -50,7 +50,7 @@ must be re-reviewed; re-running a workflow is not approval of a different commit
 - Actions: selected GitHub-owned Actions plus the exact pinned Android setup action; external
   contributors require approval. SHA pinning must remain enforced once Pages uses this workflow.
 - `main`/`dev`: preserve required builds, strict checks, admin enforcement, no force/deletion and
-  resolved conversations. Add `checks` as a required check after its first successful GitHub run.
+  resolved conversations. `checks` is also required, following its first successful GitHub runs.
 - `play-release`: only branch `main`, owner approval, no admin bypass, three environment secrets
   and the public certificate fingerprint. `ci` and repository secrets remain empty.
 - Pages: Actions source; `pages.yml` packages only the public policy and deploys main with scoped
