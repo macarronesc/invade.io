@@ -13,6 +13,7 @@ var failed_names: Array[String] = []
 const TEST_SAVE_PATH = "user://test_save.json"
 
 func _ready() -> void:
+	assert_equals(GameManager.save_path, "user://automation_startup_save.json", "El autoload aísla el guardado antes de iniciar las pruebas")
 	# Los tests nunca deben tocar la partida real del jugador
 	GameManager.save_path = TEST_SAVE_PATH
 	GameManager.load_game()
@@ -362,6 +363,11 @@ func test_mobile_experience() -> void:
 	settings.allow_backups = false
 	add_child(settings)
 	assert_true(settings.find_child("LocalSaveStatus", true, false).text == LocaleStrings.text("save_local_ok"), "Ajustes muestra el guardado local incluso desde la pausa")
+	settings._show_licenses()
+	var licenses := settings.get_node("LicenseDetails").find_children("*", "TextEdit", true, false)[0] as TextEdit
+	assert_true(not licenses.editable and licenses.text.contains("Apache License") and licenses.text.contains("Godot Engine"), "Las licencias del proyecto y motor están disponibles sin conexión")
+	settings._notification(NOTIFICATION_WM_GO_BACK_REQUEST)
+	assert_true(not settings.is_queued_for_deletion(), "Volver desde las licencias conserva Ajustes")
 	assert_true(settings.find_child("BackupImport", true, false) == null, "Durante la batalla no se ofrece sustituir la partida")
 	var vibration: CheckButton = settings.find_child("Vibration", true, false)
 	vibration.set_pressed(false)
@@ -479,13 +485,13 @@ func test_mobile_experience() -> void:
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets móviles se pueden leer")
 	assert_true(presets.get_value("preset.1.options", "permissions/vibrate", false), "Android exporta el permiso de vibración sin pedir permisos de usuario")
 	assert_true(presets.get_value("preset.0.options", "plugins/BackupFilePicker", false), "iOS habilita el selector nativo de copias")
-	var app_version := str(ProjectSettings.get_setting("application/config/version", "0.3.0"))
-	assert_equals(app_version, "0.3.0", "La versión del proyecto avanza a 0.3.0")
+	var app_version := str(ProjectSettings.get_setting("application/config/version", "0.3.1"))
+	assert_equals(app_version, "0.3.1", "La versión del proyecto avanza a 0.3.1")
 	assert_equals(presets.get_value("preset.0.options", "application/short_version", ""),
 		app_version, "La versión de iOS coincide con la versión reportada por analítica")
 	for preset in ["preset.1.options", "preset.2.options"]:
 		assert_equals(presets.get_value(preset, "version/name", ""), app_version, "El nombre de versión Android coincide: " + preset)
-		assert_equals(presets.get_value(preset, "version/code", 0), 4, "Android usa el siguiente versionCode: " + preset)
+		assert_equals(presets.get_value(preset, "version/code", 0), 5, "Android usa el siguiente versionCode: " + preset)
 	assert_equals(presets.get_value("preset.3", "name", ""), "iOS Diagnostics", "Existe un preset de diagnóstico iOS separado de Release")
 	assert_true(not presets.get_value("preset.3.options", "plugins/BackupFilePicker", true), "La IPA de diagnóstico evita enlazar el selector nativo de copias")
 	var picker_plugin := ConfigFile.new()

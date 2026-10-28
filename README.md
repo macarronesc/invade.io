@@ -2,6 +2,9 @@
 
 Juego vertical de estrategia territorial en Godot 4.7.
 
+Contribuciones: [CONTRIBUTING.md](CONTRIBUTING.md). Vulnerabilidades y credenciales:
+[SECURITY.md](SECURITY.md). Flujo de CI, firma y publicación: [docs/RELEASES.md](docs/RELEASES.md).
+
 ## Experiencia de jugador
 
 - El menú principal tiene cinco secciones en una barra inferior:
@@ -119,6 +122,8 @@ la regla de un continente distinto cada día; las expediciones también rotan es
 ## Validación
 
 ```sh
+python3 -m unittest discover -s tools/tests -v
+python3 tools/check_repository.py
 godot --headless --path . res://scenes/tests/test_runner.tscn
 ```
 
@@ -185,14 +190,15 @@ plataformas y no necesita acceso general al almacenamiento del teléfono.
 
 ### IPA para pruebas con SideStore
 
-El workflow `.github/workflows/build-ios.yml` genera una **IPA sin firmar** para iPhone
-usando Godot 4.7.2 y Xcode en un runner macOS de GitHub. No requiere un Mac propio,
-cuenta Apple en GitHub, certificados ni secretos. Ejecuta las pruebas rápidas antes de compilar.
+El workflow `.github/workflows/ci.yml` genera una **IPA sin firmar** para iPhone
+usando Godot 4.7.2 y Xcode en un runner macOS de GitHub. No necesita certificados ni secretos de Apple.
+Las PR y los pushes fuera de `main` usan Debug con el selector nativo de copias habilitado;
+únicamente un push a `main` genera la IPA Release. Se ejecutan pruebas antes de exportar.
 
 1. Haz commit de los cambios y súbelos con `git push`.
-2. Cada push a cualquier rama o etiqueta inicia la compilación del último commit automáticamente.
-   También puedes iniciarla desde **Actions → Build iOS IPA (SideStore) → Run workflow**.
-3. Cuando termine correctamente, descarga **invade.io.ipa** desde **Artifacts**.
+2. Cada push a una rama y cada actualización de PR valida el último commit o el merge propuesto.
+   También puedes iniciar **Actions → CI and releases → Run workflow**; no publica una release.
+3. Descarga **invade.io-debug.ipa** (ramas/PR) o **invade.io.ipa** (`main`) desde **Artifacts**.
    Se descarga directamente como IPA, sin un ZIP adicional, y se conserva durante 7 días.
 4. Guarda el archivo en **Archivos** del iPhone. Con Wi-Fi y LocalDevVPN activos,
    abre **SideStore → My Apps → +** y selecciona la IPA.
@@ -203,11 +209,10 @@ gratuitos en repositorios públicos; en privados se aplican las cuotas de GitHub
 La IPA no sirve para el App Store, TestFlight ni para instalarla directamente sin firma:
 SideStore la firma con tu cuenta y gestiona su renovación. La renovación no exige recompilar.
 
-El identificador estable es `macarronesc.invadeio` (el mismo en Android). La primera IPA con este
-identificador se instala como una app nueva: el guardado de la instalación anterior
-(`io.github.macarronesc.invadeio`) no se hereda, así que conviene desinstalarla y empezar de cero.
-A partir de ahí, para actualizar el juego importa la nueva IPA con la misma cuenta de SideStore sin
-desinstalar la anterior.
+El identificador de producción sigue siendo `macarronesc.invadeio`. Las builds Debug usan
+`macarronesc.invadeio.debug` en Android/iOS para no sustituir la app publicada ni sus guardados.
+Exporta una copia antes de cambiar una instalación de pruebas: los guardados anteriores no migran
+automáticamente. Para actualizar SideStore, conserva la cuenta y no desinstales la misma variante.
 `0000000000` es sólo un marcador en el preset, no un Team ID real. Al actualizar Godot,
 actualiza también los dos SHA-256 de sus descargas en el workflow de iOS (el de Android comprueba SHA-512).
 
@@ -225,3 +230,7 @@ El código y los recursos propios del proyecto se distribuyen bajo Apache-2.0 (v
 componentes de terceros conservan sus licencias y avisos: Aptabase y Sentry bajo MIT
 (`addons/aptabase/LICENSE` y `addons/sentry/LICENSE.md`), las fuentes bajo OFL
 (`assets/fonts/LICENSE-OFL.txt`) y los datos cartográficos de Natural Earth en el dominio público.
+Las builds incluyen `assets/legal/notices.txt` y Ajustes → Licencias de código abierto muestra
+también las licencias del motor. Regenera los avisos con `python3 tools/build_notices.py` tras
+cambiar una licencia. Apache-2.0 no concede derechos sobre marcas ni permite retirar los permisos
+ya concedidos a versiones anteriores.

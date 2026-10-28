@@ -23,7 +23,10 @@ else
 	APK="${2:-}"
 fi
 
-PACKAGE="macarronesc.invadeio"
+PACKAGE="${EXPECTED_PACKAGE:-macarronesc.invadeio}"
+if [ -n "$APK" ] && [ -z "$BUNDLE" ]; then
+	PACKAGE="${EXPECTED_PACKAGE:-macarronesc.invadeio.debug}"
+fi
 EXPECTED_TARGET_SDK="36"
 EXPECTED_MIN_SDK="24"
 MIN_PAGE_ALIGN=16384
@@ -37,7 +40,7 @@ need() { command -v "$1" >/dev/null 2>&1 || die "falta '$1' en el sistema ($2)";
 # aapt2 y zipalign viven en build-tools del SDK de Android, que puede no estar en el PATH
 find_build_tool() {
 	command -v "$1" 2>/dev/null && return 0
-	ls -1 "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/nonexistent}}"/build-tools/*/"$1" 2>/dev/null | sort -V | tail -1
+	find "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/nonexistent}}/build-tools" -type f -name "$1" 2>/dev/null | sort -V | tail -1
 }
 
 # bundletool (jar) decodifica el manifiesto binario y comprueba la alineación del paquete.
@@ -61,10 +64,15 @@ if [ -n "$BUNDLE" ]; then
 	need readelf "apt install binutils"
 	need jarsigner "viene con el JDK"
 	[ -f "$BUNDLE" ] || die "no existe el paquete: $BUNDLE"
+	[ -n "$JAVA" ] && [ -n "$BUNDLETOOL" ] || die "se necesitan Java y BUNDLETOOL_JAR para verificar el AAB"
 
 	echo "Verificando $BUNDLE ($(du -h "$BUNDLE" | cut -f1))"
 
-	unzip -tq "$BUNDLE" >/dev/null 2>&1 && ok "el archivo es un ZIP íntegro" || bad "el ZIP está dañado"
+	if unzip -tq "$BUNDLE" >/dev/null 2>&1; then
+		ok "el archivo es un ZIP íntegro"
+	else
+		bad "el ZIP está dañado"
+	fi
 	LIST="$(unzip -l "$BUNDLE" 2>/dev/null || true)"
 	[ -n "$LIST" ] || die "no se pudo leer el contenido de $BUNDLE"
 
@@ -120,7 +128,7 @@ if [ -n "$BUNDLE" ]; then
 			BT_OUT="$("$JAVA" -jar "$BUNDLETOOL" dump config --bundle="$BUNDLE" 2>&1 || true)"
 			BT_ALIGN="$(grep -iE "alignment" <<<"$BT_OUT" | head -3 || true)"
 			if [ -z "$BT_ALIGN" ]; then
-				echo "  [AVISO] bundletool no informa de la alineación del paquete: $(head -1 <<<"$BT_OUT")"
+				bad "bundletool no informa de la alineación del paquete"
 			elif grep -qE "PAGE_ALIGNMENT_(16|64)K" <<<"$BT_ALIGN"; then
 				ok "bundletool: el paquete pide 16 KB ($(tr '\n' ' ' <<<"$BT_ALIGN" | cut -c1-60))"
 			else
@@ -132,7 +140,10 @@ if [ -n "$BUNDLE" ]; then
 	fi
 
 	SIGN_OUT="$(jarsigner -verify -certs "$BUNDLE" 2>&1 || true)"
-	if grep -q "jar verified" <<<"$SIGN_OUT"; then
+	SIGNATURE_ENTRIES="$(unzip -Z1 "$BUNDLE")"
+	if [[ "${ALLOW_UNSIGNED_AAB:-false}" == true ]] && ! grep -Eqi '^META-INF/[^/]+\.(RSA|DSA|EC|SF)$' <<< "$SIGNATURE_ENTRIES"; then
+		ok "AAB sin firma: sólo permitido antes del job aislado de firma"
+	elif grep -q "jar verified" <<<"$SIGN_OUT" && ! grep -qi 'unsigned entries' <<<"$SIGN_OUT"; then
 		ok "el paquete está firmado y la firma es válida"
 		grep -oE "CN=[^,]*" <<<"$SIGN_OUT" | head -1 | sed 's/^/         certificado: /' || true
 	else
@@ -158,7 +169,7 @@ if [ -n "$BUNDLE" ]; then
 	fi
 
 	# Cualquier otra librería de arm64 (libc++_shared.so...) también debe estar a 16 KB
-	for so in $(grep -oE "^ +[0-9]+ +[0-9-]+ +[0-9:]+ +base/lib/arm64-v8a/[^ ]+\.so" <<<"$LIST" | awk '{ print $NF }' | sort -u); do
+	while IFS= read -r so; do
 		[ "$so" = "$ENGINE_SO" ] && continue
 		unzip -p "$BUNDLE" "$so" >"$TMP/extra.so"
 		for a in $(readelf -lW "$TMP/extra.so" | awk '$1 == "LOAD" { print $NF }'); do
@@ -168,7 +179,7 @@ if [ -n "$BUNDLE" ]; then
 			fi
 		done
 		ok "$(basename "$so") alineado a 16 KB"
-	done
+	done < <(grep -oE "^ +[0-9]+ +[0-9-]+ +[0-9:]+ +base/lib/arm64-v8a/[^ ]+\.so" <<<"$LIST" | awk '{ print $NF }' | sort -u)
 
 	MANIFEST="$TMP/AndroidManifest.xml"
 	unzip -p "$BUNDLE" "base/manifest/AndroidManifest.xml" >"$MANIFEST" 2>/dev/null || true
@@ -192,6 +203,11 @@ import xml.etree.ElementTree as ET
 
 root = ET.parse(sys.argv[1]).getroot()
 android = "{http://schemas.android.com/apk/res/android}"
+assert root.attrib.get("package") == __import__("os").environ.get("EXPECTED_PACKAGE", "macarronesc.invadeio"), "Unexpected package"
+sdk = root.find("uses-sdk")
+assert sdk is not None and sdk.attrib.get(android + "minSdkVersion") == "24" and sdk.attrib.get(android + "targetSdkVersion") == "36", "Unexpected SDK versions"
+app = root.find("application")
+assert app is not None and app.attrib.get(android + "debuggable", "false") == "false", "Release is debuggable"
 permissions = sorted({
 	child.attrib[android + "name"]
 	for child in root
@@ -250,11 +266,6 @@ PY
 		else
 			bad "sin R8: falta el mapa de desofuscación (ejecuta scripts/enable_android_r8.sh antes de exportar)"
 		fi
-		if grep -qF "debuggable" <<<"$STRINGS"; then
-			bad "el paquete está marcado como depurable: Play no acepta builds de depuración"
-		else
-			ok "no está marcado como depurable"
-		fi
 	fi
 
 	# Si algo del paquete no cuadra, se muestra su estructura para diagnosticar sin otra ejecución
@@ -270,10 +281,11 @@ fi
 if [ -n "$APK" ] && [ -f "$APK" ]; then
 	AAPT2="$(find_build_tool aapt2 || true)"
 	if [ -z "$AAPT2" ]; then
-		echo "  [INFO] aapt2 no está instalado: se omiten las comprobaciones de $APK"
+		die "aapt2 es obligatorio para verificar el APK"
 	else
 		echo "Verificando el APK $APK"
 		BADGING="$("$AAPT2" dump badging "$APK" 2>/dev/null || true)"
+		grep -Fq "package: name='$PACKAGE'" <<<"$BADGING" || bad "identificador APK inesperado"
 		# aapt2 antiguo imprime sdkVersion y el nuevo minSdkVersion: se aceptan las dos formas
 		# (|| true: con set -e, un grep sin resultados abortaría el script)
 		TARGET_SDK="$(grep -oE "targetSdkVersion:'[0-9]+'" <<<"$BADGING" | grep -oE "[0-9]+" | head -1 || true)"
@@ -304,7 +316,7 @@ if [ -n "$APK" ] && [ -f "$APK" ]; then
 			bad "el APK no incluye arm64-v8a"
 		fi
 		# Permisos normales esperados: vibración y red para analítica/fallos.
-		PERMS="$(grep -oE "uses-permission: name='android\.permission\.[A-Z_]+'" <<<"$BADGING" | sed "s/.*'\(.*\)'/\1/" | sort -u || true)"
+		PERMS="$(grep -oE "uses-permission[^:]*: name='[^']+'" <<<"$BADGING" | sed "s/.*'\(.*\)'/\1/" | sort -u || true)"
 		EXPECTED_PERMS=$'android.permission.ACCESS_NETWORK_STATE\nandroid.permission.INTERNET\nandroid.permission.VIBRATE'
 		if [ "$PERMS" = "$EXPECTED_PERMS" ]; then
 			ok "permisos esperados (VIBRATE, INTERNET, ACCESS_NETWORK_STATE)"
@@ -329,7 +341,7 @@ if [ -n "$APK" ] && [ -f "$APK" ]; then
 		fi
 		ZIPALIGN="$(find_build_tool zipalign || true)"
 		if [ -z "$ZIPALIGN" ]; then
-			echo "  [INFO] sin zipalign no se puede comprobar la alineación del ZIP"
+			die "zipalign es obligatorio para verificar el APK"
 		elif "$ZIPALIGN" -c -P 16 4 "$APK" >/dev/null 2>&1; then
 			ok "las entradas del APK están alineadas a 16 KB (zipalign -c -P 16 4)"
 		else

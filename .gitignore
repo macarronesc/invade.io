@@ -30,3 +30,6 @@ tools/__pycache__/
 *.pfx
 *.mobileprovision
 *.provisionprofile
+export_credentials.cfg
+.venv/
+**/__pycache__/

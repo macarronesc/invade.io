@@ -30,16 +30,21 @@ siguientes se siguen agrupando con el intervalo normal.
 El preset **Android AAB** añade `aptabase_release` para que Aptabase marque sus eventos como Release;
 el APK de pruebas no lleva esa marca y conserva el estado Debug de la compilación.
 
-La IPA de GitHub Actions se compila como `Release`, por lo que los envíos correctos no se imprimen en
-esa compilación. Los fallos de transporte aparecen como avisos en la consola local de Godot/Xcode; no
+La IPA de `main` se compila como `Release`; las de PR/otras ramas son `Debug` y Sentry las marca
+como `debug`, no `production`. Los envíos correctos no se imprimen en Release. Los fallos de transporte aparecen como avisos en la consola local de Godot/Xcode; no
 se adjuntan a Sentry (`attach_log = false`). La suite headless verifica el cliente contra un servidor
 HTTP local y no envía eventos ni claves reales a Aptabase.
 
-Para diagnosticar un iPhone, ejecuta manualmente **Build iOS IPA (SideStore)** con `diagnostic_ipa`
-activado e instala el artefacto `invade.io-debug.ipa`. En la consola del dispositivo, busca
+Para diagnosticar un iPhone, ejecuta **CI and releases** desde una rama distinta de `main`
+e instala `invade.io-debug.ipa`. En la consola del dispositivo, busca
 `[Aptabase] initialized`, `[Aptabase] sent` o los avisos de petición fallida. Esa IPA es solo para
-pruebas; usa el preset `iOS Diagnostics`, que omite el selector nativo de copias, y no la publiques en
+pruebas; ahora conserva el selector nativo de copias. No la publiques en
 tiendas ni compartas sus logs, que pueden incluir la respuesta del servidor.
+
+Las claves cliente son públicas y pueden recibir eventos falsos; revisa cuotas, límites y alertas
+en ambos proveedores. No uses un token administrativo en el cliente. Las opciones de privacidad
+del SDK y el contenido de los informes nativos deben verificarse en dispositivos reales: CI
+headless no demuestra por sí solo qué transmite el SDK nativo ni configura la eliminación de IP.
 
 ## Eventos
 

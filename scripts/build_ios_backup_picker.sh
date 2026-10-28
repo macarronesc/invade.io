@@ -2,7 +2,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-build="$root/build/ios/backup_picker"
+build="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/invadeio-backup-picker.XXXXXX")"
+trap 'rm -rf "$build"' EXIT
 headers="$build/headers"
 archive="$build/godot-headers.zip"
 url="https://github.com/godot-mobile-plugins/godot-headers/releases/download/4.7.2-stable/godot-headers-4.7.2-stable.zip"

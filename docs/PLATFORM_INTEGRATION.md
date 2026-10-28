@@ -2,7 +2,7 @@
 
 ## Estado real
 
-El preset iOS y `.github/workflows/build-ios.yml` generan una IPA sin firmar para SideStore,
+El preset iOS y `.github/workflows/ci.yml` generan una IPA sin firmar para SideStore,
 con identificador `macarronesc.invadeio`; el Team ID es un marcador, no una credencial.
 El único plugin nativo propio es el selector de copias iOS; Sentry añade una GDExtension para
 informes de fallos. No hay credenciales ni servicios de tienda.
