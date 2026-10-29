@@ -1,18 +1,18 @@
-# invade.io — Google Play (Português do Brasil)
+# invade.io — Google Play (Brazilian Portuguese)
 
-## Nome do app
+## App name
 
 ```
 invade.io: Conquista de mapas
 ```
 
-## Descrição curta
+## Short description
 
 ```
 Conquiste mapas reais. Estratégia territorial offline e sem anúncios
 ```
 
-## Descrição completa
+## Full description
 
 ```
 Comece com uma base e leve sua conquista por seis continentes.

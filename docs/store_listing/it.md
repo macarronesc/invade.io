@@ -1,18 +1,18 @@
-# invade.io — Google Play (Italiano)
+# invade.io — Google Play (Italian)
 
-## Nome dell'app
+## App name
 
 ```
 invade.io: Conquista territori
 ```
 
-## Descrizione breve
+## Short description
 
 ```
 Conquista mappe reali. Strategia territoriale offline e senza pubblicità
 ```
 
-## Descrizione completa
+## Full description
 
 ```
 Trasforma una base in una conquista che abbraccia tutto il continente.

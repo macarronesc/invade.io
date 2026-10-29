@@ -1,18 +1,18 @@
-# invade.io — Google Play（日本語）
+# invade.io — Google Play (Japanese)
 
-## アプリ名
+## App name
 
 ```
 invade.io: 領土戦略
 ```
 
-## 短い説明
+## Short description
 
 ```
 現実の地図で領土を征服。オフラインで楽しめる広告なしの戦略ゲーム
 ```
 
-## 詳細な説明
+## Full description
 
 ```
 ひとつの拠点から、6大陸へと征服を広げよう。

@@ -1,21 +1,21 @@
-# invade.io — Google Play (Español)
+# invade.io — Google Play (Spanish)
 
-Copia los tres bloques en los campos correspondientes de Play Console. Texto para
-la versión **0.3.1** del repositorio: confirma el comportamiento publicado antes de subirlo.
+Copy the three localized blocks into the matching Play Console fields. This copy
+targets source version **0.3.1**; confirm production behavior before publishing.
 
-## Nombre de la aplicación
+## App name
 
 ```
 invade.io: Conquista el mapa
 ```
 
-## Descripción corta
+## Short description
 
 ```
 Conquista mapas reales. Estrategia sin conexión y sin anuncios
 ```
 
-## Descripción completa
+## Full description
 
 ```
 Convierte una base en una conquista que cruza continentes.

@@ -1,281 +1,191 @@
-# Publicar invade.io en Google Play
+# Google Play publishing
 
-> **La aplicación ya está publicada.** Para renovar la ficha, las capturas, los idiomas
-> y las declaraciones de una actualización, usa [PLAY_STORE_UPDATE.md](PLAY_STORE_UPDATE.md).
-> Los pasos de alta inicial que aparecen más abajo son referencia histórica, no trabajo pendiente.
+[Documentation](README.md) · [Releases](RELEASES.md) · [Store material](PLAY_STORE_UPDATE.md) · [Platform testing](PLATFORM_INTEGRATION.md)
 
-Plan completo y comprobaciones para subir el juego a Google Play sin Android Studio. Cada punto
-indica **qué falta, dónde se hace (código, GitHub o Play Console) y cómo se comprueba**.
+**invade.io is already published on Google Play.** Use this guide to maintain the
+existing application, not to create a replacement listing or register a new
+package. Initial account registration and historical closed-test steps are not
+outstanding project work.
 
-- Paquete Android: `macarronesc.invadeio` (permanente: no se puede cambiar nunca)
-- Bundle iOS: `macarronesc.invadeio` (el mismo identificador en las dos plataformas)
-- Nombre en la tienda: `invade.io` · Desarrollador: `macarronesc` · Correo: `alegandro2507@gmail.com`
-- Botones: **Android** (APK de pruebas) y **Android AAB** (paquete de Play, firmado)
+- Permanent production package: **`macarronesc.invadeio`**.
+- Debug APK identifier: **`macarronesc.invadeio.debug`**; it does not update Play.
+- [Existing listing](https://play.google.com/store/apps/details?id=macarronesc.invadeio).
+- Support contact: [alegandro2507@gmail.com](mailto:alegandro2507@gmail.com).
 
-## 1. Estado frente a los requisitos
+## Choose the operation
 
-| Requisito de Google Play | Estado | Detalle |
-|---|---|---|
-| Target API 36 (obligatorio desde el 31 ago 2026) | ✅ | `gradle_build/target_sdk="36"` en ambos presets |
-| Paquete AAB (no APK) para apps nuevas | ✅ | Preset «Android AAB» con `gradle_build/export_format=1` |
-| Build firmada y no depurable | ✅ | El flujo firma con la clave de subida; la verificación rechaza paquetes depurables |
-| 64 bits | ✅ | Sólo `arm64-v8a` |
-| 16 KB de página (obligatorio para API 35+, exigible a las actualizaciones desde el 1 feb 2027) | ✅ | AGP 8.6.1 + NDK 29 alinean a 16 KB; lo comprueba el script |
-| Permisos mínimos | ✅ | `VIBRATE`, `INTERNET` y `ACCESS_NETWORK_STATE`; estadísticas e informes de fallos empiezan activos en 0.3.1, con baja independiente |
-| Declaración de datos (Data Safety) | ⬜ revisar en Play Console | Actividad de la app, diagnósticos y país aproximado derivado de la IP; opciones activadas por defecto, con baja independiente |
-| Política de privacidad | ✅ `docs/privacy-policy.html` | Actualizada para Aptabase y Sentry; hay que publicarla en una URL (paso 4) |
-| Icono 512×512 | ✅ | `assets/brand/play-store-icon-512.png` |
-| Gráfico destacado 1024×500 sin alfa | ✅ | `docs/store_assets/feature-graphic-1024x500.png` |
-| Capturas de tienda | ✅ generador de 8 por idioma | `docs/store_assets/screenshots_<idioma>/` (1080×1920), más 4 capturas de tableta por idioma; validar antes de subir |
-| Orientación y redimensionado en pantallas grandes | ⚠️ Implementado; verificar el AAB/dispositivo | Sensor sin bloqueo; menú y batalla adaptan el tablero al apaisado y al cambio de tamaño |
-| Optimización R8 | ⚠️ Configurada en CI; verificar AAB firmado | Minificación sólo release; el AAB debe incluir el mapa R8 |
-| Título ≤ 30, corta ≤ 80, completa ≤ 4000 | ⚠️ | Los 15 borradores cumplen límites; revisar las traducciones antes de publicarlas |
-| Ficha, categoría y etiquetas | ⬜ | Paso 4 |
-| Declaraciones de contenido de Play Console | ⬜ | Paso 5 |
-| Cuenta de desarrollador verificada en un móvil | ⬜ | Paso 5 (sólo cuentas personales nuevas) |
-| Prueba cerrada 12 probadores × 14 días | ⬜ | Paso 5: es el camino crítico real |
-| Pruebas en dispositivo real | ⬜ | Paso 6 |
-
-## 2. Lo que ya está hecho en el repositorio
-
-- `export_presets.cfg`: preset **Android AAB** (formato AAB, sólo arm64-v8a, minSdk 24, targetSdk 36,
-  versionName 0.3.1, versionCode 5, VIBRATE e iconos, incluido el monocromo). La firma **no** está
-  en el repositorio: se lee de las variables `GODOT_ANDROID_KEYSTORE_RELEASE_*`. Antes de subir,
-  confirma en Play Console que el código 5 siga disponible; si ya se usó, elige el siguiente código libre.
-- `project.godot`: permite redimensionado y rotación con `SCREEN_SENSOR`. La UI mantiene un lienzo con el lado corto
-  a 1080 unidades lógicas; Jugar coloca mapa/ficha en columnas en apaisado, y la batalla calcula un
-  tablero 1920×1080 con cámara que se vuelve a encajar al girar/redimensionar.
-- `.github/workflows/ci.yml`: comprueba secretos/versiones, ejecuta la suite completa y las pruebas
-  visuales, exporta el APK Debug con identificador `.debug` y valida un AAB **sin firma** en todas
-  las ramas/PR. Sólo un push a `main` puede solicitar `play-release`: un runner nuevo, sin checkout
-  ni ejecución del juego, firma el AAB aprobado. Faltan credenciales: falla, nunca omite la firma.
-  Tras pasar todas las comprobaciones publica una release de GitHub; no sube a Play automáticamente.
-- `scripts/enable_android_r8.sh` + `tools/android/proguard-rules.pro`: parche reproducible e idempotente
-  para la plantilla Android que Godot genera en `android/build/` (Godot aplana allí los archivos del
-  subdirectorio `app/`; esa carpeta está ignorada por Git). R8 se activa sólo en `release`, sin resource
-  shrinking. Las reglas conservan el acceso Java/JNI que necesita Godot; la GDExtension de Sentry es
-  nativa y no la optimiza R8.
-- `scripts/verify_play_bundle.sh`: puerta de calidad. En el **AAB**: ZIP íntegro, manifiesto,
-  arm64 sin 32 bits, `geo.json` presente, sin código de test, **firma válida**, **segmentos ELF de
-  todas las librerías a 16 KB**, **la alineación de 16 KB que el paquete pide** (con bundletool),
-  identificador, lista exacta de permisos, sin `debuggable`, sin bloqueo de orientación/aspecto y con
-  el mapa de desofuscación R8. En el **APK**: target/min SDK, arquitecturas, permisos y **`zipalign -c -P 16`**,
-  que verifica el empaquetado real de las librerías.
-- `scripts/tests/test_runner.gd` comprueba que los 30 niveles de campaña, los 108 frentes de invasión,
-  conquista y desafío diario mantienen ciudades, fuerzas y tiempos, y que las bases apaisadas no se
-  solapan. `balance_check.tscn -- --wide-ui` prueba y captura menú y batalla a 1920×1080, incluido un
-  giro durante una partida.
-- Las capturas de tienda se generan directamente desde escenas reales, con titulares localizados,
-  en los 15 idiomas. `store_assets.tscn` ya no depende de una ejecución anterior de `--ui`.
-  La suite `balance_check.tscn -- --ui` sigue siendo una comprobación de interfaz independiente.
-- Correcciones de esta revisión: el tutorial de arrastre ya no puede congelar la batalla (caduca a los
-  20 s), la tarjeta de ayuda abre y cierra bien con el botón atrás de Android, dos glifos que se veían
-  como cuadros vacíos, el aviso de logro ya no tapa la cabecera de batalla, los botones de reclamar se
-  corrigen solos si la recompensa ya no está disponible, y `geo.json` ya no tiene nombres de ciudad
-  sin glifo (12 ciudades). Un test nuevo (`test_ui_glyph_coverage`) impide que vuelva a pasar.
-
-## 3. Falta: clave de subida y secretos de GitHub
-
-Se hace **una sola vez**. No hace falta Android Studio: `keytool` viene con cualquier JDK.
-
-```sh
-# 1. Crear la clave de subida, fuera del repositorio. keytool la pide por pantalla
-#    (nunca en la línea de comandos: así no queda en el historial del shell).
-keytool -genkeypair -v -keystore upload.keystore -alias upload \
-  -keyalg RSA -keysize 4096 -validity 10000 \
-  -dname "CN=macarronesc, O=invade.io, C=ES"
-
-# 2. Comprobar que la clave existe (vuelve a pedir la contraseña)
-keytool -list -v -keystore upload.keystore | head -20
-
-# 3. Pasarla a texto en un solo renglón
-base64 -i upload.keystore | tr -d '\n' > upload.keystore.b64   # macOS
-base64 -w0 upload.keystore > upload.keystore.b64               # Linux/GNU
-wc -l upload.keystore.b64   # debe decir 0 (una sola línea)
-
-# 4. En GitHub, crea el Environment "play-release", limita deployments a main y añade revisores.
-#    Guarda ahí los tres secretos (no como repository secrets).
-gh secret set ANDROID_KEYSTORE_BASE64 --env play-release --repo macarronesc/invade.io < upload.keystore.b64
-gh secret set ANDROID_KEY_ALIAS      --env play-release --repo macarronesc/invade.io --body 'upload'
-gh secret set ANDROID_KEY_PASSWORD   --env play-release --repo macarronesc/invade.io
-# Sin gh: Settings → Environments → play-release → Environment secrets
-# 5. Huella SHA-256 PÚBLICA del certificado de subida; compárala con Play Console.
-gh variable set ANDROID_UPLOAD_CERT_SHA256 --env play-release --repo macarronesc/invade.io
-```
-
-Si ya existen secretos homónimos a nivel de repositorio, elimínalos después de comprobar el Environment.
-La protección del Environment y de la rama `main` es parte del límite de seguridad de la firma.
-El propietario debe aprobar manualmente la firma; no hay bypass de administrador. Mientras sólo
-haya un mantenedor, se permite su autoaprobación del despliegue (no es revisión independiente).
-La huella inicial se obtuvo del último AAB de `main`, no de acceso a Play Console: compruébala allí.
-
-**La contraseña debe ser sólo ASCII**: letras, números y signos como `! $ = ? # - . _ + @ ~ | &`.
-Un solo carácter fuera de ASCII (por ejemplo `£`, `ñ`, `á`) hace fallar la creación de la clave con
-`Password is not ASCII`: el almacén PKCS12 cifra la clave privada con un algoritmo que no admite otra
-cosa. Tampoco conviene intentar evitarlo con un almacén `JKS` (aceptaría esa contraseña, pero el
-mismo valor viaja luego por Gradle, por variables de entorno y por los secretos de GitHub: mejor
-quitarlo de la ecuación). La **misma** contraseña para almacén y clave: el plugin Gradle de Godot usa
-una sola para las dos, y PKCS12 también lo exige.
-
-Guardas a tener en cuenta:
-
-- **Copia de seguridad** de `upload.keystore` y su contraseña en un gestor de contraseñas y en un
-  soporte cifrado fuera del repositorio. Si se pierde, Google permite **resetear la clave de subida**
-  desde Play Console (la clave de firma de la app la custodia Google con Play App Signing).
-- Nunca subir la clave ni el `.b64` a git: `.gitignore` ya los bloquea.
-- Si alguien obtiene la clave no puede publicar en tu nombre (Play exige tu cuenta), pero podría firmar
-  APKs falsificados; por eso no se comparte.
-- Rotación: si se filtra, se genera otra y se solicita el reset en Play Console; el juego publicado no
-  se ve afectado.
-
-## 4. Falta: ficha de la tienda
-
-| Campo | Valor |
+| Task | Procedure |
 |---|---|
-| Nombre | `invade.io` |
-| Descripción corta / completa | `docs/store_listing/es.md` (ES) y `en.md` (EN) |
-| Icono | `assets/brand/play-store-icon-512.png` |
-| Gráfico destacado | `docs/store_assets/feature-graphic-1024x500.png` |
-| Capturas | `docs/store_assets/screenshots_es/` (y `_en/`) |
-| Categoría | Juegos → Estrategia |
-| Etiquetas | Estrategia, Un jugador, Sin conexión (las que ofrezca Play) |
-| Correo de soporte | `alegandro2507@gmail.com` |
-| Política de privacidad | URL pública del paso siguiente |
+| Update text, screenshots, languages, or feature graphic | [Play Store refresh and publishing guide](PLAY_STORE_UPDATE.md) |
+| Release a new application build | [Release process](RELEASES.md#before-merging-a-release), then the update checklist below |
+| Produce or verify a local Android build | [Local Android export](#local-android-export) |
+| Repair signing configuration | [Owner-only signing setup](#owner-only-signing-setup) |
 
-**Política de privacidad**: `docs/privacy-policy.html` (ES + EN) describe la analítica opcional,
-los diagnósticos y el país aproximado derivado de la IP. Para publicarla con una URL activa, sin
-servidor propio:
+The screenshot package is review/upload material, not proof it is live. A listing
+refresh alone does not require inventing an application version. Conversely, do
+not publish new privacy/defaults wording for a binary that behaves differently.
 
-1. GitHub → **Settings → Pages** → *Source*: `GitHub Actions`. El workflow `pages.yml`
-   despliega únicamente `docs/privacy-policy.html` desde `main`, con Actions fijadas por SHA.
-2. En un minuto estará en `https://macarronesc.github.io/invade.io/privacy-policy.html`.
-   Ese es el enlace que se pega en Play Console (App content → Privacy policy).
-3. Alternativa: cualquier hosting estático propio; sólo cambia la URL.
+## Update the published application
 
-Los recursos gráficos se regeneran cuando cambien los mapas o el tema:
+1. Follow [RELEASES.md](RELEASES.md) to prepare a release PR to `main`. Keep the
+   semantic version synchronized across project/presets, increase both Android
+   version codes, and update the version assertions. Confirm the new code is
+   unused in Play Console; source values do not prove availability.
+2. Review the exact commit, passing checks, notices, native/workflow changes,
+   permissions, and upload-certificate fingerprint before approving production
+   signing. Missing credentials must fail, not skip signing.
+3. Download the signed `invadeio.aab`, `COMMIT.txt`, and `SHA256SUMS` from the
+   resulting GitHub release. Check the checksums and test the exact artifact:
 
-```sh
-xvfb-run -a godot --audio-driver Dummy --path . res://scenes/tests/store_assets.tscn -- --no-telemetry
-python3 tools/build_store_listings.py --package  # valida y crea build/play-store-listing.zip
-```
+   ```sh
+   sha256sum --check SHA256SUMS
+   ```
 
-## 5. Falta: Play Console (camino crítico)
+   Download all files listed in `SHA256SUMS` when checking the entire manifest.
+   On macOS, use `shasum -a 256 --check SHA256SUMS`.
+4. Upload the AAB to the intended track of the **existing** Play application.
+   Select only the matching version's text from
+   [release_notes.md](store_listing/release_notes.md). The Debug APK is not a
+   production update and the unsigned candidate is not the signed upload bundle.
+5. Review the pre-launch report and test install/update, offline play, saves,
+   native backups, rotation, performance, and privacy settings on real devices.
+6. Complete the [privacy, audience, and listing gate](PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate)
+   for the actual distributed builds/tracks, then publish through Play Console.
+   Choose rollout scope intentionally and monitor available crash/install reports.
 
-Todo esto se hace en la web de Play Console; el orden importa.
+CI creates verified GitHub release artifacts; it does **not** upload to Google
+Play or App Store Connect. Do not reuse version codes, move release tags, or
+replace published assets. See [release recovery](RELEASES.md#before-merging-a-release)
+if an unpublished draft or upload fails.
 
-1. **Cuenta de desarrollador** (25 USD, pago único). Verificación de identidad y de dispositivo: con
-   una cuenta personal nueva hay que abrir la app **Play Console** en un Android real (Android 10+) y
-   pulsar *Verify*.
-2. **Crear la app**: nombre `invade.io`, idioma predeterminado de la ficha español, tipo *Juego*, gratis.
-   La app detecta el idioma del dispositivo; la ficha se puede traducir a los mercados principales.
-   Aceptar las declaraciones de políticas y de exportación, y los términos de Play App Signing.
-3. **App content** (Política y programas → Contenido de la app), con estas respuestas:
-   - **Privacidad**: URL del paso 4.
-   - **Anuncios**: No, la app no contiene anuncios.
-   - **Acceso a la app**: todas las funciones están disponibles sin iniciar sesión (no hay cuentas).
-   - **Público objetivo**: 13 años o más; *no* dirigida a familias/niños.
-   - **Clasificación de contenido**: rellenar el cuestionario (IARC). Respuestas honestas: sin
-     violencia contra personas (unidades y bases abstractas), sin contenido sexual, sin lenguaje
-     soez, sin drogas, sin apuestas, sin contenido generado por usuarios, sin compras. Resultado
-     esperable: *Todos / PEGI 3*.
-   - **Seguridad de los datos**: *¿La app recoge o comparte datos?* → **Sí**. Declara actividad en la
-     app, diagnósticos y ubicación aproximada (país inferido por Aptabase a partir de la IP). Los
-     eventos de uso incluyen un identificador temporal de sesión. No hay cuentas ni publicidad; cada
-     opción está activada por defecto y se puede desactivar en Ajustes → Privacidad; se respetan
-     las bajas guardadas. Antes de publicar, revisa si la región o la tienda exige consentimiento
-     previo: un valor predeterminado activo no lo sustituye. Revisa en Play
-     Console si el identificador temporal se clasifica como «Device or other IDs». Google considera
-     «recogida» cualquier dato que salga del dispositivo, incluida la IP recibida por los proveedores.
-   - **Noticias, COVID-19, apps gubernamentales, financieras y de salud**: No.
-   - **Permisos peligrosos**: ninguno (VIBRATE, INTERNET y ACCESS_NETWORK_STATE no lo son), así que no
-     hay formulario.
-4. **Prueba interna** (Probar y publicar → Pruebas → Prueba interna): subir
-   `invadeio.aab` desde la release de GitHub, añadirte como probador y comprobar en
-   tu móvil que instala, abre y guarda. Si el AAB no sube, Play dirá el motivo exacto (normalmente
-   versión repetida o firma).
-5. **Prueba cerrada** (obligatoria para cuentas personales nuevas): crear la pista, invitar a
-   **12 personas** que mantengan la prueba optada **14 días seguidos** sin salirse, y recoger
-   opiniones. Cada subida nueva puede seguir testeándose: aprovechar para corregir lo que reporten.
-6. **Solicitar acceso a producción** (Dashboard → *Apply for production*): preguntas sobre la prueba,
-   el público y la preparación. La revisión suele tardar 7 días o menos.
-7. **Producción**: crear la versión con el mismo AAB (no hay que recompilar), revisar el informe
-   previo al lanzamiento (*Pre-launch report*) y lanzar el despliegue por fases (por ejemplo 20 %).
+## Local Android export
 
-**Registrar el identificador del paquete** (Android developer verification → *Register package name*):
-el paquete es `macarronesc.invadeio` y Play pide la **huella SHA-256 de una clave tuya**. Antes de
-publicar la única que existe es la de subida:
+Ordinary contributors can use CI test artifacts without production credentials.
+Local export needs Godot 4.7.2 and matching export templates, JDK 17, Android SDK
+36, build-tools 36.1.0, NDK 29.0.14206865, and the Gradle template. The pinned
+toolchain and checksums are recorded in [CI](../.github/workflows/ci.yml).
+Configure the Android/Java SDK paths in Godot's Editor Settings.
+
+Run the following sequence from the repository root:
 
 ```sh
-keytool -list -v -keystore upload.keystore -alias upload | grep -i sha256
-# Copia el valor con dos puntos: SHA256: 5B:2C:...:9F
-# Si el campo pide base64:
-keytool -list -v -keystore upload.keystore -alias upload | grep -i sha256 | awk '{print $2}' \
-  | tr -d ':' | xxd -r -p | base64
-```
+mkdir -p build/android
 
-Debe ser **la misma clave** con la que firma GitHub Actions (`ANDROID_KEYSTORE_BASE64`): si el
-identificador se registra con una huella y el AAB llega firmado con otra, Play rechaza la subida. Si
-la pantalla ofrece tres opciones (Play Console / clave local / Android Studio), para una app sin
-publicar la buena es **la clave local**. Cuando el paquete ya esté publicado, la huella de la clave de
-firma de Google aparece en *Test and release → App integrity → Play App Signing*; ésa es la que se usa
-para App Links e integraciones, no la de subida.
-
-Notas de la cuenta: si es **de organización** no aplica la prueba cerrada obligatoria, pero sí la
-verificación de identidad. El reloj de los 14 días sólo empieza cuando los 12 probadores están dentro,
-así que conviene reclutarlos **antes** de subir el primer AAB.
-
-## 6. Publicar una actualización
-
-1. Cambiar `version/code` en los dos presets Android (debe crecer siempre) y, si procede,
-   `version/name` (por ejemplo `0.3.1`). Mantén `application/config/version` en `project.godot`
-   sincronizado: Sentry lo usa como identificador de release.
-2. Abre una PR de release a `main` con versión y códigos mayores. Tras el merge, CI verifica el
-   candidato; aprueba la firma sólo después de revisar commit, checks, permisos y código de Play.
-3. Descarga `invadeio.aab` de la release de GitHub, verifica `SHA256SUMS` y súbelo a la pista correspondiente; escribe las
-   notas de la versión (el texto de cada publicación está en
-   [store_listing/release_notes.md](store_listing/release_notes.md)) y publicar.
-
-Los `version/code` ya usados no se pueden repetir nunca en la misma app.
-El APK se llama `invadeio-debug.apk`, usa `.debug` y no actualiza la instalación de Play.
-Detalles y recuperación de publicaciones parciales: [RELEASES.md](RELEASES.md).
-
-## 7. Comprobar antes de subir
-
-```sh
-# Un APK suelto: target/min SDK, arquitecturas y permisos
+# Install the Gradle template and produce a Debug APK.
+godot --headless --path . --install-android-build-template --export-debug "Android" build/android/invadeio.apk
 bash scripts/verify_play_bundle.sh build/android/invadeio.apk
 
-# Instalación/actualización local del template: no vuelvas a instalarlo entre estos pasos.
-godot --headless --path . --install-android-build-template --export-debug "Android" build/android/invadeio.apk
+# Enable release R8 after template installation; do not reinstall between steps.
 bash scripts/enable_android_r8.sh
+
+# Owner-only: requires release signing variables supplied outside the repository.
 godot --headless --path . --export-release "Android AAB" build/android/invadeio.aab
 
-# El paquete de Play: firma, orientación, R8/mapa, 16 KB, permisos y contenido.
-# Requiere firma, Java y bundletool; CI configura estas variables/credenciales.
+# Verify the signed AAB and APK together; requires Java and bundletool.
 BUNDLETOOL_JAR=/path/to/bundletool.jar bash scripts/verify_play_bundle.sh build/android/invadeio.aab build/android/invadeio.apk
 ```
 
-El script falla con un mensaje concreto en cuanto algo no cumple, así que sirve igual en local y en
-CI (es lo que ejecuta el flujo antes de publicar el artefacto). Lo que **no** puede comprobar y hay que
-ver en Play Console: que la clave de subida coincida con la registrada, la declaración de datos y el
-informe previo al lanzamiento. R8 optimiza Java/Kotlin; no reduce GDScript, el motor/librerías nativas,
-geografía ni fuentes, así que no se debe prometer una reducción de RAM sin medirla. Antes de producción,
-instala el AAB de prueba en un móvil y una tableta/plegable, gira y redimensiona la ventana durante menú
-y batalla, y comprueba el flujo nativo de Sentry con los informes habilitados (R8 no procesa
-esa GDExtension nativa).
+Production signing reads `GODOT_ANDROID_KEYSTORE_RELEASE_PATH`,
+`GODOT_ANDROID_KEYSTORE_RELEASE_USER`, and
+`GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD`. Supply them through a secure local
+environment; never commit them or `.godot/export_credentials.cfg`. Contributors
+should not request the owner's upload key to run tests.
 
-## 8. Decisiones y avisos
+The [R8 script](../scripts/enable_android_r8.sh) reproducibly patches the generated
+`android/build/` template. It enables release minification without resource
+shrinking and retains required Godot Java/JNI access. Reinstalling the template
+can replace those changes; rerun the patch afterward. R8 does not optimize
+GDScript, geography, fonts, or native Godot/Sentry libraries, and is not evidence
+of a measured RAM improvement.
 
-- **Cuenta**: personal (con prueba cerrada de 12×14 días y verificación en móvil) u organización
-  (sin prueba obligatoria). Cambia el calendario, no el código.
-- **Nombre**: existió una app «invade.io» retirada de Play en 2018 (otro paquete, `com.tdg.ppio`). No
-  hay conflicto técnico, pero si la revisión pregunta por el nombre, la respuesta es simple: juego
-  distinto, desarrollador distinto, arte y audio propios.
-- **Play Games on PC**: los juegos gratis aparecen también en la versión de PC salvo que se desactive.
-  El juego es vertical y táctil; conviene revisar esa opción en Play Console (form factors) antes de
-  publicar.
-- **Pendiente de dispositivo real**: ergonomía con muesca y barra de gestos, vibración, rendimiento en
-  un móvil de gama baja (el mapa repinta durante las capturas), 16 KB y arranque en frío. La lista de
-  pruebas está en `docs/PLATFORM_INTEGRATION.md`.
-- **Fuera de alcance** (no hace falta para publicar): guardado en nube, notificaciones, clasificación
-  online, compras. Añadirlas obliga a actualizar la política de privacidad y la declaración de datos.
+### What verification establishes
+
+[verify_play_bundle.sh](../scripts/verify_play_bundle.sh) checks archive integrity,
+identifiers, SDK values, exact permissions, architectures, native alignment,
+orientation/aspect restrictions, and required resources. Release AAB checks also
+require a valid signature and the R8 mapping. The combined APK check uses
+`zipalign -c -P 16` for actual native-library packaging. The AAB preset exports
+arm64 only, with minimum SDK 24 and target SDK 36.
+
+[verify_artifact.py](../tools/verify_artifact.py) rejects development resources,
+sensitive material, unsafe archive paths, and missing notices. CI explicitly
+permits an unsigned candidate **only before** isolated signing; this exception
+does not make it distributable.
+
+These checks do not establish upload-key registration, version-code availability,
+current Play policy compliance, device performance, or correctness of Data safety
+answers. Confirm current requirements in
+[Android's Google Play guidance](https://developer.android.com/distribute/best-practices)
+and the Console rather than treating historical deadlines as evergreen advice.
+
+## Owner-only signing setup
+
+This is maintenance of an existing application's signing boundary. **Use the
+registered upload key.** Do not generate a replacement just because a checkout
+has no keystore; key rotation/recovery must follow Play Console's process.
+
+Maintain a GitHub **`play-release` environment** restricted to `main`, with manual
+owner approval and no administrator bypass. Its environment secrets are:
+
+| Secret or variable | Purpose |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` (secret) | Base64-encoded upload keystore |
+| `ANDROID_KEY_ALIAS` (secret) | Upload-key alias |
+| `ANDROID_KEY_PASSWORD` (secret) | Shared keystore/key password used by the signing job |
+| `ANDROID_UPLOAD_CERT_SHA256` (public variable) | Expected upload certificate SHA-256, independently checked in Play Console |
+
+Keep production secrets out of repository-level secrets and untrusted jobs.
+After verifying environment setup, remove obsolete repository-level copies if
+present. The isolated signing runner has no checkout and executes no game or
+contributor build scripts; preserve that boundary. The release job never receives
+signing secrets. See [Security](../SECURITY.md) for the solo-maintainer approval
+limitation and exposure response.
+
+For initial setup or an explicitly approved rotation, create the key **outside
+the repository**. Let `keytool` prompt for passwords rather than putting them in
+shell history:
+
+```sh
+keytool -genkeypair -v -keystore /secure/path/upload.keystore -alias upload \
+  -keyalg RSA -keysize 4096 -validity 10000 \
+  -dname "CN=macarronesc, O=invade.io, C=ES"
+keytool -list -v -keystore /secure/path/upload.keystore -alias upload
+```
+
+Use the same strong ASCII password for key and store for compatibility with the
+current PKCS12/Gradle setup. Keep encrypted off-repository backups of the key and
+password. Base64 is transport encoding, **not encryption**; handle an encoded key
+with the same care as the original. Never upload real credentials to a scanner
+or expose secret values in commands, logs, screenshots, or documentation.
+
+If the upload key is lost/exposed, use Play Console's upload-key reset process
+and rotate credentials. Deleting a tracked file does not revoke a key. Google
+Play App Signing holds the separate app-signing key; its certificate is not the
+upload-certificate fingerprint used by this workflow. Confirm the right
+certificate for each integration in **App integrity → Play App Signing**.
+
+## Listing, policy, and publication boundaries
+
+The [store update guide](PLAY_STORE_UPDATE.md) owns text, device-gallery order,
+locale mapping, alt text, translation review, packaging, and measurement. Reuse
+the existing icon and real-scene capture pipeline instead of manually editing
+generated images.
+
+The public privacy-policy URL must remain:
+
+`https://macarronesc.github.io/invade.io/privacy-policy.html`
+
+[pages.yml](../.github/workflows/pages.yml) packages **only**
+[privacy-policy.html](privacy-policy.html) and deploys from `main`. Developer
+Markdown guides are read on GitHub, not deployed by that workflow. Before merging
+a policy change to `main`, have the owner verify its disclosures against shipped
+builds, then check the actual public page after deployment. An English-only
+presentation does not resolve a mismatch in telemetry defaults.
+
+Review category/tags, target audience, Families settings, Data safety, distribution
+countries, and large-screen/PC availability in the existing application. Do not
+copy historical account-registration instructions or predict an IARC rating.
+No-ads/no-purchases/no-account statements must remain true of the shipped game;
+optional telemetry still needs accurate collection disclosures when data leaves
+the device. Online services and notifications are not required for this release
+and are not integrated; see [Platform scope](PLATFORM_INTEGRATION.md#features-not-integrated).

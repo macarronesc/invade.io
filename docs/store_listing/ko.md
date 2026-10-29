@@ -1,18 +1,18 @@
-# invade.io — Google Play (한국어)
+# invade.io — Google Play (Korean)
 
-## 앱 이름
+## App name
 
 ```
 invade.io: 영토 전략
 ```
 
-## 짧은 설명
+## Short description
 
 ```
 실제 세계 지도에서 영토를 정복하세요. 광고 없는 오프라인 전략 게임
 ```
 
-## 전체 설명
+## Full description
 
 ```
 하나의 기지에서 시작해 6개 대륙으로 정복을 넓혀 보세요.

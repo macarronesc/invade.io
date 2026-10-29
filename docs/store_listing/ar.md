@@ -1,18 +1,18 @@
-# invade.io — Google Play (العربية)
+# invade.io — Google Play (Arabic)
 
-## اسم التطبيق
+## App name
 
 ```
 invade.io: غزو الأراضي
 ```
 
-## الوصف المختصر
+## Short description
 
 ```
 اغزُ خرائط حقيقية. استراتيجية أراضٍ دون اتصال وبلا إعلانات
 ```
 
-## الوصف الكامل
+## Full description
 
 ```
 ابدأ بقاعدة واحدة ووسّع فتوحاتك عبر ست قارات.
