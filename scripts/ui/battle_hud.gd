@@ -975,7 +975,7 @@ func _on_battle_lost() -> void:
 	if is_instance_valid(battle_controller) and battle_controller.defeat_gold > 0:
 		defeat_xp_label.text += "\n" + LocaleStrings.text("defeat_gold") % battle_controller.defeat_gold
 	var upgrade := GameManager.recommended_combat_upgrade(true)
-	var daily := is_instance_valid(battle_controller) and DailyRewards.is_challenge(battle_controller.level_id)
+	var daily := is_instance_valid(battle_controller) and LevelDatabase.mode_of(battle_controller.level_id) == "daily"
 	btn_defeat_upgrade.visible = upgrade != "" and not daily
 	if btn_defeat_upgrade.visible:
 		UIThemeHelper.set_icon(btn_defeat_upgrade, "bolt", 36)
@@ -1078,7 +1078,7 @@ func _on_retry_pressed() -> void:
 	_leave_battle()
 
 func _on_next_level_pressed() -> void:
-	if InvasionDatabase.is_invasion(battle_controller.level_id):
+	if LevelDatabase.mode_of(battle_controller.level_id) == "invasion":
 		var next_invasion := GameManager.next_invasion_level(battle_controller.level_id)
 		if next_invasion == "":
 			_on_map_pressed()
@@ -1086,7 +1086,7 @@ func _on_next_level_pressed() -> void:
 		GameManager.play_level(next_invasion)
 		_leave_battle()
 		return
-	if LevelGenerator.is_conquest(battle_controller.level_id):
+	if LevelDatabase.mode_of(battle_controller.level_id) == "conquest":
 		GameManager.play_conquest(LevelGenerator.conquest_index(battle_controller.level_id) + 1)
 		_leave_battle()
 		return
@@ -1101,9 +1101,9 @@ func _on_next_level_pressed() -> void:
 func exit_tab() -> String:
 	if not is_instance_valid(battle_controller):
 		return "play"
-	if DailyRewards.is_challenge(battle_controller.level_id):
+	if LevelDatabase.mode_of(battle_controller.level_id) == "daily":
 		return "challenges"
-	if InvasionDatabase.is_invasion(battle_controller.level_id):
+	if LevelDatabase.mode_of(battle_controller.level_id) == "invasion":
 		return "invasion"
 	return "play"
 

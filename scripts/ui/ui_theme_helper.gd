@@ -516,6 +516,16 @@ static func stars_label(stars: int, variation: String = "Heading") -> Label:
 	set_stars(l, stars)
 	return l
 
+static func style_map_pin(btn: Button, fill: Color, ink: Color) -> void:
+	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+		var b := box(fill.darkened(0.12) if state == "pressed" else fill, 999, 0)
+		b.draw_center = state != "focus"
+		b.set_border_width_all(4)
+		b.border_color = colors.bg if state != "focus" else colors.gold
+		btn.add_theme_stylebox_override(state, b)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color", "icon_disabled_color"]:
+		btn.add_theme_color_override(c, ink)
+
 ## Título de sección con una línea explicativa opcional
 static func section(parent: Control, title: String, subtitle: String = "", variation: String = "Title") -> void:
 	var head := vbox(4)
@@ -546,6 +556,13 @@ static func pass_scroll_events(control: Control) -> void:
 static func go_to(from: Node, scene_path: String) -> void:
 	AudioManager.play_click()
 	from.get_tree().change_scene_to_file(scene_path)
+
+static func show_menu_tab(from: Node, tab: String) -> void:
+	var node := from
+	while node and not node is MainMenuUI:
+		node = node.get_parent()
+	if node:
+		(node as MainMenuUI).show_tab(tab)
 
 ## Empieza una batalla; sin `level_id` repite la última elegida
 static func start_battle(from: Node, level_id: String = "") -> void:

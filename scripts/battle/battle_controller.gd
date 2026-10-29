@@ -4,7 +4,6 @@ class_name BattleController
 ## BattleController: Gestor de la partida, entrada del jugador, IA y condiciones de fin
 
 const BaseNodeScene = preload("res://scenes/battle/base_node.tscn")
-const TroopScene = preload("res://scenes/battle/troop.tscn")
 const TutorialOverlayScript = preload("res://scripts/battle/tutorial_overlay.gd")
 
 ## Distancia máxima entre los paquetes delanteros de dos columnas enfrentadas para que combatan
@@ -116,7 +115,7 @@ func _is_landscape() -> bool:
 ## its single board so times stay comparable between players.
 func _on_view_resized() -> void:
 	var landscape := _is_landscape()
-	if landscape != (map_rect.size.x > map_rect.size.y) and not level_id.is_empty() and not DailyRewards.is_challenge(level_id):
+	if landscape != (map_rect.size.x > map_rect.size.y) and not level_id.is_empty() and LevelDatabase.mode_of(level_id) != "daily":
 		_relayout(landscape)
 	_fit_camera()
 
@@ -179,9 +178,9 @@ func load_level(p_level_id: String) -> void:
 	level_id = p_level_id
 	_max_speed = float(GameManager.settings["speed"])
 	# El desafío diario se compara entre jugadores: se juega sin mejoras de combate
-	GameManager.normalized_battle = DailyRewards.is_challenge(level_id)
+	GameManager.normalized_battle = LevelDatabase.mode_of(level_id) == "daily"
 	# El tablero se monta en la orientación de la pantalla al entrar; si luego gira, la cámara lo reencaja
-	var landscape := is_inside_tree() and _is_landscape() and not DailyRewards.is_challenge(level_id)
+	var landscape := is_inside_tree() and _is_landscape() and LevelDatabase.mode_of(level_id) != "daily"
 	level_data = LevelDatabase.get_level_data(level_id, landscape)
 	map_rect = level_data.get("map_rect", LevelGenerator.MAP_RECT)
 	target_time = level_data.get("target_time", 45.0)
@@ -684,7 +683,8 @@ func dispatch_troops(from_base: BaseNode, to_base: BaseNode) -> bool:
 	var count = from_base.send_troops()
 	if count <= 0:
 		return false
-	var troop: Troop = TroopScene.instantiate()
+	var troop := Troop.new()
+	troop.name = "Troop"
 	(troops_container if troops_container else self).add_child(troop)
 	troop.setup(from_base, to_base, count, from_base.faction)
 	troop.set_process(false) # La batalla simula movimiento → choques → llegadas.
@@ -761,55 +761,13 @@ func _trigger_victory() -> void:
 			if GameManager.conquer_city(b.city_key):
 				city_names.append(b.base_name)
 
-	var is_challenge = DailyRewards.is_challenge(level_id)
-	var is_conquest = LevelGenerator.is_conquest(level_id)
-	var is_invasion = InvasionDatabase.is_invasion(level_id)
-	var is_replay: bool
-	var total_gold: int
-	var new_medal := false
-	var new_continent := false
-	var boss_gold := 0
-	var region_complete := false
-	var region_mastered := false
-	var region_bonus := 0
-	var mastery_bonus := 0
-	var continent_reward := ""
-	if is_challenge:
-		# Los desafíos diarios no cuentan para la campaña ni para las estrellas
-		is_replay = GameManager.is_daily_challenge_done(DailyRewards.challenge_day(level_id))
-		total_gold = GameManager.complete_daily_challenge(level_id)
-	elif is_conquest:
-		# La conquista libre avanza sola de región en región, sin repeticiones
-		is_replay = false
-		total_gold = GameManager.complete_conquest(LevelGenerator.conquest_index(level_id))
-	elif is_invasion:
-		var invasion_result := GameManager.complete_invasion_level(level_id, stars)
-		is_replay = bool(invasion_result.get("is_replay", false))
-		total_gold = int(invasion_result.get("gold", 0))
-		region_complete = bool(invasion_result.get("region_complete", false))
-		region_mastered = bool(invasion_result.get("region_mastered", false))
-		region_bonus = int(invasion_result.get("region_bonus", 0))
-		mastery_bonus = int(invasion_result.get("mastery_bonus", 0))
-		continent_reward = str(invasion_result.get("continent_reward", ""))
-	else:
-		var continent := LevelDatabase.get_continent_of(level_id)
-		new_continent = not GameManager.is_continent_complete(continent)
-		var previous_stars: int = int(GameManager.completed_levels.get(level_id, 0))
-		if previous_stars == 0 and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT:
-			boss_gold = roundi(GameManager.FIRST_BOSS_GOLD * GameManager.get_gold_multiplier())
-		is_replay = previous_stars > 0 and stars <= previous_stars
-		total_gold = GameManager.calculate_victory_gold(level_id, stars, 60 + player_bases_count * 15)
-		new_medal = not lost_a_base and not GameManager.medals.has(level_id)
-		GameManager.complete_level(level_id, stars, not lost_a_base)
-		new_continent = new_continent and GameManager.is_continent_complete(continent)
-	GameManager.add_coins(total_gold)
+	GameManager.begin_save_batch()
+	var rewards := GameManager.victory_rewards(level_id, stars, player_bases_count, not lost_a_base)
 	GameManager.haptic(80)
 
-	var is_continent_conquest = not is_challenge and not is_conquest and not is_invasion \
-		and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT
 	# La fanfarria suena sola: la música se retira y vuelve la del menú al salir
 	AudioManager.stop_music()
-	if is_continent_conquest or continent_reward != "":
+	if rewards["is_continent_conquest"] or rewards["continent_reward"] != "":
 		AudioManager.play_continent_conquest()
 	else:
 		AudioManager.play_victory()
@@ -819,32 +777,17 @@ func _trigger_victory() -> void:
 		"stars": stars,
 		"time": battle_time,
 		"speed": _max_speed,
-		"gold_earned": total_gold,
 		"new_cities": city_names.size(),
 		"city_names": city_names,
-		"is_continent_conquest": is_continent_conquest,
-		"is_replay": is_replay,
-		"is_daily_challenge": is_challenge,
-		"is_conquest": is_conquest,
-		"is_invasion": is_invasion,
-		"region_id": InvasionDatabase.get_region_of_level(level_id) if is_invasion else "",
-		"region_complete": region_complete,
-		"region_mastered": region_mastered,
-		"region_bonus": region_bonus,
-		"mastery_bonus": mastery_bonus,
-		"continent_reward": continent_reward,
-		"new_medal": new_medal,
-		"new_continent": new_continent,
-		"invasions_unlocked": LevelDatabase.get_continent_of(level_id) if new_continent else "",
-		"boss_gold": boss_gold,
-		"expedition_finale": is_conquest and LevelGenerator.is_expedition_finale(LevelGenerator.conquest_index(level_id)),
 		"xp_before": GameManager.experience,
 	}
+	result.merge(rewards)
 	result["xp"] = GameManager.victory_xp(result)
 	result["outcome"] = "win"
 	result["captures"] = _captured_bases.size()
 	EventBus.battle_won.emit(result)
 	EventBus.battle_finished.emit(result)
+	GameManager.end_save_batch()
 
 ## Algunos diarios admiten una victoria estratégica: asegurar los objetivos y mantenerlos.
 func _objective_targets() -> Array[BaseNode]:
@@ -880,9 +823,9 @@ func _battle_result(outcome: String) -> Dictionary:
 		"speed": _max_speed,
 		"captures": _captured_bases.size(),
 		"gold": defeat_gold if outcome == "loss" else 0,
-		"is_daily_challenge": DailyRewards.is_challenge(level_id),
-		"is_conquest": LevelGenerator.is_conquest(level_id),
-		"is_invasion": InvasionDatabase.is_invasion(level_id),
+		"is_daily_challenge": LevelDatabase.mode_of(level_id) == "daily",
+		"is_conquest": LevelDatabase.mode_of(level_id) == "conquest",
+		"is_invasion": LevelDatabase.mode_of(level_id) == "invasion",
 	}
 
 func _trigger_defeat() -> void:
@@ -890,12 +833,14 @@ func _trigger_defeat() -> void:
 		return
 	reset_time_scale()
 	is_game_over = true
+	GameManager.begin_save_batch()
 	defeat_gold = GameManager.award_defeat_gold(level_id, _captured_bases.size(), battle_time)
 	AudioManager.stop_music()
 	AudioManager.play_defeat()
 	GameManager.haptic(120)
 	EventBus.battle_finished.emit(_battle_result("loss"))
 	EventBus.battle_lost.emit()
+	GameManager.end_save_batch()
 
 ## Consejo tras una derrota, a partir de un hecho observado en la batalla
 func defeat_tip() -> String:
@@ -1075,8 +1020,7 @@ func estimate_arrival_seconds(target: BaseNode) -> float:
 		if src.faction != GameManager.Faction.PLAYER or not can_dispatch(src, target):
 			continue
 		var speed := Troop.BASE_SPEED * travel_mult * GameManager.get_troop_speed_multiplier()
-		var travel := maxf(10.0, src.global_position.distance_to(target.global_position) - target.radius * 0.45) / speed
-		seconds = maxf(seconds, travel + Troop.emission_seconds(src.troops - 1, speed))
+		seconds = maxf(seconds, Troop.arrival_seconds(src.global_position.distance_to(target.global_position), target.radius, src.troops - 1, speed))
 	return seconds
 
 ## Estimación conservadora: producción y fuerzas que ya llegarán antes de nuestra orden.

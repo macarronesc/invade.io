@@ -45,12 +45,20 @@ func get_progress(achievement: Dictionary) -> float:
 
 ## Desbloquea los logros cumplidos; devuelve los ids recién desbloqueados
 func check_all() -> Array[String]:
+	GameManager.begin_save_batch()
 	var unlocked: Array[String] = []
+	var values := {}
 	for a in AchievementDatabase.get_all():
-		if not GameManager.is_achievement_unlocked(a["id"]) and get_stat(a["stat"]) >= a["goal"]:
+		if GameManager.is_achievement_unlocked(a["id"]):
+			continue
+		var stat: String = a["stat"]
+		if not values.has(stat):
+			values[stat] = get_stat(stat)
+		if values[stat] >= a["goal"]:
 			GameManager.unlock_achievement(a["id"])
 			unlocked.append(a["id"])
 			EventBus.achievement_unlocked.emit(a["id"])
+	GameManager.end_save_batch()
 	return unlocked
 
 func _on_battle_started(_level_id: String) -> void:
@@ -67,6 +75,7 @@ func _on_base_captured(base: Node, previous_faction: int, new_faction: int) -> v
 		_lost_base_this_battle = true
 
 func _on_battle_won(battle_stats: Dictionary) -> void:
+	GameManager.begin_save_batch()
 	GameManager.record_battle_result(battle_stats, not _lost_base_this_battle)
 	GameManager.add_stat("victories")
 	if battle_stats.get("time", INF) < AchievementDatabase.BLITZ_SECONDS:
@@ -75,6 +84,7 @@ func _on_battle_won(battle_stats: Dictionary) -> void:
 		GameManager.add_stat("flawless_victories")
 	check_all()
 	GameManager.save_game()
+	GameManager.end_save_batch()
 
 func _on_battle_lost() -> void:
 	GameManager.experience += GameManager.DEFEAT_XP

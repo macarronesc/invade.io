@@ -232,7 +232,7 @@ func _slider(key: String) -> HSlider:
 	slider.value = GameManager.settings[key]
 	slider.custom_minimum_size.y = 128
 	slider.value_changed.connect(func(value):
-		GameManager.set_setting(key, value)
+		GameManager.set_setting(key, value, false)
 		update.call(value)
 		slider.accessibility_description = label.text
 		if key == "vibration_intensity":

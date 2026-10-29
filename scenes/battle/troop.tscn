@@ -1,6 +1,0 @@
-[gd_scene format=3 uid="uid://d3m7p8q1lax4a"]
-
-[ext_resource type="Script" path="res://scripts/battle/troop.gd" id="1_script"]
-
-[node name="Troop" type="Node2D"]
-script = ExtResource("1_script")

@@ -4,8 +4,7 @@ class_name PlayerRank
 ## Rango del jugador: sube con la XP de batallas y misiones. No da ventajas en combate;
 ## algunos rangos regalan estética (ver CosmeticsDatabase, campo "rank").
 
-const TITLES_ES := ["Recluta", "Soldado", "Cabo", "Sargento", "Teniente", "Capitán", "Comandante", "Coronel", "General", "Mariscal"]
-const TITLES_EN := ["Recruit", "Private", "Corporal", "Sergeant", "Lieutenant", "Captain", "Commander", "Colonel", "General", "Marshal"]
+const TITLE_COUNT := 10
 
 static func level(xp: int) -> int:
 	return 1 + floori(sqrt(maxi(0, xp) / 100.0))
@@ -16,7 +15,7 @@ static func level_start(p_level: int) -> int:
 
 ## Nombre del rango; pasado el último, "Mariscal 2", "Mariscal 3"...
 static func title(p_level: int) -> String:
-	var count := TITLES_ES.size()
+	var count := TITLE_COUNT
 	var i := clampi(p_level - 1, 0, count - 1)
 	var name := LocaleStrings.text("rank_%d" % (i + 1))
 	var extra := p_level - count

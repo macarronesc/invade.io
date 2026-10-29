@@ -8,6 +8,8 @@ class_name MusicSynth
 
 const MIX_RATE := 22050
 const PEAK := 0.8
+## Bump when synthesis changes; track specifications are included in the cache key too.
+const CACHE_VERSION := 1
 
 ## Acordes en notas MIDI. Menú: Cmaj7 - Am7 - Fmaj7 - G (sereno). Batalla: Am - F - C - G (épico).
 const TRACKS = {
@@ -31,6 +33,46 @@ static func loop_seconds(spec: Dictionary) -> float:
 
 static func render_track(track_id: String) -> PackedFloat32Array:
 	return render(TRACKS[track_id])
+
+## The cache is disposable; storage failures must never silence the generated track.
+static func load_or_render_track(track: String, directory: String = "user://music_cache") -> AudioStreamWAV:
+	var path := _cache_path(track, directory)
+	var frames := int(loop_seconds(TRACKS[track]) * MIX_RATE)
+	var cached := _read_cached_track(path, frames)
+	if cached != null:
+		return cached
+	var wav := to_wav(render_track(track), true)
+	if DirAccess.make_dir_recursive_absolute(directory) == OK and DirAccess.dir_exists_absolute(directory):
+		var temporary := path.trim_suffix(".wav") + ".tmp.wav"
+		if wav.save_to_wav(temporary) == OK and DirAccess.rename_absolute(temporary, path) == OK:
+			for old in DirAccess.get_files_at(directory):
+				if old.begins_with(track + "-") and old.ends_with(".wav") and old != path.get_file():
+					DirAccess.remove_absolute(directory.path_join(old))
+		if FileAccess.file_exists(temporary):
+			DirAccess.remove_absolute(temporary)
+	return wav
+
+static func _cache_path(track: String, directory: String) -> String:
+	var key := JSON.stringify([CACHE_VERSION, MIX_RATE, PEAK, TRACKS[track]]).sha256_text()
+	return directory.path_join("%s-%s.wav" % [track, key])
+
+static func _read_cached_track(path: String, frames: int) -> AudioStreamWAV:
+	if not FileAccess.file_exists(path):
+		return null
+	var file := FileAccess.open(path, FileAccess.READ)
+	if not file or file.get_length() < 44 or file.get_length() > frames * 2 + 4096:
+		return null
+	var header := file.get_buffer(12)
+	file.close()
+	if header.slice(0, 4).get_string_from_ascii() != "RIFF" or header.slice(8, 12).get_string_from_ascii() != "WAVE":
+		return null
+	var wav := AudioStreamWAV.load_from_file(path)
+	if wav == null or wav.format != AudioStreamWAV.FORMAT_16_BITS or wav.stereo or wav.mix_rate != MIX_RATE or wav.data.size() != frames * 2:
+		return null
+	wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	wav.loop_begin = 0
+	wav.loop_end = frames
+	return wav
 
 static func render(spec: Dictionary) -> PackedFloat32Array:
 	var buf := PackedFloat32Array()

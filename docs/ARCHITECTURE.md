@@ -11,7 +11,7 @@ implement gameplay. There is no game server, account system, or online authority
 | Path | Responsibility |
 |---|---|
 | [project.godot](../project.godot) | Main scene, autoloads, rendering, display settings, translations, and source version |
-| [scenes/](../scenes/) | Menu, battle, HUD, base/troop scenes, and executable test scenes |
+| [scenes/](../scenes/) | Menu, battle, HUD, base scene, and executable test scenes |
 | [scripts/autoload/](../scripts/autoload/) | Shared state, signals, audio, achievements, telemetry, and toasts |
 | [scripts/battle/](../scripts/battle/) | Battle orchestration, base/troop behavior, AI, territory rendering, and tutorial |
 | [scripts/data/](../scripts/data/) | Content catalogs, geographic generation, rules, rewards, ranks, and localization helpers |
@@ -70,6 +70,10 @@ Autoload order is declared in `project.godot`:
 `conquest_…`, and `daily_…` identifiers to their definitions. Built levels are
 cached by identifier, language, and orientation.
 
+`LevelDatabase.mode_of()` is the shared mode classifier. Campaign labels use
+`level_name()` without constructing geography; `get_level_ids()` returns a cached,
+read-only campaign order (duplicate it before extending a list).
+
 - [InvasionDatabase](../scripts/data/invasion_database.gd) describes regions and
   constructs three fronts per region.
 - [LevelGenerator](../scripts/data/level_generator.gd) builds deterministic maps,
@@ -101,6 +105,12 @@ behavior. [AIController](../scripts/battle/ai_controller.gd) uses seeded decisio
 projected defense, incoming-force estimates, and faction archetypes. Player and
 AI dispatches share the battle controller's route checks.
 
+Orders are plain `Troop.new()` nodes. Movement and both arrival previews share
+the troop arrival formula. Formation offsets and closed territory outlines are
+prepared once and reused; they do not change simulation timing or rendering.
+`GameManager.victory_rewards()` owns mode-specific economy/progression, while
+the battle controller still decides the outcome and emits the same result events.
+
 The [BattleHUD](../scripts/ui/battle_hud.gd) handles briefing/HUD, pause/help,
 alternate accessible controls, and results. The
 [tutorial overlay](../scripts/battle/tutorial_overlay.gd) guides early interactions.
@@ -129,6 +139,12 @@ protection, and confirmed manual import with a `.backup` copy. Import/reset
 preserve privacy choices. Keep city, level, cosmetic, and achievement identifiers
 stable where saves refer to them; test migrations before changing the schema.
 
+Unchanged, validated saves skip disk writes without replacing the recovery point.
+Battle results and achievement checks batch saves within one synchronous action;
+the outer `end_save_batch()` reports the commit result. Slider changes can request
+one deferred save per frame. Manual/lifecycle saves remain synchronous and flush
+pending requests. Audio/haptic sliders do not broadcast visual settings changes.
+
 On focus loss, progress is saved, audio is suspended, and battle gestures are
 canceled. The HUD requires explicit resume. An active battle is not serialized.
 See [Platform integration](PLATFORM_INTEGRATION.md) for platform behavior.
@@ -137,6 +153,15 @@ See [Platform integration](PLATFORM_INTEGRATION.md) for platform behavior.
 respects independent saved settings, and suppresses providers in tests/headless
 runs or with `--no-telemetry`. Public ingestion keys are not administrative
 credentials. See [Analytics](ANALYTICS.md) and [Security](../SECURITY.md).
+
+### Audio cache
+
+`MusicSynth` reads or generates music on the existing worker threads. Its private
+`user://music_cache` stores PCM WAV files keyed by synthesis version and track
+specification. Invalid caches regenerate; unavailable storage never blocks music.
+Successful writes replace obsolete versions of that track. Bump
+`MusicSynth.CACHE_VERSION` when changing synthesis. Muted startup does not prewarm
+music; sound effects, music samples, and loop boundaries are otherwise unchanged.
 
 ## Where to make a change
 

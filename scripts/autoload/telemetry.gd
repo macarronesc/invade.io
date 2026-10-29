@@ -193,7 +193,7 @@ func _set_screen(screen_name: String) -> void:
 # =========================================================================
 
 func _on_battle_started(level_id: String) -> void:
-	var mode := _mode(level_id)
+	var mode := LevelDatabase.mode_of(level_id)
 	var analytics_allowed := _analytics_allowed() and _analytics_ready
 	if not analytics_allowed and not _crash_ready:
 		return
@@ -249,15 +249,6 @@ func _on_battle_finished(result: Dictionary) -> void:
 		_session_levels_finished += 1
 	_breadcrumb("level_end", props)
 	_battle = {}
-
-func _mode(level_id: String) -> String:
-	if DailyRewards.is_challenge(level_id):
-		return "daily"
-	if LevelGenerator.is_conquest(level_id):
-		return "conquest"
-	if InvasionDatabase.is_invasion(level_id):
-		return "invasion"
-	return "campaign"
 
 func _previous_stars(level_id: String, mode: String) -> int:
 	match mode:
