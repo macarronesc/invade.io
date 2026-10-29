@@ -35,7 +35,7 @@ jobs:
         run: |
           bash tools/install_security_tools.sh "$RUNNER_TEMP/security-tools"
           echo "$RUNNER_TEMP/security-tools" >> "$GITHUB_PATH"
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '17'
@@ -75,7 +75,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '17'
@@ -120,6 +120,19 @@ jobs:
           godot --headless --path . res://scenes/tests/test_runner.tscn
           xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --ui
           xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --wide-ui
+      - name: Generate and validate localized store material
+        run: |
+          timeout 620 xvfb-run -a godot --audio-driver Dummy --path . res://scenes/tests/store_assets.tscn -- --no-telemetry
+          python3 tools/build_store_listings.py --package
+      - name: Upload store listing material for review (never publish to Play)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: play-store-listing
+          path: |
+            build/play-store-listing.zip
+            build/store_capture/contact_*.png
+          if-no-files-found: error
+          retention-days: 7
       - name: Configure unsigned export and build Debug APK
         run: |
           godot --headless --path . --script tools/configure_ci_export.gd
@@ -146,13 +159,13 @@ jobs:
           godot --headless --path . --export-release 'Android AAB' build/android/invadeio-unsigned.aab
           bash scripts/verify_play_bundle.sh build/android/invadeio-unsigned.aab build/android/invadeio-debug.apk
           python3 tools/verify_artifact.py build/android/invadeio-unsigned.aab
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: build/android/invadeio-debug.apk
           archive: false
           if-no-files-found: error
           retention-days: 7
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: build/android/invadeio-unsigned.aab
           archive: false
@@ -240,7 +253,7 @@ jobs:
           lipo Payload/invadeio.app/invadeio -verify_arch arm64
           zip -q -r "$IPA_NAME" Payload
           python3 "$GITHUB_WORKSPACE/tools/verify_artifact.py" "$IPA_NAME"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: ${{ runner.temp }}/ios/${{ env.IPA_NAME }}
           archive: false
@@ -255,7 +268,7 @@ jobs:
     environment: play-release
     steps:
       # No checkout, game execution, Gradle, or contributor-provided scripts in this job.
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '17'
@@ -297,7 +310,7 @@ jobs:
       - name: Remove signing material even after failure
         if: always()
         run: rm -f "$RUNNER_TEMP/upload.keystore"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: ${{ runner.temp }}/signing/invadeio.aab
           archive: false
