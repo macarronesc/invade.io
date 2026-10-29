@@ -8,8 +8,8 @@ Source fonts are the Google Fonts variable Noto files:
     notosans.ttf, notosansarabic.ttf, notosansdevanagari.ttf,
     notosanssc.ttf, notosansjp.ttf, notosanskr.ttf
 
-The subset keeps every glyph used by locale/strings.csv and the localized city
-names in assets/data/geo.json, so the game never depends on system fonts.
+The subset keeps every glyph used by locale/strings.csv, the store captions and
+the localized city names, so screenshots never depend on system fonts either.
 Re-run this script after adding a language or changing a translation.
 """
 from __future__ import annotations
@@ -75,6 +75,13 @@ def read_text() -> tuple[dict[str, str], dict[str, set[str]]]:
                     continue
                 columns.setdefault(key, []).append(value or "")
     text = {lang: "\n".join(values) for lang, values in columns.items()}
+    graphics = os.path.join(ROOT, "docs", "store_listing", "graphics.json")
+    if os.path.exists(graphics):
+        with open(graphics, encoding="utf-8") as f:
+            for lang, entries in json.load(f).items():
+                captions = [entry[key] for entry in entries.values() if isinstance(entry, dict)
+                            for key in ("headline", "subtitle")]
+                text[lang] = text.get(lang, "") + "\n" + "\n".join(captions)
     names: dict[str, set[str]] = {}
     geo = json.load(open(GEO, encoding="utf-8"))
     for city in geo["cities"]:

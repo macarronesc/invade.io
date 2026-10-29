@@ -1,5 +1,7 @@
 # Security policy
 
+[Documentation](docs/README.md) · [Contributing](CONTRIBUTING.md) · [Release safeguards](docs/RELEASES.md)
+
 ## Report privately
 
 Use [GitHub private vulnerability reporting](https://github.com/macarronesc/invade.io/security/advisories/new).
@@ -24,7 +26,9 @@ Apps, and Play Console access regularly. Never upload real credentials to test a
 
 ## Current solo-maintainer limitation
 
-`main` and `dev` require PRs and passing builds, prohibit force pushes/deletion, and include admins.
+The maintainer must keep `main` and `dev` protected with PRs and passing builds,
+force pushes/deletion prohibited, and administrator enforcement. These are GitHub
+settings, not guarantees enforceable by a source checkout; review them in GitHub.
 Independent PR approval is not mandatory while there is only one maintainer. CODEOWNERS requests
 review but does not itself enforce approval. After appointing a trusted second maintainer, require
 one approval, code-owner reviews, stale-approval dismissal, and approval of the latest push; then

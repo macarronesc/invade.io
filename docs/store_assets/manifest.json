@@ -1,0 +1,1933 @@
+{
+	"commit": "db938d90dd05accc17e788781c2917706501bf14",
+	"daily_day": 20754,
+	"feature_sha256": "4bfdd6b332adc76ef304f3d66b53d0b664ea1ec11236eeca07035f70b7e1945e",
+	"godot": "4.7.2-stable (official)",
+	"locales": {
+		"ar": [
+			{
+				"alt": "تتقدم القوات الزرقاء من أثينا باتجاه قاعدة محايدة على خريطة العالم الحقيقي.",
+				"file": "1_conquer.png",
+				"headline": "اسحب. أرسل. اغزُ.",
+				"raw": "build/store_capture/raw/ar/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "d7053978cb08e6b91228381a545a6e5a7f8d1cea6a50e5ce0923f58e23189238",
+				"subtitle": "استراتيجية دون اتصال وبلا إعلانات."
+			},
+			{
+				"alt": "تتحرك القوات عبر أوروبا، حيث يقف المصنع والقلعة بين اللاعب والزعيم.",
+				"file": "2_tactics.png",
+				"headline": "كل قاعدة تغير المعركة",
+				"raw": "build/store_capture/raw/ar/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "54371634c794e9964fe2b6d06a55b91d16ed014a40449fe6565d5eb42e044eb7",
+				"subtitle": "المصانع والحصون ومعارك الزعماء."
+			},
+			{
+				"alt": "جبهة الغزو الأخيرة في أيبيريا، مع تقدم القوات نحو عاصمة المنطقة.",
+				"file": "3_invasions.png",
+				"headline": "36 منطقة. 108 جبهات.",
+				"raw": "build/store_capture/raw/ar/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "4c619559f8eb1970fbecfd6c9486e404c9a49250a69f1010e5c78f20bf4455fe",
+				"subtitle": "ثلاث جبهات. منطقة واحدة لإتقانها."
+			},
+			{
+				"alt": "تُظهر خريطة الحملة النجوم المكتسبة والمعركة التالية وإمكانية الوصول إلى حملات الغزو الحر.",
+				"file": "4_campaign.png",
+				"headline": "ست قارات تنتظر غزوك",
+				"raw": "build/store_capture/raw/ar/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "dfbee52c3f807019fff7aa558c3ee4b71d7a3da941509b3cbbb23928d5faec7a",
+				"subtitle": "30 مستوى للحملة + حملات الغزو."
+			},
+			{
+				"alt": "معركة تحدي يومية بقاعدتها الخاصة وهدفها المعروض فوق الخريطة.",
+				"file": "5_daily.png",
+				"headline": "تحدٍّ مختلف كل يوم",
+				"raw": "build/store_capture/raw/ar/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "ab9a63cc36a98609deb6717a7ac58a494af49db501c0ad9902dfd3475cc12102",
+				"subtitle": "قوات متساوية. حطّم رقمك الشخصي."
+			},
+			{
+				"alt": "تعرض شاشة الجيش الترقيات المكتسبة لبدء القوات والتجنيد وسرعة المسيرة.",
+				"file": "6_upgrades.png",
+				"headline": "ابنِ جيشًا أقوى",
+				"raw": "build/store_capture/raw/ar/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "5ec94a0e3289223c658f710a04961b1fa9c74422e69c1e5e57e949b2144df90b",
+				"subtitle": "جنّد أسرع. هاجم أبكر."
+			},
+			{
+				"alt": "تعرض شاشة المظهر أنماطًا مختلفة للقوات ومعاينات للقواعد.",
+				"file": "7_cosmetics.png",
+				"headline": "اجعل لكل غزو طابعك",
+				"raw": "build/store_capture/raw/ar/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "e59f582225cfcd9177a1dabce98a3ed6ea137887344529be2d001dc5b3198de3",
+				"subtitle": "ألوان الجيش وأشكال القواعد وسمات الخرائط."
+			},
+			{
+				"alt": "يُظهر الأطلس المدن المفتوحة بالأزرق على خريطة العالم، مع التقدّم حسب القارة.",
+				"file": "8_atlas.png",
+				"headline": "تتبّع كل انتصار",
+				"raw": "build/store_capture/raw/ar/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "de3a76545b6654146dda8bedbb891656af8d844c81a705c66d93af24e22d3b59",
+				"subtitle": "مدن ورتب و20 إنجازًا."
+			}
+		],
+		"de": [
+			{
+				"alt": "Auf einer realen Karte rücken blaue Truppen von Athen aus in Richtung einer neutralen Basis vor.",
+				"file": "1_conquer.png",
+				"headline": "Ziehen. Senden. Erobern.",
+				"raw": "build/store_capture/raw/de/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "4d62d28431ad2a4e6f6b6ab424cce17df3eb6b239603982cb3fb985c40ee9a13",
+				"subtitle": "Offline-Strategie. Keine Werbung."
+			},
+			{
+				"alt": "Truppen ziehen durch Europa, wo eine Fabrik und eine Festung zwischen dem Spieler und dem Boss stehen.",
+				"file": "2_tactics.png",
+				"headline": "Jede Basis verändert den Kampf",
+				"raw": "build/store_capture/raw/de/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "d743443a3139ace9f68a22cb40683b33244295735749d9f4b555905e7ed65ee9",
+				"subtitle": "Fabriken, Festungen und Bosskämpfe."
+			},
+			{
+				"alt": "Die letzte Invasionsfront in Iberia, mit Truppen, die in Richtung der Hauptstadt der Region vorrücken.",
+				"file": "3_invasions.png",
+				"headline": "36 Regionen. 108 Fronten.",
+				"raw": "build/store_capture/raw/de/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "fa736a750eefcc0d8537b74ca75bab5e5e513ce9b802c5eb627128744ab4a702",
+				"subtitle": "Drei Fronten. Eine Region meistern."
+			},
+			{
+				"alt": "Die Kampagnenkarte zeigt verdiente Sterne, die nächste Schlacht und freie Eroberungsexpeditionen.",
+				"file": "4_campaign.png",
+				"headline": "Sechs Kontinente. Mehr zu erobern.",
+				"raw": "build/store_capture/raw/de/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "b852980e5815b823498064b0597ef413e562495fb88d09e304ce44b557a5d590",
+				"subtitle": "30 Kampagnenlevel + Eroberungsexpeditionen."
+			},
+			{
+				"alt": "Ein täglicher Herausforderungskampf, dessen Sonderregel und Ziel über der Karte angezeigt werden.",
+				"file": "5_daily.png",
+				"headline": "Jeden Tag eine andere Herausforderung",
+				"raw": "build/store_capture/raw/de/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "cdb9197f40c7eda428a6cff2993d60c824a52541ec3f8788ec33f433a51d48e2",
+				"subtitle": "Gleiche Kräfte. Übertriff deinen Rekord."
+			},
+			{
+				"alt": "Der Armeebildschirm zeigt verdiente Upgrades für Starttruppen, Rekrutierung und Marschgeschwindigkeit.",
+				"file": "6_upgrades.png",
+				"headline": "Baue eine stärkere Armee auf",
+				"raw": "build/store_capture/raw/de/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "bcbddf86e5d1b16223d308dedc7e2deb6a1110cb03bfc5584f6a808343608789",
+				"subtitle": "Schneller rekrutieren. Früher angreifen."
+			},
+			{
+				"alt": "Die Armeeansicht zeigt verschiedene Truppenstile und Basisvorschauen.",
+				"file": "7_cosmetics.png",
+				"headline": "Deine Eroberung. Dein Stil.",
+				"raw": "build/store_capture/raw/de/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "f7f5849aacf28ebfef8814d3214c14512fe407762c3246f24a3b354466057126",
+				"subtitle": "Armeefarben, Basisformen und Kartenthemen."
+			},
+			{
+				"alt": "Der Weltatlas markiert eroberte Städte in Blau und zeigt den Fortschritt je Kontinent.",
+				"file": "8_atlas.png",
+				"headline": "Behalte jede Eroberung im Blick",
+				"raw": "build/store_capture/raw/de/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "37e229bcd9890bcaaf6a310cb680ce5166f014f51db1732789a714d2cc51a383",
+				"subtitle": "Städte, Ränge und 20 Erfolge."
+			}
+		],
+		"en": [
+			{
+				"alt": "Blue troops advance from Athens toward a neutral base on a real-world map.",
+				"file": "1_conquer.png",
+				"headline": "Drag. Send. Conquer.",
+				"raw": "build/store_capture/raw/en/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "fda508591df294d9aeed2dbb000abad599d65a0f6bf1834e740b40e87b7da427",
+				"subtitle": "Offline strategy. No ads."
+			},
+			{
+				"alt": "Troops move across Europe, where a factory and a fortress stand between the player and the boss.",
+				"file": "2_tactics.png",
+				"headline": "Every base changes the battle",
+				"raw": "build/store_capture/raw/en/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "750eafb6cd25e72fddf58091152859e85c811221a704375130847af69db53be6",
+				"subtitle": "Factories, fortresses and boss battles."
+			},
+			{
+				"alt": "The final invasion front in Iberia, with troops advancing toward the region's capital.",
+				"file": "3_invasions.png",
+				"headline": "36 regions. 108 fronts.",
+				"raw": "build/store_capture/raw/en/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "e278285ada3a7170c3e347975f865018a162a25d7649cb605c8a77fe18780541",
+				"subtitle": "Three fronts. One region to master."
+			},
+			{
+				"alt": "The campaign map shows earned stars, the next battle and access to free-conquest expeditions.",
+				"file": "4_campaign.png",
+				"headline": "Six continents. More to conquer.",
+				"raw": "build/store_capture/raw/en/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "0002e9a036e04157dd4aa6fba28a2c791e7512cbc77d175c1381ae94891d44a6",
+				"subtitle": "30 campaign levels + conquest expeditions."
+			},
+			{
+				"alt": "A daily challenge battle with its special rule and objective displayed above the map.",
+				"file": "5_daily.png",
+				"headline": "A different challenge every day",
+				"raw": "build/store_capture/raw/en/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "880edbd0c32b627462e9b4ec16cac02eb844d51e084864cc02ed46e8f16b05b0",
+				"subtitle": "Equal forces. Beat your personal best."
+			},
+			{
+				"alt": "The army screen shows earned upgrades to starting troops, recruitment and march speed.",
+				"file": "6_upgrades.png",
+				"headline": "Build a stronger army",
+				"raw": "build/store_capture/raw/en/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "efbd9aa84df94131ed338a8f077eaa6b37f28d2684693dd501d77aaabfd3f9ff",
+				"subtitle": "Recruit faster. Strike sooner."
+			},
+			{
+				"alt": "The army appearance screen shows different troop styles and base previews.",
+				"file": "7_cosmetics.png",
+				"headline": "Make every conquest yours",
+				"raw": "build/store_capture/raw/en/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "c250b263ef5f3970fe90d592a29f999dcb884505ba75848ff4acdad66b13dfec",
+				"subtitle": "Army colors, base shapes and map themes."
+			},
+			{
+				"alt": "The world atlas marks conquered cities in blue, with progress totals by continent.",
+				"file": "8_atlas.png",
+				"headline": "Track every conquest",
+				"raw": "build/store_capture/raw/en/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "6826c314cccc22cd6faea612488a97443074e47ca215ab205f22d6145882ecb0",
+				"subtitle": "Cities, ranks and 20 achievements."
+			}
+		],
+		"es": [
+			{
+				"alt": "Las tropas azules avanzan desde Atenas hacia una base neutral sobre un mapa real.",
+				"file": "1_conquer.png",
+				"headline": "Arrastra. Envía. Conquista.",
+				"raw": "build/store_capture/raw/es/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "6d2744b3dacaed27de3ca1a14e443ae89d5d8b08827573bfe3092affd9d4945e",
+				"subtitle": "Estrategia sin conexión y sin anuncios."
+			},
+			{
+				"alt": "Las tropas avanzan por Europa, con una fábrica y una fortaleza entre el jugador y el jefe.",
+				"file": "2_tactics.png",
+				"headline": "Cada base cambia la batalla",
+				"raw": "build/store_capture/raw/es/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "010e92b764f0127cf7761bc2ef740a83f5011509853cf3b4082c379a9143d911",
+				"subtitle": "Fábricas, fortalezas y batallas contra jefes."
+			},
+			{
+				"alt": "El frente final de la invasión de Iberia, con tropas avanzando hacia la capital de la región.",
+				"file": "3_invasions.png",
+				"headline": "36 regiones. 108 frentes.",
+				"raw": "build/store_capture/raw/es/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "ba966b11218e34893c5f687b57906fca0778b7041d795f6aaf3cea159fa0b34c",
+				"subtitle": "Tres frentes. Una región por dominar."
+			},
+			{
+				"alt": "El mapa de campaña muestra estrellas ganadas, la próxima batalla y acceso a expediciones de conquista libre.",
+				"file": "4_campaign.png",
+				"headline": "Seis continentes por conquistar",
+				"raw": "build/store_capture/raw/es/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "98dd29809dc14fbf54da158329b4b8d8a1698bc3c897668360771183decccc14",
+				"subtitle": "30 niveles de campaña y expediciones libres."
+			},
+			{
+				"alt": "Una batalla de desafío diario con su regla y objetivo especial sobre el mapa.",
+				"file": "5_daily.png",
+				"headline": "Un desafío diferente cada día",
+				"raw": "build/store_capture/raw/es/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "e592d5ea2d3614e9590ad5ffa78c32805e950fae1082323899c9218b600f01cc",
+				"subtitle": "Fuerzas iguales. Bate tu propia marca."
+			},
+			{
+				"alt": "La pantalla de ejército muestra mejoras ganadas de guarnición, reclutamiento y velocidad de marcha.",
+				"file": "6_upgrades.png",
+				"headline": "Haz crecer tu ejército",
+				"raw": "build/store_capture/raw/es/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "6102adae2a7b93354b0b9466c8a221122186af5fb6be1ff4c7b743df0c599928",
+				"subtitle": "Recluta más rápido. Ataca antes."
+			},
+			{
+				"alt": "La pantalla de aspecto muestra estilos de tropa y vistas previas de las bases.",
+				"file": "7_cosmetics.png",
+				"headline": "Dale tu estilo a la conquista",
+				"raw": "build/store_capture/raw/es/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "2210ff9c779455e2c8b4649bc7adcb7fce190f29f935d0b00f0e01cad171fb53",
+				"subtitle": "Colores, formas de base y temas de mapa."
+			},
+			{
+				"alt": "El atlas marca las ciudades conquistadas en azul sobre el mundo, con progreso por continente.",
+				"file": "8_atlas.png",
+				"headline": "Cada conquista deja huella",
+				"raw": "build/store_capture/raw/es/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "e83c10a6f52d5f790756f450595eaa98cc9f09d47dc7c396ef957f4a28bb605d",
+				"subtitle": "Ciudades, rangos y 20 logros."
+			}
+		],
+		"fr": [
+			{
+				"alt": "Les troupes bleues avancent depuis Athènes vers une base neutre sur une carte du monde réel.",
+				"file": "1_conquer.png",
+				"headline": "Glissez. Envoyez. Conquérez.",
+				"raw": "build/store_capture/raw/fr/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "b487c30e24104f75b6a3e1d4d402695d8809351be00f40d8a12964b2665462f5",
+				"subtitle": "Stratégie hors ligne. Aucune publicité."
+			},
+			{
+				"alt": "Des troupes traversent l'Europe, avec une usine et une forteresse entre le joueur et le boss.",
+				"file": "2_tactics.png",
+				"headline": "Chaque base change la bataille",
+				"raw": "build/store_capture/raw/fr/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "cce1fb27571602edc49cb0e1b27e0ee90af134f63e7b6eec244ed70d5bab1867",
+				"subtitle": "Usines, forteresses et combats de boss."
+			},
+			{
+				"alt": "Le dernier front d'invasion en Ibérie, avec des troupes avançant vers la capitale de la région.",
+				"file": "3_invasions.png",
+				"headline": "36 régions. 108 fronts.",
+				"raw": "build/store_capture/raw/fr/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "1e3765ee448728f0276ce4af3fb536a7b7eff4d73f5f82b0d7ecd6ecbcfab3a8",
+				"subtitle": "Trois fronts. Une région à maîtriser."
+			},
+			{
+				"alt": "La carte de campagne montre les étoiles gagnées, la prochaine bataille et les expéditions de conquête libre.",
+				"file": "4_campaign.png",
+				"headline": "Six continents. Plus à conquérir.",
+				"raw": "build/store_capture/raw/fr/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "b4626fec57e24e5671e72a4dcf25270bd15b88005acfff6f2377ff5a021ea757",
+				"subtitle": "30 niveaux de campagne + expéditions de conquête."
+			},
+			{
+				"alt": "Un défi quotidien avec sa règle spéciale et son objectif affichés au-dessus de la carte.",
+				"file": "5_daily.png",
+				"headline": "Un défi différent chaque jour",
+				"raw": "build/store_capture/raw/fr/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "a5dda293482dc62f6b1d76e17e08b74a539f1aacbcf7a5f8008b0edfbc6a7d35",
+				"subtitle": "Forces égales. Battez votre record personnel."
+			},
+			{
+				"alt": "L'écran de l'armée affiche les améliorations obtenues concernant les troupes de départ, le recrutement et la vitesse de marche.",
+				"file": "6_upgrades.png",
+				"headline": "Construisez une armée plus forte",
+				"raw": "build/store_capture/raw/fr/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "8681e1a661b29a0ebc7ee8cc07b0182ff348b41e17ca72ab5b859c21b1da93da",
+				"subtitle": "Recrutez plus rapidement. Frappez plus tôt."
+			},
+			{
+				"alt": "L'écran d'apparence montre différents styles de troupes et des aperçus des bases.",
+				"file": "7_cosmetics.png",
+				"headline": "Appropriez-vous chaque conquête",
+				"raw": "build/store_capture/raw/fr/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "8ead2cd282c3f545f3ad0c53acef623fbbf9e79404e9411bdbfe0bd743541bb3",
+				"subtitle": "Couleurs de l'armée, formes de base et thèmes de carte."
+			},
+			{
+				"alt": "L'atlas marque les villes conquises en bleu sur le monde, avec la progression par continent.",
+				"file": "8_atlas.png",
+				"headline": "Suivez chaque conquête",
+				"raw": "build/store_capture/raw/fr/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "c4829ef1373cfdf4c76ae2ee61f4b9d975688fa830629a7f269068f7783865ca",
+				"subtitle": "Villes, rangs et 20 succès."
+			}
+		],
+		"hi": [
+			{
+				"alt": "नीली सेना एथेंस से वास्तविक दुनिया के मानचित्र पर तटस्थ आधार की ओर आगे बढ़ती है।",
+				"file": "1_conquer.png",
+				"headline": "खींचें। भेजें। जीतें।",
+				"raw": "build/store_capture/raw/hi/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "c997179ed3a95669bbb5371d96d5d5f857f395897f08cf4af769b24298be6445",
+				"subtitle": "ऑफ़लाइन रणनीति। कोई विज्ञापन नहीं।"
+			},
+			{
+				"alt": "सेनाएँ पूरे यूरोप में घूमती हैं, जहाँ खिलाड़ी और बॉस के बीच एक फ़ैक्टरी और एक किला खड़ा होता है।",
+				"file": "2_tactics.png",
+				"headline": "हर बेस बदले लड़ाई का रुख",
+				"raw": "build/store_capture/raw/hi/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "b7e328496c1d21b2aad1158b268d0a80f89131c360d1dfce1f65c964ffbcddb3",
+				"subtitle": "कारखाने, किले और बॉस की लड़ाइयाँ।"
+			},
+			{
+				"alt": "इबेरिया में अंतिम आक्रमण मोर्चा, जिसमें सैनिक क्षेत्र की राजधानी की ओर बढ़ रहे हैं।",
+				"file": "3_invasions.png",
+				"headline": "36 क्षेत्र. 108 मोर्चे.",
+				"raw": "build/store_capture/raw/hi/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "60b3c6137328544382b9205e22fb0ea74d12e0a2c683bd2ee4ba5ec49b5d2379",
+				"subtitle": "तीन मोर्चे। एक क्षेत्र पर जीत।"
+			},
+			{
+				"alt": "अभियान मानचित्र अर्जित सितारों, अगली लड़ाई और मुक्त-विजय अभियानों तक पहुंच दिखाता है।",
+				"file": "4_campaign.png",
+				"headline": "जीतने के लिए छह महाद्वीप",
+				"raw": "build/store_capture/raw/hi/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "ee7b83944b42a13f793e3c1a428e3beea97434e170830c66abc38953c3d385aa",
+				"subtitle": "30 अभियान स्तर + विजय अभियान।"
+			},
+			{
+				"alt": "मानचित्र के ऊपर प्रदर्शित अपने विशेष नियम और उद्देश्य के साथ एक दैनिक चुनौती लड़ाई।",
+				"file": "5_daily.png",
+				"headline": "हर दिन एक अलग चुनौती",
+				"raw": "build/store_capture/raw/hi/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "a411f1352ac365bf3050d4e8f2fd2d9d0063e76e272517240f24efac70688fd3",
+				"subtitle": "बराबर सेनाएँ। अपना रिकॉर्ड तोड़ें।"
+			},
+			{
+				"alt": "सेना स्क्रीन शुरुआती सैनिकों, भर्ती और मार्च गति में अर्जित उन्नयन दिखाती है।",
+				"file": "6_upgrades.png",
+				"headline": "अपनी सेना मज़बूत बनाएँ",
+				"raw": "build/store_capture/raw/hi/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "301ccf4531383c0303fc48d88ee2a616570f2c502a0318d369dfb5351200c00f",
+				"subtitle": "तेज़ भर्ती करें। पहले हमला करें।"
+			},
+			{
+				"alt": "सेना की रूप-रंग स्क्रीन में सैनिक शैलियाँ और बेस के पूर्वावलोकन दिखाई देते हैं।",
+				"file": "7_cosmetics.png",
+				"headline": "हर विजय को अपना बनाओ",
+				"raw": "build/store_capture/raw/hi/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "1738c13a56ac0aba4a1fa418004a70bd391800bac93b19bb55daaa97432b6c40",
+				"subtitle": "सेना के रंग, बेस के आकार और नक्शों की थीम।"
+			},
+			{
+				"alt": "एटलस में जीते हुए शहर विश्व नक्शे पर नीले रंग में और हर महाद्वीप की प्रगति के साथ दिखते हैं।",
+				"file": "8_atlas.png",
+				"headline": "हर विजय पर नज़र रखें",
+				"raw": "build/store_capture/raw/hi/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "bda19817c1eac314855b65522a1fd2be430a6235af56cefe3ae2f7fe535b6427",
+				"subtitle": "शहर, रैंक और 20 उपलब्धियाँ।"
+			}
+		],
+		"id": [
+			{
+				"alt": "Pasukan biru maju dari Athena menuju pangkalan netral di peta dunia nyata.",
+				"file": "1_conquer.png",
+				"headline": "Seret. Kirim. Taklukkan.",
+				"raw": "build/store_capture/raw/id/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "1a293934630b2d9029cb423ef4fcda6997eb1ff98a1fbec2ea8f76db31c91ba3",
+				"subtitle": "Strategi offline. Tanpa iklan."
+			},
+			{
+				"alt": "Pasukan bergerak melintasi Eropa, di mana sebuah pabrik dan benteng berdiri di antara pemain dan bos.",
+				"file": "2_tactics.png",
+				"headline": "Setiap pangkalan mengubah pertempuran",
+				"raw": "build/store_capture/raw/id/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "a80fe2d3e0d2d702bede243dfc1dece3b16ede31dddf66c3529ec83a88215bf1",
+				"subtitle": "Pabrik, benteng, dan pertarungan bos."
+			},
+			{
+				"alt": "Front invasi terakhir di Iberia, dengan pasukan maju menuju ibu kota wilayah tersebut.",
+				"file": "3_invasions.png",
+				"headline": "36 wilayah. 108 front.",
+				"raw": "build/store_capture/raw/id/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "7f4a8a97a4f9fef17573ae2559ef331c648c8ccb744a07e58d567be2b12abae6",
+				"subtitle": "Tiga front. Satu wilayah untuk dikuasai."
+			},
+			{
+				"alt": "Peta kampanye menunjukkan bintang, pertempuran berikutnya, dan akses ke ekspedisi penaklukan bebas.",
+				"file": "4_campaign.png",
+				"headline": "Enam benua untuk ditaklukkan",
+				"raw": "build/store_capture/raw/id/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "cc985abf51794ab4abbf0ba36c6844dd815e90d768c3f29f2e05cf87a67d71b0",
+				"subtitle": "30 level kampanye + ekspedisi penaklukan."
+			},
+			{
+				"alt": "Pertarungan tantangan harian dengan aturan dan tujuan khusus yang ditampilkan di atas peta.",
+				"file": "5_daily.png",
+				"headline": "Tantangan yang berbeda setiap hari",
+				"raw": "build/store_capture/raw/id/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "b96724b7b5e43df242cfb1f737d319da7bdc4cd67c6e562c3966f72564f9c3c4",
+				"subtitle": "Kekuatan setara. Pecahkan rekormu."
+			},
+			{
+				"alt": "Layar tentara menunjukkan peningkatan yang diperoleh pada pasukan awal, rekrutmen, dan kecepatan perjalanan.",
+				"file": "6_upgrades.png",
+				"headline": "Bangun pasukan yang lebih kuat",
+				"raw": "build/store_capture/raw/id/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "cac48d848dee7174408b94013999acbfa9a1ef72ca14c6dcc63a6044b9081ffe",
+				"subtitle": "Rekrut lebih cepat. Serang lebih cepat."
+			},
+			{
+				"alt": "Layar tampilan menunjukkan beragam gaya pasukan dan pratinjau pangkalan.",
+				"file": "7_cosmetics.png",
+				"headline": "Jadikan setiap penaklukan milik Anda",
+				"raw": "build/store_capture/raw/id/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "e28b58d94d2004e57bfe242b5c746833c86329e00ab7730f17aebb712bd6b7c2",
+				"subtitle": "Warna pasukan, bentuk pangkalan, tema peta."
+			},
+			{
+				"alt": "Atlas dunia menandai kota yang ditaklukkan dengan warna biru dan menampilkan progres tiap benua.",
+				"file": "8_atlas.png",
+				"headline": "Lacak setiap penaklukan",
+				"raw": "build/store_capture/raw/id/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "eecc0d38f1515e7937db6c9a8111998ccdfee1eea8480a4711158983205bfbcf",
+				"subtitle": "Kota, peringkat dan 20 prestasi."
+			}
+		],
+		"it": [
+			{
+				"alt": "Le truppe blu avanzano da Atene verso una base neutrale su una mappa del mondo reale.",
+				"file": "1_conquer.png",
+				"headline": "Trascina. Invia. Conquista.",
+				"raw": "build/store_capture/raw/it/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "a5284c4f2e5176de35b884435d3c33cc7c9d06345a56dcd1579f70ff5d8be49e",
+				"subtitle": "Strategia offline. Nessuna pubblicità."
+			},
+			{
+				"alt": "Le truppe si muovono attraverso l'Europa, dove una fabbrica e una fortezza si frappongono tra il giocatore e il boss.",
+				"file": "2_tactics.png",
+				"headline": "Ogni base cambia la battaglia",
+				"raw": "build/store_capture/raw/it/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "05259e2938a788588f8c6439c6b5c77487f1fc320d0f6f772b9c05a66060a018",
+				"subtitle": "Fabbriche, fortezze e battaglie contro i boss."
+			},
+			{
+				"alt": "L'ultimo fronte d'invasione in Iberia, con le truppe che avanzano verso la capitale della regione.",
+				"file": "3_invasions.png",
+				"headline": "36 regioni. 108 fronti.",
+				"raw": "build/store_capture/raw/it/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "113d6f29e02eeae15c0fc6cbb7bcfe2c7b6133bb466db7673f5ffc28ff2da728",
+				"subtitle": "Tre fronti. Una regione da padroneggiare."
+			},
+			{
+				"alt": "La mappa della campagna mostra le stelle guadagnate, la battaglia successiva e l'accesso alle spedizioni di conquista libera.",
+				"file": "4_campaign.png",
+				"headline": "Sei continenti. Altro da conquistare.",
+				"raw": "build/store_capture/raw/it/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "bbe3af61890eb998ad78eff4953defbfdd00b9ba13502eee1bd8ab457649b89d",
+				"subtitle": "30 livelli di campagna + spedizioni di conquista."
+			},
+			{
+				"alt": "Una battaglia sfida quotidiana con regole speciali e obiettivo visualizzati sopra la mappa.",
+				"file": "5_daily.png",
+				"headline": "Ogni giorno una sfida diversa",
+				"raw": "build/store_capture/raw/it/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "a92b07885a804b6d20217269ae488a1a640423398f5c9d4baf030166cb22e356",
+				"subtitle": "Forze uguali. Batti il tuo record."
+			},
+			{
+				"alt": "La schermata dell'esercito mostra i potenziamenti ottenuti per le truppe iniziali, il reclutamento e la velocità di marcia.",
+				"file": "6_upgrades.png",
+				"headline": "Costruisci un esercito più forte",
+				"raw": "build/store_capture/raw/it/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "60a1a37798a911903e419f6ce6169ca09fc6469561ebebb0319e854faa05d1b1",
+				"subtitle": "Recluta più velocemente. Colpisci prima."
+			},
+			{
+				"alt": "La schermata dell'aspetto mostra stili delle truppe e anteprime delle basi.",
+				"file": "7_cosmetics.png",
+				"headline": "Fai tua ogni conquista",
+				"raw": "build/store_capture/raw/it/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "698967a77222fb91ee3b48f1d95043662b87164fa6523fdc08655024aacbbe59",
+				"subtitle": "Colori, forme delle basi e temi della mappa."
+			},
+			{
+				"alt": "L'atlante mondiale segna le città conquistate in blu e mostra i progressi per continente.",
+				"file": "8_atlas.png",
+				"headline": "Tieni traccia di ogni conquista",
+				"raw": "build/store_capture/raw/it/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "689dee6c188d147f174d53eb3bb22f7fc9facd334b73deb0a9310c44dbcb6214",
+				"subtitle": "Città, gradi e 20 obiettivi."
+			}
+		],
+		"ja": [
+			{
+				"alt": "現実世界の地図上で、青の軍隊がアテネから中立基地に向かって前進します。",
+				"file": "1_conquer.png",
+				"headline": "ドラッグ。出撃。征服。",
+				"raw": "build/store_capture/raw/ja/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "72756ab78978bdadd494b49c2485155c7b62ff0d44815c30ad796c1940916c45",
+				"subtitle": "オフラインで戦略を。広告なし。"
+			},
+			{
+				"alt": "軍隊はヨーロッパ中を移動し、プレイヤーとボスの間には工場や要塞が立ちはだかります。",
+				"file": "2_tactics.png",
+				"headline": "あらゆる拠点が戦いを変える",
+				"raw": "build/store_capture/raw/ja/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "f615a7685131432cf0f228f4458641cb40b487498d668715e2d8ba3dac79ca48",
+				"subtitle": "工場、要塞、ボス戦。"
+			},
+			{
+				"alt": "イベリア半島最後の侵攻戦線。軍隊はこの地域の首都に向かって前進している。",
+				"file": "3_invasions.png",
+				"headline": "36の地域。前線は108。",
+				"raw": "build/store_capture/raw/ja/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "b8ce819803fe557cf4890bf861a9beaba922bc3f8fa82f198714ebd19366fc34",
+				"subtitle": "3つの戦線を突破し、地域を制覇。"
+			},
+			{
+				"alt": "キャンペーン マップには、獲得したスター、次の戦闘、自由征服遠征へのアクセスが表示されます。",
+				"file": "4_campaign.png",
+				"headline": "6大陸を征服しよう",
+				"raw": "build/store_capture/raw/ja/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "9a21c6fa44d638e6ffc83dd18b3920e262abfedc67631300d151de0d1b9697fb",
+				"subtitle": "30のキャンペーンステージと征服遠征。"
+			},
+			{
+				"alt": "マップ上に特別なルールと目標が表示されるデイリーチャレンジバトル。",
+				"file": "5_daily.png",
+				"headline": "毎日違う挑戦",
+				"raw": "build/store_capture/raw/ja/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "451d7181872bfae9085350bb5ede0120a41ba431f09a096b4b8ff0dbf9eeef2a",
+				"subtitle": "同じ戦力で、自己ベストに挑戦。"
+			},
+			{
+				"alt": "軍隊画面には、開始部隊、徴兵、行軍速度に対する獲得したアップグレードが表示されます。",
+				"file": "6_upgrades.png",
+				"headline": "自分の軍を強化しよう",
+				"raw": "build/store_capture/raw/ja/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "236793b0d28978fb2c58d65b04e9d0f435a44400743d2ee95ab0e78b1a0a12e0",
+				"subtitle": "徴兵を速め、先手を取ろう。"
+			},
+			{
+				"alt": "軍の外観画面に、さまざまな部隊スタイルと拠点のプレビューが表示されます。",
+				"file": "7_cosmetics.png",
+				"headline": "征服を自分のスタイルで",
+				"raw": "build/store_capture/raw/ja/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "cae10ca6219eee1c234237e3e43da13534eb1942f0fb1237d3eda5abd39a791d",
+				"subtitle": "軍の色、拠点の形、マップテーマ。"
+			},
+			{
+				"alt": "世界地図帳では、征服した都市を青で示し、大陸ごとの進行状況を表示します。",
+				"file": "8_atlas.png",
+				"headline": "征服の歩みを記録しよう",
+				"raw": "build/store_capture/raw/ja/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "4c3aa6fce15ce4d32e57585d7fbbe7f8f6d1d71d8a92424112cca10376cfd8c1",
+				"subtitle": "都市、ランク、20の実績。"
+			}
+		],
+		"ko": [
+			{
+				"alt": "파란색 군대는 실제 지도에서 아테네에서 중립 기지를 향해 진군합니다.",
+				"file": "1_conquer.png",
+				"headline": "드래그. 출격. 정복.",
+				"raw": "build/store_capture/raw/ko/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "90b743c6d05d39361826d80f69b2d542e76bedb6de1f6331c5575c2884ccb27e",
+				"subtitle": "광고 없는 오프라인 전략."
+			},
+			{
+				"alt": "군대는 플레이어와 보스 사이에 공장과 요새가 있는 유럽 전역으로 이동합니다.",
+				"file": "2_tactics.png",
+				"headline": "기지마다 전투가 달라집니다",
+				"raw": "build/store_capture/raw/ko/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "3da5eb20605d63a3091a3469385ff930543cb2cf86a91bf035d7b7d1a84d5e63",
+				"subtitle": "공장, 요새, 보스 전투."
+			},
+			{
+				"alt": "군대가 지역의 수도를 향해 진군하는 이베리아의 마지막 침공 전선입니다.",
+				"file": "3_invasions.png",
+				"headline": "36개 지역. 108개 전선.",
+				"raw": "build/store_capture/raw/ko/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "2d0422002ac38168434e47b91f58792ce9a7a11a30926d2e98f2a85909da753e",
+				"subtitle": "세 전선을 돌파하고 지역을 정복하세요."
+			},
+			{
+				"alt": "캠페인 지도에는 획득한 별, 다음 전투, 무료 정복 원정에 대한 액세스가 표시됩니다.",
+				"file": "4_campaign.png",
+				"headline": "정복을 기다리는 6개 대륙",
+				"raw": "build/store_capture/raw/ko/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "ba31b0f939f46da1ecb55ad5aa65151cfc11c54ff02a6b2fd327d3467c71d7a1",
+				"subtitle": "30개의 캠페인 레벨 + 정복 탐험."
+			},
+			{
+				"alt": "지도 위에 특별한 규칙과 목표가 표시되는 일일 도전 전투입니다.",
+				"file": "5_daily.png",
+				"headline": "매일 다른 도전",
+				"raw": "build/store_capture/raw/ko/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "eb7ac416d33a1d2c3dd22f1637a7d2b956936a0b302115d14b0ea3aa220a383a",
+				"subtitle": "동등한 힘. 개인 최고 기록을 경신하세요."
+			},
+			{
+				"alt": "군대 화면에는 병력 시작, 모집 및 행군 속도에 대한 획득한 업그레이드가 표시됩니다.",
+				"file": "6_upgrades.png",
+				"headline": "더 강한 군대를 만드세요",
+				"raw": "build/store_capture/raw/ko/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "b8da29c374be9fe8c603fdb4cc3b9f06c262d0ec9d3073af33e7197050bd9f5e",
+				"subtitle": "더 빠르게 모집하고 먼저 공격하세요."
+			},
+			{
+				"alt": "군대 외형 화면은 다양한 부대 스타일과 기지 미리보기를 보여줍니다.",
+				"file": "7_cosmetics.png",
+				"headline": "나만의 스타일로 정복하세요",
+				"raw": "build/store_capture/raw/ko/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "89721b38a36fb72e6ba512579c79626284528b74c662c3010ecd9cd59ced200d",
+				"subtitle": "군대 색상, 기지 모양, 지도 테마."
+			},
+			{
+				"alt": "세계 도감은 정복한 도시를 파란색으로 표시하고 대륙별 진행 상황을 보여줍니다.",
+				"file": "8_atlas.png",
+				"headline": "정복의 발자취를 기록하세요",
+				"raw": "build/store_capture/raw/ko/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "097656d2435ab4b3b5e56618db8e159293f3f65fa08a8a3db94891820dc2fb59",
+				"subtitle": "도시, 계급, 20개의 업적."
+			}
+		],
+		"pt_BR": [
+			{
+				"alt": "As tropas azuis avançam de Atenas em direção a uma base neutra num mapa do mundo real.",
+				"file": "1_conquer.png",
+				"headline": "Arraste. Envie. Conquiste.",
+				"raw": "build/store_capture/raw/pt_BR/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "8ae5ed7a74e51a3656118a4d403f97ebe867755f8e8a2ffadb3778f421f8b3fd",
+				"subtitle": "Estratégia off-line. Sem anúncios."
+			},
+			{
+				"alt": "As tropas movem-se pela Europa, onde uma fábrica e uma fortaleza se interpõem entre o jogador e o chefe.",
+				"file": "2_tactics.png",
+				"headline": "Cada base muda a batalha",
+				"raw": "build/store_capture/raw/pt_BR/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "9ae382daa6c1667ddcbb66bed634ac46394891b68b4a36c7b3a35547e51f482d",
+				"subtitle": "Fábricas, fortalezas e batalhas contra chefes."
+			},
+			{
+				"alt": "A última frente de invasão na Península Ibérica, com tropas avançando em direção à capital da região.",
+				"file": "3_invasions.png",
+				"headline": "36 regiões. 108 frentes.",
+				"raw": "build/store_capture/raw/pt_BR/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "311d3398869044de629f53d862f67fe7aa9fe4b5194f9755d2e8d7d8ed4dfba5",
+				"subtitle": "Três frentes. Uma região para dominar."
+			},
+			{
+				"alt": "O mapa da campanha mostra estrelas conquistadas, a próxima batalha e expedições de conquista livre.",
+				"file": "4_campaign.png",
+				"headline": "Seis continentes. Mais para conquistar.",
+				"raw": "build/store_capture/raw/pt_BR/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "ed77f5f87b1db584f6c3ce2ee8f3bb1743f4415f0af8480854393d226df77319",
+				"subtitle": "30 níveis de campanha + expedições de conquista."
+			},
+			{
+				"alt": "Uma batalha de desafio diário com regras e objetivos especiais exibidos acima do mapa.",
+				"file": "5_daily.png",
+				"headline": "Um desafio diferente todos os dias",
+				"raw": "build/store_capture/raw/pt_BR/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "2598867306a90cf2d3c556b48d89c617ff74d433fdf0d0e5fea4f1b8fa0e856f",
+				"subtitle": "Forças iguais. Bata o seu recorde pessoal."
+			},
+			{
+				"alt": "A tela do exército mostra atualizações conquistadas para tropas iniciais, recrutamento e velocidade de marcha.",
+				"file": "6_upgrades.png",
+				"headline": "Construa um exército mais forte",
+				"raw": "build/store_capture/raw/pt_BR/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "7aaec5dcde28f7ac1e26dea7215fa2157d7099f6ce22e1dee3ebdb08f0c84a4e",
+				"subtitle": "Recrute mais rápido. Ataque mais cedo."
+			},
+			{
+				"alt": "A tela de aparência mostra estilos de tropas e prévias das bases.",
+				"file": "7_cosmetics.png",
+				"headline": "Faça com que cada conquista seja sua",
+				"raw": "build/store_capture/raw/pt_BR/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "eecfcff831499ce8a01a08ec386ed08ed5cfc372470865e14481f0fcb96ff3e6",
+				"subtitle": "Cores do exército, formas de base e temas de mapas."
+			},
+			{
+				"alt": "O atlas marca cidades conquistadas em azul no mapa mundial, com progresso por continente.",
+				"file": "8_atlas.png",
+				"headline": "Acompanhe cada conquista",
+				"raw": "build/store_capture/raw/pt_BR/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "fb1b6a3ffeea8fac995b9bd3927f02d46f342bff8a767dd459c055f37ffd7ce9",
+				"subtitle": "Cidades, patentes e 20 conquistas."
+			}
+		],
+		"ru": [
+			{
+				"alt": "Синие войска продвигаются из Афин к нейтральной базе на реальной карте.",
+				"file": "1_conquer.png",
+				"headline": "Проведи. Отправь. Завоюй.",
+				"raw": "build/store_capture/raw/ru/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "cdd05a8860b0e66065d2a6596ecb7dfbf1dbae037f27106863ed95786ecdca17",
+				"subtitle": "Стратегия без интернета и рекламы."
+			},
+			{
+				"alt": "Войска перемещаются по Европе, где между игроком и боссом стоят фабрика и крепость.",
+				"file": "2_tactics.png",
+				"headline": "Каждая база меняет ход битвы",
+				"raw": "build/store_capture/raw/ru/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "026eff195972c8f1be038b7cdc68942303afabe3774ffbaf6f7922a4350fa614",
+				"subtitle": "Заводы, крепости и битвы с боссами."
+			},
+			{
+				"alt": "Последний фронт вторжения в Иберию, войска продвигаются к столице региона.",
+				"file": "3_invasions.png",
+				"headline": "36 регионов. 108 фронтов.",
+				"raw": "build/store_capture/raw/ru/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "abda7ebf97158b9ceb0a8054b5d4c2ed1c3e1f36e59bca3e0b9dec3576fab0c9",
+				"subtitle": "Три фронта. Один регион для победы."
+			},
+			{
+				"alt": "На карте кампании показаны заработанные звезды, следующая битва и доступ к экспедициям свободного завоевания.",
+				"file": "4_campaign.png",
+				"headline": "Шесть континентов ждут",
+				"raw": "build/store_capture/raw/ru/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "913c43a2de13211ae9daf01c2bc281fd2ae8d9a6f24772220e56ac06f4c2f37a",
+				"subtitle": "30 уровней кампании + завоевательные экспедиции."
+			},
+			{
+				"alt": "Ежедневная битва-вызов, особые правила и цель которой отображаются над картой.",
+				"file": "5_daily.png",
+				"headline": "Новый вызов каждый день",
+				"raw": "build/store_capture/raw/ru/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "17bcc308472644e4d54e47d8368963ec7fd331e43738df476c83859dec5f6780",
+				"subtitle": "Равные силы. Побей свой личный рекорд."
+			},
+			{
+				"alt": "На экране армии отображаются заработанные улучшения стартовых войск, набора и скорости марша.",
+				"file": "6_upgrades.png",
+				"headline": "Создай сильную армию",
+				"raw": "build/store_capture/raw/ru/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "4ab3588d32eec717eff3f9537eb8226eba9ab203a2deb1c74dfc49a0177ea9cd",
+				"subtitle": "Быстрее набор. Раньше атака."
+			},
+			{
+				"alt": "Экран внешнего вида показывает разные стили войск и предварительный вид баз.",
+				"file": "7_cosmetics.png",
+				"headline": "Твои победы. Твой стиль.",
+				"raw": "build/store_capture/raw/ru/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "694ba1369c10ba718d58e36967a4adfaf4b23c1628d74ad97801bf27a82d33a0",
+				"subtitle": "Цвета армии, формы баз и темы карт."
+			},
+			{
+				"alt": "На карте мира завоёванные города отмечены синим, рядом показан прогресс по континентам.",
+				"file": "8_atlas.png",
+				"headline": "Следи за каждой победой",
+				"raw": "build/store_capture/raw/ru/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "f4bc0e590ce75e33f5a07baf4991ab0fa41828c14ce1ca48ad47d125c3843810",
+				"subtitle": "Города, звания и 20 достижений."
+			}
+		],
+		"tr": [
+			{
+				"alt": "Mavi birlikler Atina'dan gerçek dünya haritasındaki tarafsız bir üsse doğru ilerliyor.",
+				"file": "1_conquer.png",
+				"headline": "Sürükle. Gönder. Fethet.",
+				"raw": "build/store_capture/raw/tr/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "0c44b61cec011ffb89bed44f298318e9925f28dbf27e648f9b4644a2a5f5ca5b",
+				"subtitle": "Çevrimdışı strateji. Reklam yok."
+			},
+			{
+				"alt": "Avrupa haritasında birlikler, bir fabrika ve kaleden geçerek güçlü düşmana ilerliyor.",
+				"file": "2_tactics.png",
+				"headline": "Her üs savaşı değiştirir",
+				"raw": "build/store_capture/raw/tr/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "0501e619a344cbce1d3e83032f15f8181ed1f27ff468759fcbbb1fd8d0ae650d",
+				"subtitle": "Fabrikalar, kaleler ve bölüm sonu savaşları."
+			},
+			{
+				"alt": "Birliklerin bölgenin başkentine doğru ilerlediği İberya'daki son işgal cephesi.",
+				"file": "3_invasions.png",
+				"headline": "36 bölge. 108 cephe.",
+				"raw": "build/store_capture/raw/tr/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "7988cbe19dbf7f0fdb793bacc84cdc0f0dd78eb9a470e0fa0d979a61f39293e4",
+				"subtitle": "Üç cephe. Uzmanlaşılacak bir bölge."
+			},
+			{
+				"alt": "Sefer haritası kazanılan yıldızları, sıradaki savaşı ve serbest fetih seferlerine erişimi gösterir.",
+				"file": "4_campaign.png",
+				"headline": "Fethedilecek altı kıta",
+				"raw": "build/store_capture/raw/tr/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "50f18c44f0466f30df553d5401095355a8ffcb2c1fb15833150572cfdbd9222f",
+				"subtitle": "30 kampanya seviyesi + fetih seferi."
+			},
+			{
+				"alt": "Haritanın üzerinde gösterilen özel kuralı ve hedefi olan günlük bir meydan okuma savaşı.",
+				"file": "5_daily.png",
+				"headline": "Her gün farklı bir meydan okuma",
+				"raw": "build/store_capture/raw/tr/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "d68b88277e7ec1d074fa4036a56de6d382fa4c30ff088f767164df09d5a90aea",
+				"subtitle": "Eşit kuvvetler. Kişisel rekorunuzu kırın."
+			},
+			{
+				"alt": "Ordu ekranı, başlangıç ​​birliklerinde, asker toplamada ve yürüyüş hızında kazanılan yükseltmeleri gösterir.",
+				"file": "6_upgrades.png",
+				"headline": "Daha güçlü bir ordu kurun",
+				"raw": "build/store_capture/raw/tr/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "54899a5c22f957b23187ad1733e2749e7a90596a70b46f4a3e653b7d81b18645",
+				"subtitle": "Daha hızlı asker topla. Önce saldır."
+			},
+			{
+				"alt": "Görünüm ekranı farklı birlik stillerini ve üs önizlemelerini gösterir.",
+				"file": "7_cosmetics.png",
+				"headline": "Her fetih senin tarzında",
+				"raw": "build/store_capture/raw/tr/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "538a8837f55f2f6efd8d2f66efc0caf9964ffdedadd222a7c7e95604555304de",
+				"subtitle": "Ordu renkleri, üs şekilleri ve harita temaları."
+			},
+			{
+				"alt": "Dünya atlası fethedilen şehirleri maviyle ve kıtalara göre ilerleme toplamlarıyla gösterir.",
+				"file": "8_atlas.png",
+				"headline": "Her fethi takip edin",
+				"raw": "build/store_capture/raw/tr/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "0d2c88ce94c4bbdc0f32dce4a31befd0dc475526b51208d6c5ee96436aac47fc",
+				"subtitle": "Şehirler, rütbeler ve 20 başarı."
+			}
+		],
+		"vi": [
+			{
+				"alt": "Quân xanh tiến từ Athens tới căn cứ trung lập trên bản đồ thế giới thực.",
+				"file": "1_conquer.png",
+				"headline": "Kéo. Gửi quân. Chinh phục.",
+				"raw": "build/store_capture/raw/vi/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "08833c409c8b66918cc4f97c9684ec9ce70f170d3885390a36c64e8503d0ac1d",
+				"subtitle": "Chiến thuật ngoại tuyến. Không quảng cáo."
+			},
+			{
+				"alt": "Quân đội tiến qua châu Âu, với nhà máy và pháo đài nằm giữa người chơi và trùm.",
+				"file": "2_tactics.png",
+				"headline": "Mỗi căn cứ đều thay đổi trận chiến",
+				"raw": "build/store_capture/raw/vi/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "6b89ab8ff1d82849e396c65a391106d9fcee16d92d82debe6d62d9f1144d9a41",
+				"subtitle": "Nhà máy, pháo đài và trận đánh trùm."
+			},
+			{
+				"alt": "Mặt trận xâm lược cuối cùng ở Iberia, với quân đội tiến về thủ đô của khu vực.",
+				"file": "3_invasions.png",
+				"headline": "36 khu vực. 108 mặt trận.",
+				"raw": "build/store_capture/raw/vi/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "09819633e6d4b8846a561d9eb9f259e9b73049370d8462367d385faee6461c0a",
+				"subtitle": "Ba mặt trận. Một khu vực để làm chủ."
+			},
+			{
+				"alt": "Bản đồ chiến dịch hiển thị số sao kiếm được, trận chiến tiếp theo và quyền truy cập vào các cuộc thám hiểm chinh phục miễn phí.",
+				"file": "4_campaign.png",
+				"headline": "Sáu lục địa để chinh phục",
+				"raw": "build/store_capture/raw/vi/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "5a158cd39ea3ebf8b5f99b56e1c63321746ffabd60ff854e9377b4a64dc43029",
+				"subtitle": "30 màn chiến dịch và các cuộc viễn chinh."
+			},
+			{
+				"alt": "Trận chiến thử thách hàng ngày với quy tắc và mục tiêu đặc biệt được hiển thị phía trên bản đồ.",
+				"file": "5_daily.png",
+				"headline": "Một thử thách khác nhau mỗi ngày",
+				"raw": "build/store_capture/raw/vi/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "22db0d5b246ecb0d83749c51cbb2bd3f3dbaa97a00100844571defcaf0c23be6",
+				"subtitle": "Lực lượng ngang nhau. Phá kỷ lục của bạn."
+			},
+			{
+				"alt": "Màn hình quân đội hiển thị các nâng cấp kiếm được về quân xuất phát, tuyển quân và tốc độ hành quân.",
+				"file": "6_upgrades.png",
+				"headline": "Xây dựng một đội quân mạnh hơn",
+				"raw": "build/store_capture/raw/vi/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "092847ef4e5dbe7d64c88896dd16463e83e62ada07f8e1012e201176615c4a35",
+				"subtitle": "Tuyển quân nhanh hơn. Tấn công sớm hơn."
+			},
+			{
+				"alt": "Màn hình ngoại hình hiển thị các kiểu quân và hình xem trước của căn cứ.",
+				"file": "7_cosmetics.png",
+				"headline": "Chinh phục theo cách của bạn",
+				"raw": "build/store_capture/raw/vi/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "f7efc4b50ba243429defb3900cae390eaba0ba038286a51e7263109536ae1b15",
+				"subtitle": "Màu sắc quân đội, hình dạng căn cứ và chủ đề bản đồ."
+			},
+			{
+				"alt": "Bản đồ thế giới đánh dấu thành phố đã chinh phục bằng màu xanh, cùng tiến trình theo lục địa.",
+				"file": "8_atlas.png",
+				"headline": "Theo dõi mọi cuộc chinh phục",
+				"raw": "build/store_capture/raw/vi/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "f35688677517572f5cbed691560cd3c0fbf5860a33e266387541667966ad855c",
+				"subtitle": "Thành phố, cấp bậc và 20 thành tích."
+			}
+		],
+		"zh_CN": [
+			{
+				"alt": "蓝军从雅典出发，向现实世界地图上的中立基地前进。",
+				"file": "1_conquer.png",
+				"headline": "拖动。派兵。征服。",
+				"raw": "build/store_capture/raw/zh_CN/conquer.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_4",
+				"sha256": "7572713eacb4e5634ff26108d736e8fefcd12dac17ae48fd91b5c29a01b153d6",
+				"subtitle": "离线策略，无广告。"
+			},
+			{
+				"alt": "军队穿越欧洲，玩家与首领之间有一座工厂和一座堡垒。",
+				"file": "2_tactics.png",
+				"headline": "每个基地都会改变战斗",
+				"raw": "build/store_capture/raw/zh_CN/tactics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "europe_5",
+				"sha256": "6e19ec5fd4db5034a386406197082684e2767ced3bd120d31bb43b360c3fb1fc",
+				"subtitle": "工厂、堡垒和头目战。"
+			},
+			{
+				"alt": "伊比利亚的最后入侵战线，部队向该地区的首府挺进。",
+				"file": "3_invasions.png",
+				"headline": "36个地区。 108条战线。",
+				"raw": "build/store_capture/raw/zh_CN/invasions.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "inv_iberia_3",
+				"sha256": "6244c9ee3645e448a358f598d0b56256f7c79f80e3fbbc9e4560ab52bc40feb2",
+				"subtitle": "突破三条战线，征服整个地区。"
+			},
+			{
+				"alt": "战役地图显示了获得的星星、下一场战斗以及免费征服探险的机会。",
+				"file": "4_campaign.png",
+				"headline": "六大洲等你征服",
+				"raw": "build/store_capture/raw/zh_CN/campaign.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "campaign",
+				"sha256": "cd7811d10bc54e4307e4e4d652be98388dbe193bdf142cf148020538eac1293a",
+				"subtitle": "30 个战役关卡 + 征服探险。"
+			},
+			{
+				"alt": "每日挑战战斗，其特殊规则和目标显示在地图上方。",
+				"file": "5_daily.png",
+				"headline": "每天都有不同的挑战",
+				"raw": "build/store_capture/raw/zh_CN/daily.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "daily_20754",
+				"sha256": "273eb62752da1ec68a19aa04f4add332fd31d4cde074766f7f0ea4c0b7787ad3",
+				"subtitle": "相同兵力，挑战个人最佳纪录。"
+			},
+			{
+				"alt": "军队屏幕显示了对起始部队、招募和行军速度的获得升级。",
+				"file": "6_upgrades.png",
+				"headline": "建设一支更强大的军队",
+				"raw": "build/store_capture/raw/zh_CN/upgrades.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "upgrades",
+				"sha256": "ddb463c0dc11ad704b7ab87525f893dd681df904cff5f7165dd689a18db3d8ee",
+				"subtitle": "加速招募，抢先出击。"
+			},
+			{
+				"alt": "军队外观界面展示不同部队风格和基地预览。",
+				"file": "7_cosmetics.png",
+				"headline": "让每一次征服都属于你",
+				"raw": "build/store_capture/raw/zh_CN/cosmetics.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "cosmetics",
+				"sha256": "be1dfe93c52b9234d1f5e672a849de196516069efd368267a6be29949bc109c1",
+				"subtitle": "军队颜色、基地形状和地图主题。"
+			},
+			{
+				"alt": "世界图集用蓝色标记已征服的城市，并显示各大洲的进度。",
+				"file": "8_atlas.png",
+				"headline": "追踪每一次征服",
+				"raw": "build/store_capture/raw/zh_CN/atlas.png",
+				"raw_size": [
+					1080,
+					1600
+				],
+				"scenario": "atlas",
+				"sha256": "ea9965253a54bc8777b28d84ec704a443efff2b85b0393a56bd74b53cc4ba9b5",
+				"subtitle": "城市、军衔和20项成就。"
+			}
+		]
+	},
+	"seed": 20261028,
+	"tablets": {
+		"ar": [
+			{
+				"alt": "تُظهر خريطة الحملة النجوم المكتسبة والمعركة التالية وإمكانية الوصول إلى حملات الغزو الحر.",
+				"file": "1_campaign.png",
+				"sha256": "436d950133147d280ebc500a19305cf3f9b9e3d6120eb5f0979a3ca176a037bd"
+			},
+			{
+				"alt": "جبهة الغزو الأخيرة في أيبيريا، مع تقدم القوات نحو عاصمة المنطقة.",
+				"file": "2_invasions.png",
+				"sha256": "85a08efc878c4410678560deba585248485caec71d47a2eb8ff140c38de25a4e"
+			},
+			{
+				"alt": "تعرض شاشة المظهر أنماطًا مختلفة للقوات ومعاينات للقواعد.",
+				"file": "3_cosmetics.png",
+				"sha256": "609b267f05c41e6546422bb9fc7c59967ca6fe3e505abe25fdfc25e2f4dec459"
+			},
+			{
+				"alt": "يُظهر الأطلس المدن المفتوحة بالأزرق على خريطة العالم، مع التقدّم حسب القارة.",
+				"file": "4_atlas.png",
+				"sha256": "b8fadc43f641f1a4037f33e5bebc5731ad111e45a96432ddc1769165c763449b"
+			}
+		],
+		"de": [
+			{
+				"alt": "Die Kampagnenkarte zeigt verdiente Sterne, die nächste Schlacht und freie Eroberungsexpeditionen.",
+				"file": "1_campaign.png",
+				"sha256": "823b0b4a2037583b8675d1f29fcf4564f6396a9a2db3ea7820d9eeb589967ee2"
+			},
+			{
+				"alt": "Die letzte Invasionsfront in Iberia, mit Truppen, die in Richtung der Hauptstadt der Region vorrücken.",
+				"file": "2_invasions.png",
+				"sha256": "ab699b3e8259697637fdd17f361fc8f26bcae9f5108cd5b42334f6fa76c51eed"
+			},
+			{
+				"alt": "Die Armeeansicht zeigt verschiedene Truppenstile und Basisvorschauen.",
+				"file": "3_cosmetics.png",
+				"sha256": "f8c7f0a4a98aa32819c4fb2336ab5d7481be0a8edd5720a80917960134356efa"
+			},
+			{
+				"alt": "Der Weltatlas markiert eroberte Städte in Blau und zeigt den Fortschritt je Kontinent.",
+				"file": "4_atlas.png",
+				"sha256": "e4fbab349575f3f0fa42f587d7aed3a54af535c4caeb14684e9dcf054e9a5ddf"
+			}
+		],
+		"en": [
+			{
+				"alt": "The campaign map shows earned stars, the next battle and access to free-conquest expeditions.",
+				"file": "1_campaign.png",
+				"sha256": "153d06af144b8a982f30d5004d67b00d45b2b8e98dc3a7543f41cb76b02cfeca"
+			},
+			{
+				"alt": "The final invasion front in Iberia, with troops advancing toward the region's capital.",
+				"file": "2_invasions.png",
+				"sha256": "a9f19101cc6837ae9b5277a237658728c1cb298a9892f01bf01d3beabc47de76"
+			},
+			{
+				"alt": "The army appearance screen shows different troop styles and base previews.",
+				"file": "3_cosmetics.png",
+				"sha256": "c02cff4a7509c327a34cc735c2d5dde4efdfa2c3d21786b9315826f34a2366c7"
+			},
+			{
+				"alt": "The world atlas marks conquered cities in blue, with progress totals by continent.",
+				"file": "4_atlas.png",
+				"sha256": "b3b156a5c363413b79d99fab840d3d8ad7ae4c01fc8217b8e02fe4edf2eb68b9"
+			}
+		],
+		"es": [
+			{
+				"alt": "El mapa de campaña muestra estrellas ganadas, la próxima batalla y acceso a expediciones de conquista libre.",
+				"file": "1_campaign.png",
+				"sha256": "edc1c64b0fb752ee4671208954f830b3554c98ad07d50483d6fa77077f41120d"
+			},
+			{
+				"alt": "El frente final de la invasión de Iberia, con tropas avanzando hacia la capital de la región.",
+				"file": "2_invasions.png",
+				"sha256": "ecc2eb025fc5e4f1b04963ac5c205c084b3dd5356a6e5178f2ede6a7aeb9177d"
+			},
+			{
+				"alt": "La pantalla de aspecto muestra estilos de tropa y vistas previas de las bases.",
+				"file": "3_cosmetics.png",
+				"sha256": "0825a72777d31adfb92f52915108bed7e03423de2f6c67f0105c7e3f2e018cc6"
+			},
+			{
+				"alt": "El atlas marca las ciudades conquistadas en azul sobre el mundo, con progreso por continente.",
+				"file": "4_atlas.png",
+				"sha256": "401a09ffa883a328544621efe87c49e4b3a051a0a66242a20f4a0e9a8cb0b02a"
+			}
+		],
+		"fr": [
+			{
+				"alt": "La carte de campagne montre les étoiles gagnées, la prochaine bataille et les expéditions de conquête libre.",
+				"file": "1_campaign.png",
+				"sha256": "61d0bff07e8dfc8a7b455fa365b9e397c8e4bf1753698b10d541663983afe76e"
+			},
+			{
+				"alt": "Le dernier front d'invasion en Ibérie, avec des troupes avançant vers la capitale de la région.",
+				"file": "2_invasions.png",
+				"sha256": "0eeeb31bceeadfcd6ead0ef0cc22fa22bb0e87e2bd91a6a119539aa8bd636e3b"
+			},
+			{
+				"alt": "L'écran d'apparence montre différents styles de troupes et des aperçus des bases.",
+				"file": "3_cosmetics.png",
+				"sha256": "a07c8e10f1e541d01a8a0b3edb07852827c9bed65f05de3619aa53309903c9e5"
+			},
+			{
+				"alt": "L'atlas marque les villes conquises en bleu sur le monde, avec la progression par continent.",
+				"file": "4_atlas.png",
+				"sha256": "00b31dd04a7fabceb48f357f6c1097c7c1ab9eb7d2a11030f17b56a8cf1d170e"
+			}
+		],
+		"hi": [
+			{
+				"alt": "अभियान मानचित्र अर्जित सितारों, अगली लड़ाई और मुक्त-विजय अभियानों तक पहुंच दिखाता है।",
+				"file": "1_campaign.png",
+				"sha256": "a8c9e2c10d9d061cbdedd867551e9aa19615a97bb6b5456f4206602a8a67f1cb"
+			},
+			{
+				"alt": "इबेरिया में अंतिम आक्रमण मोर्चा, जिसमें सैनिक क्षेत्र की राजधानी की ओर बढ़ रहे हैं।",
+				"file": "2_invasions.png",
+				"sha256": "926ac8be22720428842e2e9ec08c352b0da24e94660e747d8e5cf8f7beb972d0"
+			},
+			{
+				"alt": "सेना की रूप-रंग स्क्रीन में सैनिक शैलियाँ और बेस के पूर्वावलोकन दिखाई देते हैं।",
+				"file": "3_cosmetics.png",
+				"sha256": "12f15470f0fe3edb3bebdc59f81965d65039c50c7ea2e92961252411e8f9e766"
+			},
+			{
+				"alt": "एटलस में जीते हुए शहर विश्व नक्शे पर नीले रंग में और हर महाद्वीप की प्रगति के साथ दिखते हैं।",
+				"file": "4_atlas.png",
+				"sha256": "45b32d1e6b2929da84425970e7b53d310c95474c91287adc5d8c6b77268f2758"
+			}
+		],
+		"id": [
+			{
+				"alt": "Peta kampanye menunjukkan bintang, pertempuran berikutnya, dan akses ke ekspedisi penaklukan bebas.",
+				"file": "1_campaign.png",
+				"sha256": "157bc8aa47fa6a7f2191b22da2d5d4403d165aec90809f545aa8375dd2c68b0d"
+			},
+			{
+				"alt": "Front invasi terakhir di Iberia, dengan pasukan maju menuju ibu kota wilayah tersebut.",
+				"file": "2_invasions.png",
+				"sha256": "405deb461b79f41efcaf3ffd04bd9959d3db667246f59cf8ea2a95201a91fa10"
+			},
+			{
+				"alt": "Layar tampilan menunjukkan beragam gaya pasukan dan pratinjau pangkalan.",
+				"file": "3_cosmetics.png",
+				"sha256": "cde24e5c59c01cdfa7d03e9c95c18d7fabbe6bb5c48293525a87030af68abc33"
+			},
+			{
+				"alt": "Atlas dunia menandai kota yang ditaklukkan dengan warna biru dan menampilkan progres tiap benua.",
+				"file": "4_atlas.png",
+				"sha256": "e80b2aa4c15d0b73e8dcb5b1e0091d70372f546798047afa713e1c6e060133b8"
+			}
+		],
+		"it": [
+			{
+				"alt": "La mappa della campagna mostra le stelle guadagnate, la battaglia successiva e l'accesso alle spedizioni di conquista libera.",
+				"file": "1_campaign.png",
+				"sha256": "31782c612df511251312dd730a7c0c6fc270e4059b03c5f39de2c7e8bb666389"
+			},
+			{
+				"alt": "L'ultimo fronte d'invasione in Iberia, con le truppe che avanzano verso la capitale della regione.",
+				"file": "2_invasions.png",
+				"sha256": "a30ce488c4f723e1d51736623205eef4e53a71d497539e39bee311956570cd6f"
+			},
+			{
+				"alt": "La schermata dell'aspetto mostra stili delle truppe e anteprime delle basi.",
+				"file": "3_cosmetics.png",
+				"sha256": "9ae26ed7fb53d629f4ce5e4be76581d9c4b83a80aee7b7bf4d35a31933bc6659"
+			},
+			{
+				"alt": "L'atlante mondiale segna le città conquistate in blu e mostra i progressi per continente.",
+				"file": "4_atlas.png",
+				"sha256": "3dbfd02c239654c78478b3c10c27a582a97b79bf6643cf7d793dd283a7fb490f"
+			}
+		],
+		"ja": [
+			{
+				"alt": "キャンペーン マップには、獲得したスター、次の戦闘、自由征服遠征へのアクセスが表示されます。",
+				"file": "1_campaign.png",
+				"sha256": "c0f47dbda480d5e5957b19ae2665659fe5c504a14b5933be93b232e060d283b2"
+			},
+			{
+				"alt": "イベリア半島最後の侵攻戦線。軍隊はこの地域の首都に向かって前進している。",
+				"file": "2_invasions.png",
+				"sha256": "ab6d6dd0fc7a5d2170d8ab07544a5bc5b5624532ca656b7ff3f28d18bd8efa21"
+			},
+			{
+				"alt": "軍の外観画面に、さまざまな部隊スタイルと拠点のプレビューが表示されます。",
+				"file": "3_cosmetics.png",
+				"sha256": "ef158b0fee261a8f35ea53a27e8ec6c569f97584d9025d1832d930b1b02daa93"
+			},
+			{
+				"alt": "世界地図帳では、征服した都市を青で示し、大陸ごとの進行状況を表示します。",
+				"file": "4_atlas.png",
+				"sha256": "6e362ea468975267f04771667a3449361fb93d2603bf258536ca4aaca5d9ef97"
+			}
+		],
+		"ko": [
+			{
+				"alt": "캠페인 지도에는 획득한 별, 다음 전투, 무료 정복 원정에 대한 액세스가 표시됩니다.",
+				"file": "1_campaign.png",
+				"sha256": "310bfe1b26c76cb396afa48b7cf7da715e187558a21c7947f1e1e80b972ff241"
+			},
+			{
+				"alt": "군대가 지역의 수도를 향해 진군하는 이베리아의 마지막 침공 전선입니다.",
+				"file": "2_invasions.png",
+				"sha256": "a6c1c81bdf69e2fbd9b2559b5a898d3d372277c80f706015090b8e0279021286"
+			},
+			{
+				"alt": "군대 외형 화면은 다양한 부대 스타일과 기지 미리보기를 보여줍니다.",
+				"file": "3_cosmetics.png",
+				"sha256": "013ccd1ff83f9eb86c2c537e9d6991243ef06d979ebb8ab47b1dc30e2ebdb274"
+			},
+			{
+				"alt": "세계 도감은 정복한 도시를 파란색으로 표시하고 대륙별 진행 상황을 보여줍니다.",
+				"file": "4_atlas.png",
+				"sha256": "3142626da5b894c0fa280c1219f1a6594291441279393bc231e9d2d838707b52"
+			}
+		],
+		"pt_BR": [
+			{
+				"alt": "O mapa da campanha mostra estrelas conquistadas, a próxima batalha e expedições de conquista livre.",
+				"file": "1_campaign.png",
+				"sha256": "cd42564474a4caab560181f27205476e8288e6e43b8cedda4eca3618e7e28fd8"
+			},
+			{
+				"alt": "A última frente de invasão na Península Ibérica, com tropas avançando em direção à capital da região.",
+				"file": "2_invasions.png",
+				"sha256": "98216ea6c6ec561a38f2608bfa120439792bc7c1d59e9f39eb74e6c3bf5082c1"
+			},
+			{
+				"alt": "A tela de aparência mostra estilos de tropas e prévias das bases.",
+				"file": "3_cosmetics.png",
+				"sha256": "817731ef26985dcff012506ee39133bcdfbf98167794130de7cfa4119ff702e5"
+			},
+			{
+				"alt": "O atlas marca cidades conquistadas em azul no mapa mundial, com progresso por continente.",
+				"file": "4_atlas.png",
+				"sha256": "fd6d18c9e6c276681afc50915da00b3d5304c2cc06fa91113f801ec493b2fb37"
+			}
+		],
+		"ru": [
+			{
+				"alt": "На карте кампании показаны заработанные звезды, следующая битва и доступ к экспедициям свободного завоевания.",
+				"file": "1_campaign.png",
+				"sha256": "121eb96e30358375c0b67920f20c1b6f57bcd9f2de2c8f38f5c8e18b2afe8b8a"
+			},
+			{
+				"alt": "Последний фронт вторжения в Иберию, войска продвигаются к столице региона.",
+				"file": "2_invasions.png",
+				"sha256": "909d9711d6d9df574898568ec9d5a05bd15ca8eb2756572d271eb9c782d394cb"
+			},
+			{
+				"alt": "Экран внешнего вида показывает разные стили войск и предварительный вид баз.",
+				"file": "3_cosmetics.png",
+				"sha256": "28aff76348b4b3046587e6eb7f68f441de5cc9e056db841631efff7dee08d022"
+			},
+			{
+				"alt": "На карте мира завоёванные города отмечены синим, рядом показан прогресс по континентам.",
+				"file": "4_atlas.png",
+				"sha256": "bfd6f8079a4fa8a283ff792717c2e00a468ca346f38c9656d468cab38eb9c4e7"
+			}
+		],
+		"tr": [
+			{
+				"alt": "Sefer haritası kazanılan yıldızları, sıradaki savaşı ve serbest fetih seferlerine erişimi gösterir.",
+				"file": "1_campaign.png",
+				"sha256": "a49744dcfeb1e3e37f1efeeeb48bca5df82e928a43b126f0b42330790400def9"
+			},
+			{
+				"alt": "Birliklerin bölgenin başkentine doğru ilerlediği İberya'daki son işgal cephesi.",
+				"file": "2_invasions.png",
+				"sha256": "5307f61d39b84f2add9bdf56488e318ced9732082962ff65d90466bb77135a00"
+			},
+			{
+				"alt": "Görünüm ekranı farklı birlik stillerini ve üs önizlemelerini gösterir.",
+				"file": "3_cosmetics.png",
+				"sha256": "7f4c9ade08bbb0d6781e8e4b157e3796117c18e7dc2863c48a8c7815d97023b2"
+			},
+			{
+				"alt": "Dünya atlası fethedilen şehirleri maviyle ve kıtalara göre ilerleme toplamlarıyla gösterir.",
+				"file": "4_atlas.png",
+				"sha256": "92b7a865e9b6a04ae5e17f53add292c88d447f86ec46d598ced45e9d4265f34c"
+			}
+		],
+		"vi": [
+			{
+				"alt": "Bản đồ chiến dịch hiển thị số sao kiếm được, trận chiến tiếp theo và quyền truy cập vào các cuộc thám hiểm chinh phục miễn phí.",
+				"file": "1_campaign.png",
+				"sha256": "56eec3751578b53abf9fd8afee0cdd020db72e21f4d395bf9bd95339db411799"
+			},
+			{
+				"alt": "Mặt trận xâm lược cuối cùng ở Iberia, với quân đội tiến về thủ đô của khu vực.",
+				"file": "2_invasions.png",
+				"sha256": "b681bedd6b728c37075d1f6ebeae3021d83016d84d0454fd4c2a23d8e0d6645f"
+			},
+			{
+				"alt": "Màn hình ngoại hình hiển thị các kiểu quân và hình xem trước của căn cứ.",
+				"file": "3_cosmetics.png",
+				"sha256": "d4c3969e9abc2f40e4b6f34664eaf531396e144500269b2934def373dae9e50f"
+			},
+			{
+				"alt": "Bản đồ thế giới đánh dấu thành phố đã chinh phục bằng màu xanh, cùng tiến trình theo lục địa.",
+				"file": "4_atlas.png",
+				"sha256": "8c0fe029645590c87010353a6376a4f0e9328ab204135a0243ce9723816948c8"
+			}
+		],
+		"zh_CN": [
+			{
+				"alt": "战役地图显示了获得的星星、下一场战斗以及免费征服探险的机会。",
+				"file": "1_campaign.png",
+				"sha256": "ce7ab45a8d7ed44d2352ffd8b4cb6a7f5d3db05b12b87b4ffc90597c78fa2678"
+			},
+			{
+				"alt": "伊比利亚的最后入侵战线，部队向该地区的首府挺进。",
+				"file": "2_invasions.png",
+				"sha256": "8d8276829548b10c3dc0f88dae4a4f62ef280a64c34d9faa9f08c5e12f6ad657"
+			},
+			{
+				"alt": "军队外观界面展示不同部队风格和基地预览。",
+				"file": "3_cosmetics.png",
+				"sha256": "cffe4d8230c03126ace39a395b762020b180403f041f2dead0d001f2085d3624"
+			},
+			{
+				"alt": "世界图集用蓝色标记已征服的城市，并显示各大洲的进度。",
+				"file": "4_atlas.png",
+				"sha256": "c97668cf5563cf35efe3eebc921ff31b0d76ee7f2ea416bc28e6d949ca01a81e"
+			}
+		]
+	},
+	"version": "0.3.2",
+	"working_tree_dirty": true
+}

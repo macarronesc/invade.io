@@ -1,126 +1,188 @@
-# Analítica y fallos de invade.io
+# Telemetry and privacy
 
-La instrumentación vive en `scripts/autoload/telemetry.gd`. No hay backend propio: el cliente de
-Aptabase está en `addons/aptabase` y Sentry usa su GDExtension para Godot.
+[Documentation](README.md) · [Development](DEVELOPMENT.md) · [Release guide](RELEASES.md) · [Security](../SECURITY.md)
 
-- **Aptabase** (`addons/aptabase`): estadísticas de uso. La clave `A-EU-*` usa el endpoint de la UE:
-  [eu.aptabase.com](https://eu.aptabase.com). Plan gratuito: 20.000 eventos/mes (unas 1.000-1.500
-  sesiones con este esquema); el plan de 200.000 eventos cuesta 10 USD/mes.
-- **Sentry** (`addons/sentry`): fallos nativos y de GDScript, ANR y salud de versiones. DSN desde
-  [sentry.io](https://sentry.io). Plan gratuito: 5.000 errores/mes y 30 días de retención.
+Usage statistics and crash reporting are implemented in
+[telemetry.gd](../scripts/autoload/telemetry.gd). Gameplay does not require either
+provider or an internet connection. There is no project-operated game backend.
 
-El addon de Sentry se ha recortado a Android, iOS, Linux y macOS (las plataformas de desarrollo y
-publicación actuales) para no arrastrar binarios de Windows ni Web. Si algún día se exporta a esas
-plataformas, hay que restaurar sus binarios y sus entradas en `sentry.gdextension`.
+This guide describes the current source, not a verification of the installed
+store build. Before distribution, match the binary, listing, policy, and Data
+safety declarations using the [publication gate](PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
 
-Las dos claves son públicas de cliente y se pegan al principio de `telemetry.gd`:
+## Settings and defaults
+
+**Usage statistics** and **Crash reports** are independently controlled in
+**Settings → Privacy**. Both default to enabled for new installations and saves
+without the corresponding setting. A saved value always wins, including `false`;
+existing saves cannot distinguish an old default from an explicit opt-out, so
+the game does not force those values to `true`. No save-format migration is needed.
+
+Disabling a setting stops future capture for that option. Disabling analytics
+also discards its unsent queue; a network request already in progress may still
+finish. Importing a backup or resetting progress preserves the current privacy
+choices. These controls do not individually delete data already received by a
+provider.
+
+An enabled default is **not prior consent**. The applicable legal basis, consent
+requirements, retention, and store disclosures require owner review for the
+regions and SDK configuration being distributed. A settings toggle or store
+description alone does not establish compliance.
+
+## Providers and configuration
+
+| Provider | Integration | Role |
+|---|---|---|
+| [Aptabase](https://aptabase.com/) | [Vendored Godot client](../addons/aptabase/) | Usage events; the `A-EU-*` app key selects the EU endpoint |
+| [Sentry](https://sentry.io/) | [Vendored Godot GDExtension](../addons/sentry/) | Native/GDScript crash and error reports, including available ANR/session-health information |
+
+Public ingestion identifiers are configured at the top of `telemetry.gd`:
 
 ```gdscript
 const APTABASE_KEY := "A-EU-..."
 const SENTRY_DSN := "https://...@o....ingest.sentry.io/..."
 ```
 
-Con las claves vacías el juego funciona igual y no envía nada. En tests headless, en el editor y con
-`--no-telemetry` tampoco se inicializa nada. `--telemetry-debug` imprime los eventos por consola en
-una compilación de depuración.
+These are client identifiers, not administrative credentials. With empty values,
+the corresponding provider stays disabled and gameplay remains functional. Never
+embed provider administration tokens in source, exports, or CI-generated client
+configuration. Public ingestion endpoints can receive fabricated events; monitor
+quotas and abuse in the provider dashboards. Pricing/limits can change; consult
+the providers rather than relying on an old repository estimate.
 
-Al iniciar una sesión con consentimiento, `session_start` se intenta enviar de inmediato; los eventos
-siguientes se siguen agrupando con el intervalo normal.
+The Sentry distribution is trimmed to Android, iOS, Linux, and macOS. Windows/Web
+exports require restoring compatible upstream binaries and extension entries,
+followed by platform testing. See the [dependency inventory](RELEASES.md#dependency-inventory).
 
-El preset **Android AAB** añade `aptabase_release` para que Aptabase marque sus eventos como Release;
-el APK de pruebas no lleva esa marca y conserva el estado Debug de la compilación.
+## Development and test runs
 
-La IPA de `main` se compila como `Release`; las de PR/otras ramas son `Debug` y Sentry las marca
-como `debug`, no `production`. Los envíos correctos no se imprimen en Release. Los fallos de transporte aparecen como avisos en la consola local de Godot/Xcode; no
-se adjuntan a Sentry (`attach_log = false`). La suite headless verifica el cliente contra un servidor
-HTTP local y no envía eventos ni claves reales a Aptabase.
+The editor tooling itself, `scenes/tests/` executions (including windowed tests),
+headless runs, and `--no-telemetry` do not initialize providers. Changing privacy
+settings in those contexts does not bypass the guard.
 
-Para diagnosticar un iPhone, ejecuta **CI and releases** desde una rama distinta de `main`
-e instala `invade.io-debug.ipa`. En la consola del dispositivo, busca
-`[Aptabase] initialized`, `[Aptabase] sent` o los avisos de petición fallida. Esa IPA es solo para
-pruebas; ahora conserva el selector nativo de copias. No la publiques en
-tiendas ni compartas sus logs, que pueden incluir la respuesta del servidor.
+**Playing the game from the editor or MCP is different:** it is a Debug game
+process and can send data if privacy settings permit. For manual play without
+provider traffic:
 
-Las claves cliente son públicas y pueden recibir eventos falsos; revisa cuotas, límites y alertas
-en ambos proveedores. No uses un token administrativo en el cliente. Las opciones de privacidad
-del SDK y el contenido de los informes nativos deben verificarse en dispositivos reales: CI
-headless no demuestra por sí solo qué transmite el SDK nativo ni configura la eliminación de IP.
+```sh
+godot --path . -- --no-telemetry
+```
 
-## Eventos
+`--telemetry-debug` prints the first-party event stream in Debug runs; it does
+**not** disable transmission. Do not share private device logs. Tests use a local
+HTTP server and synthetic identifiers to exercise the client without sending
+real events to Aptabase.
 
-Todas las propiedades personalizadas son cadenas o números. No se envían nombres, correos, texto
-libre ni identificadores persistentes de cuenta o dispositivo. Aptabase también recibe propiedades
-del sistema (idioma, SO, versión y modelo del dispositivo); como cualquier servicio HTTP, recibe la IP
-de conexión y puede inferir el país aproximado. Cada evento de Aptabase lleva además un identificador
-temporal de sesión que cambia al reiniciar la app o tras una hora sin actividad; no se reutiliza entre
-sesiones.
+## Debug versus production
 
-| Evento | Propiedades principales |
+Both providers use `OS.is_debug_build()`, not branch names, file formats, signing,
+or package identifiers. Aptabase sets `systemProps.isDebug`; Sentry uses the
+`debug` or `production` environment. They share the configured key/DSN rather
+than using separate provider projects.
+
+| Execution or CI artifact | Engine build | Sentry environment |
+|---|---|---|
+| Gameplay from the editor/MCP or CLI editor binary | Debug | `debug` |
+| CI APK, including the GitHub release attachment | Debug | `debug` |
+| CI candidate AAB, including an unsigned PR candidate | Release | `production` |
+| IPA from a push to `main` | Release | `production` |
+| IPA from PRs, other branches, or manual workflow runs | Debug | `debug` |
+
+Manual exports follow the selected build mode: an AAB exported with
+`--export-debug` is Debug; an APK exported with `--export-release` is Release.
+Test/headless suppression still takes precedence over this classification.
+
+When analytics starts, `session_start` is flushed immediately; subsequent events
+use the normal batching interval. Successful transport is not printed in Release.
+Transport failures appear as local Godot/Xcode warnings and are not attached as
+Sentry logs (`attach_log = false`).
+
+For iPhone diagnosis, use a Debug IPA from a branch/manual validation run. Look
+for `[Aptabase] initialized`, `[Aptabase] sent`, or request failures in the device
+console. The Debug CI build retains the native backup picker; its logs may contain
+server responses and must not be posted publicly without careful review.
+
+## Event reference
+
+First-party custom properties contain short strings and numbers; booleans are
+converted to `0`/`1`. They do not include names, email, free-form player text, or
+project-defined persistent account/device identifiers.
+
+| Event | Main properties |
 |---|---|
 | `session_start` | `first_run`, `player_level`, `total_stars`, `invasion_stars`, `language` |
 | `session_end` | `duration_s`, `duration_bucket`, `reason`, `levels_started`, `levels_finished`, `tabs` |
 | `tab_view` | `tab`, `previous_tab` |
-| `screen_view` | `screen` (por ejemplo `settings`) |
-| `level_start` | `level`, `mode`, `attempt`, `prev_stars`, `first_clear`, `player_level`, `total_stars`, `invasion_stars`, `upgrade_sum`, `combat_upgrades`, `speed` y, en campaña/invasiones, `continent`, `level_no` |
-| `level_end` | las anteriores más `outcome` (`win`/`loss`/`quit`), `duration_s`, `real_seconds`, `duration_bucket`, `stars`, `is_replay`, `first_clear`, `new_medal`, `new_record`, `new_cities`, `captures`, `gold`, `player_level_after` |
+| `screen_view` | `screen`, such as `settings` |
+| `level_start` | `level`, `mode`, `attempt`, `prev_stars`, `first_clear`, `player_level`, `total_stars`, `invasion_stars`, `upgrade_sum`, `combat_upgrades`, `speed`; campaign/invasion events also have `continent`, `level_no` |
+| `level_end` | Level context plus `outcome`, `duration_s`, `real_seconds`, `duration_bucket`, `stars`, `is_replay`, `first_clear`, `new_medal`, `new_record`, `new_cities`, `captures`, `gold`, `player_level_after` |
 | `upgrade_bought` | `upgrade`, `new_level`, `coins_after`, `player_level` |
-| `reward_claimed` | `kind` (`daily`/`achievement`), `amount`, `streak` o `id` |
+| `reward_claimed` | `kind` (`daily`/`achievement`), plus `amount`/`streak` for daily rewards or `id` for achievements |
 
-`mode` es `campaign`, `daily`, `conquest` o `invasion`. `attempt` cuenta los intentos de ese nivel
-dentro de la sesión actual (no identifica al jugador entre sesiones).
+`mode` is `campaign`, `daily`, `conquest`, or `invasion`; `outcome` is `win`,
+`loss`, or `quit`. `attempt` counts attempts at a level within the current session,
+not an identity across sessions. The current achievement callback emits the
+`reward_claimed` event on **unlock**; do not interpret it as proof of manual gold
+collection. `level_end.duration_s` is simulation time; `real_seconds` measures
+elapsed wall-clock time since the recorded start, including interruptions.
 
-Si el proceso muere de golpe no se envía `session_end`; el fallo queda registrado en Sentry y la
-duración de esa sesión no se contabiliza.
+Aptabase adds system context such as language, OS, app/SDK version, and device
+model, plus a temporary session identifier that changes after restart or an hour
+of inactivity. HTTP providers also receive the connection IP; Aptabase can infer
+approximate country. Review native SDK payloads and dashboard settings rather
+than assuming the first-party property table describes every transmitted field.
 
-## Cómo responder las preguntas
+If the process terminates abruptly, `session_end` cannot be relied on. A crash
+report may still be available when reporting is enabled, but analytics session
+durations will be incomplete.
 
-- **Tiempo en la app**: eventos `session_end`, filtrando por `duration_bucket`; la duración exacta
-  está en `duration_s`. Para periodos largos, exporta CSV y suma.
-- **Niveles más difíciles**: `level_end` agrupado por `level` y `outcome`. Tasa de victoria =
-  victorias / (victorias + derrotas); añade `quit` para medir abandono y `attempt` para reintentos.
-  Segmenta por `player_level` y `combat_upgrades` para separar dificultad de falta de mejoras.
-- **Niveles más interesantes**: repeticiones (`is_replay`), tasa de abandono, estrellas, tiempo y
-  participación en modos (`mode`). Un nivel con muchas visitas y mucho abandono suele necesitar ajuste.
-- **Interacción general**: `tab_view` muestra qué secciones se abren; `screen_view` registra Ajustes;
-  `upgrade_bought` y `reward_claimed` muestran el ritmo de progresión.
-- **Fallos**: en Sentry, cada evento lleva etiquetas `screen`, `level`, `mode` y `player_level`, y
-  breadcrumbs `level_start`/`level_end`. Release Health da la tasa de sesiones sin fallo por versión.
+## Interpreting the data
 
-Aptabase usa un identificador temporal por sesión, no se conserva entre aperturas. Por eso
-**no calcula retención por usuario, MAU ni
-embudos entre usuarios**. Para retención e instalaciones usa Google Play Console y App Store Connect;
-para embudos dentro del juego haría falta un servicio con identificador y consentimiento (PostHog o
-GameAnalytics).
+- **Session duration:** group `session_end` by `duration_bucket` or sum
+  `duration_s` in an export. Missing end events are a known limit.
+- **Difficulty:** group `level_end` by `level` and `outcome`. Separate losses and
+  quits; segment by `player_level` and `combat_upgrades` before interpreting a
+  low win rate as a balance problem.
+- **Engagement:** inspect replays, stars, abandonments, time, and mode use.
+  Frequent visits combined with frequent quits can indicate friction, not success.
+- **Navigation/economy:** use `tab_view`, `screen_view`, `upgrade_bought`, and the
+  documented reward-event semantics.
+- **Crashes:** Sentry receives `screen`, `level`, `mode`, and `player_level` tags
+  plus battle breadcrumbs when enabled. Review release/session health alongside
+  native platform reports.
 
-## Privacidad
+Temporary session IDs do not provide persistent-player cohorts. This integration
+does not establish user retention, MAU, or cross-session user funnels. Use store
+reports where available, and do not claim retention gains from store conversion
+or aggregate sessions. Adding persistent tracking would be a separate privacy
+and product decision, not a documentation change.
 
-`Ajustes → Privacidad` permite activar por separado estadísticas y fallos; ambos empiezan desactivados.
-Al retirar una opción, se descarta la cola de analítica no enviada y se detiene la captura futura. Una
-solicitud que ya esté en curso aún podría completarse. La política pública está en
-`docs/privacy-policy.html` y la declaración de Play en `docs/PLAY_STORE.md`. Declara actividad de la
-app, diagnósticos y, si Aptabase conserva la inferencia por IP, ubicación aproximada. En App Store
-Connect revisa **Usage Data**, **Diagnostics** y **Coarse Location** según la configuración efectiva
-de los proveedores; declara también que no se usan para tracking.
+## Native reporting and publication checks
 
-La configuración minimiza los datos, pero la base legal y las declaraciones finales dependen de tu
-jurisdicción y de la retención configurada en cada proveedor. Revísalas con asesoría antes de publicar.
-Las opciones de privacidad se conservan al reiniciar el progreso o importar una copia.
+Sentry starts after loading privacy settings. It disables default PII, attached
+logs, scene trees, and tracing, and does not set a game user. Do not add
+`SentrySDK.set_user()` or project-specific identifiers without an explicit privacy
+review. Providers can still receive connection IPs; verify IP removal and actual
+retention in their dashboards.
 
-Sentry se configura con `send_default_pii = false`, sin logs adjuntos, sin capturas, sin árbol de
-escena y sin usuario. Aun así, el proveedor puede recibir la IP de conexión; revisa la configuración
-de eliminación de IP en el panel. No se debe llamar nunca a `SentrySDK.set_user()` ni enviar
-identificadores propios.
+Early engine-startup crashes before initialization are outside this integration;
+Play Console and App Store Connect reports remain relevant. Native stack traces
+need matching debug symbols uploaded using `sentry-cli`; readable symbols are not
+implied by a passing export. GDScript stack tracking is enabled in the project.
+Measure any performance impact on low-end hardware before changing that setting.
 
-Sentry se inicializa después de cargar los ajustes para respetar una baja anterior. Los fallos
-nativos ocurridos antes de ese punto (arranque del motor) no se capturan aquí: Play Console y App
-Store Connect siguen siendo la red de seguridad para esos casos.
+Before distribution:
 
-Para que las trazas nativas sean legibles hay que subir los símbolos de depuración de Godot y Sentry
-con `sentry-cli` desde el flujo de compilación; las trazas de GDScript ya llegan con su contexto.
-Sentry activa `always_track_call_stacks` en los ajustes del proyecto para poder reconstruir esas
-trazas; si el rendimiento en un móvil de gama muy baja se resiente, se puede desactivar a cambio de
-perder el detalle de las trazas de GDScript.
-
-El flujo iOS actual genera una IPA sin firma para SideStore. El framework Sentry incluido no contiene
-`PrivacyInfo.xcprivacy`; antes de distribuir en App Store, verifica los requisitos vigentes del SDK y
-añade el manifiesto de privacidad que corresponda.
+- Review the actual APK/AAB/IPA and native provider behavior on physical devices.
+- Publish the matching [policy source](privacy-policy.html) at the existing public
+  URL, after owner review; a local edit is not a deployed policy.
+- Review Play Data safety for app activity, diagnostics, IP-derived location, and
+  session/SDK identifiers, including currently distributed tracks in scope.
+- For App Store Connect, review Usage Data, Diagnostics, Coarse Location, and
+  tracking declarations against the effective provider configuration.
+- Verify retention, deletion/contact handling, consent obligations, and audience
+  settings; do not copy provider assumptions into store forms.
+- The bundled iOS Sentry framework has no `PrivacyInfo.xcprivacy`. Before App Store
+  distribution, verify current SDK requirements and supply the appropriate
+  privacy manifest. The existing unsigned SideStore workflow is not App Store
+  readiness certification.

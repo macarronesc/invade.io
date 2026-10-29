@@ -1,55 +1,57 @@
-# invade.io — versionado y notas de versión
+# Versioning and release-note reference
 
-Cómo se numera la aplicación, dónde se cambia cada número y los textos que se pegan en Play Console
-y en GitHub en cada publicación. El campo «Novedades» de Play admite **500 caracteres por idioma**;
-los bloques de este documento ya están medidos.
+[Documentation](../README.md) · [Release process](../RELEASES.md) · [Google Play publishing](../PLAY_STORE.md)
 
-Pareja de este documento: [plan de publicación en Google Play](../PLAY_STORE.md).
+This document contains version-specific Play Console text and historical draft
+announcement payloads. Play's **What's new** field permits **500 characters per
+language**. Use only the blocks for the build being distributed, not this entire
+document. Localized payloads below are preserved in their intended languages.
 
-## 1. Cómo se numera
+**Publication is not established by this file.** Historical dates were not
+recorded here, and early announcement templates contain placeholders and claims
+that must not be copied as current behavior. Confirm the shipped binary and
+current [privacy/publication gate](../PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
+The [0.3.2 candidate notes](#candidate-invadeio-032--telemetry-defaults-and-store-refresh)
+are not suitable for a listing-only refresh without that application build.
 
-| Número | Dónde vive | Qué es | Regla |
+## Version fields
+
+The [release guide](../RELEASES.md#before-merging-a-release) owns the required
+version-increase checks. This table identifies the corresponding fields:
+
+| Field | Location | Meaning | Rule |
 |---|---|---|---|
-| `version/name` | `export_presets.cfg`, presets «Android» y «Android AAB» | lo que ve el jugador | `MAYOR.MENOR.PARCHE` |
-| `version/code` | los mismos dos presets | entero interno de Play | **+1 en cada subida, jamás se repite** |
-| `application/short_version` | `export_presets.cfg`, preset «iOS» | lo que ve el jugador | mismo `MAYOR.MENOR.PARCHE` |
-| `application/version` | el preset «iOS» | número de compilación | +1 en cada subida a App Store Connect |
+| `config/version` | `project.godot` | Source/release version, also used by telemetry | `MAJOR.MINOR.PATCH` |
+| `version/name` | Android and Android AAB export presets | Player-visible version | Matches the source version |
+| `version/code` | Both Android presets | Internal Play version code | Increasing, never reused for the production package |
+| `application/short_version` | Both iOS presets | Player-visible version | Matches the source version |
+| `application/version` | iOS presets | Build number | CI supplies `GITHUB_RUN_NUMBER` to Xcode; App Store distribution needs increasing valid build numbers |
 
-Qué significa cada salto:
+Convention: patch versions are fixes, minor versions introduce content/features,
+and major versions mark substantial milestones. The two Android presets must
+have matching names/codes; Play's maximum code is 2,100,000,000. Android and iOS
+store numbering are independent. Check used Android codes in **App bundle
+explorer**, never by guessing from source history.
 
-- **PARCHE** (`0.1.0` → `0.1.1`): arreglos, sin contenido nuevo.
-- **MENOR** (`0.1.1` → `0.2.0`): contenido o funciones nuevas (niveles, modos, reglas).
-- **MAYOR** (`1.0.0`): hitos grandes, como la salida en tiendas o rehacer algo de raíz.
+Older save formats are validated/migrated by the game. A future-format save
+blocks writes rather than being overwritten; this is separate from application
+version numbering.
 
-Reglas que no se pueden saltar:
+## Before each release
 
-- Un `version/code` **no se reutiliza nunca**, ni siquiera en pruebas internas o en ramas: Play lo
-  compara con todos los códigos ya subidos de esa app. Sube +1 aunque el nombre no cambie.
-- Los **dos presets Android** llevan el mismo nombre y el mismo código, para que el APK de pruebas y
-  el AAB de Play no se confundan.
-- El máximo de Play es 2100000000: a +1 por subida hay margen de sobra.
-- Android e iOS son **independientes**: Play mira el código de Android; App Store Connect exige además
-  que el número de compilación crezca dentro de la misma versión de marketing.
-- Los códigos ya usados se consultan en Play Console → *Test and release → App bundle explorer*.
-- Compatibilidad de partidas: el guardado se migra solo desde versiones anteriores y una versión
-  antigua nunca sobrescribe una más nueva (avisaría y bloquearía el guardado hasta actualizar).
+Follow [RELEASES.md](../RELEASES.md#before-merging-a-release), add accurate notes
+and a history entry here, and confirm the artifact and Console version. Do not
+treat a placeholder date or prepared text as a record of publication.
 
-## 2. Antes de cada publicación
+## Historical draft: invade.io 0.1.0 — first public release
 
-1. `version/name` y `version/code` en los presets «Android» y «Android AAB».
-2. `application/short_version` y `application/version` en el preset «iOS».
-3. Añadir una sección en este documento con las novedades de esa versión y una fila en el historial.
+`versionCode` 1 · `versionName` 0.1.0. The original templates describe an internal
+test → closed test → production sequence; actual publication dates are not
+recorded here. These are archived payloads, not the current feature reference.
 
-El resto del proceso (commit, GitHub Actions, descarga del AAB, subida a Play) está en
-[PLAY_STORE.md §6](../PLAY_STORE.md).
+### Play Console notes (Spanish)
 
-## 3. invade.io 0.1.0 — primera versión pública
-
-`versionCode` 1 · `versionName` 0.1.0 · estados: prueba interna → prueba cerrada → producción.
-
-### Novedades en Play Console (español)
-
-Campo «Novedades» de la versión. 452/500 caracteres.
+Historical localized payload; verify applicability before reuse.
 
 ```
 Primera versión pública de invade.io.
@@ -64,7 +66,7 @@ Primera versión pública de invade.io.
 
 ### What's new on Play (English)
 
-Campo «What's new» de la versión. 437/500 caracteres.
+Historical English payload; verify applicability before reuse.
 
 ```
 First public release of invade.io.
@@ -77,9 +79,12 @@ First public release of invade.io.
 15 languages, including Spanish and English.
 ```
 
-### Notas completas (GitHub Releases y anuncio)
+### Archived long-form announcement templates
 
-Sin límite de caracteres. Sustituir la fecha y, si Play registra otro identificador, el enlace.
+These original Spanish/English templates have no Play field-length limit and
+contain publication-date placeholders. They are retained for history, not as
+verified current announcements. In particular, historical network/privacy and
+accessibility wording must not override the current source or shipped behavior.
 
 ```
 invade.io 0.1.0 — primera versión pública
@@ -145,19 +150,19 @@ First release of the series: 0.1.0 with versionCode 1. Later versions bump the n
 described in docs/store_listing/release_notes.md.
 ```
 
-### Qué NO prometer
+### Claims to avoid
 
-Ni nube, ni cuentas, ni clasificación online, ni compras, ni anuncios, ni multijugador: la ficha y las
-novedades deben describir sólo lo que la app hace. Tampoco conviene repetir palabras clave para
-posicionar: Play lo considera spam.
+Only advertise implemented behavior. Do not promise cloud saves, accounts,
+online rankings, purchases, advertising, or multiplayer. Avoid keyword stuffing
+and do not treat historical copy as a current privacy statement.
 
-## 4. invade.io 0.2.0 — actualización
+## Reference: invade.io 0.2.0 — invasions and languages
 
 `versionCode` 3 · `versionName` 0.2.0.
 
-Nombre interno del lanzamiento en Play Console: `0.2.0 (3) — Invasiones y 15 idiomas`.
+Historical internal Console label: `0.2.0 (3) — Invasiones y 15 idiomas`.
 
-Notas de versión para Play Console (menos de 500 caracteres por idioma):
+Play Console payloads (under 500 characters per language):
 
 ```
 <es-ES>
@@ -178,19 +183,65 @@ A major update for invade.io!
 </en-US>
 ```
 
-## Próxima versión: invade.io 0.3.1 — contribuciones y builds seguras
+## Candidate: invade.io 0.3.1 — contributions and build safety
 
-`versionCode` 5 · **pendiente de comprobar disponibilidad en Play Console**.
+`versionCode` 5 · **owner must confirm code availability and publication status in Play Console**.
 
-- Licencias de código abierto disponibles sin conexión desde Ajustes.
-- Builds de pruebas separadas de la instalación publicada y su guardado.
-- CI para PR, comprobaciones de secretos/paquetes y firma de producción aislada y aprobada.
+- Offline open-source licenses in Settings.
+- Test installations separated from the production app and its saves.
+- PR CI, secret/package checks, and isolated, approved production signing.
 
-## 5. invade.io 0.3.0 — accesibilidad y pantallas grandes
+Publish the matching policy and review Data safety/consent requirements before
+distributing. Proposed payloads below apply **only to a shipped 0.3.1 binary**,
+not a listing refresh without a build. Each locale's text is under 500 characters;
+confirm actual production behavior first:
+
+```text
+<es-ES>
+• Consulta las licencias de código abierto desde Ajustes, también sin conexión.
+• Se conserva tu progreso al actualizar.
+</es-ES>
+<en-US>
+• Open-source licenses are available in Settings, including offline.
+• Your existing progress is preserved when you update.
+</en-US>
+```
+
+Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
+
+## Candidate: invade.io 0.3.2 — telemetry defaults and store refresh
+
+`versionCode` 6 · **owner must confirm code availability and publication status in Play Console**.
+
+- Usage statistics and crash reports start enabled for new or missing settings; saved choices, including opt-outs, remain unchanged.
+- Each option can be disabled separately in Settings → Privacy; analytics events waiting to be sent are discarded when disabled.
+- Telemetry uses the actual Godot Debug/Release build type; editor tooling, tests, and headless runs do not initialize providers.
+- The Play listing and its localized phone/tablet gallery are refreshed across 15 languages. These are store materials, not new in-game features.
+
+Publish the matching policy and review Data safety/consent requirements before
+distributing. Proposed payloads below apply **only to a shipped 0.3.2 binary**;
+confirm actual production behavior first:
+
+```text
+<es-ES>
+• Las estadísticas de uso y los informes de fallos empiezan activados; se respetan tus preferencias guardadas. Desactiva cada opción en Ajustes → Privacidad.
+• Tu progreso se conserva al actualizar.
+</es-ES>
+<en-US>
+• Usage statistics and crash reports now start enabled; your saved choices are respected. Turn either off in Settings → Privacy.
+• Your existing progress is preserved when you update.
+</en-US>
+```
+
+Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
+
+## Reference: invade.io 0.3.0 — accessibility and large screens
 
 `versionCode` 4 · `versionName` 0.3.0.
 
-Notas de versión para Play Console (menos de 500 caracteres por idioma):
+Historical Play Console payloads (under 500 characters per language). The phrase
+“screen-reader-friendly” describes the controls, not verified mobile TalkBack or
+VoiceOver support; see [platform limitations](../PLATFORM_INTEGRATION.md#accessibility).
 
 ```
 <es-ES>
@@ -211,10 +262,15 @@ New invade.io update!
 </en-US>
 ```
 
-## 6. Historial de versiones
+## Version reference
 
-| Versión | versionCode | Fecha | Qué cambió |
+Dates were not recorded in this document. Confirm distributed versions in Play
+Console and exact commits in GitHub releases; these rows are not deployment logs.
+
+| Version | versionCode | Publication date | Scope described by the reference notes |
 |---|---|---|---|
-| 0.1.0 | 1 | *(al publicar)* | Primera versión pública: campaña de 30 niveles, conquista libre, desafío diario, misiones, logros, atlas y estética |
-| 0.2.0 | 3 | *(al publicar)* | 36 regiones y 108 frentes de invasión, 15 idiomas, privacidad opcional y mejoras de interfaz |
-| 0.3.0 | 4 | *(al publicar)* | Controles accesibles, adaptación a pantallas grandes, mejoras de iOS y selección automática del idioma del dispositivo |
+| 0.1.0 | 1 | Not recorded | Initial campaign, free conquest, daily challenge/missions, achievements, atlas, and cosmetics draft |
+| 0.2.0 | 3 | Not recorded | 36 invasion regions / 108 fronts, 15 languages, optional telemetry, and UI improvements |
+| 0.3.0 | 4 | Not recorded | Alternate controls, large-screen layouts, iOS improvements, and device-locale selection |
+| 0.3.1 | 5 | Verify before distribution | License viewer and build isolation/hardening |
+| 0.3.2 | 6 | Verify before distribution | Enabled telemetry defaults and localized store refresh |
