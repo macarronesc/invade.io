@@ -1,5 +1,7 @@
 # invade.io — Play Store refresh and publishing guide
 
+[Documentation](README.md) · [Android publishing](PLAY_STORE.md) · [Release process](RELEASES.md)
+
 **Prepared for the repository's 0.3.1 release, 28 October 2026.**
 
 This document records the implemented marketing work, the files to upload, and the

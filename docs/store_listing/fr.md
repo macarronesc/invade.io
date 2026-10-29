@@ -1,18 +1,18 @@
-# invade.io — Google Play (Français)
+# invade.io — Google Play (French)
 
-## Nom de l'application
+## App name
 
 ```
 invade.io: Conquête de cartes
 ```
 
-## Description courte
+## Short description
 
 ```
 Conquérez des cartes réelles. Stratégie hors ligne et sans publicité
 ```
 
-## Description complète
+## Full description
 
 ```
 Transformez une base en une conquête à l'échelle du continent.

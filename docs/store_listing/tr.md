@@ -1,18 +1,18 @@
-# invade.io — Google Play (Türkçe)
+# invade.io — Google Play (Turkish)
 
-## Uygulama adı
+## App name
 
 ```
 invade.io: Bölge Stratejisi
 ```
 
-## Kısa açıklama
+## Short description
 
 ```
 Gerçek haritaları fethet. Çevrimdışı ve reklamsız bölge stratejisi
 ```
 
-## Tam açıklama
+## Full description
 
 ```
 Tek bir üsle başla, fethini altı kıtaya taşı.

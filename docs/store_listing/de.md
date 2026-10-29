@@ -1,18 +1,18 @@
-# invade.io — Google Play (Deutsch)
+# invade.io — Google Play (German)
 
-## App-Name
+## App name
 
 ```
 invade.io: Gebietsstrategie
 ```
 
-## Kurzbeschreibung
+## Short description
 
 ```
 Erobere reale Karten. Gebietsstrategie offline und ohne Werbung
 ```
 
-## Vollständige Beschreibung
+## Full description
 
 ```
 Beginne mit einer Basis und trage deine Eroberung über sechs Kontinente.

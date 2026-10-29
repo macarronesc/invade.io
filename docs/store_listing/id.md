@@ -1,18 +1,18 @@
-# invade.io — Google Play (Bahasa Indonesia)
+# invade.io — Google Play (Indonesian)
 
-## Nama aplikasi
+## App name
 
 ```
 invade.io: Strategi Wilayah
 ```
 
-## Deskripsi singkat
+## Short description
 
 ```
 Taklukkan peta dunia nyata. Strategi wilayah offline tanpa iklan
 ```
 
-## Deskripsi lengkap
+## Full description
 
 ```
 Mulai dari satu pangkalan, lalu perluas penaklukanmu ke enam benua.

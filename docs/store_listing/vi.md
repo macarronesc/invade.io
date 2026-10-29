@@ -1,18 +1,18 @@
-# invade.io — Google Play (Tiếng Việt)
+# invade.io — Google Play (Vietnamese)
 
-## Tên ứng dụng
+## App name
 
 ```
 invade.io: Chinh phục lãnh thổ
 ```
 
-## Mô tả ngắn
+## Short description
 
 ```
 Chinh phục bản đồ thực. Chiến thuật ngoại tuyến, không quảng cáo
 ```
 
-## Mô tả đầy đủ
+## Full description
 
 ```
 Bắt đầu từ một căn cứ và mở rộng cuộc chinh phục qua sáu lục địa.

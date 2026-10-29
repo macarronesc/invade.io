@@ -1,104 +1,185 @@
-# Integración con Android/iOS (propuesta 11)
+# Android and iOS integration
 
-## Estado real
+[Documentation](README.md) · [Development](DEVELOPMENT.md) · [Testing](TESTING.md) · [Releases](RELEASES.md)
 
-El preset iOS y `.github/workflows/ci.yml` generan una IPA sin firmar para SideStore,
-con identificador `macarronesc.invadeio`; el Team ID es un marcador, no una credencial.
-El único plugin nativo propio es el selector de copias iOS; Sentry añade una GDExtension para
-informes de fallos. No hay credenciales ni servicios de tienda.
-No se muestran botones de conexión que simulen servicios inexistentes.
-El lanzamiento previsto es Android e iOS, sin backend. Ajustes muestra el estado real del
-guardado local, su alcance y la posibilidad de perderlo al desinstalar; no promete nube.
-El preset Android habilita `VIBRATE`, `INTERNET` y `ACCESS_NETWORK_STATE` (estadísticas de uso e
-informes de fallos, ambos activados por defecto con baja independiente) y target SDK 36; requiere instalar la plantilla Gradle y configurar
-el SDK y la firma antes de exportar.
+This guide describes implemented platform behavior and test-build installation.
+Android is available on Google Play. iOS currently has unsigned SideStore test
+builds, not an App Store or TestFlight distribution workflow.
 
-Godot 4.7.2 expone el árbol de accesibilidad a lectores de pantalla en escritorio, pero no a
-TalkBack ni VoiceOver en Android/iOS. Ajustes consulta `AccessibilityServer.is_supported()` y
-explica esta limitación en móvil. Los controles y nombres accesibles del juego siguen siendo
-útiles en plataformas compatibles, pero no se debe anunciar compatibilidad móvil con lectores de
-pantalla hasta validar una versión estable de Godot que incluya el puente móvil o integrar y probar
-un puente nativo. Esta versión no añade un plugin nativo de accesibilidad.
+## Platform and build scope
 
-Sí está implementada la base de persistencia:
+| Platform | Current configuration |
+|---|---|
+| Android | Minimum SDK 24 (Android 7.0), target SDK 36; Debug APK and Release AAB export presets |
+| iOS | Minimum iOS 15, arm64, native backup picker, unsigned IPA produced on macOS CI |
+| Linux/macOS | Development and validation environments; no desktop release preset |
+| Windows/Web | Not included in the trimmed Sentry extension; not supported export targets without additional integration work |
 
-- `GameManager.save_data()` genera el mismo documento versionado para el guardado
-  local y la copia manual.
-- `write_save()` escribe con archivo temporal y renombrado, devolviendo errores.
-- `save_game()` comprueba los errores, conserva el documento anterior en `.previous` y
-  avisa a la interfaz si falla. Ajustes permite reintentar. Un reinicio o una importación
-  fallidos no sustituyen el estado en memoria.
-- `load_game()` recupera `.previous` si falta el archivo o el JSON principal es ilegible;
-  aparta el original en `.corrupt` sin reemplazar copias corruptas ya conservadas. Las
-  versiones futuras bloquean el guardado en vez de sobrescribir el archivo desconocido.
-- `import_save()` rechaza JSON ajeno, versiones futuras y archivos mayores de 2 MB;
-  valida los campos, conserva una copia del progreso anterior y revierte el estado
-  en memoria si falla la escritura. La interfaz exige confirmación.
-- La restauración está deshabilitada durante una batalla para no mezclar dos partidas.
-- Las copias manuales usan el selector SAF nativo de Android y `UIDocumentPicker` en iOS.
-  En macOS, ejecuta `bash scripts/build_ios_backup_picker.sh` antes de exportar el preset iOS.
+Android declares `VIBRATE`, `INTERNET`, and `ACCESS_NETWORK_STATE`. Haptics use
+Godot's `Input.vibrate_handheld()` without a dedicated haptic plugin. Network
+permissions support optional analytics/crash reports, enabled by default in this
+source with independent opt-outs. Gameplay itself remains offline. Read
+[Telemetry](ANALYTICS.md) before testing ordinary gameplay with a network connection.
 
-La vibración usa `Input.vibrate_handheld()` con intensidad validada y persistente, pulsos
-de 20–120 ms y un límite de repetición. Una acción combinada emite un solo pulso; uno más
-largo puede sustituir al anterior. La prueba de Ajustes está deshabilitada en escritorio.
+Godot allows resizing and sensor-driven rotation. Menus and battles adapt to
+portrait/landscape, with board relayout during battle; daily challenges retain a
+canonical board. Generated tablet screenshots show supported layouts, not
+physical-device or Play Games on PC certification.
 
-Al perder el foco o entrar en segundo plano, `GameManager` guarda desde cualquier escena,
-`AudioManager` suspende sus reproductores sin cambiar los ajustes y la batalla cancela el
-gesto y abre la pausa. No se reanuda al regresar, tampoco si se interrumpió la animación
-de Reanudar o estaba abierta una ayuda. No se persiste una batalla en curso.
+## Installation and save safety
 
-Las copias manuales no ofrecen autenticación, sincronización ni resolución de
-conflictos; no deben anunciarse como nube. Los datos locales son modificables y no
-son una autoridad segura para clasificaciones competitivas.
+The production identifier is **`macarronesc.invadeio`**. Do not change it: it
+identifies the published application and its private storage.
 
-## Datos y dependencias que faltan
+CI Debug APKs and non-production IPAs use **`macarronesc.invadeio.debug`** so they
+do not replace the store installation. They have separate saves. Changing a test
+identifier does not migrate old progress automatically; export a backup before
+switching installations. Avoid uninstalling the same variant when updating it.
 
-1. Confirmar los identificadores de publicación iOS y configurar su firma real. Android ya tiene
-   preset de AAB, firma por variables de entorno y comprobación automática: ver
-   [plan de publicación en Google Play](PLAY_STORE.md).
-2. Configurar las aplicaciones en Google Play Console y App Store Connect, con
-   cuentas de prueba, firma y habilitación de Play Games / Game Center.
-3. Elegir plugins online compatibles con **Godot 4.7 y los SDK móviles actuales**, fijar sus
-   versiones y validar sus APIs antes de escribir adaptadores. No se han añadido
-   clases genéricas ni métodos imaginarios para plugins aún no elegidos.
-4. Crear los identificadores reales de clasificación y acordar la puntuación.
-   El tiempo actual es de simulación y el juego permite velocidades distintas:
-   una clasificación de velocidad necesita reglas comunes, no enviar estos
-   resultados directamente como segundos reales.
-5. Para nube, acordar política de conflictos entre dispositivos y migraciones.
-   Nunca sustituir silenciosamente el progreso local por una partida remota.
-6. Para avisos, plugin de notificaciones locales, texto ES/EN, horario elegido por
-   el usuario, consentimiento y permiso del sistema. Programar un aviso único
-   al salir, cancelarlo al volver y evitar duplicados; no pedir permisos en el tutorial.
+| Artifact | Intended use |
+|---|---|
+| `invadeio-debug.apk` | Android test installation; not a Play update |
+| `invadeio-unsigned.aab` | CI validation candidate; not a signed release to distribute |
+| `invadeio.aab` | Owner-approved, signed bundle for manual Play Console upload |
+| `invade.io-debug.ipa` | Unsigned Debug iPhone build for SideStore |
+| `invade.io.ipa` | Unsigned Release iPhone build from a push to `main`, also for SideStore |
 
-## Pruebas necesarias en dispositivos
+See [Releases](RELEASES.md) for workflow triggers, approval, checksums, and retention.
+Contributors never need the production upload key or Apple/store credentials.
 
-Para estas funciones offline, antes de publicar:
+### Android
 
-- Android con `VIBRATE` e iPhone físico: intensidad, desactivación y pulsos de órdenes,
-  captura y resultado; comprobar también un dispositivo sin motor háptico.
-- Modo avión: comenzar, ganar, comprar, ajustar y volver a abrir sin perder progreso.
-- Cambiar de app, bloquear/desbloquear y recibir una llamada durante un arrastre,
-  una pausa manual, una ayuda o la animación de Reanudar. Reloj, tropas y producción
-  deben detenerse; el audio no debe continuar en segundo plano.
-- Cerrar el proceso después de guardar y actualizar sin desinstalar: progreso intacto;
-  la batalla interrumpida no se restaura. Desinstalar puede borrar los datos locales.
-- Revisar ajustes y pausa en ES/EN, claro/oscuro, pantallas pequeñas y zonas seguras.
-- Idioma en un perfil de prueba limpio (Android e iPhone): probar una locale compatible
-  (por ejemplo, `fr-FR` y `ar-EG`) y otra no compatible; elegir otro idioma, relanzar y confirmar
-  que prevalece la elección guardada aunque cambie la locale del dispositivo. Comprobar también
-  que una copia antigua sin `language` sigue la locale del dispositivo.
+For ordinary development, [run in Godot](DEVELOPMENT.md). For on-device testing,
+download a Debug APK from a successful GitHub Actions run and install it through
+your device's supported test-installation workflow. Only install artifacts you
+trust; Android may require approval for installation from that source.
 
-La suite `--mobile` simula las notificaciones y fallos de escritura en archivos separados.
-No certifica la sensación háptica, las interrupciones reales del sistema ni una build firmada.
+Local export requires the matching Godot templates, JDK 17, Android SDK, and
+Gradle build template. Follow [Google Play publishing](PLAY_STORE.md#local-android-export)
+for the tested build sequence and verification commands. AABs are uploaded to
+Play Console; they are not directly installable APKs.
 
-Para futuras integraciones online (fuera de esta versión):
+### iPhone with SideStore
 
-- Inicio de sesión cancelado, sin red, cuenta cambiada y servicio no disponible.
-- Guardado en dos dispositivos, conflicto, versión antigua y descarga interrumpida.
-- Permiso de avisos denegado/revocado, cambio de huso horario y reinstalación.
-- Abrir la app desde un aviso y no reclamar recompensas automáticamente.
-- Probar acceso y escritura de copias en el sandbox Android/iOS en dispositivos reales.
+1. Push your branch or update a PR. CI validates the pushed tip/proposed merge;
+   local commits do not trigger it. A multi-commit push builds the latest state,
+   not a separate IPA for every intermediate commit.
+2. Open **Actions → CI and releases** and select a successful run. Manual runs
+   validate only; even a manual run on `main` produces a Debug IPA and does not
+   publish a release.
+3. Download `invade.io-debug.ipa` for branches/PRs/manual runs, or `invade.io.ipa`
+   for a push to `main`. Raw artifacts are retained for seven days.
+4. Save the IPA in Files. With SideStore and its current VPN/network requirements
+   configured, open **SideStore → My Apps → +** and select the file. Follow
+   [SideStore's installation guidance](https://docs.sidestore.io/) for signing,
+   refresh requirements, and account limitations.
 
-Hasta disponer de estos datos y dispositivos, las integraciones online siguen pendientes;
-el juego permanece funcional offline.
+CI does not use Apple signing certificates. SideStore signs with your account
+and manages renewal; renewal does not require rebuilding the game. Keep the same
+account/variant when updating and back up test progress first. An unsigned IPA
+cannot be installed directly as an App Store/TestFlight build.
+
+The preset's `0000000000` Team ID is a placeholder, not a credential. For local
+iOS export on macOS, build the native picker in the matching engine mode:
+
+```sh
+bash scripts/build_ios_backup_picker.sh Debug
+# For a Release export instead:
+bash scripts/build_ios_backup_picker.sh Release
+```
+
+The script downloads checksum-verified headers and generates the native library
+and plugin configuration. Debug/Release ABIs differ; CI selects the matching
+mode explicitly. Do not disable the picker just to make linking succeed.
+
+## Persistence and native backups
+
+[GameManager](../scripts/autoload/game_manager.gd) implements shared, versioned
+local persistence:
+
+- `save_data()` supplies the document for normal saves and manual exports.
+- `write_save()` writes a temporary file before renaming it and reports errors.
+- `save_game()` retains `.previous`, exposes failure to the UI, and permits retry
+  from Settings. Future save versions block writes instead of being overwritten.
+- `load_game()` can recover `.previous` when the main save is absent or invalid;
+  invalid originals are preserved under `.corrupt` names without replacing older
+  preserved corrupt files.
+- `import_save()` validates structure/fields and size (at most 2,000,000 bytes),
+  rejects future formats, preserves `.backup`, and rolls memory state back if
+  writing fails. The UI requires confirmation and disables restore during battle.
+- Import/reset preserve existing privacy choices. A failed reset/import does not
+  silently replace the in-memory progress with the requested new state.
+
+Android uses its native Storage Access Framework picker through Godot. iOS uses
+the project's [UIDocumentPicker plugin](../ios/plugins/backup_file_picker/).
+Desktop uses a native file dialog. Saves use app-private `user://` storage;
+general phone-storage access is not required.
+
+Manual backups are not authentication, synchronization, conflict resolution, or
+cloud recovery. Uninstalling can erase local progress. Local data is editable and
+is not a trustworthy authority for competitive rankings.
+
+## Lifecycle and haptics
+
+When the app loses focus or enters the background, `GameManager` saves progress,
+`AudioManager` suspends playback without changing preferences, and the battle
+cancels active gestures and opens pause. Returning does not automatically resume,
+including when interruption happened during a help/resume animation. An ongoing
+battle is not persisted across process termination.
+
+Haptic intensity is validated and saved. Pulses are clamped to 20–120 ms and
+rate-limited; a combined assault emits one pulse, and a stronger pulse can replace
+a shorter one. The Settings test button is disabled on desktop. Device support,
+feel, and interruptions still need physical testing.
+
+## Accessibility
+
+The game provides larger text, a color-blind palette, reduced motion, higher map
+contrast, safe-area handling, and alternate battle controls with accessible names.
+
+Godot 4.7.2 exposes supported desktop accessibility interfaces, but this project
+does not establish TalkBack/VoiceOver support on Android/iOS. Settings consults
+`AccessibilityServer.is_supported()` and explains the mobile limitation. No native
+mobile accessibility bridge is included. Do not advertise mobile screen-reader
+support without a compatible bridge/engine and physical-device verification.
+
+## Physical-device checklist
+
+Before distributing a build, check the exact artifact on the intended platforms:
+
+- [ ] Start, win, buy an upgrade, change settings, and reopen in airplane mode.
+- [ ] Check small phones, safe areas/notches, gesture bars, tablets/foldables,
+      rotation, and resizing during menus and battles with troops in motion.
+- [ ] Test haptic intensity, opt-out, order/capture/result pulses, and a device
+      with no supported haptic motor.
+- [ ] Interrupt a drag, manual pause, help overlay, and resume animation by
+      switching apps, locking the phone, or receiving a call. Simulation/audio
+      must stop; resume must remain explicit.
+- [ ] Terminate after saving, then update without uninstalling. Progress should
+      remain; an interrupted battle should not be restored.
+- [ ] Export/import through the real native picker; test cancellation, inaccessible
+      destinations, invalid/future/oversized backups, and write failures safely.
+- [ ] Check English/Spanish, representative long-text languages, Arabic RTL, both
+      themes, text scales, contrast, and alternate controls. Verify actual
+      assistive technology before claiming support.
+- [ ] On a clean profile, test a supported locale such as `fr-FR`/`ar-EG` and an
+      unsupported one. Change language, relaunch, and confirm the saved choice
+      takes precedence. An old save without a language should follow the device.
+- [ ] Check native crash/reporting behavior and privacy opt-outs, cold start,
+      low-end performance, and Android 16 KB library compatibility as applicable.
+
+The [mobile suite](TESTING.md#godot-regression-suites) simulates lifecycle events
+and write failures in separate saves. It cannot certify haptic feel, real OS
+interruptions, native SDK traffic, a signed production artifact, or screen readers.
+
+## Features not integrated
+
+There is no Play Games/Game Center login, online leaderboard, cloud save, or local
+notification integration. The UI does not offer connection buttons for services
+that do not exist. These are scope boundaries, not promised future releases.
+
+Any future integration needs an explicitly reviewed plugin/SDK, real service
+identifiers, permission/consent handling, privacy/store updates, failure-path
+tests, and physical-device validation. Cloud changes also need conflict/migration
+rules that never silently replace local progress; rankings need common timing
+rules and a trustworthy authority, not direct submission of editable local records.

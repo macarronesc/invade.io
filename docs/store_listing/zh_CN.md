@@ -1,18 +1,18 @@
-# invade.io — Google Play（简体中文）
+# invade.io — Google Play (Simplified Chinese)
 
-## 应用名称
+## App name
 
 ```
 invade.io：领土策略
 ```
 
-## 简短说明
+## Short description
 
 ```
 在真实世界地图上征服领土。离线策略，无广告
 ```
 
-## 完整说明
+## Full description
 
 ```
 从一座基地出发，逐步征服六大洲。

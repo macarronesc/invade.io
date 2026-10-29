@@ -1,5 +1,12 @@
 # CI, signing and releases
 
+[Documentation](README.md) · [Testing](TESTING.md) · [Android publishing](PLAY_STORE.md) · [Security](../SECURITY.md)
+
+This guide owns the release/signing rules. For test installation, use
+[Platform integration](PLATFORM_INTEGRATION.md); for localized store material, use
+[Play Store refresh](PLAY_STORE_UPDATE.md). A source checkout or GitHub release
+does not establish which binary or listing is currently distributed by a store.
+
 ## Trust boundaries
 
 `.github/workflows/ci.yml` runs for branch pushes, PRs (including forks and PRs targeting main),
@@ -16,7 +23,7 @@ Telemetry defaults to enabled unless a saved preference disables it. Classificat
 engine build, not the branch, signing, or package format: all CI APKs are Debug, all candidate AABs
 are Release, and only the IPA from a push to main is Release. Aptabase uses `isDebug`; Sentry uses
 `debug`/`production`. Editor-launched gameplay is Debug; automated test scenes and headless runs
-never initialize providers. See `docs/ANALYTICS.md` for the privacy and pre-publication checks.
+never initialize providers. See [Telemetry](ANALYTICS.md) for privacy and pre-publication checks.
 
 Only `push` to `refs/heads/main` can request production signing. Manual runs and PRs cannot.
 `sign-android` waits for both platform jobs and checks, then requests owner approval through
@@ -32,7 +39,7 @@ Existing tags/releases are never overwritten. There is no Play/App Store API cre
 ## Before merging a release
 
 1. Increase semantic version in project and every preset, both Android version codes, and the
-   version assertions in `scripts/tests/test_runner.gd`. CI checks consistency and increase over main.
+   version assertions in [test_runner.gd](../scripts/tests/test_runner.gd). CI checks consistency and increase over main.
 2. Confirm the Android code is unused in Play Console; this repository cannot query your console.
 3. Review the exact commit, native/workflow changes, passing checks, notices and permissions.
 4. Compare the public `play-release` variable `ANDROID_UPLOAD_CERT_SHA256` with Play Console's
@@ -40,10 +47,17 @@ Existing tags/releases are never overwritten. There is no Play/App Store API cre
    from the previously successful main AAB, not an independent Play Console check.
 5. Approve signing only for the expected main commit. Download the release, check hashes, test on
    devices, then upload the AAB to the intended Play track manually.
+6. Match privacy defaults/disclosures, the public policy, Data safety, audience
+   settings, and release notes to the actual builds. Use the
+   [store publication gate](PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
 
 ```sh
 sha256sum --check SHA256SUMS
 ```
+
+Download every file listed in `SHA256SUMS` for a complete check. On macOS, use
+`shasum -a 256 --check SHA256SUMS`. `COMMIT.txt` identifies the tested source;
+do not substitute an artifact from a different workflow run.
 
 If upload/publication fails after a draft/tag was created, investigate the existing draft and commit.
 Complete the verified draft manually, or explicitly remove a failed unpublished draft/tag before
@@ -52,19 +66,24 @@ must be re-reviewed; re-running a workflow is not approval of a different commit
 
 ## GitHub configuration
 
-- Secret scanning, push protection, Dependabot alerts/security updates and private reports: enabled.
+These are maintainer-managed settings to preserve and verify in GitHub, not
+configuration a local checkout can prove is enabled:
+
+- Keep secret scanning, push protection, Dependabot alerts/security updates and private reports enabled.
 - Actions: selected GitHub-owned Actions plus the exact pinned Android setup action; external
-  contributors require approval. SHA pinning must remain enforced once Pages uses this workflow.
-- `main`/`dev`: preserve required builds, strict checks, admin enforcement, no force/deletion and
-  resolved conversations. `checks` is also required, following its first successful GitHub runs.
+  contributors require approval. Preserve SHA pinning in CI and Pages.
+- `main`/`dev`: require `checks`, `build-android`, and `build-ios`, strict checks,
+  administrator enforcement, resolved conversations, and no force pushes/deletion.
 - `play-release`: only branch `main`, owner approval, no admin bypass, three environment secrets
-  and the public certificate fingerprint. `ci` and repository secrets remain empty.
+  and the public certificate fingerprint. Keep `ci` and repository secrets empty.
 - Pages: Actions source; `pages.yml` packages only the public policy and deploys main with scoped
   `pages: write`/OIDC permissions. Existing policy URL must remain unchanged.
 - Independent PR/code-owner approval and prevention of deployment self-review require a second
-  trusted maintainer. See SECURITY.md; do not silently lock out the sole owner.
+  trusted maintainer. See [SECURITY.md](../SECURITY.md); do not silently lock out the sole owner.
 
-The API did not enable non-provider patterns/validity checks in this repository. Gitleaks and
+The previous repository audit did not establish non-provider pattern/validity
+checks as enabled. Recheck account capabilities/settings rather than assuming
+they are covered by the workflow. Gitleaks and
 tracked-file/package guards supplement provider scanning; they do not prove all possible secrets
 absent. Review push-protection bypass alerts. Account MFA, OAuth/GitHub Apps, store access, native
 SDK payloads and physical-device behavior require owner/device checks outside this repository.
@@ -103,8 +122,9 @@ Sentry 2.3.0 archive SHA-256:
 `f8de89d3860b00b19bf52eb3b9d66cd3ac3e5522a375e72f16f60672450c7417`.
 All bundled binaries matched that release during the audit. Local differences are the trimmed
 platform entries in `sentry.gdextension` and Godot's `.uid`, not modified executable binaries.
-Sentry 2.4.0 is available; availability alone is not evidence that 2.3.0 is vulnerable. Check its
-changelog and native/device compatibility before upgrading. Dependabot does not audit these
+Check [upstream releases](https://github.com/getsentry/sentry-godot/releases),
+advisories, changelogs, and native/device compatibility before upgrading; the
+existence of a newer release alone is not evidence of a vulnerability. Dependabot does not audit these
 vendored binaries or automatically update checksum-pinned download URLs.
 
 The iOS picker must match the engine template ABI: `bash scripts/build_ios_backup_picker.sh Debug`
