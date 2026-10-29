@@ -59,7 +59,7 @@ func _crash_allowed() -> bool:
 	return bool(GameManager.settings.get("share_crashes", GameManager.DEFAULT_SETTINGS["share_crashes"]))
 
 func _app_version() -> String:
-	return str(ProjectSettings.get_setting("application/config/version", "0.3.1"))
+	return str(ProjectSettings.get_setting("application/config/version", "0.3.2"))
 
 # =========================================================================
 # Inicialización y privacidad

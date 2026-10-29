@@ -53,10 +53,11 @@ for published build artifacts. A GitHub release is not automatic store submissio
 | Online competition | No multiplayer, live PvP, or online leaderboard |
 | Accessibility | Configurable presentation and alternate battle controls; mobile screen-reader support is not established |
 
-The October 28, 2026 marketing material targets source version **0.3.1**. The
-public listing/policy reviewed on October 29 still contained older descriptions
-and opt-in telemetry wording, while this source defaults telemetry to enabled.
-This is a dated observation, not a live status feed or verification of the shipped
+The store material captured on October 28 was prepared against source version
+**0.3.1** and is carried into the **0.3.2** release candidate. The public
+listing/policy reviewed on October 29 still contained older descriptions and
+opt-in telemetry wording, while this source defaults telemetry to enabled. This
+is a dated observation, not a live status feed or verification of the shipped
 binary. Before publishing, match the build, listing, policy, and Data safety
 declarations using the [store update checklist](PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
 

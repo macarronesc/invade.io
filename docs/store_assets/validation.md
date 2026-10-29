@@ -1,5 +1,23 @@
 # Store material — validation record
 
+## Release-candidate revalidation
+
+Date: 29 October 2026. Target source version: **0.3.2**.
+
+- Full Godot capture completed for 15 locales: 120 phone images, 60 tablet images,
+  and one feature graphic. The manifest now records version 0.3.2 and the capture
+  commit with `working_tree_dirty=true`.
+- All 181 PNGs were byte-for-byte identical to the previously reviewed 0.3.1 set;
+  no new visual review was needed for this version-only capture refresh.
+- `python3 tools/build_store_listings.py --check` and `--package` passed. The
+  package is generated under ignored `build/` and is not published to Play.
+- The complete regression suite passed (5,233 passed, 0 failed); existing Godot
+  shutdown resource-leak warnings are recorded below.
+
+The earlier detailed design/visual review and test record follows.
+
+## Previous full validation (28 October 2026; source 0.3.1)
+
 Date: 28 October 2026. Target source version: **0.3.1**.
 
 ## Execution results
