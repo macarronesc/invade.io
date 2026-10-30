@@ -47,7 +47,7 @@ are skipped locally. The export-identity integration check similarly needs Godot
 `PATH`. Run both before changing fonts or candidate packaging. The artifact-size
 tests cover compressed versus expanded totals, PCK accounting, and rejection of
 invalid/development resources. Custom-engine promotion additionally requires testing
-the actual [exported candidates](RELEASES.md#validate-the-smaller-engine-without-publishing),
+the actual [exported candidates](RELEASES.md#main-releases-and-manual-validation),
 not only this editor-based suite.
 
 CI also runs pinned Gitleaks, actionlint, and ShellCheck. Maintainers can install

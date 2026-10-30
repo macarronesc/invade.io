@@ -20,6 +20,9 @@ concurrency:
 
 env:
   GODOT_VERSION: '4.7.2'
+  # Main releases use the custom engine. The manual candidate flow keeps its
+  # separate `.size` identity; PRs, commits and dev keep official templates.
+  CUSTOM_ENGINE: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true) }}
   OPTIMIZED_TEMPLATES: ${{ github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true }}
 
 defaults:
@@ -77,7 +80,7 @@ jobs:
   build-android:
     needs: checks
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true && 180 || 60 }}
+    timeout-minutes: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true)) && 120 || 60 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -106,8 +109,8 @@ jobs:
           templates="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p "$templates"
           unzip -q -j templates.tpz templates/android_source.zip -d "$templates"
-      - name: Build opt-in Android engine candidate
-        if: env.OPTIMIZED_TEMPLATES == 'true'
+      - name: Build custom Android engine template
+        if: env.CUSTOM_ENGINE == 'true'
         run: |
           bash scripts/build_mobile_templates.sh android "$RUNNER_TEMP/mobile-templates"
           cp "$RUNNER_TEMP/mobile-templates/android_source.zip" "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip"
@@ -172,6 +175,16 @@ jobs:
           godot --headless --path . --export-release 'Android AAB' build/android/invadeio-unsigned.aab
           bash scripts/verify_play_bundle.sh build/android/invadeio-unsigned.aab build/android/invadeio-debug.apk
           python3 tools/report_artifact_size.py build/android/invadeio-unsigned.aab >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify custom engine in release AAB
+        if: env.CUSTOM_ENGINE == 'true'
+        run: |
+          archive=build/android/invadeio-unsigned.aab
+          engine="$RUNNER_TEMP/libgodot_android.so"
+          unzip -p "$archive" base/lib/arm64-v8a/libgodot_android.so > "$engine"
+          size="$(wc -c < "$engine")"
+          # Stock is ~71 MB; the size profile is ~39 MB. Fail closed on fallback.
+          test "$size" -gt 30000000
+          test "$size" -lt 60000000
       - name: Report Android artifact and delivery sizes
         run: |
           # A disposable test key only; production signing stays isolated below.
@@ -227,7 +240,7 @@ jobs:
   build-ios:
     needs: checks
     runs-on: macos-26
-    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true && 180 || 30 }}
+    timeout-minutes: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true)) && 60 || 30 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -247,8 +260,8 @@ jobs:
           templates="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p "$templates"
           unzip -q -j templates.tpz templates/ios.zip -d "$templates"
-      - name: Build opt-in iOS engine candidate
-        if: env.OPTIMIZED_TEMPLATES == 'true'
+      - name: Build custom iOS engine template
+        if: env.CUSTOM_ENGINE == 'true'
         run: |
           bash scripts/build_mobile_templates.sh ios "$RUNNER_TEMP/mobile-templates"
           cp "$RUNNER_TEMP/mobile-templates/ios.zip" "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable/ios.zip"
@@ -257,7 +270,7 @@ jobs:
           PRODUCTION: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         run: |
           mode=Debug
-          if [[ "$PRODUCTION" == true || "$OPTIMIZED_TEMPLATES" == true ]]; then mode=Release; fi
+          if [[ "$PRODUCTION" == true || "$CUSTOM_ENGINE" == true ]]; then mode=Release; fi
           bash scripts/build_ios_backup_picker.sh "$mode"
           godot --headless --path . --editor --import
           godot --headless --path . res://scenes/tests/test_runner.tscn -- --quick
@@ -292,8 +305,8 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/ios"
           godot --headless --path . "$IOS_EXPORT" iOS "$RUNNER_TEMP/ios/invadeio.xcodeproj"
-          if [[ "$OPTIMIZED_TEMPLATES" == true ]]; then
-            # The candidate engine has no Vulkan renderer, so MoltenVK is unused.
+          if [[ "$CUSTOM_ENGINE" == true ]]; then
+            # The custom engine has no Vulkan renderer, so MoltenVK is unused.
             python3 tools/strip_ios_moltenvk.py "$RUNNER_TEMP/ios/invadeio.xcodeproj/project.pbxproj"
           fi
           xcodebuild archive -quiet -project "$RUNNER_TEMP/ios/invadeio.xcodeproj" -scheme invadeio \
@@ -313,6 +326,11 @@ jobs:
           lipo Payload/invadeio.app/invadeio -verify_arch arm64
           zip -q -9 -r "$IPA_NAME" Payload
           python3 "$GITHUB_WORKSPACE/tools/report_artifact_size.py" "$IPA_NAME" >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify custom engine in release IPA
+        if: env.CUSTOM_ENGINE == 'true'
+        run: |
+          # Stock Release is >30 MB; the custom Release is ~20 MB. Fail closed on fallback.
+          test "$(stat -f%z "$RUNNER_TEMP/ios/$IPA_NAME")" -lt 28000000
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: ${{ runner.temp }}/ios/${{ env.IPA_NAME }}

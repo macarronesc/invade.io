@@ -38,16 +38,31 @@ class MobileTemplateChecks(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(b"pinned engine source", result.stderr)
 
+    def test_custom_engine_is_main_release_only(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+        self.assertIn("CUSTOM_ENGINE: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') "
+                      "|| (github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true) }}", workflow)
+        for name in ("Build custom Android engine template", "Build custom iOS engine template",
+                     "Verify custom engine in release AAB", "Verify custom engine in release IPA"):
+            self.assertIn(f"- name: {name}\n        if: env.CUSTOM_ENGINE == 'true'", workflow)
+        self.assertIn("- name: Build installable Release APK for engine validation only\n"
+                      "        if: env.OPTIMIZED_TEMPLATES == 'true'", workflow)
+        self.assertIn('if [[ "$CUSTOM_ENGINE" == true ]]; then\n'
+                      '            # The custom engine has no Vulkan renderer', workflow)
+        self.assertIn("configure_ci_export.gd -- --production", workflow)
+        self.assertIn('if [[ "$OPTIMIZED_TEMPLATES" == true ]]; then\n'
+                      '              godot --headless --path . --script tools/configure_ci_export.gd -- --size-candidate', workflow)
+        signing = workflow.split("\n  sign-android:\n")[1]
+        self.assertNotIn("CUSTOM_ENGINE", signing)
+        self.assertNotIn("OPTIMIZED_TEMPLATES", signing)
+
     def test_candidates_cannot_change_production_template_selection(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text()
         self.assertIn("github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true", workflow)
-        for name in ("Build opt-in Android engine candidate", "Build opt-in iOS engine candidate",
-                     "Build installable Release APK for engine validation only"):
-            self.assertIn(f"- name: {name}\n        if: env.OPTIMIZED_TEMPLATES == 'true'", workflow)
         self.assertIn('PATH="$work/venv/bin:$PATH" ./gradlew generateGodotTemplates', (ROOT / "scripts/build_mobile_templates.sh").read_text())
         self.assertIn("arch=arm64 metal=no", (ROOT / "scripts/build_mobile_templates.sh").read_text())
-        signing = workflow.split("\n  sign-android:\n")[1]
-        self.assertNotIn("OPTIMIZED_TEMPLATES", signing)
+        self.assertIn("- name: Build installable Release APK for engine validation only\n"
+                      "        if: env.OPTIMIZED_TEMPLATES == 'true'", workflow)
 
     @unittest.skipUnless(shutil.which("godot"), "Godot required for export-identity integration check")
     def test_candidate_save_storage_is_separate(self):

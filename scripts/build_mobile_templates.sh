@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build candidates only; installing/promoting them is a separate, reviewed step.
+# Build custom templates for main releases or manual validation candidates.
 set -euo pipefail
 
 case "${1:-}" in
@@ -50,4 +50,4 @@ else
     test -s bin/godot_ios.zip
     cp bin/godot_ios.zip "$work/ios.zip"
 fi
-printf 'Built %s candidate templates in %s\n' "$platform" "$work"
+printf 'Built %s custom templates in %s\n' "$platform" "$work"
