@@ -292,6 +292,10 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/ios"
           godot --headless --path . "$IOS_EXPORT" iOS "$RUNNER_TEMP/ios/invadeio.xcodeproj"
+          if [[ "$OPTIMIZED_TEMPLATES" == true ]]; then
+            # The candidate engine has no Vulkan renderer, so MoltenVK is unused.
+            python3 tools/strip_ios_moltenvk.py "$RUNNER_TEMP/ios/invadeio.xcodeproj/project.pbxproj"
+          fi
           xcodebuild archive -quiet -project "$RUNNER_TEMP/ios/invadeio.xcodeproj" -scheme invadeio \
             -configuration "$IOS_CONFIGURATION" -sdk iphoneos -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/ios/invadeio.xcarchive" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='' \
