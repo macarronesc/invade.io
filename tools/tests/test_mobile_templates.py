@@ -44,7 +44,7 @@ class MobileTemplateChecks(unittest.TestCase):
         for name in ("Build opt-in Android engine candidate", "Build opt-in iOS engine candidate",
                      "Build installable Release APK for engine validation only"):
             self.assertIn(f"- name: {name}\n        if: env.OPTIMIZED_TEMPLATES == 'true'", workflow)
-        self.assertIn("platform/android/java && ./gradlew generateGodotTemplates", (ROOT / "scripts/build_mobile_templates.sh").read_text())
+        self.assertIn('PATH="$work/venv/bin:$PATH" ./gradlew generateGodotTemplates', (ROOT / "scripts/build_mobile_templates.sh").read_text())
         self.assertIn("arch=arm64 metal=no", (ROOT / "scripts/build_mobile_templates.sh").read_text())
         signing = workflow.split("\n  sign-android:\n")[1]
         self.assertNotIn("OPTIMIZED_TEMPLATES", signing)
