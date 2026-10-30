@@ -60,13 +60,14 @@ for published build artifacts. A GitHub release is not automatic store submissio
 | Online competition | No multiplayer, live PvP, or online leaderboard |
 | Accessibility | Configurable presentation and alternate battle controls; mobile screen-reader support is not established |
 
-The October 28, 2026 marketing material targets source version **0.3.1**. On
-October 30 the public policy described enabled telemetry defaults, while the
-Google Play listing still contained older descriptions and opt-in/no-collection
-wording. GitHub offered a **0.3.2** release while this development checkout declared
-**0.3.1**. These are dated public-page observations, not a live status feed or
-verification of the shipped binary. Before publishing, match the build, listing, policy, and Data safety
-declarations using the [store update checklist](PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
+The store material captured on October 28 was prepared against source version
+**0.3.1** and is carried into the **0.3.2** release candidate. On October 30 the
+public policy described enabled telemetry defaults, while the Google Play listing
+still contained older descriptions and opt-in/no-collection wording. This source
+also defaults telemetry to enabled. These are dated public-page observations, not
+a live status feed or verification of the shipped binary. Before publishing, match
+the build, listing, policy, and Data safety declarations using the
+[store update checklist](PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
 
 ## Keeping these guides accurate
 

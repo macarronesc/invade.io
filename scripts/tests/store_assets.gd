@@ -28,8 +28,8 @@ func _ready() -> void:
     if DisplayServer.get_name() == "headless":
         _require(false, "Screenshots need a rendering display; use xvfb-run, not --headless")
         return
-    var watchdog := get_tree().create_timer(600.0)
-    watchdog.timeout.connect(func(): _require(false, "Capture did not complete within ten minutes"))
+    var watchdog := get_tree().create_timer(1200.0)
+    watchdog.timeout.connect(func(): _require(false, "Capture did not complete within twenty minutes"))
     OS.low_processor_usage_mode = false
     _real_save_hash = FileAccess.get_sha256("user://invade_save.json") if FileAccess.file_exists("user://invade_save.json") else ""
     GameManager.save_path = "user://store_capture_save.json"

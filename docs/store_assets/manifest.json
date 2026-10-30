@@ -1,5 +1,5 @@
 {
-	"commit": "1a5d24494b8bbdf5957edd39742cfeff8c791a72",
+	"commit": "db938d90dd05accc17e788781c2917706501bf14",
 	"daily_day": 20754,
 	"feature_sha256": "4bfdd6b332adc76ef304f3d66b53d0b664ea1ec11236eeca07035f70b7e1945e",
 	"godot": "4.7.2-stable (official)",
@@ -1928,6 +1928,6 @@
 			}
 		]
 	},
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"working_tree_dirty": true
 }
