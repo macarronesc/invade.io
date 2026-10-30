@@ -60,7 +60,7 @@ def check_entries(entries, require_notices=True):
         path = resource_path(name)
         if sensitive_path(name) or sensitive_content(data):
             raise ValueError("Sensitive file/material in artifact: " + name)
-        if path == ".tmp" or path.startswith(("build/", "tools/", "docs/", ".git/", ".github/", "scripts/tests/", "scenes/tests/")):
+        if path == ".tmp" or path.startswith(("build/", "tools/", "docs/", "website/", ".git/", ".github/", "scripts/tests/", "scenes/tests/")):
             raise ValueError("Development resource in artifact: " + name)
         if path == NOTICES or name == NOTICES:
             notices = (b"Apache License" in data and b"Copyright (c) 2025 Aptabase" in data

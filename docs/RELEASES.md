@@ -76,8 +76,9 @@ configuration a local checkout can prove is enabled:
   administrator enforcement, resolved conversations, and no force pushes/deletion.
 - `play-release`: only branch `main`, owner approval, no admin bypass, three environment secrets
   and the public certificate fingerprint. Keep `ci` and repository secrets empty.
-- Pages: Actions source; `pages.yml` packages only the public policy and deploys main with scoped
-  `pages: write`/OIDC permissions. Existing policy URL must remain unchanged.
+- Pages: Actions source; `pages.yml` checks and packages only the generated public website,
+  selected guides/assets, and unchanged policy. It deploys main with scoped `pages: write`/OIDC
+  permissions. Existing policy URL must remain unchanged. See [website maintenance](WEBSITE.md).
 - Independent PR/code-owner approval and prevention of deployment self-review require a second
   trusted maintainer. See [SECURITY.md](../SECURITY.md); do not silently lock out the sole owner.
 

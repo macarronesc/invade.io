@@ -19,7 +19,8 @@ implement gameplay. There is no game server, account system, or online authority
 | [assets/](../assets/) and [locale/](../locale/) | Checked-in geography, fonts, brand/legal assets, and translations |
 | [addons/](../addons/) and [ios/plugins/](../ios/plugins/) | Vendored telemetry SDKs and the native iOS backup picker |
 | [tools/](../tools/) and [scripts/](../scripts/) | Authoring, validation, platform build, and artifact-verification tools |
-| [.github/workflows/](../.github/workflows/) | CI, isolated signing, releases, and privacy-policy deployment |
+| [website/](../website/) | Static player website and generated documentation; isolated from Godot with `.gdignore` and export exclusions |
+| [.github/workflows/](../.github/workflows/) | CI, isolated signing, releases, and website/Pages deployment |
 
 ## From menu to saved progress
 

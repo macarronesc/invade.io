@@ -28,13 +28,20 @@ class SecurityChecks(unittest.TestCase):
         check_entries([notices, ("scripts/main.gdc", b"game")])
         for prefix in ("assets/", "base/assets/", "assetPackInstallTime/assets/"):
             check_entries([(prefix + notices[0], notices[1])])
-        for path in ("build/headers/a.import", "scripts/tests/test.gdc", "../escape", "upload.jks", ".tmp", ".git/config"):
+        for path in ("build/headers/a.import", "scripts/tests/test.gdc", "website/src/pages/index.astro", "website/node_modules/test.js", "../escape", "upload.jks", ".tmp", ".git/config"):
             with self.subTest(path=path), self.assertRaises(ValueError):
                 check_entries([notices, (path, b"data")])
         with self.assertRaises(ValueError):
             check_entries([("scripts/main.gdc", b"game")])
         with self.assertRaises(ValueError):
             check_entries([notices, notices])
+
+    def test_website_is_excluded_from_all_game_exports(self):
+        self.assertTrue((ROOT / "website/.gdignore").is_file())
+        filters = [line for line in (ROOT / "export_presets.cfg").read_text().splitlines() if line.startswith("exclude_filter=")]
+        self.assertEqual(len(filters), 4)
+        for line in filters:
+            self.assertIn("website/*", line)
 
     def test_pck_v4(self):
         name = NOTICES.encode()

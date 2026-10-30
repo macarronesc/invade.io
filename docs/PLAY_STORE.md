@@ -175,9 +175,10 @@ The public privacy-policy URL must remain:
 
 `https://macarronesc.github.io/invade.io/privacy-policy.html`
 
-[pages.yml](../.github/workflows/pages.yml) packages **only**
-[privacy-policy.html](privacy-policy.html) and deploys from `main`. Developer
-Markdown guides are read on GitHub, not deployed by that workflow. Before merging
+[pages.yml](../.github/workflows/pages.yml) builds the public website and searchable
+guides, copying [privacy-policy.html](privacy-policy.html) unchanged to its existing
+address. It deploys from `main`; canonical Markdown also remains readable on GitHub.
+See [website maintenance](WEBSITE.md). Before merging
 a policy change to `main`, have the owner verify its disclosures against shipped
 builds, then check the actual public page after deployment. An English-only
 presentation does not resolve a mismatch in telemetry defaults.

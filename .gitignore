@@ -33,3 +33,13 @@ tools/__pycache__/
 export_credentials.cfg
 .venv/
 **/__pycache__/
+
+# Static website: generated content is rebuilt from the canonical guides.
+/website/node_modules/
+/website/.astro/
+/website/dist/
+/website/src/content/docs/
+/website/src/generated/
+/website/public/
+/website/playwright-report/
+/website/test-results/

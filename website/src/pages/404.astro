@@ -1,0 +1,7 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { href } from '../../scripts/site.mjs';
+---
+<SiteLayout title="Territory not found" description="This page is outside the map. Find the invade.io website and documentation here." page={null} noindex>
+  <section class="container section"><p class="eyebrow">404 · Outside the map</p><h1>Uncharted territory.</h1><p class="lead">This page is not on the map. Your next conquest is still waiting.</p><div class="button-row"><a class="button" href={href()}>Back to the game website</a><a class="button secondary" href={href('docs/')}>Find the documentation</a></div><p><a href={href('es/')} lang="es">Ir al inicio en español →</a></p></section>
+</SiteLayout>
