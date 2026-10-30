@@ -107,10 +107,14 @@ Package checks reject exports missing the original NOTICE attribution.
 
 ## Export size and custom engine candidates
 
-Normal builds still use official templates. Fonts retain their glyph coverage and
-weight variation but pin unused width variation; export-only launcher/store artwork
-is excluded from the runtime pack, not from native icon generation. The game logo,
-splash, all languages, ICU text data, procedural audio, backups and Sentry remain.
+PRs, commits and `dev` builds use official Godot templates. A push to `main`
+builds the pinned custom engine and uses it for the release AAB, Release IPA and
+Debug APK. The manual `optimized_templates` flow remains available for validation
+on any branch and keeps its separate `.size` identity. Fonts retain their glyph
+coverage and weight variation but pin unused width variation; export-only
+launcher/store artwork is excluded from the runtime pack, not from native icon
+generation. The game logo, splash, all languages, ICU text data, procedural audio,
+backups and Sentry remain.
 
 CI adds component tables and the bundletool estimate to the job summary; it does not
 retain a separate size-report artifact. The reporter first applies the existing
@@ -128,11 +132,15 @@ disposable test key; no production credential enters a build job. Play Console a
 Xcode's App Thinning Size Report/App Store Connect remain the delivery-size authority.
 The current unsigned SideStore IPA does not establish an App Store download size.
 
-### Validate the smaller engine without publishing
+### Main releases and manual validation
 
-In **Actions → CI and releases → Run workflow**, select the review branch and enable
-**optimized_templates**. This option is restricted to manual validation: it cannot
-activate on a push/PR and never enters production signing or publishing.
+Main release builds use the custom engine automatically. The manual
+**optimized_templates** option remains available to validate the same engine on any
+branch. It is restricted to manual runs: it cannot activate on a push/PR and never
+enters production signing or publishing.
+
+Release jobs fail closed if the exported engine or IPA size indicates that a stock
+template was used by mistake. Signing and publication do not run in that case.
 
 `scripts/build_mobile_templates.sh` downloads checksum-pinned Godot 4.7.2 source
 (`ed1daf0bf001b61586d9930840f2f1394092c079`) and builds arm64 Debug/Release templates.
@@ -143,7 +151,8 @@ No class-name auto-stripping is used. Debug/Release native picker ABIs still mat
 
 Android builds a real `android_source.zip` through Gradle; pointing a Gradle export
 at `custom_template/release` would not replace its engine. iOS builds its own template
-archive. The manual run produces an installable Release `invadeio-size-candidate.apk`
+archive. Main releases keep the normal `macarronesc.invadeio` identity and production
+telemetry. The manual run produces an installable Release `invadeio-size-candidate.apk`
 and unsigned Release `invade.io-size-candidate.ipa`, both with the independent
 `macarronesc.invadeio.size` identifier. Candidates respect the on-device privacy
 toggles, so physical-device validation can exercise both providers. Their telemetry
@@ -165,13 +174,15 @@ bash scripts/build_mobile_templates.sh android /path/to/temporary/android-templa
 bash scripts/build_mobile_templates.sh ios /path/to/temporary/ios-templates
 ```
 
-These commands produce candidates; they do not install or promote them. When Godot
-changes, update the source commit/checksum, builder version guard, templates, native
-headers, CI download hashes and tests together.
+These commands produce templates; CI installs them for main releases or manual
+candidates. They do not sign or publish. When Godot changes, update the source
+commit/checksum, builder version guard, templates, native headers, CI download
+hashes and tests together.
 
-**Promotion is a separate reviewed change.** Before using custom engines in a release,
-compare a stock and custom export from the same commit, check actual native sizes and
-Android 16 KB alignment, and complete the physical-device checklist in
+**Changing the profile or using it outside main releases is a separate reviewed
+change.** Before changing it, compare a stock and custom export from the same
+commit, check actual native sizes and Android 16 KB alignment, and complete the
+physical-device checklist in
 [Platform integration](PLATFORM_INTEGRATION.md#physical-device-checklist). Test Arabic,
 Hindi and CJK wrapping, runtime SVGs, all game modes, native backup/restore, audio,
 privacy opt-outs, lifecycle events, save-preserving updates, startup and frame times.

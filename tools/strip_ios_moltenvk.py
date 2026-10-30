@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drop MoltenVK from a candidate Xcode project whose engine has no Vulkan renderer."""
+"""Drop MoltenVK from a custom-engine Xcode project that has no Vulkan renderer."""
 import argparse
 import pathlib
 import tempfile
