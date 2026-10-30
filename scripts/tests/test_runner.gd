@@ -4780,6 +4780,8 @@ func test_candidate_telemetry_is_tagged() -> void:
 	var telemetry := CandidateTelemetryHarness.new()
 	telemetry._init_analytics()
 	assert_true(telemetry._analytics_ready, "La candidata inicializa Aptabase si el ajuste está activo")
+	# The probe below must stay local; do not let the flush timer reach production.
+	Aptabase._flush_timer.stop()
 	assert_equals(telemetry._telemetry_channel(), "size_candidate", "La candidata usa un canal propio")
 	assert_equals(Aptabase._system_props.get("appVersion"), telemetry._app_version() + "-size",
 		"Aptabase separa la versión de candidata")

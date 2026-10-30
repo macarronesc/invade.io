@@ -165,7 +165,9 @@ Test-scene startup selects `user://automation_startup_save.json` before autoload
 read player data, then each suite switches to its own fixture save. Store captures
 also compare the normal player-save hash before and after generation. Headless
 runs, editor tooling, test scenes, and `--no-telemetry` suppress provider startup.
-Ordinary editor-launched gameplay is different; see [Analytics](ANALYTICS.md).
+Manual size candidates are different: they respect the privacy toggles and tag
+their telemetry for device validation; see [Analytics](ANALYTICS.md).
+Ordinary editor-launched gameplay can also send data if the settings allow it.
 
 Worktrees can still share Godot user data. Do not run these commands concurrently
 against the same data directory or run multiple store generators in one checkout.

@@ -104,7 +104,9 @@ Sentry logs (`attach_log = false`).
 For iPhone diagnosis, use a Debug IPA from a branch/manual validation run. Look
 for `[Aptabase] initialized`, `[Aptabase] sent`, or request failures in the device
 console. The Debug CI build retains the native backup picker; its logs may contain
-server responses and must not be posted publicly without careful review.
+server responses and must not be posted publicly without careful review. Release
+size candidates do not print successful sends; confirm them in the dashboards by
+the candidate app version, `build_channel`, and Sentry environment.
 
 ## Event reference
 
