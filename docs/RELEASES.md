@@ -139,6 +139,9 @@ Main release builds use the custom engine automatically. The manual
 branch. It is restricted to manual runs: it cannot activate on a push/PR and never
 enters production signing or publishing.
 
+Release jobs fail closed if the exported engine or IPA size indicates that a stock
+template was used by mistake. Signing and publication do not run in that case.
+
 `scripts/build_mobile_templates.sh` downloads checksum-pinned Godot 4.7.2 source
 (`ed1daf0bf001b61586d9930840f2f1394092c079`) and builds arm64 Debug/Release templates.
 `tools/mobile_template_profile.py` enables size optimization and ThinLTO, removes 3D,
