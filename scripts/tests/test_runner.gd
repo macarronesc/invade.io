@@ -46,6 +46,14 @@ func _ready() -> void:
 	for preset in ["preset.0", "preset.1", "preset.2", "preset.3"]:
 		assert_true(not str(presets.get_value(preset, "custom_features", "")).split(",", false).has("aptabase_release"),
 			"La telemetría sigue el tipo de compilación, no el preset: " + preset)
+		var excluded := str(presets.get_value(preset, "exclude_filter", ""))
+		for artwork in ["assets/brand/icon-*.png", "assets/brand/adaptive-*.png", "assets/brand/play-store-icon-512.png"]:
+			assert_true(excluded.split(",").has(artwork), "El arte nativo no se duplica en el pack: " + preset + " " + artwork)
+		assert_true(not excluded.contains("boot_splash") and not excluded.contains("icon.svg"), "El logo y splash del juego se conservan")
+	for preset in ["preset.1.options", "preset.2.options"]:
+		assert_true(presets.get_value(preset, "architectures/arm64-v8a", false), "Android mantiene arm64: " + preset)
+		for arch in ["armeabi-v7a", "x86", "x86_64"]:
+			assert_true(not presets.get_value(preset, "architectures/" + arch, true), "Android no añade ABIs por defecto: " + arch)
 	assert_true(not ProjectSettings.get_setting("sentry/options/auto_init", true),
 		"Sentry espera a cargar los ajustes de privacidad antes de inicializarse")
 

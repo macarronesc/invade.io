@@ -83,10 +83,11 @@ than using separate provider projects.
 | Execution or CI artifact | Engine build | Sentry environment |
 |---|---|---|
 | Gameplay from the editor/MCP or CLI editor binary | Debug | `debug` |
-| CI APK, including the GitHub release attachment | Debug | `debug` |
+| Ordinary CI APK, including the GitHub release attachment | Debug | `debug` |
 | CI candidate AAB, including an unsigned PR candidate | Release | `production` |
 | IPA from a push to `main` | Release | `production` |
-| IPA from PRs, other branches, or manual workflow runs | Debug | `debug` |
+| Ordinary IPA from PRs, other branches, or manual workflow runs | Debug | `debug` |
+| Opt-in size-candidate Release APK/IPA (`.size` identifier) | Release | `production` classification, providers suppressed |
 
 Manual exports follow the selected build mode: an AAB exported with
 `--export-debug` is Debug; an APK exported with `--export-release` is Release.

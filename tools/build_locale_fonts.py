@@ -20,6 +20,8 @@ import os
 import sys
 
 from fontTools import subset
+from fontTools.ttLib import TTFont
+from fontTools.varLib.instancer import instantiateVariableFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "assets", "fonts", "locale")
@@ -98,6 +100,15 @@ def chars_for(lang: str, text: dict[str, str], names: dict[str, set[str]]) -> se
     return chars
 
 
+def pin_unused_width(font: TTFont) -> None:
+    # The UI varies weight, never width; keep the exact existing default width.
+    if "fvar" in font:
+        for axis in font["fvar"].axes:
+            if axis.axisTag == "wdth":
+                instantiateVariableFont(font, {"wdth": axis.defaultValue}, inplace=True)
+                break
+
+
 def subset_font(source: str, chars: set[str], out: str) -> None:
     args = [
         source,
@@ -115,6 +126,9 @@ def subset_font(source: str, chars: set[str], out: str) -> None:
         "--drop-tables+=DSIG",
     ]
     subset.main(args)
+    with TTFont(out, recalcTimestamp=False) as font:
+        pin_unused_width(font)
+        font.save(out)
 
 
 def main() -> int:

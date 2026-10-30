@@ -130,7 +130,7 @@ virtual environment rather than changing the project's runtime dependencies:
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install fonttools
+.venv/bin/python -m pip install fonttools==4.57.0
 .venv/bin/python tools/build_locale_fonts.py /path/to/noto-source-fonts
 godot --headless --path . --editor --import
 ```
@@ -140,6 +140,8 @@ The directory must contain `notosans.ttf`, `notosansarabic.ttf`,
 from the [Google Fonts Noto families](https://fonts.google.com/noto). Rename local
 copies of downloaded source fonts to the expected filenames as needed. The tool
 includes UI text, city names, store captions, and native language-picker labels.
+It also pins the unused width axis at its existing default while retaining variable
+weights; do not generate static-weight replacements or drop shaping tables.
 Preserve [OFL notices](../assets/fonts/LICENSE-OFL.txt). Inspect Arabic shaping,
 Hindi marks, CJK glyphs, long labels, and RTL behavior—not just missing glyphs.
 Maps and the brand stay unmirrored in Arabic.

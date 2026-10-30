@@ -41,6 +41,14 @@ JDK 17 (`keytool` and `jarsigner`) to exercise the signing regression; without i
 that test is skipped locally. CI requires those tools and does not permit the
 skip. Never provide a real signing key to a test.
 
+The font checks use `fonttools==4.57.0` (installed explicitly in CI); without it they
+are skipped locally. The export-identity integration check similarly needs Godot on
+`PATH`. Run both before changing fonts or candidate packaging. The artifact-size
+tests cover compressed versus expanded totals, PCK accounting, and rejection of
+invalid/development resources. Custom-engine promotion additionally requires testing
+the actual [exported candidates](RELEASES.md#validate-the-smaller-engine-without-publishing),
+not only this editor-based suite.
+
 CI also runs pinned Gitleaks, actionlint, and ShellCheck. Maintainers can install
 the checksum-verified versions with
 [tools/install_security_tools.sh](../tools/install_security_tools.sh). A clean

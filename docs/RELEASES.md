@@ -14,14 +14,14 @@ and manual validation. All jobs default to `contents: read`; checkout never stor
 `checks` runs pinned/checksummed Gitleaks, actionlint, ShellCheck, repository guards, regression
 tests, and version validation. `build-android` and `build-ios` retain their required check names.
 
-Every branch produces a Debug APK and non-main builds produce a Debug IPA, with the separate
+Every branch produces a Debug APK and ordinary non-main builds produce a Debug IPA, with the separate
 `macarronesc.invadeio.debug` identifier. Android also builds an **unsigned** production candidate
 on PRs so the AAB pipeline is checked before merge, without any production credential. Never
 distribute that validation AAB as a signed release. Artifacts expire after seven days.
 
 Telemetry defaults to enabled unless a saved preference disables it. Classification follows the
-engine build, not the branch, signing, or package format: all CI APKs are Debug, all candidate AABs
-are Release, and only the IPA from a push to main is Release. Aptabase uses `isDebug`; Sentry uses
+engine build, not the branch, signing, or package format: ordinary CI APKs are Debug, all candidate AABs
+are Release, and the main IPA and opt-in size-candidate APK/IPA are Release. Aptabase uses `isDebug`; Sentry uses
 `debug`/`production`. Editor-launched gameplay is Debug; automated test scenes and headless runs
 never initialize providers. See [Telemetry](ANALYTICS.md) for privacy and pre-publication checks.
 
@@ -105,11 +105,83 @@ Regenerate bundled notices with `python3 tools/build_notices.py` after NOTICE/li
 Settings shows the original-author credit, those notices and Godot's license information offline.
 Package checks reject exports missing the original NOTICE attribution.
 
+## Export size and custom engine candidates
+
+Normal builds still use official templates. Fonts retain their glyph coverage and
+weight variation but pin unused width variation; export-only launcher/store artwork
+is excluded from the runtime pack, not from native icon generation. The game logo,
+splash, all languages, ICU text data, procedural audio, backups and Sentry remain.
+
+CI uploads `android-size-reports` and `ios-size-report` and adds component tables to
+the job summary. The reporter first applies the existing artifact/license checks:
+
+```sh
+python3 tools/report_artifact_size.py build/android/invadeio.aab
+```
+
+Archive bytes, expanded file bytes, and store delivery sizes are different metrics.
+Readable PCK contents and Android's sparse-PCK index are identified separately;
+PCK contents are broken down without counting their bytes twice. Android
+also records bundletool estimates (including install-time assets), using only a
+disposable test key; no production credential enters a build job. Play Console and
+Xcode's App Thinning Size Report/App Store Connect remain the delivery-size authority.
+The current unsigned SideStore IPA does not establish an App Store download size.
+
+### Validate the smaller engine without publishing
+
+In **Actions → CI and releases → Run workflow**, select the review branch and enable
+**optimized_templates**. This option is restricted to manual validation: it cannot
+activate on a push/PR and never enters production signing or publishing.
+
+`scripts/build_mobile_templates.sh` downloads checksum-pinned Godot 4.7.2 source
+(`ed1daf0bf001b61586d9930840f2f1394092c079`) and builds arm64 Debug/Release templates.
+`tools/mobile_template_profile.py` enables size optimization and ThinLTO, removes 3D,
+2D physics/navigation, Vulkan and Metal, and retains the GL Compatibility driver.
+SVG, advanced shaping, GUI dialogs, HTTPS, threads and GDExtensions keep their defaults.
+No class-name auto-stripping is used. Debug/Release native picker ABIs still match.
+
+Android builds a real `android_source.zip` through Gradle; pointing a Gradle export
+at `custom_template/release` would not replace its engine. iOS builds its own template
+archive. The manual run produces an installable Release `invadeio-size-candidate.apk`
+and unsigned Release `invade.io-size-candidate.ipa`, both with the independent
+`macarronesc.invadeio.size` identifier. The candidate feature tag suppresses both
+telemetry providers when launched, preventing size validation from sending production
+analytics or crash reports.
+The APK's disposable certificate changes between runs: export any candidate progress
+before replacing it. Neither artifact updates the store or normal Debug installation.
+
+Local compilation requires Python with `venv`/pip, a C++ toolchain, and either the
+Android SDK/JDK/NDK listed above or macOS with Xcode/iOS support. Android CI uses an
+x86_64 Linux host; the Android NDK's host tools cannot run natively on ARM64 Linux.
+Use a fresh build
+directory outside the project (or add `.gdignore` to a local build directory):
+
+```sh
+bash scripts/build_mobile_templates.sh android /path/to/temporary/android-templates
+# On macOS:
+bash scripts/build_mobile_templates.sh ios /path/to/temporary/ios-templates
+```
+
+These commands produce candidates; they do not install or promote them. When Godot
+changes, update the source commit/checksum, builder version guard, templates, native
+headers, CI download hashes and tests together.
+
+**Promotion is a separate reviewed change.** Before using custom engines in a release,
+compare a stock and custom export from the same commit, check actual native sizes and
+Android 16 KB alignment, and complete the physical-device checklist in
+[Platform integration](PLATFORM_INTEGRATION.md#physical-device-checklist). Test Arabic,
+Hindi and CJK wrapping, runtime SVGs, all game modes, native backup/restore, audio,
+privacy opt-outs, lifecycle events, save-preserving updates, startup and frame times.
+Editor tests alone do not exercise the stripped engine. Do not remove ICU/Sentry,
+loosen JNI keep rules, or enable resource shrinking without a separately measured,
+device-tested candidate; their smaller possible gains do not justify silent regressions.
+
 ## Dependency inventory
 
 | Component | Pinned source/version | Update process |
 |---|---|---|
 | Godot and templates | 4.7.2, hashes in CI | Review release/advisories; update version and all hashes together |
+| Custom template builder | Godot commit/hash in `scripts/build_mobile_templates.sh`; SCons version/hash in `tools/requirements-mobile-templates.txt` | Update with the matching editor/templates and validate candidates |
 | Sentry Godot | Official 2.3.0+8ec9083 archive | Review upstream advisories and releases manually |
 | Aptabase Godot | 0.0.1, locally modified `addons/aptabase` | Review changes and privacy/HTTP tests |
 | Android | SDK 36, build-tools 36.1.0, NDK 29.0.14206865 | Review template/SDK compatibility and manifests |

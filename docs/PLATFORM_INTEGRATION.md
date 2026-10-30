@@ -31,7 +31,7 @@ physical-device or Play Games on PC certification.
 The production identifier is **`macarronesc.invadeio`**. Do not change it: it
 identifies the published application and its private storage.
 
-CI Debug APKs and non-production IPAs use **`macarronesc.invadeio.debug`** so they
+CI Debug APKs and ordinary non-production IPAs use **`macarronesc.invadeio.debug`** so they
 do not replace the store installation. They have separate saves. Changing a test
 identifier does not migrate old progress automatically; export a backup before
 switching installations. Avoid uninstalling the same variant when updating it.
@@ -43,8 +43,13 @@ switching installations. Avoid uninstalling the same variant when updating it.
 | `invadeio.aab` | Owner-approved, signed bundle for manual Play Console upload |
 | `invade.io-debug.ipa` | Unsigned Debug iPhone build for SideStore |
 | `invade.io.ipa` | Unsigned Release iPhone build from a push to `main`, also for SideStore |
+| `invadeio-size-candidate.apk` | Opt-in custom-engine Release test build; disposable certificate and separate `.size` saves |
+| `invade.io-size-candidate.ipa` | Opt-in custom-engine unsigned Release iPhone build; separate `.size` saves |
 
 See [Releases](RELEASES.md) for workflow triggers, approval, checksums, and retention.
+The [size-candidate workflow](RELEASES.md#validate-the-smaller-engine-without-publishing)
+never publishes. Back up candidate progress before replacing an APK signed by a
+different disposable certificate; these builds cannot update the store installation.
 Contributors never need the production upload key or Apple/store credentials.
 
 ### Android
@@ -65,10 +70,12 @@ Play Console; they are not directly installable APKs.
    local commits do not trigger it. A multi-commit push builds the latest state,
    not a separate IPA for every intermediate commit.
 2. Open **Actions → CI and releases** and select a successful run. Manual runs
-   validate only; even a manual run on `main` produces a Debug IPA and does not
-   publish a release.
-3. Download `invade.io-debug.ipa` for branches/PRs/manual runs, or `invade.io.ipa`
-   for a push to `main`. Raw artifacts are retained for seven days.
+   validate only; an ordinary manual run on `main` produces a Debug IPA and does
+   not publish a release. Enabling `optimized_templates` instead produces the
+   separate Release size-candidate IPA described above, still without publishing.
+3. Download `invade.io-debug.ipa` for ordinary branch/PR/manual runs,
+   `invade.io-size-candidate.ipa` for an opt-in size-candidate run, or
+   `invade.io.ipa` for a push to `main`. Raw artifacts are retained for seven days.
 4. Save the IPA in Files. With SideStore and its current VPN/network requirements
    configured, open **SideStore → My Apps → +** and select the file. Follow
    [SideStore's installation guidance](https://docs.sidestore.io/) for signing,

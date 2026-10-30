@@ -50,7 +50,8 @@ func _is_test_runtime() -> bool:
 		or OS.has_feature("headless") \
 		or Engine.is_editor_hint() \
 		or "\n".join(OS.get_cmdline_args()).replace("\\", "/").contains("scenes/tests/") \
-		or OS.get_cmdline_user_args().has("--no-telemetry")
+		or OS.get_cmdline_user_args().has("--no-telemetry") \
+		or OS.has_feature("size_candidate")
 
 func _analytics_allowed() -> bool:
 	return bool(GameManager.settings.get("share_analytics", GameManager.DEFAULT_SETTINGS["share_analytics"]))
