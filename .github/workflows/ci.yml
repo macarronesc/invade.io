@@ -152,7 +152,7 @@ jobs:
           mkdir -p build/android
           godot --headless --path . --install-android-build-template --export-debug Android build/android/invadeio-debug.apk
           bash scripts/verify_play_bundle.sh build/android/invadeio-debug.apk
-          python3 tools/report_artifact_size.py build/android/invadeio-debug.apk | tee build/android/apk-size.md >> "$GITHUB_STEP_SUMMARY"
+          python3 tools/report_artifact_size.py build/android/invadeio-debug.apk >> "$GITHUB_STEP_SUMMARY"
       - name: Check R8 idempotence
         run: |
           test_root="$(mktemp -d "$RUNNER_TEMP/invadeio-r8-test.XXXXXX")"
@@ -171,7 +171,7 @@ jobs:
           bash scripts/enable_android_r8.sh
           godot --headless --path . --export-release 'Android AAB' build/android/invadeio-unsigned.aab
           bash scripts/verify_play_bundle.sh build/android/invadeio-unsigned.aab build/android/invadeio-debug.apk
-          python3 tools/report_artifact_size.py build/android/invadeio-unsigned.aab | tee build/android/aab-size.md >> "$GITHUB_STEP_SUMMARY"
+          python3 tools/report_artifact_size.py build/android/invadeio-unsigned.aab >> "$GITHUB_STEP_SUMMARY"
       - name: Report Android artifact and delivery sizes
         run: |
           # A disposable test key only; production signing stays isolated below.
@@ -194,20 +194,12 @@ jobs:
           godot --headless --path . --script tools/configure_ci_export.gd -- --size-candidate
           godot --headless --path . --export-release Android build/android/invadeio-size-candidate.apk
           EXPECTED_PACKAGE=macarronesc.invadeio.size bash scripts/verify_play_bundle.sh build/android/invadeio-size-candidate.apk
-          python3 tools/report_artifact_size.py build/android/invadeio-size-candidate.apk | tee build/android/release-apk-size.md >> "$GITHUB_STEP_SUMMARY"
+          python3 tools/report_artifact_size.py build/android/invadeio-size-candidate.apk >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: env.OPTIMIZED_TEMPLATES == 'true'
         with:
           path: build/android/invadeio-size-candidate.apk
           archive: false
-          if-no-files-found: error
-          retention-days: 7
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: android-size-reports
-          path: |
-            build/android/*-size.md
-            build/android/download-size.csv
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -316,13 +308,7 @@ jobs:
           plutil -lint Payload/invadeio.app/Info.plist
           lipo Payload/invadeio.app/invadeio -verify_arch arm64
           zip -q -9 -r "$IPA_NAME" Payload
-          python3 "$GITHUB_WORKSPACE/tools/report_artifact_size.py" "$IPA_NAME" | tee ipa-size.md >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: ios-size-report
-          path: ${{ runner.temp }}/ios/ipa-size.md
-          if-no-files-found: error
-          retention-days: 7
+          python3 "$GITHUB_WORKSPACE/tools/report_artifact_size.py" "$IPA_NAME" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: ${{ runner.temp }}/ios/${{ env.IPA_NAME }}

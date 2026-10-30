@@ -112,8 +112,9 @@ weight variation but pin unused width variation; export-only launcher/store artw
 is excluded from the runtime pack, not from native icon generation. The game logo,
 splash, all languages, ICU text data, procedural audio, backups and Sentry remain.
 
-CI uploads `android-size-reports` and `ios-size-report` and adds component tables to
-the job summary. The reporter first applies the existing artifact/license checks:
+CI adds component tables and the bundletool estimate to the job summary; it does not
+retain a separate size-report artifact. The reporter first applies the existing
+artifact/license checks:
 
 ```sh
 python3 tools/report_artifact_size.py build/android/invadeio.aab
