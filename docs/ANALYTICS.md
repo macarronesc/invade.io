@@ -77,16 +77,20 @@ real events to Aptabase.
 
 Both providers use `OS.is_debug_build()`, not branch names, file formats, signing,
 or package identifiers. Aptabase sets `systemProps.isDebug`; Sentry uses the
-`debug` or `production` environment. They share the configured key/DSN rather
-than using separate provider projects.
+`debug` or `production` environment. Manual size candidates are the exception:
+they use the `size_candidate` environment, an `<version>-size` Aptabase app
+version, and a `build_channel=size_candidate` event property. They still respect
+the on-device privacy toggles and share the configured key/DSN rather than using
+separate provider projects; filter by those tags in the dashboards.
 
 | Execution or CI artifact | Engine build | Sentry environment |
 |---|---|---|
 | Gameplay from the editor/MCP or CLI editor binary | Debug | `debug` |
-| CI APK, including the GitHub release attachment | Debug | `debug` |
+| Ordinary CI APK, including the GitHub release attachment | Debug | `debug` |
 | CI candidate AAB, including an unsigned PR candidate | Release | `production` |
 | IPA from a push to `main` | Release | `production` |
-| IPA from PRs, other branches, or manual workflow runs | Debug | `debug` |
+| Ordinary IPA from PRs, other branches, or manual workflow runs | Debug | `debug` |
+| Opt-in size-candidate Release APK/IPA (`.size` identifier) | Release | `size_candidate`; Aptabase events carry `build_channel=size_candidate` |
 
 Manual exports follow the selected build mode: an AAB exported with
 `--export-debug` is Debug; an APK exported with `--export-release` is Release.
@@ -100,7 +104,9 @@ Sentry logs (`attach_log = false`).
 For iPhone diagnosis, use a Debug IPA from a branch/manual validation run. Look
 for `[Aptabase] initialized`, `[Aptabase] sent`, or request failures in the device
 console. The Debug CI build retains the native backup picker; its logs may contain
-server responses and must not be posted publicly without careful review.
+server responses and must not be posted publicly without careful review. Release
+size candidates do not print successful sends; confirm them in the dashboards by
+the candidate app version, `build_channel`, and Sentry environment.
 
 ## Event reference
 
@@ -118,6 +124,9 @@ project-defined persistent account/device identifiers.
 | `level_end` | Level context plus `outcome`, `duration_s`, `real_seconds`, `duration_bucket`, `stars`, `is_replay`, `first_clear`, `new_medal`, `new_record`, `new_cities`, `captures`, `gold`, `player_level_after` |
 | `upgrade_bought` | `upgrade`, `new_level`, `coins_after`, `player_level` |
 | `reward_claimed` | `kind` (`daily`/`achievement`), plus `amount`/`streak` for daily rewards or `id` for achievements |
+
+Size-candidate builds add `build_channel=size_candidate` to every event so they can
+be filtered out of production dashboards.
 
 `mode` is `campaign`, `daily`, `conquest`, or `invasion`; `outcome` is `win`,
 `loss`, or `quit`. `attempt` counts attempts at a level within the current session,

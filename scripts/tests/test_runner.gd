@@ -5,12 +5,15 @@ class CameraHarness extends BattleController:
 
 class SentryStub extends RefCounted:
 	var options := {}
+	var tags := {}
 	var enabled := false
 	func init(configure: Callable) -> void:
 		configure.call(options)
 		enabled = true
 	func is_enabled() -> bool:
 		return enabled
+	func set_tag(key: String, value: String) -> void:
+		tags[key] = value
 	func close() -> void:
 		enabled = false
 
@@ -18,6 +21,15 @@ class TelemetryHarness extends "res://scripts/autoload/telemetry.gd":
 	var sdk := SentryStub.new()
 	func _is_test_runtime() -> bool:
 		return false
+	func _sentry() -> Object:
+		return sdk
+
+class CandidateTelemetryHarness extends "res://scripts/autoload/telemetry.gd":
+	var sdk := SentryStub.new()
+	func _is_test_runtime() -> bool:
+		return false
+	func _is_size_candidate() -> bool:
+		return true
 	func _sentry() -> Object:
 		return sdk
 
@@ -58,6 +70,14 @@ func _ready() -> void:
 	for preset in ["preset.0", "preset.1", "preset.2", "preset.3"]:
 		assert_true(not str(presets.get_value(preset, "custom_features", "")).split(",", false).has("aptabase_release"),
 			"La telemetría sigue el tipo de compilación, no el preset: " + preset)
+		var excluded := str(presets.get_value(preset, "exclude_filter", ""))
+		for artwork in ["assets/brand/icon-*.png", "assets/brand/adaptive-*.png", "assets/brand/play-store-icon-512.png"]:
+			assert_true(excluded.split(",").has(artwork), "El arte nativo no se duplica en el pack: " + preset + " " + artwork)
+		assert_true(not excluded.contains("boot_splash") and not excluded.contains("icon.svg"), "El logo y splash del juego se conservan")
+	for preset in ["preset.1.options", "preset.2.options"]:
+		assert_true(presets.get_value(preset, "architectures/arm64-v8a", false), "Android mantiene arm64: " + preset)
+		for arch in ["armeabi-v7a", "x86", "x86_64"]:
+			assert_true(not presets.get_value(preset, "architectures/" + arch, true), "Android no añade ABIs por defecto: " + arch)
 	assert_true(not ProjectSettings.get_setting("sentry/options/auto_init", true),
 		"Sentry espera a cargar los ajustes de privacidad antes de inicializarse")
 
@@ -87,6 +107,7 @@ func _ready() -> void:
 		test_toast_notifications()
 		test_achievements_system()
 		test_telemetry_schema_and_privacy()
+		test_candidate_telemetry_is_tagged()
 		test_play_tab_campaign_route_and_briefing()
 		test_large_screen_layouts()
 		test_invasion_mode()
@@ -313,6 +334,7 @@ func run_all_tests() -> void:
 	test_packet_combat_and_migration()
 	test_campaign_balance_and_rewards()
 	test_telemetry_schema_and_privacy()
+	test_candidate_telemetry_is_tagged()
 
 func test_optimization_caches() -> void:
 	var saved := GameManager.save_data().duplicate(true)
@@ -4669,6 +4691,7 @@ func test_telemetry_schema_and_privacy() -> void:
 	assert_equals(LevelDatabase.mode_of(DailyRewards.challenge_id(20000)), "daily", "Desafío diario identificado")
 	assert_equals(LevelDatabase.mode_of(LevelGenerator.conquest_id(3)), "conquest", "Conquista identificada")
 	assert_equals(LevelDatabase.mode_of(InvasionDatabase.level_id("iberia", 1)), "invasion", "Invasión identificada")
+
 	assert_equals(Telemetry._bucket(0.0, Telemetry.LEVEL_BUCKETS), "0_20", "Duración corta agrupada")
 	assert_equals(Telemetry._bucket(25.0, Telemetry.LEVEL_BUCKETS), "20_40", "Duración media agrupada")
 	assert_equals(Telemetry._bucket(500.0, Telemetry.LEVEL_BUCKETS), "120_plus", "Duración larga agrupada")
@@ -4749,6 +4772,35 @@ func test_telemetry_schema_and_privacy() -> void:
 	DirAccess.remove_absolute(GameManager.save_path + ".backup")
 	GameManager.reset_save()
 	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Reiniciar progreso conserva las opciones de privacidad")
+
+func test_candidate_telemetry_is_tagged() -> void:
+	print("\n-> Test: Telemetría de candidata marcada, no silenciada")
+	GameManager._apply_save({})
+	Aptabase.disable()
+	var telemetry := CandidateTelemetryHarness.new()
+	telemetry._init_analytics()
+	assert_true(telemetry._analytics_ready, "La candidata inicializa Aptabase si el ajuste está activo")
+	# The probe below must stay local; do not let the flush timer reach production.
+	Aptabase._flush_timer.stop()
+	assert_equals(telemetry._telemetry_channel(), "size_candidate", "La candidata usa un canal propio")
+	assert_equals(Aptabase._system_props.get("appVersion"), telemetry._app_version() + "-size",
+		"Aptabase separa la versión de candidata")
+	telemetry._track("candidate_probe", {})
+	assert_equals(Aptabase._event_queue.back().get("props", {}).get("build_channel"), "size_candidate",
+		"Los eventos de candidata llevan build_channel")
+	Aptabase.disable()
+	telemetry._analytics_ready = false
+	telemetry._init_crashes()
+	assert_true(telemetry._crash_ready, "La candidata inicializa Sentry si el ajuste está activo")
+	assert_equals(telemetry.sdk.options.get("environment"), "size_candidate", "Sentry separa la candidata en su entorno")
+	assert_equals(telemetry.sdk.tags.get("build_channel"), "size_candidate", "Sentry marca la candidata")
+	GameManager.settings["share_analytics"] = false
+	GameManager.settings["share_crashes"] = false
+	telemetry._on_settings_changed()
+	assert_true(not telemetry._analytics_ready and not telemetry._crash_ready,
+		"La candidata respeta los ajustes de privacidad")
+	telemetry.free()
+	GameManager._apply_save({})
 
 func test_aptabase_http_delivery() -> void:
 	print("\n-> Test: Envío HTTP de Aptabase contra servidor local")

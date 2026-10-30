@@ -52,6 +52,16 @@ func _is_test_runtime() -> bool:
 		or "\n".join(OS.get_cmdline_args()).replace("\\", "/").contains("scenes/tests/") \
 		or OS.get_cmdline_user_args().has("--no-telemetry")
 
+## Las candidatas manuales sí permiten validar telemetría en un dispositivo; se
+## marcan para poder separarlas de producción en los paneles.
+func _is_size_candidate() -> bool:
+	return OS.has_feature("size_candidate")
+
+func _telemetry_channel() -> String:
+	if _is_size_candidate():
+		return "size_candidate"
+	return "debug" if OS.is_debug_build() else "production"
+
 func _analytics_allowed() -> bool:
 	return bool(GameManager.settings.get("share_analytics", GameManager.DEFAULT_SETTINGS["share_analytics"]))
 
@@ -60,6 +70,9 @@ func _crash_allowed() -> bool:
 
 func _app_version() -> String:
 	return str(ProjectSettings.get_setting("application/config/version", "0.3.1"))
+
+func _analytics_app_version() -> String:
+	return _app_version() + ("-size" if _is_size_candidate() else "")
 
 # =========================================================================
 # Inicialización y privacidad
@@ -71,7 +84,7 @@ func _init_analytics() -> void:
 	if not is_instance_valid(Aptabase):
 		return
 	_analytics_ready = Aptabase.init(APTABASE_KEY, {
-		"app_version": _app_version(),
+		"app_version": _analytics_app_version(),
 		"is_debug": OS.is_debug_build(),
 		"flush_interval": 10.0,
 	})
@@ -85,12 +98,14 @@ func _init_crashes() -> void:
 	sdk.call("init", func(options) -> void:
 		options.dsn = SENTRY_DSN
 		options.release = "invade.io@" + _app_version()
-		options.environment = "debug" if OS.is_debug_build() else "production"
+		options.environment = _telemetry_channel()
 		options.send_default_pii = false
 		options.attach_log = false
 		options.attach_scene_tree = false
 		options.traces_sample_rate = 0.0)
 	_crash_ready = bool(sdk.call("is_enabled"))
+	if _crash_ready and sdk.has_method("set_tag"):
+		sdk.call("set_tag", "build_channel", _telemetry_channel())
 
 ## El complemento nativo puede faltar en plataformas no exportadas. Resolverlo en
 ## tiempo de ejecución evita que el autoload dependa de una clase concreta.
@@ -329,6 +344,8 @@ func _track(event_name: String, props: Dictionary = {}) -> void:
 	if not _analytics_ready or not _analytics_allowed():
 		return
 	var clean := _clean_props(props)
+	if _is_size_candidate():
+		clean["build_channel"] = "size_candidate"
 	if OS.is_debug_build() and OS.get_cmdline_user_args().has("--telemetry-debug"):
 		print("[Telemetry] ", event_name, " ", clean)
 	Aptabase.track(event_name, clean)

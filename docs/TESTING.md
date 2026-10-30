@@ -41,6 +41,14 @@ JDK 17 (`keytool` and `jarsigner`) to exercise the signing regression; without i
 that test is skipped locally. CI requires those tools and does not permit the
 skip. Never provide a real signing key to a test.
 
+The font checks use `fonttools==4.57.0` (installed explicitly in CI); without it they
+are skipped locally. The export-identity integration check similarly needs Godot on
+`PATH`. Run both before changing fonts or candidate packaging. The artifact-size
+tests cover compressed versus expanded totals, PCK accounting, and rejection of
+invalid/development resources. Custom-engine promotion additionally requires testing
+the actual [exported candidates](RELEASES.md#validate-the-smaller-engine-without-publishing),
+not only this editor-based suite.
+
 CI also runs pinned Gitleaks, actionlint, and ShellCheck. Maintainers can install
 the checksum-verified versions with
 [tools/install_security_tools.sh](../tools/install_security_tools.sh). A clean
@@ -157,7 +165,9 @@ Test-scene startup selects `user://automation_startup_save.json` before autoload
 read player data, then each suite switches to its own fixture save. Store captures
 also compare the normal player-save hash before and after generation. Headless
 runs, editor tooling, test scenes, and `--no-telemetry` suppress provider startup.
-Ordinary editor-launched gameplay is different; see [Analytics](ANALYTICS.md).
+Manual size candidates are different: they respect the privacy toggles and tag
+their telemetry for device validation; see [Analytics](ANALYTICS.md).
+Ordinary editor-launched gameplay can also send data if the settings allow it.
 
 Worktrees can still share Godot user data. Do not run these commands concurrently
 against the same data directory or run multiple store generators in one checkout.
