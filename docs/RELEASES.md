@@ -145,9 +145,11 @@ Android builds a real `android_source.zip` through Gradle; pointing a Gradle exp
 at `custom_template/release` would not replace its engine. iOS builds its own template
 archive. The manual run produces an installable Release `invadeio-size-candidate.apk`
 and unsigned Release `invade.io-size-candidate.ipa`, both with the independent
-`macarronesc.invadeio.size` identifier. The candidate feature tag suppresses both
-telemetry providers when launched, preventing size validation from sending production
-analytics or crash reports.
+`macarronesc.invadeio.size` identifier. Candidates respect the on-device privacy
+toggles, so physical-device validation can exercise both providers. Their telemetry
+is tagged instead of mixed with production: Aptabase events carry
+`build_channel=size_candidate` and an `<version>-size` app version, and Sentry uses
+the `size_candidate` environment. Turn both toggles off for a pure size run.
 The APK's disposable certificate changes between runs: export any candidate progress
 before replacing it. Neither artifact updates the store or normal Debug installation.
 

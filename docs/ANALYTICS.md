@@ -77,8 +77,11 @@ real events to Aptabase.
 
 Both providers use `OS.is_debug_build()`, not branch names, file formats, signing,
 or package identifiers. Aptabase sets `systemProps.isDebug`; Sentry uses the
-`debug` or `production` environment. They share the configured key/DSN rather
-than using separate provider projects.
+`debug` or `production` environment. Manual size candidates are the exception:
+they use the `size_candidate` environment, an `<version>-size` Aptabase app
+version, and a `build_channel=size_candidate` event property. They still respect
+the on-device privacy toggles and share the configured key/DSN rather than using
+separate provider projects; filter by those tags in the dashboards.
 
 | Execution or CI artifact | Engine build | Sentry environment |
 |---|---|---|
@@ -87,7 +90,7 @@ than using separate provider projects.
 | CI candidate AAB, including an unsigned PR candidate | Release | `production` |
 | IPA from a push to `main` | Release | `production` |
 | Ordinary IPA from PRs, other branches, or manual workflow runs | Debug | `debug` |
-| Opt-in size-candidate Release APK/IPA (`.size` identifier) | Release | `production` classification, providers suppressed |
+| Opt-in size-candidate Release APK/IPA (`.size` identifier) | Release | `size_candidate`; Aptabase events carry `build_channel=size_candidate` |
 
 Manual exports follow the selected build mode: an AAB exported with
 `--export-debug` is Debug; an APK exported with `--export-release` is Release.
@@ -119,6 +122,9 @@ project-defined persistent account/device identifiers.
 | `level_end` | Level context plus `outcome`, `duration_s`, `real_seconds`, `duration_bucket`, `stars`, `is_replay`, `first_clear`, `new_medal`, `new_record`, `new_cities`, `captures`, `gold`, `player_level_after` |
 | `upgrade_bought` | `upgrade`, `new_level`, `coins_after`, `player_level` |
 | `reward_claimed` | `kind` (`daily`/`achievement`), plus `amount`/`streak` for daily rewards or `id` for achievements |
+
+Size-candidate builds add `build_channel=size_candidate` to every event so they can
+be filtered out of production dashboards.
 
 `mode` is `campaign`, `daily`, `conquest`, or `invasion`; `outcome` is `win`,
 `loss`, or `quit`. `attempt` counts attempts at a level within the current session,
