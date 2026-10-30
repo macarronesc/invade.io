@@ -245,6 +245,21 @@ static func project_geography(proj: MapProjection, clip_rect: Rect2) -> Dictiona
 		"borders": _clip_shapes(proj, GeoDatabase.get_borders(), GeoDatabase.get_border_bounds(), false, clip_rect),
 	}
 
+## Menu maps share projection and spacing; each pin represents one group of cities.
+static func overview_layout(groups: Array, area: Rect2, clip: Rect2, node_bounds: Rect2, gap: float) -> Dictionary:
+	var anchors: Array[Vector2] = []
+	for group in groups:
+		anchors.append_array(group)
+	var proj := fit_projection(anchors, area)
+	var nodes := PackedVector2Array()
+	for group in groups:
+		var center := Vector2.ZERO
+		for ll in group:
+			center += proj.project(ll)
+		nodes.append(center / maxf(1.0, group.size()))
+	nodes = separate_points(nodes, func(_i, _j): return gap, node_bounds)
+	return {"geo": project_geography(proj, clip), "nodes": nodes}
+
 ## Proyección que encaja los puntos (con margen) en `screen_rect`, respetando su proporción
 static func fit_projection(lonlats: Array[Vector2], screen_rect: Rect2) -> MapProjection:
 	var proj := MapProjection.new(lonlats[0].x)

@@ -83,7 +83,7 @@ func get_projected_defense(src: BaseNode, dst: BaseNode) -> float:
 	var m := dst.get_defense_multiplier()
 	if dst.faction != GameManager.Faction.NEUTRAL and dst.faction != faction:
 		var speed := Troop.BASE_SPEED * float(battle_controller.level_data.get("travel_multiplier", 1.0))
-		var travel_time := maxf(10.0, src.global_position.distance_to(dst.global_position) - dst.radius * 0.45) / speed + Troop.emission_seconds(src.troops - 1, speed)
+		var travel_time := Troop.arrival_seconds(src.global_position.distance_to(dst.global_position), dst.radius, src.troops - 1, speed)
 		def = ceilf(dst.defense_after(travel_time))
 	var per_faction: Dictionary = _incoming.get(dst, {})
 	for f in per_faction:

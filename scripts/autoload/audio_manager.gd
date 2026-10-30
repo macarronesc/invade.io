@@ -65,8 +65,9 @@ func _ready() -> void:
 		_player.play()
 		_playback = _player.get_stream_playback()
 		_prewarm.call_deferred()
-		for track in MusicSynth.TRACKS:
-			_request_music(track)
+		if _can_play_music():
+			for track in MusicSynth.TRACKS:
+				_request_music(track)
 
 func toggle_mute() -> bool:
 	set_muted(not is_muted)
@@ -156,9 +157,9 @@ func _request_music(track: String) -> void:
 		return
 	_music_tasks[track] = WorkerThreadPool.add_task(_render_music.bind(track), false, "music_%s" % track)
 
-## Se ejecuta en un hilo de trabajo: sintetizar ~20 s de audio no congela la interfaz
+## Read or generate the disposable cache off the main thread.
 func _render_music(track: String) -> void:
-	var wav := MusicSynth.to_wav(MusicSynth.render_track(track), true)
+	var wav := MusicSynth.load_or_render_track(track)
 	_on_music_rendered.call_deferred(track, wav)
 
 func _on_music_rendered(track: String, wav: AudioStreamWAV) -> void:

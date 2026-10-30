@@ -1,15 +1,12 @@
 extends RefCounted
 class_name CosmeticsDatabase
 
-## CosmeticsDatabase: estética del ejército y del mapa. Sólo cambia el aspecto, nunca el combate.
-## Cada objeto: {id, category, cost, name_es, name_en} + su valor ("color", "bg"/"land").
-## Los premios no se compran: "rank" se gana al subir de rango y "continent" al conquistar
-## ese continente (su jefe), para que cada hito deje algo propio y visible.
+## Cosmetics change appearance, never combat. Display names live in locale/strings.csv.
+## Rewards are earned by rank, campaign continent or invasion continent, never sold.
 
 const CATEGORIES := ["army_color", "troop_style", "base_shape", "map_theme"]
 
-## Atributos de dibujo que no necesita la tienda pero sí el campo de batalla. Los temas
-## claros necesitan texto y fronteras oscuras para conservar el contraste sobre la tierra.
+## Light maps need dark labels and borders to keep their contrast over the land.
 const MAP_DARK_STYLE := {
 	"border_color": Color(1, 1, 1, 0.40), "coast_color": Color(0.45, 0.62, 0.75, 0.35),
 	"country_border_color": Color(1, 1, 1, 0.10), "label_color": Color(0.92, 0.95, 0.98, 0.9),
@@ -22,32 +19,32 @@ const MAP_LIGHT_STYLE := {
 }
 
 const ITEMS: Array[Dictionary] = [
-	{"id": "color_blue", "category": "army_color", "cost": 0, "color": Color(0.13, 0.59, 0.95), "name_es": "Azul táctico", "name_en": "Tactical blue"},
-	{"id": "color_cyan", "category": "army_color", "cost": 0, "rank": 2, "color": Color(0.10, 0.75, 0.85), "name_es": "Cian veloz", "name_en": "Swift cyan"},
-	{"id": "color_violet", "category": "army_color", "cost": 300, "color": Color(0.55, 0.35, 0.95), "name_es": "Violeta", "name_en": "Violet"},
-	{"id": "color_orange", "category": "army_color", "cost": 300, "color": Color(1.0, 0.55, 0.10), "name_es": "Naranja", "name_en": "Orange"},
-	{"id": "color_pink", "category": "army_color", "cost": 400, "color": Color(1.0, 0.35, 0.65), "name_es": "Rosa neón", "name_en": "Neon pink"},
-	{"id": "color_mint", "category": "army_color", "cost": 0, "continent": "oceania", "color": Color(0.20, 0.85, 0.62), "name_es": "Menta austral", "name_en": "Austral mint"},
-	{"id": "color_gold", "category": "army_color", "cost": 0, "rank": 8, "color": Color(0.95, 0.75, 0.10), "name_es": "Oro", "name_en": "Gold"},
-	{"id": "troop_classic", "category": "troop_style", "cost": 0, "name_es": "Clásicas", "name_en": "Classic"},
-	{"id": "troop_big", "category": "troop_style", "cost": 250, "name_es": "Grandes", "name_en": "Big"},
-	{"id": "troop_halo", "category": "troop_style", "cost": 0, "rank": 4, "name_es": "Halo", "name_en": "Halo"},
-	{"id": "base_round", "category": "base_shape", "cost": 0, "name_es": "Redonda", "name_en": "Round"},
-	{"id": "base_square", "category": "base_shape", "cost": 200, "name_es": "Cuadrada", "name_en": "Square"},
-	{"id": "base_diamond", "category": "base_shape", "cost": 0, "rank": 6, "name_es": "Diamante", "name_en": "Diamond"},
-	{"id": "theme_daylight", "category": "map_theme", "cost": 0, "light": true, "bg": Color(0.72, 0.83, 0.91), "land": Color(0.64, 0.73, 0.80), "name_es": "Día claro", "name_en": "Daylight"},
-	{"id": "theme_midnight", "category": "map_theme", "cost": 0, "bg": Color(0.07, 0.11, 0.16), "land": Color(0.19, 0.22, 0.26), "name_es": "Medianoche", "name_en": "Midnight"},
-	{"id": "theme_ocean", "category": "map_theme", "cost": 0, "continent": "europe", "bg": Color(0.03, 0.13, 0.25), "land": Color(0.10, 0.25, 0.38), "name_es": "Océano", "name_en": "Ocean"},
-	{"id": "theme_paper", "category": "map_theme", "cost": 0, "light": true, "continent": "north_america", "bg": Color(0.80, 0.84, 0.89), "land": Color(0.93, 0.94, 0.96), "name_es": "Papel", "name_en": "Paper"},
-	{"id": "theme_forest", "category": "map_theme", "cost": 0, "continent": "south_america", "bg": Color(0.04, 0.10, 0.08), "land": Color(0.12, 0.22, 0.16), "name_es": "Selva", "name_en": "Jungle"},
-	{"id": "theme_sand", "category": "map_theme", "cost": 0, "continent": "africa", "bg": Color(0.16, 0.14, 0.10), "land": Color(0.32, 0.28, 0.18), "name_es": "Arena", "name_en": "Sand"},
-	{"id": "theme_dusk", "category": "map_theme", "cost": 0, "continent": "asia", "bg": Color(0.09, 0.06, 0.14), "land": Color(0.20, 0.15, 0.27), "name_es": "Crepúsculo", "name_en": "Dusk"},
-	{"id": "color_invasion_europe", "category": "army_color", "cost": 0, "invasion": "europe", "color": Color(0.85, 0.45, 0.25), "name_es": "Cobre europeo", "name_en": "European copper"},
-	{"id": "color_invasion_north_america", "category": "army_color", "cost": 0, "invasion": "north_america", "color": Color(0.35, 0.75, 0.95), "name_es": "Azul hielo", "name_en": "Ice blue"},
-	{"id": "color_invasion_south_america", "category": "army_color", "cost": 0, "invasion": "south_america", "color": Color(0.15, 0.75, 0.45), "name_es": "Verde amazonas", "name_en": "Amazon green"},
-	{"id": "color_invasion_africa", "category": "army_color", "cost": 0, "invasion": "africa", "color": Color(0.95, 0.65, 0.15), "name_es": "Oro sahariano", "name_en": "Saharan gold"},
-	{"id": "color_invasion_asia", "category": "army_color", "cost": 0, "invasion": "asia", "color": Color(0.85, 0.20, 0.25), "name_es": "Rojo imperial", "name_en": "Imperial red"},
-	{"id": "color_invasion_oceania", "category": "army_color", "cost": 0, "invasion": "oceania", "color": Color(0.10, 0.80, 0.75), "name_es": "Turquesa pacífico", "name_en": "Pacific turquoise"},
+	{"id": "color_blue", "category": "army_color", "cost": 0, "color": Color(0.13, 0.59, 0.95)},
+	{"id": "color_cyan", "category": "army_color", "cost": 0, "rank": 2, "color": Color(0.10, 0.75, 0.85)},
+	{"id": "color_violet", "category": "army_color", "cost": 300, "color": Color(0.55, 0.35, 0.95)},
+	{"id": "color_orange", "category": "army_color", "cost": 300, "color": Color(1.0, 0.55, 0.10)},
+	{"id": "color_pink", "category": "army_color", "cost": 400, "color": Color(1.0, 0.35, 0.65)},
+	{"id": "color_mint", "category": "army_color", "cost": 0, "continent": "oceania", "color": Color(0.20, 0.85, 0.62)},
+	{"id": "color_gold", "category": "army_color", "cost": 0, "rank": 8, "color": Color(0.95, 0.75, 0.10)},
+	{"id": "troop_classic", "category": "troop_style", "cost": 0},
+	{"id": "troop_big", "category": "troop_style", "cost": 250},
+	{"id": "troop_halo", "category": "troop_style", "cost": 0, "rank": 4},
+	{"id": "base_round", "category": "base_shape", "cost": 0},
+	{"id": "base_square", "category": "base_shape", "cost": 200},
+	{"id": "base_diamond", "category": "base_shape", "cost": 0, "rank": 6},
+	{"id": "theme_daylight", "category": "map_theme", "cost": 0, "light": true, "bg": Color(0.72, 0.83, 0.91), "land": Color(0.64, 0.73, 0.80)},
+	{"id": "theme_midnight", "category": "map_theme", "cost": 0, "bg": Color(0.07, 0.11, 0.16), "land": Color(0.19, 0.22, 0.26)},
+	{"id": "theme_ocean", "category": "map_theme", "cost": 0, "continent": "europe", "bg": Color(0.03, 0.13, 0.25), "land": Color(0.10, 0.25, 0.38)},
+	{"id": "theme_paper", "category": "map_theme", "cost": 0, "light": true, "continent": "north_america", "bg": Color(0.80, 0.84, 0.89), "land": Color(0.93, 0.94, 0.96)},
+	{"id": "theme_forest", "category": "map_theme", "cost": 0, "continent": "south_america", "bg": Color(0.04, 0.10, 0.08), "land": Color(0.12, 0.22, 0.16)},
+	{"id": "theme_sand", "category": "map_theme", "cost": 0, "continent": "africa", "bg": Color(0.16, 0.14, 0.10), "land": Color(0.32, 0.28, 0.18)},
+	{"id": "theme_dusk", "category": "map_theme", "cost": 0, "continent": "asia", "bg": Color(0.09, 0.06, 0.14), "land": Color(0.20, 0.15, 0.27)},
+	{"id": "color_invasion_europe", "category": "army_color", "cost": 0, "invasion": "europe", "color": Color(0.85, 0.45, 0.25)},
+	{"id": "color_invasion_north_america", "category": "army_color", "cost": 0, "invasion": "north_america", "color": Color(0.35, 0.75, 0.95)},
+	{"id": "color_invasion_south_america", "category": "army_color", "cost": 0, "invasion": "south_america", "color": Color(0.15, 0.75, 0.45)},
+	{"id": "color_invasion_africa", "category": "army_color", "cost": 0, "invasion": "africa", "color": Color(0.95, 0.65, 0.15)},
+	{"id": "color_invasion_asia", "category": "army_color", "cost": 0, "invasion": "asia", "color": Color(0.85, 0.20, 0.25)},
+	{"id": "color_invasion_oceania", "category": "army_color", "cost": 0, "invasion": "oceania", "color": Color(0.10, 0.80, 0.75)},
 ]
 
 static func get_by_id(id: String) -> Dictionary:

@@ -69,6 +69,23 @@ real analytics to Aptabase. Results are printed to the console and written to
 
 ## Balance and progression simulations
 
+For behavior-preserving refactors, record a baseline **before changing runtime
+scripts**, then compare afterward using the same engine, machine, and local day:
+
+```sh
+mkdir -p /tmp/opencode
+godot --headless --path . res://scenes/tests/refactor_check.tscn -- --record=/tmp/opencode/invade-baseline.json
+godot --headless --path . res://scenes/tests/refactor_check.tscn -- --compare=/tmp/opencode/invade-baseline.json
+```
+
+This compares built levels in every language/orientation, packet formations, and
+victory results/save state for first clears and replays across all modes. Daily
+missions depend on the local date, so this is a before/after aid, not a timeless
+golden fixture. Run the normal suites too: these signatures do not measure frame
+times, input behavior, or rendered pixels. Music cache tests in the normal suite
+compare PCM bytes and loop boundaries, exercise corrupt/unwritable caches, and
+print cold/warm timings without a hardware-dependent timing assertion.
+
 ```sh
 # 720 campaign simulations, plus expedition/invasion samples.
 godot --headless --path . res://scenes/tests/balance_check.tscn
