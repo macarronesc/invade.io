@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       optimized_templates:
-        description: 'Validate smaller custom engines (never signs or publishes)'
+        description: 'Validate smaller custom engines (no production signing or publishing)'
         type: boolean
         default: false
 
