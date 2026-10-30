@@ -191,3 +191,11 @@ Full capture runs replace tracked graphics; locale previews write only to
 For mobile exports, continue with [Platform integration](PLATFORM_INTEGRATION.md)
 and [Google Play publishing](PLAY_STORE.md). For private security concerns, use
 [SECURITY.md](../SECURITY.md), not a public issue or log upload.
+
+## Website development
+
+The optional [Astro/Starlight website](WEBSITE.md) uses Node.js 24 and npm inside
+`website/`. These are **not** game development prerequisites. Keep web dependencies
+and generated output in that isolated directory; do not change game scripts or
+regenerate store captures just to work on the website. Canonical guide edits are
+published by the website build and should pass its link/content checks.

@@ -1,0 +1,112 @@
+---
+import '../styles/site.css';
+import { href, SITE, REPO, PLAY } from '../../scripts/site.mjs';
+
+interface Props {
+  title: string;
+  description: string;
+  lang?: 'en' | 'es';
+  page?: '' | 'download/' | 'community/' | null;
+  noindex?: boolean;
+}
+const { title, description, lang = 'en', page = '', noindex = false } = Astro.props;
+const es = lang === 'es';
+const home = href(es ? 'es/' : '');
+const localized = (path: string) => href(`${es ? 'es/' : ''}${path}`);
+const canonical = noindex ? `${SITE}${href('404.html')}` : new URL(Astro.url.pathname, SITE).href;
+const nav = [
+  [home + '#game', es ? 'El juego' : 'The game'],
+  [home + '#how-to-play', es ? 'Cómo jugar' : 'How to play'],
+  [href('docs/'), es ? 'Documentación' : 'Documentation'],
+  [localized('community/'), es ? 'Comunidad' : 'Community'],
+];
+---
+<!doctype html>
+<html lang={lang} data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} — invade.io</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#101b2a" />
+    <link rel="icon" type="image/svg+xml" href={href('favicon.svg')} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    {page !== null && <>
+      <link rel="alternate" hreflang="en" href={`${SITE}${href(page)}`} />
+      <link rel="alternate" hreflang="es" href={`${SITE}${href(`es/${page}`)}`} />
+      <link rel="alternate" hreflang="x-default" href={`${SITE}${href(page)}`} />
+    </>}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="invade.io" />
+    <meta property="og:title" content={`${title} — invade.io`} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={`${SITE}${href('social.png')}`} />
+    <meta property="og:image:alt" content={es ? 'Tropas azules avanzan hacia Madrid sobre el mapa de Iberia.' : 'Blue troops advance toward Madrid on a map of Iberia.'} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script is:inline>
+      try {
+        const theme = localStorage.getItem('starlight-theme');
+        document.documentElement.dataset.theme = theme === 'light' || theme === 'dark' ? theme : matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      } catch { /* Storage is optional; the default theme remains usable. */ }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">{es ? 'Saltar al contenido' : 'Skip to content'}</a>
+    <header class="site-header">
+      <a class="brand" href={home} aria-label={es ? 'invade.io — Inicio' : 'invade.io — Home'}>
+        <img src={href('favicon.svg')} width="36" height="36" alt="" />
+        <span>invade<span class="brand-dot">.io</span></span>
+      </a>
+      <nav class="desktop-nav" aria-label={es ? 'Navegación principal' : 'Main navigation'}>
+        {nav.map(([url, label]) => <a href={url}>{label}</a>)}
+      </nav>
+      <div class="header-actions">
+        {page !== null && <a class="language-switch" lang={es ? 'en' : 'es'} hreflang={es ? 'en' : 'es'} href={href(`${es ? '' : 'es/'}${page}`)} aria-label={es ? 'Read this page in English' : 'Leer esta página en español'}>{es ? 'EN' : 'ES'}</a>}
+        <label class="theme-picker" hidden>
+          <span class="sr-only">{es ? 'Tema de la web' : 'Website theme'}</span>
+          <select id="theme-choice">
+            <option value="auto">{es ? 'Sistema' : 'System'}</option>
+            <option value="dark">{es ? 'Oscuro' : 'Dark'}</option>
+            <option value="light">{es ? 'Claro' : 'Light'}</option>
+          </select>
+        </label>
+        <a class="button small header-download" href={PLAY}>Google Play <span aria-hidden="true">↗</span></a>
+        <details class="mobile-nav">
+          <summary>{es ? 'Menú' : 'Menu'}</summary>
+          <nav aria-label={es ? 'Navegación móvil' : 'Mobile navigation'}>{nav.map(([url, label]) => <a href={url}>{label}</a>)}</nav>
+        </details>
+      </div>
+    </header>
+    <main id="main"><slot /></main>
+    <footer class="site-footer container">
+      <div><a class="brand" href={home}><span>invade<span class="brand-dot">.io</span></span></a><p>{es ? 'Mapas reales. Desarrollo abierto.' : 'Real maps. Open development.'}</p></div>
+      <nav aria-label={es ? 'Enlaces del pie' : 'Footer links'}>
+        <a href={localized('download/')}>{es ? 'Descargas' : 'Downloads'}</a>
+        <a href={href('docs/')}>{es ? 'Documentación (inglés)' : 'Documentation'}</a>
+        <a href={REPO}>GitHub <span aria-hidden="true">↗</span></a>
+        <a href={href('licenses/')}>{es ? 'Licencias y créditos' : 'Licenses & credits'}</a>
+        <a href={href('privacy-policy.html')}>{es ? 'Privacidad (inglés)' : 'Privacy policy'}</a>
+      </nav>
+      <p class="footer-note">© 2026 macarronesc · Apache-2.0 · {es ? 'Creado con Godot. Web con Astro y Starlight.' : 'Made with Godot. Website built with Astro & Starlight.'}</p>
+    </footer>
+    <script>
+      const picker = document.querySelector<HTMLSelectElement>('#theme-choice');
+      if (picker) {
+        picker.closest('label')?.removeAttribute('hidden');
+        try { picker.value = localStorage.getItem('starlight-theme') || 'auto'; } catch { picker.value = 'auto'; }
+        const apply = () => {
+          const value = picker.value;
+          document.documentElement.dataset.theme = value === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : value;
+        };
+        picker.addEventListener('change', () => {
+          try { localStorage.setItem('starlight-theme', picker.value); } catch { /* Browsing without storage still works. */ }
+          apply();
+        });
+        matchMedia('(prefers-color-scheme: light)').addEventListener('change', apply);
+      }
+      document.querySelectorAll('.mobile-nav a').forEach((link) => link.addEventListener('click', () => link.closest('details')?.removeAttribute('open')));
+    </script>
+  </body>
+</html>

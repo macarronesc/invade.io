@@ -23,6 +23,8 @@ For UI changes, include representative before/after images and check long text,
 RTL, themes, and orientation. For translation changes, preserve formatting tokens
 and reviewed overrides; see [localization](docs/DEVELOPMENT.md#localization).
 For guide-only changes, check links, alt text, English prose, and rendered layout.
+Guides are also rendered on the website; run the affected
+[website checks](docs/WEBSITE.md#run-and-validate) to catch broken routes/anchors.
 Do not regenerate unrelated store graphics just to edit documentation.
 
 ## Report bugs and suggest improvements

@@ -21,6 +21,20 @@ def run_block(name):
 
 
 class WorkflowChecks(unittest.TestCase):
+    def test_pages_builds_untrusted_prs_without_deployment_privileges(self):
+        pages = (ROOT / ".github/workflows/pages.yml").read_text()
+        build, deploy = pages.split("\n  pages-deploy:\n")
+        self.assertNotIn("secrets.", pages)
+        self.assertNotIn("pull_request_target", pages)
+        self.assertNotIn("pages: write", build)
+        self.assertNotIn("id-token: write", build)
+        for check in ("npm ci", "npm test", "npm run build", "npm run test:browser", "tar -C dist"):
+            self.assertIn(check, build)
+        self.assertIn("needs: pages-build", deploy)
+        self.assertIn("github.event_name != 'pull_request' && github.ref == 'refs/heads/main'", deploy)
+        self.assertEqual(pages.count("pages: write"), 1)
+        self.assertEqual(pages.count("id-token: write"), 1)
+
     def test_privilege_boundaries(self):
         signing = WORKFLOW.split("\n  sign-android:\n")[1].split("\n  release:\n")[0]
         publishing = WORKFLOW.split("\n  release:\n")[1]
