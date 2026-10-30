@@ -17,7 +17,7 @@ static func text() -> String:
 	return ""
 
 static func _upgrade() -> String:
-	if DailyRewards.is_challenge(GameManager.get_battle_level_id()):
+	if LevelDatabase.mode_of(GameManager.get_battle_level_id()) == "daily":
 		return ""
 	var id := GameManager.recommended_combat_upgrade(GameManager.can_suggest_combat_upgrade())
 	if id == "":

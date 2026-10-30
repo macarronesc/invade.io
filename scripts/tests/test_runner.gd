@@ -21,6 +21,18 @@ class TelemetryHarness extends "res://scripts/autoload/telemetry.gd":
 	func _sentry() -> Object:
 		return sdk
 
+class AchievementMemoHarness extends "res://scripts/autoload/achievement_manager.gd":
+	var calls := {}
+	func get_stat(stat: String) -> int:
+		calls[stat] = calls.get(stat, 0) + 1
+		return 0
+
+class SaveCountingHarness extends "res://scripts/autoload/game_manager.gd":
+	var writes := 0
+	func write_save(path: String, data: Dictionary) -> Error:
+		writes += 1
+		return super.write_save(path, data)
+
 ## TestRunner: Suite de pruebas de validación automatizada de mecánicas State.io
 
 var total_tests: int = 0
@@ -58,6 +70,9 @@ func _ready() -> void:
 		"Sentry espera a cargar los ajustes de privacidad antes de inicializarse")
 
 	await test_mobile_experience()
+	test_optimization_caches()
+	await test_save_optimizations()
+	test_music_disk_cache()
 	if "--mobile" in OS.get_cmdline_user_args():
 		await test_settings_and_backups()
 	elif "--quick" in OS.get_cmdline_user_args():
@@ -306,6 +321,171 @@ func run_all_tests() -> void:
 	test_packet_combat_and_migration()
 	test_campaign_balance_and_rewards()
 	test_telemetry_schema_and_privacy()
+
+func test_optimization_caches() -> void:
+	var saved := GameManager.save_data().duplicate(true)
+	var cached_levels := LevelDatabase._built.size()
+	for lang in LanguageCatalog.codes():
+		GameManager.language = lang
+		for id in LevelDatabase.get_level_ids():
+			assert_equals(LevelDatabase.level_name(id), LocaleStrings.text("level_%s_name" % id), "Lightweight campaign label: %s/%s" % [lang, id])
+	assert_equals(LevelDatabase._built.size(), cached_levels, "Reading campaign labels never builds geography")
+	assert_true(LevelDatabase.get_level_ids().is_read_only(), "Cached campaign order cannot be modified by a caller")
+	for packet in Troop.MAX_PACKETS:
+		for dots in range(1, Troop.MAX_DOTS + 1):
+			var expected := PackedVector2Array()
+			for j in dots:
+				expected.append(Troop.formation_offset(j, dots, packet))
+			assert_equals(Troop._formation_offsets(dots, packet), expected, "Cached formation preserves every offset: %d/%d" % [packet, dots])
+	assert_equals(Troop._formations.size(), Troop.MAX_PACKETS * Troop.MAX_DOTS, "Formation cache is bounded by packet and dot counts")
+	var canvas := Node2D.new()
+	Troop.draw_packet(canvas, Vector2.ZERO, 0, Color.WHITE, "troop_classic")
+	canvas.free()
+	assert_equals(Troop._formations.size(), Troop.MAX_PACKETS * Troop.MAX_DOTS, "Drawing an empty preview does not create a formation")
+	GameManager.achievements.clear()
+	var memo := AchievementMemoHarness.new()
+	memo.check_all()
+	assert_equals(memo.calls["invasion_regions"], 1, "Shared achievement statistics are evaluated once per check")
+	memo.check_all()
+	assert_equals(memo.calls["invasion_regions"], 2, "Achievement memoization never survives a check")
+	memo.free()
+	var base := BaseNode.new()
+	var map := TerritoryMap2D.new()
+	map.generate_map([base], Rect2(0, 0, 300, 300))
+	assert_equals(map.cells[0].outlines[0], TerritoryMap2D._closed(map.cells[0].pieces[0]), "Cached territory outline has identical vertices")
+	map.generate_map([base], Rect2(0, 0, 200, 200))
+	assert_equals(map.cells[0].outlines.size(), 1, "Relayout replaces rather than appends cached outlines")
+	base.free()
+	map.free()
+	var troop := Troop.new()
+	for distance in [0.0, 100.0, 900.0]:
+		for radius in [50.0, 80.0]:
+			troop._set_path(Vector2.ZERO, Vector2(distance, 0), radius)
+			var travel := maxf(10.0, distance - radius * 0.45)
+			assert_equals(troop.arrival_dist, travel, "Shared arrival distance preserves short and long routes")
+			for units in [1, 5, 50]:
+				for speed in [Troop.BASE_SPEED, Troop.BASE_SPEED * 2.0]:
+					assert_equals(Troop.arrival_seconds(distance, radius, units, speed), travel / speed + Troop.emission_seconds(units, speed), "AI and player preview keep the original arrival formula")
+	troop.free()
+	GameManager._apply_save(saved)
+
+func test_save_optimizations() -> void:
+	var saved := GameManager.save_data().duplicate(true)
+	var manager := SaveCountingHarness.new()
+	var path := "user://test_batched_save.json"
+	manager.save_path = path
+	for suffix in ["", ".previous", ".tmp"]:
+		DirAccess.remove_absolute(path + suffix)
+	manager.coins = 321
+	assert_equals(manager.save_game(), OK, "Initial save is synchronous")
+	manager.coins = 654
+	manager.save_game()
+	manager.writes = 0
+	assert_equals(manager.save_game(), OK, "An unchanged save succeeds without rewriting files")
+	assert_equals(manager.writes, 0, "Unchanged saves perform no writes")
+	assert_equals(int(manager._read_save(path + ".previous")["data"]["coins"]), 321, "No-op saves preserve the distinct recovery point")
+	manager.begin_save_batch()
+	manager.coins = 700
+	manager.save_game()
+	manager.begin_save_batch()
+	manager.coins = 800
+	manager.save_game()
+	manager.end_save_batch()
+	assert_equals(manager.writes, 0, "Nested action batches do not write partial rewards")
+	assert_equals(manager.end_save_batch(), OK, "The outer action commits synchronously")
+	assert_equals(manager.writes, 2, "An action writes one recovery file and one primary file")
+	assert_equals(int(manager._read_save(path)["data"]["coins"]), 800, "The complete action is persisted")
+	manager.writes = 0
+	manager.coins = 900
+	manager.request_save()
+	manager.coins = 1000
+	manager.request_save()
+	await get_tree().process_frame
+	assert_equals(manager.writes, 2, "Repeated slider requests share one write per frame")
+	assert_equals(int(manager._read_save(path)["data"]["coins"]), 1000, "Deferred saves persist the latest value")
+	manager.writes = 0
+	manager.coins = 1100
+	manager.request_save()
+	manager._notification(NOTIFICATION_APPLICATION_FOCUS_OUT)
+	assert_equals(int(manager._read_save(path)["data"]["coins"]), 1100, "Backgrounding flushes pending slider changes immediately")
+	await get_tree().process_frame
+	assert_equals(manager.writes, 2, "A queued callback cannot repeat a lifecycle save")
+	var changes := []
+	var changed := func(): changes.append(true)
+	EventBus.settings_changed.connect(changed)
+	for key in ["volume", "music_volume", "vibration_intensity"]:
+		manager.set_setting(key, 0.5)
+	assert_equals(changes.size(), 0, "Audio and haptic sliders do not rebuild the battle presentation")
+	manager.set_setting("colorblind", true)
+	assert_equals(changes.size(), 1, "Visual settings still notify all presentation listeners")
+	EventBus.settings_changed.disconnect(changed)
+	manager.begin_save_batch()
+	manager.coins += 1
+	manager.save_game()
+	DirAccess.make_dir_absolute(path + ".tmp")
+	assert_true(manager.end_save_batch() != OK and manager.save_error != OK, "A batched write failure is reported at commit")
+	DirAccess.remove_absolute(path + ".tmp")
+	assert_equals(manager.save_game(), OK, "Failed action saves can be retried")
+	var future := manager.save_data().duplicate(true)
+	future["version"] = GameManager.SAVE_VERSION + 1
+	manager.write_save(path, future)
+	manager.writes = 0
+	assert_equals(manager.save_game(), ERR_UNAVAILABLE, "Even a no-op save validates the on-disk version")
+	assert_equals(manager.writes, 0, "Save optimization cannot overwrite a future version")
+	manager.free()
+	for suffix in ["", ".previous", ".tmp"]:
+		DirAccess.remove_absolute(path + suffix)
+	GameManager._apply_save(saved)
+
+func test_music_disk_cache() -> void:
+	var directory := "user://test_music_cache"
+	DirAccess.make_dir_recursive_absolute(directory)
+	for track in MusicSynth.TRACKS:
+		var path := MusicSynth._cache_path(track, directory)
+		DirAccess.remove_absolute(path)
+		var obsolete := directory.path_join(track + "-obsolete.wav")
+		var old_file := FileAccess.open(obsolete, FileAccess.WRITE)
+		old_file.store_string("old synthesis version")
+		old_file.close()
+		var start := Time.get_ticks_usec()
+		var cold := MusicSynth.load_or_render_track(track, directory)
+		var cold_ms := (Time.get_ticks_usec() - start) / 1000.0
+		assert_true(FileAccess.file_exists(path), "A generated music track is cached on disk: " + track)
+		assert_true(not FileAccess.file_exists(obsolete), "Replacing a track removes obsolete versions: " + track)
+		start = Time.get_ticks_usec()
+		var warm := MusicSynth.load_or_render_track(track, directory)
+		var warm_ms := (Time.get_ticks_usec() - start) / 1000.0
+		assert_equals(warm.data, cold.data, "Cached music preserves every PCM byte: " + track)
+		assert_equals([warm.format, warm.mix_rate, warm.stereo, warm.loop_mode, warm.loop_begin, warm.loop_end],
+			[cold.format, cold.mix_rate, cold.stereo, cold.loop_mode, cold.loop_begin, cold.loop_end], "Cached music preserves format and loop boundaries: " + track)
+		print("MUSIC CACHE %s: cold %.2f ms, warm %.2f ms" % [track, cold_ms, warm_ms])
+		var broken := FileAccess.open(path, FileAccess.WRITE)
+		broken.store_string("interrupted cache")
+		broken.close()
+		assert_equals(MusicSynth.load_or_render_track(track, directory).data, cold.data, "A damaged cache regenerates identical audio: " + track)
+		var wrong_rate := MusicSynth.to_wav(MusicSynth.render_track(track), true)
+		wrong_rate.mix_rate = 44100
+		wrong_rate.save_to_wav(path)
+		assert_equals(MusicSynth.load_or_render_track(track, directory).data, cold.data, "A cache with the wrong sample rate is replaced: " + track)
+		assert_true(not FileAccess.file_exists(path.trim_suffix(".wav") + ".tmp.wav"), "Music cache leaves no temporary file: " + track)
+		DirAccess.remove_absolute(path)
+	DirAccess.remove_absolute(directory)
+	var blocked := FileAccess.open(directory, FileAccess.WRITE)
+	blocked.store_string("not a directory")
+	blocked.close()
+	assert_true(not MusicSynth.load_or_render_track("battle", directory).data.is_empty(), "Unavailable cache storage does not prevent music playback")
+	DirAccess.remove_absolute(directory)
+	if DisplayServer.get_name() != "headless":
+		var muted := [GameManager.sound_muted, GameManager.music_muted]
+		for flags in [[true, false], [false, true]]:
+			GameManager.sound_muted = flags[0]
+			GameManager.music_muted = flags[1]
+			var audio = load("res://scripts/autoload/audio_manager.gd").new()
+			add_child(audio)
+			assert_true(audio._music_tasks.is_empty(), "Muted startup schedules no music synthesis")
+			audio.free()
+		GameManager.sound_muted = muted[0]
+		GameManager.music_muted = muted[1]
 
 func test_mobile_experience() -> void:
 	print("\n-> Test: Guardado Local, Hápticos y Ciclo de Vida Móvil")
@@ -2346,7 +2526,7 @@ func test_large_screen_layouts() -> void:
 	# 1. El mismo nivel en tablero apaisado: mismas bases, dentro de su zona y sin solaparse
 	var zones := LevelGenerator.layout(true)
 	assert_equals(zones["map"], LevelGenerator.LANDSCAPE_MAP_RECT, "El tablero apaisado mide 1920×1080")
-	var level_ids: Array = LevelDatabase.get_level_ids()
+	var level_ids: Array = LevelDatabase.get_level_ids().duplicate()
 	level_ids.append_array([LevelGenerator.conquest_id(7), DailyRewards.challenge_id(DailyRewards.today())])
 	for region in InvasionDatabase.get_regions():
 		level_ids.append_array(InvasionDatabase.get_region_level_ids(region["id"]))
@@ -4493,10 +4673,10 @@ func test_telemetry_schema_and_privacy() -> void:
 	telemetry.free()
 	GameManager._apply_save({})
 	assert_true(EventBus.has_signal("battle_finished"), "La batalla publica un resultado único para analítica")
-	assert_equals(Telemetry._mode("europe_1"), "campaign", "Nivel de campaña identificado")
-	assert_equals(Telemetry._mode(DailyRewards.challenge_id(20000)), "daily", "Desafío diario identificado")
-	assert_equals(Telemetry._mode(LevelGenerator.conquest_id(3)), "conquest", "Conquista identificada")
-	assert_equals(Telemetry._mode(InvasionDatabase.level_id("iberia", 1)), "invasion", "Invasión identificada")
+	assert_equals(LevelDatabase.mode_of("europe_1"), "campaign", "Nivel de campaña identificado")
+	assert_equals(LevelDatabase.mode_of(DailyRewards.challenge_id(20000)), "daily", "Desafío diario identificado")
+	assert_equals(LevelDatabase.mode_of(LevelGenerator.conquest_id(3)), "conquest", "Conquista identificada")
+	assert_equals(LevelDatabase.mode_of(InvasionDatabase.level_id("iberia", 1)), "invasion", "Invasión identificada")
 	assert_equals(Telemetry._bucket(0.0, Telemetry.LEVEL_BUCKETS), "0_20", "Duración corta agrupada")
 	assert_equals(Telemetry._bucket(25.0, Telemetry.LEVEL_BUCKETS), "20_40", "Duración media agrupada")
 	assert_equals(Telemetry._bucket(500.0, Telemetry.LEVEL_BUCKETS), "120_plus", "Duración larga agrupada")

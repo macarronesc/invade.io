@@ -175,21 +175,10 @@ func _build_map(continent_id: String) -> void:
 		btn.accessibility_name = InvasionDatabase.region_name(region)
 		btn.accessibility_description = LocaleStrings.text("invasions_stars") % [GameManager.region_stars(region_id), InvasionDatabase.FRONTS * 3]
 		var selected := region_id == selected_region
-		_style_pin(btn, UIThemeHelper.colors.primary if selected else UIThemeHelper.colors.text,
-			UIThemeHelper.colors.ink if selected else UIThemeHelper.colors.ink)
+		UIThemeHelper.style_map_pin(btn, UIThemeHelper.colors.primary if selected else UIThemeHelper.colors.text, UIThemeHelper.colors.ink)
 		btn.pressed.connect(_select_region.bind(region_id))
 		map_container.add_child(btn)
 		btn.position = pin_pos
-
-func _style_pin(btn: Button, fill: Color, ink: Color) -> void:
-	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
-		var box := UIThemeHelper.box(fill.darkened(0.12) if state == "pressed" else fill, 999, 0)
-		box.draw_center = state != "focus"
-		box.set_border_width_all(4)
-		box.border_color = UIThemeHelper.colors.bg if state != "focus" else UIThemeHelper.colors.gold
-		btn.add_theme_stylebox_override(state, box)
-	for color_name in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		btn.add_theme_color_override(color_name, ink)
 
 func _draw_map_overlay() -> void:
 	if _map_layout.is_empty() or not is_instance_valid(_map_overlay):
@@ -373,31 +362,20 @@ func _start_front(level_id: String) -> void:
 	UIThemeHelper.start_battle(self, level_id)
 
 func _go_to_campaign() -> void:
-	var node: Node = self
-	while node and not (node is MainMenuUI):
-		node = node.get_parent()
-	if node:
-		(node as MainMenuUI).show_tab("play")
+	UIThemeHelper.show_menu_tab(self, "play")
 
 static func _build_continent_layout(continent_id: String) -> Dictionary:
 	var regions := InvasionDatabase.get_regions_by_continent(continent_id)
-	var anchors: Array[Vector2] = []
+	var groups: Array = []
 	var region_ids: Array[String] = []
 	for region in regions:
 		var capital := GeoDatabase.get_city(str(region["capital"]))
 		if capital.is_empty():
 			continue
-		anchors.append(capital["lonlat"])
+		groups.append([capital["lonlat"]])
 		region_ids.append(str(region["id"]))
-	if anchors.is_empty():
+	if groups.is_empty():
 		return {"geo": {"land": [], "borders": []}, "nodes": PackedVector2Array(), "region_ids": region_ids}
-	var proj := LevelGenerator.fit_projection(anchors, SILHOUETTE_RECT)
-	var nodes := PackedVector2Array()
-	for lonlat in anchors:
-		nodes.append(proj.project(lonlat))
-	nodes = LevelGenerator.separate_points(nodes, func(_i, _j): return NODE_MIN_DISTANCE, NODE_RECT)
-	return {
-		"geo": LevelGenerator.project_geography(proj, SILHOUETTE_CLIP),
-		"nodes": nodes,
-		"region_ids": region_ids,
-	}
+	var layout := LevelGenerator.overview_layout(groups, SILHOUETTE_RECT, SILHOUETTE_CLIP, NODE_RECT, NODE_MIN_DISTANCE)
+	layout["region_ids"] = region_ids
+	return layout
