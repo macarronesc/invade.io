@@ -39,15 +39,19 @@ switching installations. Avoid uninstalling the same variant when updating it.
 | Artifact | Intended use |
 |---|---|
 | `invadeio-debug.apk` | Android test installation; not a Play update |
-| `invadeio-unsigned.aab` | CI validation candidate; not a signed release to distribute |
+| `invadeio-unsigned.aab` | PR/dev validation candidate; on `main`, the unsigned input to the isolated signer |
 | `invadeio.aab` | Owner-approved, signed bundle for manual Play Console upload |
 | `invade.io-debug.ipa` | Unsigned Debug iPhone build for SideStore |
 | `invade.io.ipa` | Unsigned Release iPhone build from a push to `main`, also for SideStore |
 | `invadeio-size-candidate.apk` | Opt-in custom-engine Release test build; disposable certificate and separate `.size` saves |
 | `invade.io-size-candidate.ipa` | Opt-in custom-engine unsigned Release iPhone build; separate `.size` saves |
 
+Main release artifacts use the custom engine. PR, commit and `dev` artifacts use the
+official Godot templates; the manual `.size` candidates use the custom engine with a
+separate identity and telemetry tag.
+
 See [Releases](RELEASES.md) for workflow triggers, approval, checksums, and retention.
-The [size-candidate workflow](RELEASES.md#validate-the-smaller-engine-without-publishing)
+The [size-candidate workflow](RELEASES.md#main-releases-and-manual-validation)
 never publishes. Back up candidate progress before replacing an APK signed by a
 different disposable certificate; these builds cannot update the store installation.
 Contributors never need the production upload key or Apple/store credentials.
