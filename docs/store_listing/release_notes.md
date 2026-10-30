@@ -11,7 +11,7 @@ document. Localized payloads below are preserved in their intended languages.
 recorded here, and early announcement templates contain placeholders and claims
 that must not be copied as current behavior. Confirm the shipped binary and
 current [privacy/publication gate](../PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
-The [0.3.1 candidate notes](#candidate-invadeio-031--contributions-and-build-safety)
+The [0.3.2 candidate notes](#candidate-invadeio-032--telemetry-defaults-and-store-refresh)
 are not suitable for a listing-only refresh without that application build.
 
 ## Version fields
@@ -190,8 +190,6 @@ A major update for invade.io!
 - Offline open-source licenses in Settings.
 - Test installations separated from the production app and its saves.
 - PR CI, secret/package checks, and isolated, approved production signing.
-- Usage statistics and crash reports enabled by default without changing saved
-  preferences; Debug/Release separation follows the actual engine build.
 
 Publish the matching policy and review Data safety/consent requirements before
 distributing. Proposed payloads below apply **only to a shipped 0.3.1 binary**,
@@ -201,11 +199,35 @@ confirm actual production behavior first:
 ```text
 <es-ES>
 • Consulta las licencias de código abierto desde Ajustes, también sin conexión.
-• Las estadísticas de uso y los informes de fallos empiezan activados; se respetan tus preferencias guardadas. Desactiva cada opción en Ajustes → Privacidad.
 • Se conserva tu progreso al actualizar.
 </es-ES>
 <en-US>
 • Open-source licenses are available in Settings, including offline.
+• Your existing progress is preserved when you update.
+</en-US>
+```
+
+Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
+
+## Candidate: invade.io 0.3.2 — telemetry defaults and store refresh
+
+`versionCode` 6 · **owner must confirm code availability and publication status in Play Console**.
+
+- Usage statistics and crash reports start enabled for new or missing settings; saved choices, including opt-outs, remain unchanged.
+- Each option can be disabled separately in Settings → Privacy; analytics events waiting to be sent are discarded when disabled.
+- Telemetry uses the actual Godot Debug/Release build type; editor tooling, tests, and headless runs do not initialize providers.
+- The Play listing and its localized phone/tablet gallery are refreshed across 15 languages. These are store materials, not new in-game features.
+
+Publish the matching policy and review Data safety/consent requirements before
+distributing. Proposed payloads below apply **only to a shipped 0.3.2 binary**;
+confirm actual production behavior first:
+
+```text
+<es-ES>
+• Las estadísticas de uso y los informes de fallos empiezan activados; se respetan tus preferencias guardadas. Desactiva cada opción en Ajustes → Privacidad.
+• Tu progreso se conserva al actualizar.
+</es-ES>
+<en-US>
 • Usage statistics and crash reports now start enabled; your saved choices are respected. Turn either off in Settings → Privacy.
 • Your existing progress is preserved when you update.
 </en-US>
@@ -250,4 +272,5 @@ Console and exact commits in GitHub releases; these rows are not deployment logs
 | 0.1.0 | 1 | Not recorded | Initial campaign, free conquest, daily challenge/missions, achievements, atlas, and cosmetics draft |
 | 0.2.0 | 3 | Not recorded | 36 invasion regions / 108 fronts, 15 languages, optional telemetry, and UI improvements |
 | 0.3.0 | 4 | Not recorded | Alternate controls, large-screen layouts, iOS improvements, and device-locale selection |
-| 0.3.1 | 5 | Verify before distribution | License viewer, build isolation/hardening, and enabled telemetry defaults |
+| 0.3.1 | 5 | Verify before distribution | License viewer and build isolation/hardening |
+| 0.3.2 | 6 | Verify before distribution | Enabled telemetry defaults and localized store refresh |
