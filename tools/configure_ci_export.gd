@@ -12,7 +12,7 @@ func _init() -> void:
 	# Disposable-key candidates must not replace store installs or existing Debug saves.
 	var test_package := "macarronesc.invadeio.size" if candidate else "macarronesc.invadeio.debug"
 	presets.set_value("preset.1.options", "package/unique_name", test_package)
-	for preset in ["preset.0.options", "preset.1.options"]:
+	for preset in ["preset.0", "preset.1"]:
 		presets.set_value(preset, "custom_features", "size_candidate" if candidate else "")
 	if not args.has("--production"):
 		presets.set_value("preset.0.options", "application/bundle_identifier", test_package)

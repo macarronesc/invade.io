@@ -70,8 +70,8 @@ class MobileTemplateChecks(unittest.TestCase):
                     android = "macarronesc.invadeio.debug" if args == ["--production"] else package
                     self.assertEqual(presets["preset.1.options"]["package/unique_name"], f'"{android}"')
                     expected_feature = '"size_candidate"' if args == ["--size-candidate"] else '""'
-                    self.assertEqual(presets["preset.0.options"].get("custom_features", ""), expected_feature)
-                    self.assertEqual(presets["preset.1.options"].get("custom_features", ""), expected_feature)
+                    self.assertEqual(presets["preset.0"].get("custom_features", ""), expected_feature)
+                    self.assertEqual(presets["preset.1"].get("custom_features", ""), expected_feature)
             telemetry = (ROOT / "scripts/autoload/telemetry.gd").read_text()
             self.assertIn('or OS.has_feature("size_candidate")', telemetry)
             before = (root / "export_presets.cfg").read_bytes()
@@ -84,5 +84,5 @@ class MobileTemplateChecks(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr.decode())
             presets = configparser.ConfigParser()
             presets.read(root / "export_presets.cfg")
-            for preset in ("preset.0.options", "preset.1.options"):
+            for preset in ("preset.0", "preset.1"):
                 self.assertEqual(presets[preset].get("custom_features", ""), '""')
