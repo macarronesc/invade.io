@@ -41,7 +41,8 @@ args=("platform=$platform" arch=arm64 metal=no "profile=$root/tools/mobile_templ
 if [[ "$platform" == android ]]; then
     "$work/venv/bin/scons" -j "${BUILD_JOBS:-2}" "${args[@]}" target=template_release
     # Invoke Gradle directly: Godot's generate_android_binaries callback does not check its exit code.
-    (cd platform/android/java && ./gradlew generateGodotTemplates --no-daemon)
+    # Gradle configures its library project through SCons, so expose the pinned venv.
+    (cd platform/android/java && PATH="$work/venv/bin:$PATH" ./gradlew generateGodotTemplates --no-daemon)
     test -s bin/android_source.zip
     cp bin/android_source.zip "$work/android_source.zip"
 else
