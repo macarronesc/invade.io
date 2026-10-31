@@ -145,7 +145,11 @@ player, `--dark` for dark appearance, or `--reduced` to verify Reduced Motion sk
 the animation. Without `--capture`, it also runs headlessly. Captures are saved as
 `user://launch-*.png`. The intro lasts 1.23 seconds, is skippable by touch/click/key,
 and runs only once per process while the initial scene loads underneath it.
-Godot's earlier boot splash remains static because scripts cannot animate it.
+Native and engine startup screens use a plain background with no logo, so the
+brand appears only in the animation. Scripts cannot animate the pre-engine stage
+or remove its loading time. Check a fresh mobile export on-device: iOS must use
+the transparent launch image, and Android must not fall back to its app icon.
+Regenerate the iOS export rather than rebuilding an older generated Xcode project.
 
 Images from these UI checks are written to `user://*.png`, not to the tracked
 store gallery. See [Development](DEVELOPMENT.md#saves-and-independent-worktrees)

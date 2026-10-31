@@ -95,7 +95,17 @@ func _ready() -> void:
 		for artwork in ["assets/brand/icon-*.png", "assets/brand/adaptive-*.png", "assets/brand/play-store-icon-512.png"]:
 			assert_true(excluded.split(",").has(artwork), "El arte nativo no se duplica en el pack: " + preset + " " + artwork)
 		assert_true(not excluded.contains("boot_splash") and not excluded.contains("icon.svg"), "El logo y splash del juego se conservan")
+	for preset in ["preset.0.options", "preset.3.options"]:
+		for density in ["2x", "3x"]:
+			assert_equals(presets.get_value(preset, "storyboard/custom_image@" + density, ""), "",
+				"iOS hereda la imagen transparente sin un logo nativo personalizado: " + preset + " " + density)
 	for preset in ["preset.1.options", "preset.2.options"]:
+		assert_equals(presets.get_value(preset, "splash_screen/icon", ""),
+			ProjectSettings.get_setting("application/boot_splash/image"), "Android usa la imagen transparente, no el icono estático: " + preset)
+		assert_equals(presets.get_value(preset, "splash_screen/background_color", Color()),
+			ProjectSettings.get_setting("application/boot_splash/bg_color"), "El fondo nativo coincide con el arranque de Godot: " + preset)
+		assert_equals(presets.get_value(preset, "screen/background_color", Color()),
+			ProjectSettings.get_setting("application/boot_splash/bg_color"), "Android no cambia a negro entre el splash y Godot: " + preset)
 		assert_true(presets.get_value(preset, "architectures/arm64-v8a", false), "Android mantiene arm64: " + preset)
 		for arch in ["armeabi-v7a", "x86", "x86_64"]:
 			assert_true(not presets.get_value(preset, "architectures/" + arch, true), "Android no añade ABIs por defecto: " + arch)
@@ -2622,6 +2632,12 @@ func test_hud_force_counters() -> void:
 
 func test_launch_overlay() -> void:
 	print("\n-> Test: Animación de Arranque Ligera y de Una Sola Ejecución")
+	assert_true(not bool(ProjectSettings.get_setting("application/boot_splash/show_image", true)), "El arranque del motor no muestra otro logo antes de la animación")
+	var boot_path: String = ProjectSettings.get_setting("application/boot_splash/image", "")
+	var boot_texture: Texture2D = load(boot_path)
+	var boot: Image = boot_texture.get_image() if boot_texture != null else null
+	assert_true(boot != null and boot.get_size() == Vector2i.ONE and is_zero_approx(boot.get_pixel(0, 0).a), "iOS exporta una imagen transparente, no un segundo logo ni el splash de Godot")
+	assert_true(LaunchOverlay.Artwork.BRAND.resource_path != boot_path, "La animación conserva su logo separado de la imagen de arranque")
 	var old_settings := GameManager.settings.duplicate(true)
 	var old_shown := LaunchOverlay._shown
 	LaunchOverlay._shown = false
