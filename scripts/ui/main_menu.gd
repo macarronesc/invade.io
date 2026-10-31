@@ -41,6 +41,8 @@ func _notification(what: int) -> void:
 		get_tree().quit()
 
 func _ready() -> void:
+	if get_tree().current_scene == self:
+		LaunchOverlay.show_once.call_deferred(get_tree())
 	# Primer arranque: directo a la batalla, sin menús ni tarjetas en medio.
 	# Sólo cuando el menú es la escena real (en tests se instancia como hijo).
 	if not GameManager.has_started and get_tree().current_scene == self:

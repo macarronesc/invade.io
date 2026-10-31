@@ -135,7 +135,17 @@ xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --rotate-ui
 
 # Touch/mouse scrolling and troop-drag gestures in both orientations.
 xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --gestures
+
+# Launch → first-run tutorial → menu, with portrait/landscape intro captures.
+xvfb-run -a godot --path . res://scenes/tests/launch_check.tscn -- --capture
 ```
+
+The launch check uses an isolated save. Add `--returning` to check a returning
+player, `--dark` for dark appearance, or `--reduced` to verify Reduced Motion skips
+the animation. Without `--capture`, it also runs headlessly. Captures are saved as
+`user://launch-*.png`. The intro lasts 1.23 seconds, is skippable by touch/click/key,
+and runs only once per process while the initial scene loads underneath it.
+Godot's earlier boot splash remains static because scripts cannot animate it.
 
 Images from these UI checks are written to `user://*.png`, not to the tracked
 store gallery. See [Development](DEVELOPMENT.md#saves-and-independent-worktrees)

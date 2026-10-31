@@ -82,6 +82,7 @@ func _ready() -> void:
 		"Sentry espera a cargar los ajustes de privacidad antes de inicializarse")
 
 	await test_mobile_experience()
+	await test_launch_overlay()
 	test_optimization_caches()
 	await test_save_optimizations()
 	test_music_disk_cache()
@@ -2478,6 +2479,44 @@ func test_hud_force_counters() -> void:
 	hud.free()
 	for b in [b_player, b_enemy, b_enemy2, b_neutral, battle]:
 		b.free()
+
+func test_launch_overlay() -> void:
+	print("\n-> Test: Animación de Arranque Ligera y de Una Sola Ejecución")
+	var old_settings := GameManager.settings.duplicate(true)
+	var old_shown := LaunchOverlay._shown
+	LaunchOverlay._shown = false
+	GameManager.settings["reduced_motion"] = true
+	LaunchOverlay.show_once(get_tree())
+	assert_true(LaunchOverlay._shown, "Movimiento reducido consume la intro sin añadir espera ni animación")
+	assert_true(get_tree().root.get_children().filter(func(n): return n is LaunchOverlay).is_empty(), "Movimiento reducido no monta ninguna capa")
+
+	LaunchOverlay._shown = false
+	GameManager.settings["reduced_motion"] = false
+	LaunchOverlay.show_once(get_tree())
+	LaunchOverlay.show_once(get_tree())
+	var overlays := get_tree().root.get_children().filter(func(n): return n is LaunchOverlay)
+	assert_equals(overlays.size(), 1, "La intro sólo se monta una vez por lanzamiento")
+	var overlay: LaunchOverlay = overlays[0]
+	assert_equals(overlay.get_parent(), get_tree().root, "La intro sobrevive al cambio de menú a tutorial")
+	assert_equals(overlay.process_mode, Node.PROCESS_MODE_ALWAYS, "Una pausa del tutorial no bloquea la salida de la intro")
+	assert_true(not overlay._artwork.is_processing(), "El dibujo sólo se actualiza desde el tween, sin bucle permanente")
+	overlay._tween.custom_step(2.0)
+	await get_tree().process_frame
+	assert_true(not is_instance_valid(overlay), "La intro libera la capa y el tween al terminar")
+	LaunchOverlay.show_once(get_tree())
+	assert_true(get_tree().root.get_children().filter(func(n): return n is LaunchOverlay).is_empty(), "Volver al menú no repite la intro")
+
+	LaunchOverlay._shown = false
+	LaunchOverlay.show_once(get_tree())
+	overlay = get_tree().root.get_children().filter(func(n): return n is LaunchOverlay)[0]
+	var touch := InputEventScreenTouch.new()
+	touch.pressed = true
+	overlay._input(touch)
+	assert_true(get_viewport().is_input_handled(), "El toque para saltar la intro se consume antes del mapa")
+	await get_tree().process_frame
+	assert_true(not is_instance_valid(overlay), "Un toque salta la intro y libera sus recursos")
+	GameManager.settings = old_settings
+	LaunchOverlay._shown = old_shown
 
 func test_main_menu_hub_navigation() -> void:
 	print("\n-> Test: Menú Principal con Secciones (Jugar, Retos, Ejército, Progreso)")
