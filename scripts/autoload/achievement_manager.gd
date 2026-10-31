@@ -44,11 +44,13 @@ func get_progress(achievement: Dictionary) -> float:
 	return clampf(float(get_stat(achievement["stat"])) / achievement["goal"], 0.0, 1.0)
 
 ## Desbloquea los logros cumplidos; devuelve los ids recién desbloqueados
-func check_all() -> Array[String]:
+func check_all(only_stat: String = "") -> Array[String]:
 	GameManager.begin_save_batch()
 	var unlocked: Array[String] = []
 	var values := {}
 	for a in AchievementDatabase.get_all():
+		if only_stat != "" and a["stat"] != only_stat:
+			continue
 		if GameManager.is_achievement_unlocked(a["id"]):
 			continue
 		var stat: String = a["stat"]
@@ -70,7 +72,7 @@ func _on_base_captured(base: Node, previous_faction: int, new_faction: int) -> v
 		GameManager.advance_mission("captures")
 		if base is BaseNode and base.perk_text() != "":
 			GameManager.advance_mission("special")
-		check_all()
+		check_all("bases_captured")
 	elif previous_faction == GameManager.Faction.PLAYER:
 		_lost_base_this_battle = true
 
@@ -93,16 +95,16 @@ func _on_battle_lost() -> void:
 func _on_troops_dispatched(_from: Node, _to: Node, count: int, faction: int) -> void:
 	if faction == GameManager.Faction.PLAYER:
 		GameManager.record_stat_max("biggest_stream", count)
-		check_all()
+		check_all("biggest_stream")
 
 func _on_player_assault(source_count: int) -> void:
 	GameManager.record_stat_max("chain_max", source_count)
 	if source_count >= 2:
 		GameManager.advance_mission("chain")
-	check_all()
+	check_all("chain_max")
 
 func _on_troops_retreated(faction: int) -> void:
 	if faction == GameManager.Faction.PLAYER:
 		GameManager.add_stat("retreats")
 		GameManager.advance_mission("retreat")
-		check_all()
+		check_all("retreats")

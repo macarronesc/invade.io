@@ -18,11 +18,13 @@ func set_geography(geo: Dictionary, color: Color) -> void:
 	if not geo.has("fills"):
 		geo["fills"] = FilledPolygon.build_all(geo.get("land", []))
 	_fills = geo["fills"]
-	_outlines.clear()
-	for poly in geo.get("land", []):
-		var closed: PackedVector2Array = poly.duplicate()
-		closed.append(poly[0])
-		_outlines.append(closed)
+	if not geo.has("outlines"):
+		var outlines: Array[PackedVector2Array] = []
+		for poly in geo.get("land", []):
+			if not poly.is_empty():
+				outlines.append(TerritoryMap2D._closed(poly))
+		geo["outlines"] = outlines
+	_outlines = geo["outlines"]
 	_borders.assign(geo.get("borders", []))
 	_color = color
 	queue_redraw()
