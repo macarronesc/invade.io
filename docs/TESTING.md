@@ -152,6 +152,23 @@ store gallery. See [Development](DEVELOPMENT.md#saves-and-independent-worktrees)
 for the user-data directory. Inspect full-size captures as well as thumbnails:
 automated fit/glyph checks cannot approve translation quality or usability.
 
+### Performance captures
+
+```sh
+XDG_DATA_HOME=/tmp/opencode/invade-perf-data LP_NUM_THREADS=4 xvfb-run -a \
+  godot --path . --audio-driver Dummy --disable-vsync \
+  res://scenes/tests/performance_check.tscn -- --out=/tmp/opencode/invade-perf
+```
+
+This reuses the deterministic store fixtures without replacing store artwork.
+It captures six real scenes and all three troop styles (including a 2× preview),
+and writes PNGs plus `metrics.json` with average draw calls and elapsed frame time.
+Run the same command/environment before and after a rendering change. Rendering
+must be enabled; headless results cannot measure draw calls or pixels.
+The software renderer's frame times are not mobile FPS or battery measurements.
+See [performance validation](PERFORMANCE.md) for the optimization results and
+the remaining physical-device release gates.
+
 ## Store material checks
 
 ```sh

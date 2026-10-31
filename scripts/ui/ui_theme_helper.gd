@@ -48,7 +48,6 @@ const NAME_FONTS := ["names_latin.ttf", "names_cyrillic.ttf", "names_arabic.ttf"
 
 static var _bold: FontVariation
 static var _regular: FontVariation
-static var _font_cache: Dictionary = {}
 
 static func bold_font() -> FontVariation:
 	if _bold == null or _bold.get_meta("locale", "") != LocaleStrings.lang:
@@ -64,9 +63,6 @@ static func regular_font() -> FontVariation:
 	return _regular
 
 static func _weighted_font(weight: int) -> FontVariation:
-	var key := "%s|%d" % [LocaleStrings.lang, weight]
-	if _font_cache.has(key):
-		return _font_cache[key]
 	var base: FontVariation = load("res://assets/fonts/game_font.tres")
 	var font := FontVariation.new()
 	font.base_font = base.base_font
@@ -86,7 +82,6 @@ static func _weighted_font(weight: int) -> FontVariation:
 	if script != null:
 		fallbacks.append(script)
 	font.fallbacks = fallbacks
-	_font_cache[key] = font
 	return font
 
 static func _script_font(code: String, weight: int) -> FontVariation:
@@ -148,7 +143,9 @@ static func _apply_font_scale_to_control(control: Control) -> void:
 		if base_size <= 0:
 			return
 		control.set_meta("_base_font_size", base_size)
-	control.add_theme_font_size_override("font_size", scaled_font_size(int(control.get_meta("_base_font_size"))))
+	var size := scaled_font_size(int(control.get_meta("_base_font_size")))
+	if control.get_theme_font_size("font_size") != size:
+		control.add_theme_font_size_override("font_size", size)
 
 ## Cambia entre modo claro y oscuro al instante, sin recargar escenas. Los colores fijados
 ## con overrides los refresca cada pantalla al recibir EventBus.settings_changed.

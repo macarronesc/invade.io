@@ -6,6 +6,7 @@ class_name ScrollPage
 ## Cada sección sólo implementa `_build()` añadiendo nodos a `content`.
 
 var content := UIThemeHelper.vbox()
+var _rebuild_queued := false
 
 func _ready() -> void:
 	horizontal_scroll_mode = SCROLL_MODE_DISABLED
@@ -18,6 +19,7 @@ func _ready() -> void:
 	rebuild()
 
 func rebuild() -> void:
+	_rebuild_queued = false
 	var scroll := scroll_vertical
 	var buttons := content.find_children("*", "BaseButton", true, false).filter(func(button): return not button.disabled)
 	var viewport := get_viewport()
@@ -28,6 +30,15 @@ func rebuild() -> void:
 	set_deferred("scroll_vertical", scroll)
 	if focus_index >= 0:
 		call_deferred("_restore_focus", focus_index)
+
+func request_rebuild() -> void:
+	if not _rebuild_queued:
+		_rebuild_queued = true
+		_flush_rebuild.call_deferred()
+
+func _flush_rebuild() -> void:
+	if _rebuild_queued and is_inside_tree():
+		rebuild()
 
 func _restore_focus(index: int) -> void:
 	var buttons := content.find_children("*", "BaseButton", true, false).filter(func(button): return not button.disabled)

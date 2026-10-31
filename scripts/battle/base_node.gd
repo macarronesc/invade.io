@@ -422,7 +422,7 @@ func _draw() -> void:
 	draw_set_transform(shake_offset, 0.0, elastic_scale)
 
 	# 2. Sombra suave (una sola capa)
-	draw_circle(Vector2(0, 6), current_radius + 5.0, Color(0, 0, 0, 0.22))
+	Icons.draw_disc(self, Vector2(0, 6), current_radius + 5.0, Color(0, 0, 0, 0.22))
 
 	# 3. Halo de selección por fuera del anillo de capacidad
 	if is_selected:
@@ -431,7 +431,7 @@ func _draw() -> void:
 
 	# 4. Marco y cuerpo: el tamaño ya indica el nivel; las ventajas van en insignias
 	draw_frame(self, Vector2.ZERO, current_radius, GameManager.base_shape())
-	draw_circle(Vector2.ZERO, current_radius, color)
+	Icons.draw_disc(self, Vector2.ZERO, current_radius, color)
 
 	# 5. Símbolo de facción sólo en modo daltónico (el color ya distingue los bandos)
 	if GameManager.settings.get("colorblind", false) or GameManager.settings.get("high_contrast_map", false):
@@ -468,9 +468,9 @@ func _draw_capacity_ring(r: float) -> void:
 		# Un único satélite mantiene la lectura de producción sin convertir cada base
 		# en un foco de movimiento permanente.
 		var p := Vector2.from_angle(orbit_angle) * r
-		draw_circle(p, 8.0, Color(0, 0, 0, 0.28))
-		draw_circle(p, 6.5, Color.WHITE)
-		draw_circle(p, 3.5, color)
+		Icons.draw_disc(self, p, 8.0, Color(0, 0, 0, 0.28))
+		Icons.draw_disc(self, p, 6.5, Color.WHITE)
+		Icons.draw_disc(self, p, 3.5, color)
 
 func _badge_keys() -> PackedStringArray:
 	var keys: PackedStringArray = []
@@ -487,9 +487,9 @@ func _badge_keys() -> PackedStringArray:
 
 func _draw_badge(c: Vector2, key: String) -> void:
 	var style: Array = BADGES[key]
-	draw_circle(c + Vector2(0, 3), BADGE_RADIUS + 3.0, Color(0, 0, 0, 0.3))
-	draw_circle(c, BADGE_RADIUS + 3.0, Color.WHITE)
-	draw_circle(c, BADGE_RADIUS, style[1])
+	Icons.draw_disc(self, c + Vector2(0, 3), BADGE_RADIUS + 3.0, Color(0, 0, 0, 0.3))
+	Icons.draw_disc(self, c, BADGE_RADIUS + 3.0, Color.WHITE)
+	Icons.draw_disc(self, c, BADGE_RADIUS, style[1])
 	if key == "boss":
 		_draw_crown(c + Vector2(0, 2), 13.0)
 	else:
@@ -534,7 +534,7 @@ static func draw_frame(canvas: CanvasItem, center: Vector2, r: float, shape: Str
 			var d := r + 6.0
 			canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(0, -d), center + Vector2(d, 0), center + Vector2(0, d), center + Vector2(-d, 0)]), Color.WHITE)
 		_:
-			canvas.draw_circle(center, r + 4.5, Color.WHITE)
+			Icons.draw_disc(canvas, center, r + 4.5, Color.WHITE)
 
 func _draw_siege_alert(current_radius: float) -> void:
 	var p = (sin(siege_pulse_time) + 1.0) * 0.5

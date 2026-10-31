@@ -129,6 +129,8 @@ var _save_blocked := false
 var _save_batch_depth := 0
 var _save_requested := false
 var _save_scheduled := false
+var _save_timer: Timer
+const SAVE_DELAY := 0.5
 
 func _init() -> void:
 	# Autoloads run before the test scene can select its per-suite save file.
@@ -872,9 +874,15 @@ func end_save_batch() -> Error:
 
 ## Slider events can share a write; lifecycle/manual saves still flush immediately.
 func request_save() -> void:
-	if not _save_scheduled:
-		_save_scheduled = true
-		_flush_save_request.call_deferred()
+	if _save_timer == null:
+		_save_timer = Timer.new()
+		_save_timer.one_shot = true
+		_save_timer.ignore_time_scale = true
+		_save_timer.process_mode = Node.PROCESS_MODE_ALWAYS
+		_save_timer.timeout.connect(_flush_save_request)
+		add_child(_save_timer)
+	_save_scheduled = true
+	_save_timer.start(SAVE_DELAY)
 
 func _flush_save_request() -> void:
 	if _save_scheduled:
@@ -882,23 +890,25 @@ func _flush_save_request() -> void:
 
 func save_game() -> Error:
 	_save_scheduled = false
+	if _save_timer:
+		_save_timer.stop()
 	if _save_blocked:
 		return _set_save_status(ERR_UNAVAILABLE)
 	if _save_batch_depth > 0:
 		_save_requested = true
 		return OK
-	var data := save_data()
+	var text := JSON.stringify(save_data())
 	if FileAccess.file_exists(save_path):
 		var previous := _read_save(save_path)
 		if previous["error"] != OK:
 			return _set_save_status(previous["error"])
 		# Compare the serialized bytes: parsing JSON turns integers into floats.
-		if previous["text"] == JSON.stringify(data):
+		if previous["text"] == text:
 			return _set_save_status(OK)
-		var error := write_save(save_path + ".previous", previous["data"])
+		var error := _write_save_text(save_path + ".previous", previous["text"])
 		if error != OK:
 			return _set_save_status(error)
-	return _set_save_status(write_save(save_path, data))
+	return _set_save_status(_write_save_text(save_path, text))
 
 func _set_save_status(error: Error) -> Error:
 	if save_error != error:
@@ -927,12 +937,15 @@ func _read_save(path: String) -> Dictionary:
 
 ## También utilizado por la copia manual; nunca truncar el archivo de destino.
 func write_save(path: String, data: Dictionary) -> Error:
+	return _write_save_text(path, JSON.stringify(data))
+
+func _write_save_text(path: String, text: String) -> Error:
 	# Escritura atómica: un cierre inesperado a mitad de escritura no corrompe la partida
 	var tmp_path = path + ".tmp"
 	var file = FileAccess.open(tmp_path, FileAccess.WRITE)
 	if not file:
 		return FileAccess.get_open_error()
-	file.store_string(JSON.stringify(data))
+	file.store_string(text)
 	file.flush()
 	var error := file.get_error()
 	file.close()
@@ -1026,6 +1039,9 @@ func reset_save() -> Error:
 ## Aplica un guardado validando cada campo: lo que falta o no es válido toma su valor inicial.
 ## Con un diccionario vacío deja la partida nueva.
 func _apply_save(data: Dictionary) -> void:
+	_save_scheduled = false
+	if _save_timer:
+		_save_timer.stop()
 	settings = DEFAULT_SETTINGS.duplicate()
 	var saved_settings := _as_dict(data.get("settings"))
 	for key in settings:

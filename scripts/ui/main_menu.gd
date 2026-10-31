@@ -5,6 +5,7 @@ class_name MainMenuUI
 ## Las secciones se construyen al abrirlas; cambiar de sección no cambia de escena.
 
 const SCENE := "res://scenes/ui/main_menu.tscn"
+const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 ## Una entrada por sección: añadir una nueva es añadir una línea y su script
 const TABS := {
 	"play": {"icon": "map", "title": "tab_play", "page": preload("res://scripts/ui/play_tab.gd")},
@@ -174,26 +175,24 @@ func _update_coins(amount: int) -> void:
 
 ## Icono del juego como baldosa redondeada junto al nombre
 func _logo_tile() -> Control:
-	var tile := PanelContainer.new()
-	tile.custom_minimum_size = Vector2(84, 84)
-	tile.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	tile.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
-	tile.add_theme_stylebox_override("panel", UIThemeHelper.box(Color.WHITE, 20, 0))
 	var icon := TextureRect.new()
-	icon.texture = load("res://icon.svg")
+	icon.custom_minimum_size = Vector2(84, 84)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.texture = preload("res://assets/brand/menu_logo.svg")
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tile.add_child(icon)
-	return tile
+	return icon
 
 func _open_settings() -> void:
 	if is_instance_valid(_utility_panel):
 		return
 	AudioManager.play_click()
 	Telemetry.screen_opened("settings")
-	_utility_panel = load("res://scripts/ui/settings_panel.gd").new()
+	_utility_panel = SettingsPanel.new()
+	_content.process_mode = Node.PROCESS_MODE_DISABLED
+	_utility_panel.closed.connect(func(): _content.process_mode = Node.PROCESS_MODE_INHERIT)
 	_utility_panel.closed.connect(_refresh_appearance)
 	_utility_panel.closed.connect(func(): Telemetry.screen_opened("menu"))
 	_utility_panel.closed.connect(func(): btn_settings.grab_focus.call_deferred())

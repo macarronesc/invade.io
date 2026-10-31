@@ -191,6 +191,7 @@ func _send_batch(batch: Array) -> void:
 	# (request_completed always fires — on success, failure, or timeout — so the
 	# node never leaks).
 	var http := HTTPRequest.new()
+	http.use_threads = true
 	http.timeout = _timeout
 	_active_http = http
 	add_child(http)

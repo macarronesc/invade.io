@@ -41,9 +41,30 @@ class AchievementMemoHarness extends "res://scripts/autoload/achievement_manager
 
 class SaveCountingHarness extends "res://scripts/autoload/game_manager.gd":
 	var writes := 0
-	func write_save(path: String, data: Dictionary) -> Error:
+	func _ready() -> void: pass
+	func _write_save_text(path: String, text: String) -> Error:
 		writes += 1
-		return super.write_save(path, data)
+		return super._write_save_text(path, text)
+
+class RebuildCountingHarness extends ScrollPage:
+	var builds := 0
+	func _build() -> void:
+		builds += 1
+
+class PickerStub extends RefCounted:
+	signal file_selected(path: String)
+	signal exported()
+	signal canceled()
+	signal failed()
+
+class PickerHarness extends "res://scripts/ui/settings_panel.gd":
+	var imported := ""
+	var results := []
+	func _ready() -> void: pass
+	func _confirm_import(path: String, _temporary: bool = false) -> void:
+		imported = path
+	func _show_result(error: Error) -> void:
+		results.append(error)
 
 ## TestRunner: Suite de pruebas de validación automatizada de mecánicas State.io
 
@@ -85,6 +106,7 @@ func _ready() -> void:
 	await test_launch_overlay()
 	test_optimization_caches()
 	await test_save_optimizations()
+	await test_performance_regressions()
 	test_music_disk_cache()
 	if "--mobile" in OS.get_cmdline_user_args():
 		await test_settings_and_backups()
@@ -363,6 +385,12 @@ func test_optimization_caches() -> void:
 	assert_equals(memo.calls["invasion_regions"], 1, "Shared achievement statistics are evaluated once per check")
 	memo.check_all()
 	assert_equals(memo.calls["invasion_regions"], 2, "Achievement memoization never survives a check")
+	memo.calls.clear()
+	for stat in ["biggest_stream", "chain_max", "bases_captured", "retreats"]:
+		memo.check_all(stat)
+	assert_equals(memo.calls.size(), 4, "Battle events only evaluate the four affected statistics")
+	assert_true(not memo.calls.has("invasion_regions"), "Attacking never scans invasion progress")
+	assert_equals(memo.calls["bases_captured"], 1, "Related capture achievements still share a statistic")
 	memo.free()
 	var base := BaseNode.new()
 	var map := TerritoryMap2D.new()
@@ -387,14 +415,17 @@ func test_optimization_caches() -> void:
 func test_save_optimizations() -> void:
 	var saved := GameManager.save_data().duplicate(true)
 	var manager := SaveCountingHarness.new()
+	add_child(manager)
 	var path := "user://test_batched_save.json"
 	manager.save_path = path
 	for suffix in ["", ".previous", ".tmp"]:
 		DirAccess.remove_absolute(path + suffix)
 	manager.coins = 321
 	assert_equals(manager.save_game(), OK, "Initial save is synchronous")
+	var original_text := FileAccess.get_file_as_string(path)
 	manager.coins = 654
 	manager.save_game()
+	assert_equals(FileAccess.get_file_as_string(path + ".previous"), original_text, "Recovery preserves the original serialized bytes")
 	manager.writes = 0
 	assert_equals(manager.save_game(), OK, "An unchanged save succeeds without rewriting files")
 	assert_equals(manager.writes, 0, "Unchanged saves perform no writes")
@@ -416,7 +447,9 @@ func test_save_optimizations() -> void:
 	manager.coins = 1000
 	manager.request_save()
 	await get_tree().process_frame
-	assert_equals(manager.writes, 2, "Repeated slider requests share one write per frame")
+	assert_equals(manager.writes, 0, "Slider changes do not write during the gesture")
+	await get_tree().create_timer(GameManager.SAVE_DELAY + 0.1, true, false, true).timeout
+	assert_equals(manager.writes, 2, "Repeated slider requests share one write after settling")
 	assert_equals(int(manager._read_save(path)["data"]["coins"]), 1000, "Deferred saves persist the latest value")
 	manager.writes = 0
 	manager.coins = 1100
@@ -450,6 +483,113 @@ func test_save_optimizations() -> void:
 	manager.free()
 	for suffix in ["", ".previous", ".tmp"]:
 		DirAccess.remove_absolute(path + suffix)
+	GameManager._apply_save(saved)
+
+func test_performance_regressions() -> void:
+	var saved := GameManager.save_data().duplicate(true)
+	var disc := Icons.texture("disc", 256)
+	assert_true(disc == Icons.texture("disc", 256), "All circles share one cached texture")
+	var image := disc.get_image()
+	assert_true(image.get_pixel(128, 128).is_equal_approx(Color.WHITE) and image.get_pixel(0, 0).a == 0.0, "Batched discs retain an opaque centre and transparent corners")
+	var square := PackedVector2Array([Vector2.ZERO, Vector2(20, 0), Vector2(20, 20), Vector2(0, 20)])
+	var shifted := PackedVector2Array([Vector2(50, 0), Vector2(70, 0), Vector2(70, 20), Vector2(50, 20)])
+	var merged := FilledPolygon.build_all([square, shifted])
+	assert_equals(merged.size(), 1, "Disconnected land pieces use one draw command")
+	assert_equals(merged[0].points, square + shifted, "Merging retains every land vertex in order")
+	var expected := Geometry2D.triangulate_polygon(square)
+	for index in Geometry2D.triangulate_polygon(shifted):
+		expected.append(index + square.size())
+	assert_equals(merged[0].indices, expected, "Merged triangles keep their topology and receive the correct index offset")
+	assert_true(FilledPolygon.build_all([PackedVector2Array()]).is_empty(), "Empty geometry creates no draw commands")
+	var geo := {"land": [square, shifted], "borders": []}
+	var silhouette := GeoSilhouette.new()
+	silhouette.set_geography(geo, Color.WHITE)
+	var fill: FilledPolygon = geo["fills"][0]
+	silhouette.set_geography(geo, Color.RED)
+	assert_true(silhouette._fills[0] == fill and silhouette._outlines.size() == 2, "Menu rebuilds reuse fills and outlines")
+	var base := BaseNode.new()
+	var map := TerritoryMap2D.new()
+	map.generate_map([base], Rect2(0, 0, 100, 100), geo)
+	assert_true(map._land_fills[0] == fill, "Battle setup reuses the same pretriangulated land")
+	map.generate_map([base], Rect2(0, 0, 100, 100))
+	assert_true(not map.cells[0].fills.is_empty(), "Abstract maps retain their territorial fill")
+	for node in [silhouette, base, map]:
+		node.free()
+	for item in CosmeticsDatabase.ITEMS:
+		assert_equals(CosmeticsDatabase.get_by_id(item["id"]), item, "Indexed cosmetic lookup preserves " + item["id"])
+	assert_true(CosmeticsDatabase.get_by_id("missing").is_empty(), "Unknown cosmetics keep the empty result")
+	GameManager.settings["colorblind"] = false
+	GameManager.settings["high_contrast_map"] = false
+	GameManager.cosmetics_equipped["army_color"] = "color_pink"
+	assert_equals(GameManager.faction_color(GameManager.Faction.PLAYER), CosmeticsDatabase.get_by_id("color_pink")["color"], "Indexed colours reflect equipment immediately")
+	GameManager.settings["colorblind"] = true
+	assert_equals(GameManager.faction_color(GameManager.Faction.PLAYER), GameManager.ACCESSIBLE_FACTION_COLORS[GameManager.Faction.PLAYER], "Accessible faction colours still take priority")
+	var page := RebuildCountingHarness.new()
+	add_child(page)
+	page.request_rebuild()
+	page.request_rebuild()
+	EventBus.coins_updated.emit(GameManager.coins)
+	await get_tree().process_frame
+	assert_equals(page.builds, 2, "Cosmetics and coins coalesce into one rebuild after the initial build")
+	page.free()
+	GameManager._apply_save({})
+	GameManager.application_active = true
+	GameManager.settings["reduced_motion"] = false
+	for id in LevelDatabase.get_continent_level_ids("europe"):
+		GameManager.completed_levels[id] = 3
+	var menu: MainMenuUI = load(MainMenuUI.SCENE).instantiate()
+	add_child(menu)
+	var touch := InputEventScreenTouch.new()
+	touch.pressed = true
+	for tab in ["play", "invasion"]:
+		menu.show_tab(tab)
+		var animated = menu._content.get_child(0)
+		animated._process(5.1)
+		assert_true(not animated.is_processing(), "Menu animation sleeps after inactivity: " + tab)
+		animated._input(touch)
+		assert_true(animated.is_processing(), "Touch restarts menu animation: " + tab)
+		GameManager.settings["reduced_motion"] = true
+		animated._wake_animation()
+		assert_true(not animated.is_processing(), "Reduced motion disables menu processing: " + tab)
+		GameManager.settings["reduced_motion"] = false
+		animated._wake_animation()
+	menu._open_settings()
+	assert_true(not menu._content.get_child(0).can_process(), "Settings suspends the covered menu")
+	menu._utility_panel._close()
+	assert_true(menu._content.get_child(0).can_process(), "Closing settings restores the menu")
+	var invasion: InvasionPage = menu._content.get_child(0)
+	var original_map := invasion.map_container
+	var original_detail := invasion.detail_card
+	var target := invasion._map_region_ids[1]
+	invasion.region_buttons[target].grab_focus()
+	invasion._select_region(target)
+	assert_true(invasion.map_container == original_map and invasion.detail_card == original_detail, "Region selection reuses the map and detail container")
+	assert_equals(invasion.selected_region, target, "Region selection still updates the selected region")
+	assert_true(invasion.region_buttons[target].button_pressed and invasion.front_buttons.size() == 3, "Region selection refreshes its button and all three fronts")
+	assert_true(invasion.region_buttons[target].has_focus(), "Region selection preserves accessible keyboard focus")
+	menu.free()
+	var picker := PickerStub.new()
+	var panel := PickerHarness.new()
+	add_child(panel)
+	var path := "user://test_picker_temp.json"
+	for outcome in ["canceled", "failed", "exported", "file_selected"]:
+		var temporary := FileAccess.open(path, FileAccess.WRITE)
+		temporary.store_string("temporary backup")
+		temporary.close()
+		panel._connect_ios_picker(picker, outcome == "file_selected", path)
+		if outcome == "file_selected":
+			picker.file_selected.emit(path)
+			assert_equals(panel.imported, path, "iOS import is delivered exactly once")
+			assert_true(FileAccess.file_exists(path), "Imported temporary data survives until confirmation")
+		else:
+			picker.emit_signal(outcome)
+			assert_true(not FileAccess.file_exists(path), "iOS completion cleans temporary data: " + outcome)
+		for signal_name in ["file_selected", "exported", "canceled", "failed"]:
+			assert_true(picker.get_signal_connection_list(signal_name).is_empty(), "iOS completion disconnects every sibling handler: " + signal_name)
+	panel._connect_ios_picker(picker, false, path)
+	panel.free()
+	assert_true(picker.get_signal_connection_list("failed").is_empty(), "Closing the panel disconnects a pending native picker")
+	DirAccess.remove_absolute(path)
 	GameManager._apply_save(saved)
 
 func test_music_disk_cache() -> void:
@@ -4865,6 +5005,8 @@ func test_aptabase_http_delivery() -> void:
 	Aptabase.track("ci_smoke", {"flag": 1})
 	var request: Dictionary = await _receive_mock_aptabase_request(server)
 	assert_true(not request.is_empty(), "Aptabase envía un lote al servidor local")
+	if is_instance_valid(Aptabase._active_http):
+		assert_true(Aptabase._active_http.use_threads, "Analytics HTTP polling and TLS run off the game thread")
 	if request.is_empty():
 		Aptabase.disable()
 		server.stop()

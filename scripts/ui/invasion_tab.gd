@@ -29,8 +29,18 @@ var _map_region_ids: Array[String] = []
 var _map_layout: Dictionary = {}
 var pulse_time := 0.0
 var _redraw_accum := 0.0
+var _animation_left := 5.0
+
+func _ready() -> void:
+	super._ready()
+	EventBus.settings_changed.connect(_wake_animation)
+	_wake_animation()
 
 func _build() -> void:
+	detail_card = null
+	_map_overlay = null
+	_map_region_ids.clear()
+	_map_layout = {}
 	_ensure_selection()
 	continent_buttons.clear()
 	region_buttons.clear()
@@ -55,6 +65,7 @@ func _build() -> void:
 	_build_map(continent)
 	_build_region_selector(continent)
 	_build_detail(continent)
+	_wake_animation()
 
 func _ensure_selection() -> void:
 	if selected_continent == "" or not _has_continent(selected_continent):
@@ -194,13 +205,27 @@ func _draw_map_overlay() -> void:
 	_map_overlay.draw_arc(nodes[index], radius, 0, TAU, 44, UIThemeHelper.colors.gold, 4.0, true)
 
 func _process(delta: float) -> void:
-	if GameManager.settings["reduced_motion"] or not is_instance_valid(_map_overlay):
+	_animation_left -= delta
+	if GameManager.settings["reduced_motion"] or not is_instance_valid(_map_overlay) or _animation_left <= 0.0 or not GameManager.application_active:
+		set_process(false)
+		return
+	if size.y > 0.0 and not map_container.get_global_rect().intersects(get_global_rect()):
+		set_process(false)
 		return
 	pulse_time = fmod(pulse_time + delta * 3.0, TAU)
 	_redraw_accum += delta
 	if _redraw_accum >= 0.05:
 		_redraw_accum = 0.0
 		_map_overlay.queue_redraw()
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenDrag or (event is InputEventScreenTouch and event.pressed) \
+			or (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed):
+		_wake_animation()
+
+func _wake_animation() -> void:
+	_animation_left = 5.0
+	set_process(not GameManager.settings["reduced_motion"])
 
 func _build_region_selector(continent_id: String) -> void:
 	# Una sola fila desplazable: la ficha de la región debe quedar cerca del primer pantallazo.
@@ -238,8 +263,12 @@ func _build_detail(continent_id: String) -> void:
 		return
 	var completed := GameManager.region_completed_fronts(selected_region)
 	var stars := GameManager.region_stars(selected_region)
-	var card := UIThemeHelper.card(content)
-	detail_card = card
+	if not is_instance_valid(detail_card):
+		detail_card = UIThemeHelper.card(content)
+	else:
+		UIThemeHelper.clear(detail_card)
+	front_buttons.clear()
+	var card := detail_card
 	card.name = "InvasionRegionCard"
 	var top := UIThemeHelper.hbox(16)
 	card.add_child(top)
@@ -350,10 +379,25 @@ func _select_continent(continent_id: String) -> void:
 	rebuild()
 
 func _select_region(region_id: String) -> void:
+	if not _map_region_ids.has(region_id):
+		return
 	AudioManager.play_click()
+	var previous := selected_region
 	selected_region = region_id
 	last_region = region_id
-	rebuild()
+	for id in [previous, selected_region]:
+		var pin := map_container.get_node("MapPin_" + id) as Button
+		UIThemeHelper.style_map_pin(pin, UIThemeHelper.colors.primary if id == selected_region else UIThemeHelper.colors.text, UIThemeHelper.colors.ink)
+		region_buttons[id].set_pressed_no_signal(id == selected_region)
+	var focused := get_viewport().gui_get_focus_owner()
+	var restore_focus := focused != null and detail_card.is_ancestor_of(focused)
+	_build_detail(selected_continent)
+	UIThemeHelper.pass_scroll_events(detail_card)
+	_scroll_to_region.call_deferred(region_buttons[region_id].get_parent().get_parent(), region_buttons[region_id])
+	if restore_focus:
+		region_buttons[region_id].grab_focus.call_deferred()
+	_map_overlay.queue_redraw()
+	_wake_animation()
 
 func _start_front(level_id: String) -> void:
 	if not GameManager.is_invasion_level_unlocked(level_id):
