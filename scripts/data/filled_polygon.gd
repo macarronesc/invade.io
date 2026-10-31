@@ -34,6 +34,15 @@ static func build_all(polys: Array) -> Array[FilledPolygon]:
 	var out: Array[FilledPolygon] = []
 	for poly in polys:
 		out.append_array(build(poly))
+	if out.size() > 1:
+		var points := PackedVector2Array()
+		var indices := PackedInt32Array()
+		for fill in out:
+			var offset := points.size()
+			points.append_array(fill.points)
+			for index in fill.indices:
+				indices.append(index + offset)
+		out.assign([FilledPolygon.new(points, indices)])
 	return out
 
 func draw(canvas: CanvasItem, color: Color) -> void:

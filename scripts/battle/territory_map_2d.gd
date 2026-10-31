@@ -59,10 +59,16 @@ func generate_map(bases: Array, bounds: Rect2 = Rect2(), geo: Dictionary = {}) -
 	_land_bounds.clear()
 	for poly in land:
 		_land_bounds.append(GeoDatabase.bounds_of(poly))
-	_land_fills = FilledPolygon.build_all(land)
-	_land_outlines.clear()
-	for poly in land:
-		_land_outlines.append(_closed(poly))
+	if not geo.has("fills"):
+		geo["fills"] = FilledPolygon.build_all(land)
+	_land_fills = geo["fills"]
+	if not geo.has("outlines"):
+		var outlines: Array[PackedVector2Array] = []
+		for poly in land:
+			if not poly.is_empty():
+				outlines.append(_closed(poly))
+		geo["outlines"] = outlines
+	_land_outlines = geo["outlines"]
 
 	cells.clear()
 	var valid_bases: Array[BaseNode] = []
@@ -120,6 +126,7 @@ func _build_pieces() -> void:
 			continue
 		if land.is_empty():
 			cell.pieces.append(cell.polygon)
+			cell.fills = FilledPolygon.build_all(cell.pieces)
 			continue
 		var cell_bounds := GeoDatabase.bounds_of(cell.polygon)
 		for i in land.size():

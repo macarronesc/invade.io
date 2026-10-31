@@ -255,5 +255,5 @@ class AtlasDots extends Control:
 
 	func _draw() -> void:
 		for p in points:
-			draw_circle(p, 10.0, Color(UIThemeHelper.colors.primary, 0.25))
-			draw_circle(p, 5.0, UIThemeHelper.colors.primary)
+			Icons.draw_disc(self, p, 10.0, Color(UIThemeHelper.colors.primary, 0.25))
+			Icons.draw_disc(self, p, 5.0, UIThemeHelper.colors.primary)

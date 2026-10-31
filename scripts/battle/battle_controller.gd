@@ -64,6 +64,7 @@ var _press_pos: Vector2 = Vector2.ZERO
 ## Base cuya ficha (tropas, producción, ventaja) se muestra tras tocarla
 var _info_base: BaseNode = null
 var _info_timer: float = 0.0
+var _info_box := UIThemeHelper.box(Color(0.06, 0.09, 0.14, 0.92), 20, 0)
 ## Medalla de dominio: ganar sin perder ninguna base
 var lost_a_base: bool = false
 var _captures: int = 0
@@ -1099,8 +1100,8 @@ func _draw_base_info(canvas: CanvasItem) -> void:
 		top.y = b.global_position.y + b.radius + 40.0
 	top.x = clampf(top.x, map_rect.position.x + 16.0, map_rect.end.x - 16.0 - size.x)
 	var rect := Rect2(canvas.to_local(top), size)
-	var box := UIThemeHelper.box(Color(0.06, 0.09, 0.14, 0.92 * alpha), 20, 0)
-	canvas.draw_style_box(box, rect)
+	_info_box.bg_color.a = 0.92 * alpha
+	canvas.draw_style_box(_info_box, rect)
 	for i in lines.size():
 		var color := BaseNode.MARKER_GOLD if i == 2 else Color(1, 1, 1, 1.0 if i == 0 else 0.8)
 		canvas.draw_string(font, rect.position + Vector2(24.0, 44.0 + i * line_height), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(color, alpha))

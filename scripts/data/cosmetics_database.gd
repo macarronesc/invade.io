@@ -47,11 +47,13 @@ const ITEMS: Array[Dictionary] = [
 	{"id": "color_invasion_oceania", "category": "army_color", "cost": 0, "invasion": "oceania", "color": Color(0.10, 0.80, 0.75)},
 ]
 
+static var _by_id: Dictionary = {}
+
 static func get_by_id(id: String) -> Dictionary:
-	for item in ITEMS:
-		if item["id"] == id:
-			return item
-	return {}
+	if _by_id.is_empty():
+		for item in ITEMS:
+			_by_id[item["id"]] = item
+	return _by_id.get(id, {})
 
 ## Tema de mapa con sus colores de campo completos (texto, costa y fronteras incluidos).
 static func get_map_theme(id: String) -> Dictionary:
