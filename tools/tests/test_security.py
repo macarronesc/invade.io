@@ -11,7 +11,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from build_notices import ROOT, build
 from check_release import versions
 from check_repository import sensitive_content, sensitive_path
-from verify_artifact import NOTICES, check_entries, pck_entries
+from verify_artifact import NOTICES, check_entries, pck_entries, verify
 
 
 class SecurityChecks(unittest.TestCase):
@@ -51,6 +51,15 @@ class SecurityChecks(unittest.TestCase):
         header = struct.pack("<6IQQ", 0x43504447, 4, 4, 7, 2, 2, base, base + len(content)).ljust(base, b"\0")
         directory = struct.pack("<II", 1, len(name)) + name + struct.pack("<QQQQI", 0, len(content), 0, 0, 0)
         check_entries(pck_entries(header + content + directory))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "fixture.ipa"
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("Payload/invadeio.app/invadeio.pck", header + content + directory)
+            verify(path)
+            with zipfile.ZipFile(path, "a") as archive:
+                archive.writestr("scripts/tests/accidental.gdc", b"test")
+            with self.assertRaisesRegex(ValueError, "Development resource"):
+                verify(path)
         with self.assertRaises(ValueError):
             list(pck_entries(b"bad"))
 

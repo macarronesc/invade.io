@@ -3,7 +3,7 @@ name: Website and documentation
 on:
   push:
     branches: [main]
-    paths: &website-paths
+    paths:
       - 'website/**'
       - 'docs/**'
       - 'README.md'
@@ -19,7 +19,7 @@ on:
       - 'project.godot'
       - '.github/workflows/pages.yml'
   pull_request:
-    paths: *website-paths
+    branches: [dev, main]
   workflow_dispatch:
 
 permissions:
@@ -58,13 +58,20 @@ jobs:
           npx playwright install --with-deps chromium
           npm run test:browser
       - name: Package only the checked static output
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          tar -C dist -cf "$RUNNER_TEMP/artifact.tar" .
+          if [[ "$EVENT" == pull_request && "$BASE_REF" == dev ]]; then
+            tar -C dist -cf "$RUNNER_TEMP/artifact.tar" --transform='s,^,invade.io/,' .
+          else
+            tar -C dist -cf "$RUNNER_TEMP/artifact.tar" .
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: github-pages
+          name: ${{ github.event_name == 'pull_request' && github.base_ref == 'dev' && format('website-preview-pr-{0}', github.event.pull_request.number) || 'github-pages' }}
           path: ${{ runner.temp }}/artifact.tar
-          retention-days: 1
+          retention-days: ${{ github.event_name == 'pull_request' && github.base_ref == 'dev' && 7 || 1 }}
           if-no-files-found: error
   pages-deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

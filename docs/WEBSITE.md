@@ -85,6 +85,30 @@ environment. Actions are SHA-pinned, dependency installs use the committed lockf
 and production deployment permissions are scoped to the deployment job. No game
 signing secret or Play Console credential is needed.
 
+### Download a dev PR preview
+
+Every PR targeting `dev` builds a separate website and documentation preview,
+including PRs that change only game code. PRs targeting `main` still run website
+checks; main pushes retain the existing website-related path filter and deployment.
+No PR deploys to the production site or posts a comment.
+
+After the **Website and documentation** run succeeds, download its
+`website-preview-pr-<NUMBER>` artifact from Actions (GitHub sign-in required).
+It expires after seven days. Unzip it into an empty directory, then run:
+
+```sh
+tar -xf artifact.tar
+python3 -m http.server 8000 --bind 127.0.0.1
+```
+
+Run the server from that directory and open `http://localhost:8000/invade.io/`
+or `http://localhost:8000/invade.io/docs/`. No Node.js or dependencies are needed
+to view the checked static output. Opening HTML with `file://` will not correctly
+serve the project-base assets or documentation search. Production canonical/legal
+URLs remain unchanged; this download is a local review build, not a public preview
+deployment or a statement of the current store version. Treat fork PR content as
+untrusted and do not reuse a server directory containing private files.
+
 Keep `site` and `base` aligned with `website/scripts/site.mjs`. GitHub Pages serves
 this project under `/invade.io/`, not the domain root. Test deep links, search,
 images, the 404 page, and the unchanged policy address after deployment.

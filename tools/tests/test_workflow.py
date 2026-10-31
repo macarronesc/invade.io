@@ -15,8 +15,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORKFLOW = (ROOT / ".github/workflows/ci.yml").read_text()
 
 
-def run_block(name):
-    step = WORKFLOW.split("      - name: " + name + "\n", 1)[1].split("      - ", 1)[0]
+def run_block(name, workflow=WORKFLOW):
+    step = workflow.split("      - name: " + name + "\n", 1)[1].split("      - ", 1)[0]
     return textwrap.dedent(step.split("        run: |\n", 1)[1])
 
 
@@ -34,6 +34,38 @@ class WorkflowChecks(unittest.TestCase):
         self.assertIn("github.event_name != 'pull_request' && github.ref == 'refs/heads/main'", deploy)
         self.assertEqual(pages.count("pages: write"), 1)
         self.assertEqual(pages.count("id-token: write"), 1)
+
+    def test_dev_pr_preview_preserves_the_project_base(self):
+        pages = (ROOT / ".github/workflows/pages.yml").read_text()
+        trigger = pages.split("  pull_request:\n", 1)[1].split("  workflow_dispatch:", 1)[0]
+        self.assertIn("branches: [dev, main]", trigger)
+        self.assertNotIn("paths:", trigger, "Every dev PR needs a preview, including game-only changes")
+        self.assertIn("website-preview-pr-{0}", pages)
+        self.assertIn("github.event.pull_request.number", pages)
+        script = run_block("Package only the checked static output", pages)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "dist/docs").mkdir(parents=True)
+            (root / "dist/index.html").write_text("home")
+            (root / "dist/docs/index.html").write_text("docs")
+            for event, branch, prefix in (("pull_request", "dev", "invade.io/"), ("pull_request", "main", ""), ("push", "main", ""), ("workflow_dispatch", "main", "")):
+                with self.subTest(event=event, branch=branch):
+                    env = dict(os.environ, RUNNER_TEMP=tmp, EVENT=event, BASE_REF=branch)
+                    subprocess.run(["bash", "-e", "-o", "pipefail", "-c", script], cwd=root, env=env, check=True)
+                    entries = subprocess.check_output(["tar", "-tf", str(root / "artifact.tar")], text=True)
+                    self.assertIn(prefix + "./index.html", entries)
+                    self.assertIn(prefix + "./docs/index.html", entries)
+
+    def test_builds_validate_packages_without_generating_summaries(self):
+        self.assertNotIn("GITHUB_STEP_SUMMARY", WORKFLOW)
+        self.assertNotIn("report_artifact_size", WORKFLOW)
+        self.assertNotIn("get-size total", WORKFLOW)
+        for artifact in ("invadeio-debug.apk", "invadeio-unsigned.aab", "invadeio-size-candidate.apk"):
+            self.assertIn("python3 tools/verify_artifact.py build/android/" + artifact, WORKFLOW)
+        self.assertIn('tools/verify_artifact.py" "$IPA_NAME"', WORKFLOW)
+        candidate = run_block("Build installable Release APK for engine validation only")
+        self.assertIn("keytool -genkeypair", candidate)
+        self.assertIn('export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$RUNNER_TEMP/size-test.p12"', candidate)
 
     def test_privilege_boundaries(self):
         signing = WORKFLOW.split("\n  sign-android:\n")[1].split("\n  release:\n")[0]
@@ -92,6 +124,10 @@ class WorkflowChecks(unittest.TestCase):
             self.assertEqual(execute(env).returncode, 0)
             self.assertIn("--target " + env["GITHUB_SHA"], calls.read_text())
             self.assertIn("--draft=false", calls.read_text())
+            upload = next(line for line in calls.read_text().splitlines() if line.startswith("release upload "))
+            self.assertEqual(upload, "release upload v1.2.3 invadeio.aab invade.io.ipa invadeio-debug.apk")
+            self.assertNotIn("--notes ", calls.read_text())
+            self.assertEqual(sorted(path.name for path in (root / "release").iterdir()), ["invade.io.ipa", "invadeio-debug.apk", "invadeio.aab"])
             calls.write_text("")
             self.assertNotEqual(execute(dict(env, FAIL_UPLOAD="true")).returncode, 0)
             self.assertNotIn("--draft=false", calls.read_text(), "Incomplete draft must not publish")

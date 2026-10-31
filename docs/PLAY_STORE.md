@@ -34,15 +34,17 @@ not publish new privacy/defaults wording for a binary that behaves differently.
 2. Review the exact commit, passing checks, notices, native/workflow changes,
    permissions, and upload-certificate fingerprint before approving production
    signing. Missing credentials must fail, not skip signing.
-3. Download the signed `invadeio.aab`, `COMMIT.txt`, and `SHA256SUMS` from the
-   resulting GitHub release. Check the checksums and test the exact artifact:
+3. Download the signed `invadeio.aab` from the resulting GitHub release.
+   Compare its checksum with GitHub's asset digest and test the exact artifact:
 
    ```sh
-   sha256sum --check SHA256SUMS
+   sha256sum invadeio.aab
+   gh api 'repos/macarronesc/invade.io/releases/tags/v<VERSION>' --jq '.assets[] | select(.name == "invadeio.aab") | .digest'
    ```
 
-   Download all files listed in `SHA256SUMS` when checking the entire manifest.
-   On macOS, use `shasum -a 256 --check SHA256SUMS`.
+   Replace `<VERSION>` with the release version and compare the hash to the
+   `sha256:` digest. On macOS, use `shasum -a 256 invadeio.aab`.
+   The immutable release tag and attestation identify the tested source and assets.
 4. Upload the AAB to the intended track of the **existing** Play application.
    Select only the matching version's text from
    [release_notes.md](store_listing/release_notes.md). The Debug APK is not a

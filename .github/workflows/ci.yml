@@ -157,7 +157,7 @@ jobs:
           mkdir -p build/android
           godot --headless --path . --install-android-build-template --export-debug Android build/android/invadeio-debug.apk
           bash scripts/verify_play_bundle.sh build/android/invadeio-debug.apk
-          python3 tools/report_artifact_size.py build/android/invadeio-debug.apk >> "$GITHUB_STEP_SUMMARY"
+          python3 tools/verify_artifact.py build/android/invadeio-debug.apk
       - name: Check R8 idempotence
         run: |
           test_root="$(mktemp -d "$RUNNER_TEMP/invadeio-r8-test.XXXXXX")"
@@ -176,7 +176,7 @@ jobs:
           bash scripts/enable_android_r8.sh
           godot --headless --path . --export-release 'Android AAB' build/android/invadeio-unsigned.aab
           bash scripts/verify_play_bundle.sh build/android/invadeio-unsigned.aab build/android/invadeio-debug.apk
-          python3 tools/report_artifact_size.py build/android/invadeio-unsigned.aab >> "$GITHUB_STEP_SUMMARY"
+          python3 tools/verify_artifact.py build/android/invadeio-unsigned.aab
       - name: Verify custom engine in release AAB
         if: env.CUSTOM_ENGINE == 'true'
         run: |
@@ -187,29 +187,19 @@ jobs:
           # Stock is ~71 MB; the size profile is ~39 MB. Fail closed on fallback.
           test "$size" -gt 30000000
           test "$size" -lt 60000000
-      - name: Report Android artifact and delivery sizes
-        run: |
-          # A disposable test key only; production signing stays isolated below.
-          keytool -genkeypair -keystore "$RUNNER_TEMP/size-test.p12" -alias size-test -keyalg RSA -keysize 2048 -validity 30 -dname 'CN=Size estimate only' -storepass android -keypass android
-          java -jar "$BUNDLETOOL_JAR" build-apks --bundle=build/android/invadeio-unsigned.aab --output="$RUNNER_TEMP/size.apks" --ks="$RUNNER_TEMP/size-test.p12" --ks-key-alias=size-test --ks-pass=pass:android --key-pass=pass:android
-          java -jar "$BUNDLETOOL_JAR" get-size total --apks="$RUNNER_TEMP/size.apks" --dimensions=SDK,ABI,SCREEN_DENSITY > build/android/download-size.csv
-          {
-            echo '### bundletool download estimates (not Play Console measurements)'
-            echo '```csv'
-            cat build/android/download-size.csv
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
       - name: Build installable Release APK for engine validation only
         if: env.OPTIMIZED_TEMPLATES == 'true'
         env:
           GODOT_ANDROID_KEYSTORE_RELEASE_USER: size-test
           GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: android
         run: |
+          # A disposable candidate key only; production signing stays isolated below.
+          keytool -genkeypair -keystore "$RUNNER_TEMP/size-test.p12" -alias size-test -keyalg RSA -keysize 2048 -validity 30 -dname 'CN=Engine validation only' -storepass android -keypass android
           export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$RUNNER_TEMP/size-test.p12"
           godot --headless --path . --script tools/configure_ci_export.gd -- --size-candidate
           godot --headless --path . --export-release Android build/android/invadeio-size-candidate.apk
           EXPECTED_PACKAGE=macarronesc.invadeio.size bash scripts/verify_play_bundle.sh build/android/invadeio-size-candidate.apk
-          python3 tools/report_artifact_size.py build/android/invadeio-size-candidate.apk >> "$GITHUB_STEP_SUMMARY"
+          python3 tools/verify_artifact.py build/android/invadeio-size-candidate.apk
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: env.OPTIMIZED_TEMPLATES == 'true'
         with:
@@ -327,7 +317,7 @@ jobs:
           plutil -lint Payload/invadeio.app/Info.plist
           lipo Payload/invadeio.app/invadeio -verify_arch arm64
           zip -q -9 -r "$IPA_NAME" Payload
-          python3 "$GITHUB_WORKSPACE/tools/report_artifact_size.py" "$IPA_NAME" >> "$GITHUB_STEP_SUMMARY"
+          python3 "$GITHUB_WORKSPACE/tools/verify_artifact.py" "$IPA_NAME"
       - name: Verify custom engine in release IPA
         if: env.CUSTOM_ENGINE == 'true'
         run: |
@@ -439,10 +429,7 @@ jobs:
           # Atomic creation also rejects an existing/racing tag or an API/network failure.
           gh api "repos/$GH_REPO/git/refs" --method POST -f ref="refs/tags/$tag" -f sha="$GITHUB_SHA" >/dev/null
           cd release
-          printf '%s\n' "$GITHUB_SHA" > COMMIT.txt
-          sha256sum invadeio.aab invade.io.ipa invadeio-debug.apk COMMIT.txt > SHA256SUMS
           # Assemble assets as a draft; only expose a complete release.
-          gh release create "$tag" --verify-tag --target "$GITHUB_SHA" --title "invade.io $VERSION" --generate-notes --draft \
-            --notes 'AAB: Google Play upload. IPA: unsigned SideStore build, not App Store/TestFlight. APK: Debug with a separate application ID, not a Play update. See SHA256SUMS and COMMIT.txt.'
-          gh release upload "$tag" invadeio.aab invade.io.ipa invadeio-debug.apk COMMIT.txt SHA256SUMS
+          gh release create "$tag" --verify-tag --target "$GITHUB_SHA" --title "invade.io $VERSION" --generate-notes --draft
+          gh release upload "$tag" invadeio.aab invade.io.ipa invadeio-debug.apk
           gh release edit "$tag" --draft=false
