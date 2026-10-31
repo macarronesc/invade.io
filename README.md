@@ -15,7 +15,8 @@ gameplay, no ads, and no in-app purchases.
 The website includes a visual game tour, English/Spanish player pages, platform
 downloads, and searchable guides. Prefer reading in the repository? Start with
 the [Markdown documentation index](docs/README.md). Website changes deploy from
-`main`; a development checkout can contain pages not published yet.
+`main`; PRs targeting `dev` provide a separate downloadable website/docs preview
+for testing. See the [preview instructions](docs/WEBSITE.md#download-a-dev-pr-preview).
 
 ![invade.io: blue troops advance from Lisbon toward a fortified enemy base in Madrid on a real-world map.](docs/store_assets/feature-graphic-1024x500.png)
 

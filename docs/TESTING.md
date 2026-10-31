@@ -44,9 +44,9 @@ skip. Never provide a real signing key to a test.
 
 The font checks use `fonttools==4.57.0` (installed explicitly in CI); without it they
 are skipped locally. The export-identity integration check similarly needs Godot on
-`PATH`. Run both before changing fonts or candidate packaging. The artifact-size
-tests cover compressed versus expanded totals, PCK accounting, and rejection of
-invalid/development resources. Custom-engine promotion additionally requires testing
+`PATH`. Run both before changing fonts or candidate packaging. The artifact
+tests cover PCK parsing and rejection of invalid/development resources and missing
+notices. Custom-engine promotion additionally requires testing
 the actual [exported candidates](RELEASES.md#main-releases-and-manual-validation),
 not only this editor-based suite.
 

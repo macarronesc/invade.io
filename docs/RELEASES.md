@@ -32,9 +32,12 @@ It downloads only the unsigned artifact from this workflow run, signs it with en
 credentials, rejects partial signatures, verifies the expected certificate fingerprint, and removes
 the key. The only job with `contents: write` is `release`, which never receives signing secrets.
 
-`release` creates a draft for the exact tested commit, attaches AAB, unsigned IPA, clearly labeled
-Debug APK, `COMMIT.txt` and `SHA256SUMS`, then publishes it. A failed prerequisite cannot publish.
+`release` creates a draft for the exact tested commit, attaches AAB, unsigned IPA and clearly labeled
+Debug APK, then publishes it with GitHub-generated change notes. No build-summary paragraph,
+commit file or checksum manifest is generated. A failed prerequisite cannot publish.
 Existing tags/releases are never overwritten. There is no Play/App Store API credential or upload.
+GitHub's immutable-release setting remains enabled: it protects published assets/tags and
+automatically creates a release attestation. That attestation is not a workflow-generated asset.
 
 ## Before merging a release
 
@@ -45,19 +48,31 @@ Existing tags/releases are never overwritten. There is no Play/App Store API cre
 4. Compare the public `play-release` variable `ANDROID_UPLOAD_CERT_SHA256` with Play Console's
    **upload** certificate (not Google's separate app-signing certificate). Its initial baseline came
    from the previously successful main AAB, not an independent Play Console check.
-5. Approve signing only for the expected main commit. Download the release, check hashes, test on
+5. Approve signing only for the expected main commit. Download the release, verify its asset digests, test on
    devices, then upload the AAB to the intended Play track manually.
 6. Match privacy defaults/disclosures, the public policy, Data safety, audience
    settings, and release notes to the actual builds. Use the
    [store publication gate](PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
 
 ```sh
-sha256sum --check SHA256SUMS
+gh api 'repos/macarronesc/invade.io/releases/tags/v<VERSION>' --jq '.assets[] | [.name, .digest] | @tsv'
+sha256sum invadeio.aab invade.io.ipa invadeio-debug.apk
 ```
 
-Download every file listed in `SHA256SUMS` for a complete check. On macOS, use
-`shasum -a 256 --check SHA256SUMS`. `COMMIT.txt` identifies the tested source;
-do not substitute an artifact from a different workflow run.
+Compare the local hashes with GitHub's `sha256:` asset digests. On macOS, use
+`shasum -a 256` instead. The release tag identifies the tested source commit;
+do not substitute an artifact from a different workflow run. GitHub's release
+attestation binds that tag/commit to the published asset digests.
+
+### Historical cleanup
+
+The published `v0.3.1` and `v0.3.2` releases are immutable; their existing
+`COMMIT.txt`, `SHA256SUMS` and attestations remain. Disabling immutability would
+affect future releases only, and would remove GitHub's asset/tag protection.
+Do not delete and recreate published releases to hide these historical files.
+Old Actions job summaries cannot be edited separately: removing them requires
+deleting their entire workflow runs, including logs/artifacts. Preserve that history;
+the workflow no longer generates Android/iOS summaries for new runs.
 
 If upload/publication fails after a draft/tag was created, investigate the existing draft and commit.
 Complete the verified draft manually, or explicitly remove a failed unpublished draft/tag before
@@ -117,19 +132,17 @@ launcher/store artwork is excluded from the runtime pack, not from native icon
 generation. The game logo, splash, all languages, ICU text data, procedural audio,
 backups and Sentry remain.
 
-CI adds component tables and the bundletool estimate to the job summary; it does not
-retain a separate size-report artifact. The reporter first applies the existing
-artifact/license checks:
+CI verifies package contents and licenses without generating size tables or job
+summaries. Run the same content check locally with:
 
 ```sh
-python3 tools/report_artifact_size.py build/android/invadeio.aab
+python3 tools/verify_artifact.py build/android/invadeio.aab
 ```
 
 Archive bytes, expanded file bytes, and store delivery sizes are different metrics.
-Readable PCK contents and Android's sparse-PCK index are identified separately;
-PCK contents are broken down without counting their bytes twice. Android
-also records bundletool estimates (including install-time assets), using only a
-disposable test key; no production credential enters a build job. Play Console and
+Android still uses bundletool for manifest/alignment verification, not delivery
+size reports. Only manual engine-candidate APKs need a disposable test key;
+no production credential enters a build job. Play Console and
 Xcode's App Thinning Size Report/App Store Connect remain the delivery-size authority.
 The current unsigned SideStore IPA does not establish an App Store download size.
 
