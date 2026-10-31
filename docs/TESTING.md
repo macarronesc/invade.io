@@ -138,13 +138,24 @@ xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --gestures
 
 # Launch → first-run tutorial → menu, with portrait/landscape intro captures.
 xvfb-run -a godot --path . res://scenes/tests/launch_check.tscn -- --capture
+
+# Regression: a slow cold-start frame must not consume the entire intro.
+xvfb-run -a godot --path . res://scenes/tests/launch_check.tscn -- --slow-startup
 ```
 
 The launch check uses an isolated save. Add `--returning` to check a returning
 player, `--dark` for dark appearance, or `--reduced` to verify Reduced Motion skips
 the animation. Without `--capture`, it also runs headlessly. Captures are saved as
-`user://launch-*.png`. The intro lasts 1.23 seconds, is skippable by touch/click/key,
-and runs only once per process while the initial scene loads underneath it.
+`user://launch-*.png`. The intro normally lasts 1.23 seconds after two renderer
+warmup frames, is skippable by touch/click/key, and runs only once per process while the initial
+scene loads underneath it. Warmup displays only the plain background. A long
+initial frame therefore cannot consume the tween before it is visible. A monotonic
+clock drives the tween independently of battle speed, capped at 100 ms per frame
+so later loading hitches cannot skip the entire animation either. Severe stalls
+can lengthen the intro rather than consume it unseen.
+`--slow-startup` simulates a 1.6-second startup stall; combine it with `--returning`
+and `--dark` to cover the menu path too. Headless checks force the two dummy draws;
+they do not validate Android's native splash or the displayed animation.
 Native and engine startup screens use a plain background with no logo, so the
 brand appears only in the animation. Scripts cannot animate the pre-engine stage
 or remove its loading time. Check a fresh mobile export on-device: iOS must use
@@ -216,8 +227,8 @@ Accessibility labels and desktop screenshots alone do not prove TalkBack or
 VoiceOver support on mobile.
 
 The [CI workflow](../.github/workflows/ci.yml) runs Python/security checks, the full
-Godot suite on Linux, locale/wide UI checks, store generation, Android exports,
-and an iOS build with quick regressions. Rotation, gesture, and the longer balance
+Godot suite on Linux, slow-start launch and locale/wide UI checks, store generation,
+Android exports, and an iOS build with quick regressions. Rotation, gesture, and the longer balance
 simulations are available locally but are not all run by the current workflow.
 See [Releases](RELEASES.md) for artifact verification and signing boundaries.
 

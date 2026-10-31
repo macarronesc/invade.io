@@ -134,6 +134,8 @@ jobs:
           python3 -m unittest discover -s tools/tests -p test_mobile_templates.py -v
           godot --headless --path . --editor --import
           godot --headless --path . res://scenes/tests/test_runner.tscn
+          timeout 60 xvfb-run -a godot --audio-driver Dummy --path . res://scenes/tests/launch_check.tscn -- --slow-startup
+          timeout 60 xvfb-run -a godot --audio-driver Dummy --path . res://scenes/tests/launch_check.tscn -- --slow-startup --returning --dark
           xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --ui
           xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --wide-ui
       - name: Generate and validate localized store material

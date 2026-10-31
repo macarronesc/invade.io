@@ -158,6 +158,9 @@ support without a compatible bridge/engine and physical-device verification.
 
 Before distributing a build, check the exact artifact on the intended platforms:
 
+- [ ] Cold-launch Android and iOS with new and existing saves: the plain native
+      background must hand off to the full animated intro before the tutorial/menu.
+      Check Reduced Motion skips it, rotation still fits, and a touch can dismiss it.
 - [ ] Start, win, buy an upgrade, change settings, and reopen in airplane mode.
 - [ ] Check small phones, safe areas/notches, gesture bars, tablets/foldables,
       rotation, and resizing during menus and battles with troops in motion.

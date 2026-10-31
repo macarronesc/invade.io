@@ -2656,6 +2656,21 @@ func test_launch_overlay() -> void:
 	assert_equals(overlay.get_parent(), get_tree().root, "La intro sobrevive al cambio de menú a tutorial")
 	assert_equals(overlay.process_mode, Node.PROCESS_MODE_ALWAYS, "Una pausa del tutorial no bloquea la salida de la intro")
 	assert_true(not overlay._artwork.is_processing(), "El dibujo sólo se actualiza desde el tween, sin bucle permanente")
+	assert_true(not overlay._tween.is_running(), "La intro espera al renderizador antes de consumir tiempo de animación")
+	assert_equals(overlay._artwork.elapsed, -1.0, "La espera inicial muestra sólo el fondo, no otro logo estático")
+	RenderingServer.force_draw()
+	assert_true(not overlay._tween.is_running(), "Un único dibujado no absorbe todavía el delta de carga del primer frame")
+	RenderingServer.force_draw()
+	assert_true(overlay.is_processing(), "Tras dos dibujados comienza la animación completa")
+	overlay._tween.custom_step(0.3)
+	assert_true(is_equal_approx(overlay._artwork.elapsed, 0.3), "La animación empieza desde cero, sin descontar el tiempo de arranque")
+	overlay._last_frame_usec = Time.get_ticks_usec() - 80_000
+	overlay._process(0.0)
+	assert_true(overlay._artwork.elapsed >= 0.38 and overlay._artwork.elapsed <= 0.4, "El reloj de la intro avanza aunque la velocidad de batalla deje delta en cero")
+	var before_stall := overlay._artwork.elapsed
+	overlay._last_frame_usec -= 2_000_000
+	overlay._process(2.0)
+	assert_true(is_equal_approx(overlay._artwork.elapsed - before_stall, 0.1), "Un atasco de dos segundos avanza como máximo 100 ms, sin saltarse la animación")
 	overlay._tween.custom_step(2.0)
 	await get_tree().process_frame
 	assert_true(not is_instance_valid(overlay), "La intro libera la capa y el tween al terminar")
@@ -2665,12 +2680,15 @@ func test_launch_overlay() -> void:
 	LaunchOverlay._shown = false
 	LaunchOverlay.show_once(get_tree())
 	overlay = get_tree().root.get_children().filter(func(n): return n is LaunchOverlay)[0]
+	RenderingServer.force_draw()
 	var touch := InputEventScreenTouch.new()
 	touch.pressed = true
 	overlay._input(touch)
 	assert_true(get_viewport().is_input_handled(), "El toque para saltar la intro se consume antes del mapa")
 	await get_tree().process_frame
 	assert_true(not is_instance_valid(overlay), "Un toque salta la intro y libera sus recursos")
+	RenderingServer.force_draw()
+	assert_true(RenderingServer.frame_post_draw.get_connections().filter(func(c): return c.callable.get_method() == "_on_startup_frame").is_empty(), "Saltar durante el arranque desconecta el aviso de renderizado")
 	GameManager.settings = old_settings
 	LaunchOverlay._shown = old_shown
 

@@ -16,6 +16,10 @@ func _run() -> void:
 	GameManager.settings["reduced_motion"] = reduced
 	GameManager.settings["light_mode"] = "--dark" not in args
 	UIThemeHelper.apply_palette(tree, GameManager.settings["light_mode"])
+	if "--slow-startup" in args:
+		tree.node_added.connect(func(node: Node):
+			if node is LaunchOverlay:
+				node.ready.connect(func(): OS.delay_msec(1600), CONNECT_ONE_SHOT))
 	# El comprobador permanece en la raíz mientras las escenas reales cambian debajo de la intro.
 	tree.current_scene = null
 	if tree.change_scene_to_file(MainMenuUI.SCENE) != OK:
@@ -32,7 +36,14 @@ func _run() -> void:
 	var passed := tree.current_scene is MainMenuUI if returning else tree.current_scene is BattleController
 	if not reduced:
 		var overlay: LaunchOverlay = overlays[0]
-		overlay._tween.pause()
+		if DisplayServer.get_name() == "headless":
+			RenderingServer.force_draw()
+			RenderingServer.force_draw()
+		passed = overlay._startup_frames == 2 and passed
+		overlay.set_process(false)
+		var drawn_times: Array[float] = []
+		if DisplayServer.get_name() != "headless":
+			overlay._artwork.draw.connect(func(): drawn_times.append(overlay._artwork.elapsed))
 		if "--capture" in args:
 			var prefix := "user://launch-%s" % ("dark" if "--dark" in args else "light")
 			for seconds in [0.0, 0.24, 0.5, 0.72, 1.0]:
@@ -45,10 +56,17 @@ func _run() -> void:
 			await RenderingServer.frame_post_draw
 			passed = tree.root.get_texture().get_image().save_png(prefix + "-landscape.png") == OK and passed
 			overlay._artwork.advance(0.0)
-		overlay._tween.play()
+		overlay._last_frame_usec = Time.get_ticks_usec()
+		overlay.set_process(true)
 		await overlay.tree_exited
 		await tree.process_frame
 		passed = not is_instance_valid(overlay) and passed
+		if DisplayServer.get_name() != "headless":
+			var start_visible := drawn_times.any(func(t: float): return t >= 0.0 and t < 0.2)
+			var end_visible := drawn_times.any(func(t: float): return t >= 0.82 and t <= 1.05)
+			if not start_visible or not end_visible:
+				push_error("Intro skipped rendered stages: %s" % str(drawn_times))
+			passed = start_visible and end_visible and passed
 	passed = tree.root.get_children().filter(func(n): return n is LaunchOverlay).is_empty() and passed
 	passed = tree.change_scene_to_file(MainMenuUI.SCENE) == OK and passed
 	await tree.process_frame
