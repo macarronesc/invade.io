@@ -6,6 +6,7 @@ class_name BattleHUD
 ## cierra con el progreso ganado y un único siguiente objetivo.
 
 const DOMINANCE_UPDATE_INTERVAL := 0.1
+const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 const XP_BAR_SECONDS := 0.8
 ## Segundos iniciales en los que la regla del nivel tiene prioridad sobre la cuenta atrás de apertura
 const RULE_INTRO_SECONDS := 8.0
@@ -518,7 +519,7 @@ func _open_settings(accessibility: bool = false) -> void:
 	if is_instance_valid(_utility_panel):
 		return
 	Telemetry.screen_opened("settings")
-	_utility_panel = load("res://scripts/ui/settings_panel.gd").new()
+	_utility_panel = SettingsPanel.new()
 	_utility_panel.allow_backups = false # No reemplazar una partida mientras su batalla vive.
 	_utility_panel.focus_accessibility_on_open = accessibility
 	var return_focus: Control = btn_accessibility if accessibility else btn_settings
@@ -628,8 +629,10 @@ func _update_objective() -> void:
 		text = LocaleStrings.text("medal_lost" if lost else "medal_goal")
 		color = UIThemeHelper.colors.muted if lost else UIThemeHelper.colors.gold
 	objective_label.visible = text != ""
-	objective_label.text = text
-	objective_label.add_theme_color_override("font_color", color)
+	if objective_label.text != text:
+		objective_label.text = text
+	if objective_label.get_theme_color("font_color") != color:
+		objective_label.add_theme_color_override("font_color", color)
 
 func _process(delta: float) -> void:
 	if battle_controller:

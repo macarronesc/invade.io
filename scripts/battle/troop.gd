@@ -337,9 +337,9 @@ static func draw_unit(canvas: CanvasItem, p: Vector2, r: float, color: Color, st
 	if style == "troop_big":
 		r *= 1.3
 	if style == "troop_halo":
-		canvas.draw_circle(p, r * 2.0, Color(color, 0.2))
-	canvas.draw_circle(p, r + 1.3, Color.WHITE)
-	canvas.draw_circle(p, r, color)
+		Icons.draw_disc(canvas, p, r * 2.0, Color(color, 0.2))
+	Icons.draw_disc(canvas, p, r + 1.3, Color.WHITE)
+	Icons.draw_disc(canvas, p, r, color)
 
 static var _badge_box: StyleBoxFlat
 

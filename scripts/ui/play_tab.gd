@@ -44,6 +44,7 @@ var btn_daily: Button
 var _silhouette: GeoSilhouette
 var _node_positions := PackedVector2Array()
 var _redraw_accum := 0.0
+var _animation_left := 5.0
 ## Mapa y ficha: uno sobre otra en vertical, lado a lado en pantallas anchas
 var _split: BoxContainer
 var _side: ScrollContainer
@@ -56,7 +57,9 @@ func _ready() -> void:
 			current_continent_index = i
 	_build()
 	EventBus.settings_changed.connect(_fit_shortcut_cards)
+	EventBus.settings_changed.connect(_wake_animation)
 	_refresh_display()
+	_wake_animation()
 
 func _build() -> void:
 	_split = BoxContainer.new()
@@ -243,7 +246,9 @@ static func _conquest_subtitle() -> String:
 	return LocaleStrings.text("conquest_row") % [expedition, LevelGenerator.expedition_step(index), GameManager.EXPEDITION_SIZE]
 
 func _process(delta: float) -> void:
-	if GameManager.settings["reduced_motion"]:
+	_animation_left -= delta
+	if GameManager.settings["reduced_motion"] or _animation_left <= 0.0 or not GameManager.application_active:
+		set_process(false)
 		return
 	marching_phase = fmod(marching_phase + delta * 0.8, 1.0)
 	pulse_time += delta * 3.0
@@ -252,6 +257,15 @@ func _process(delta: float) -> void:
 	if _redraw_accum >= 0.05:
 		_redraw_accum = 0.0
 		route_container.queue_redraw()
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenDrag or (event is InputEventScreenTouch and event.pressed) \
+			or (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed):
+		_wake_animation()
+
+func _wake_animation() -> void:
+	_animation_left = 5.0
+	set_process(not GameManager.settings["reduced_motion"])
 
 func _refresh_display() -> void:
 	var cont := continents[current_continent_index]
@@ -444,5 +458,5 @@ func _change_continent(step: int) -> void:
 	AudioManager.play_click()
 	current_continent_index = posmod(current_continent_index + step, continents.size())
 	GameManager.current_continent = continents[current_continent_index]["id"]
-	GameManager.save_game()
+	GameManager.request_save()
 	_refresh_display()

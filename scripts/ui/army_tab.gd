@@ -14,7 +14,7 @@ var return_to_battle := false
 var section := "upgrades"
 
 func _ready() -> void:
-	EventBus.cosmetics_changed.connect(rebuild)
+	EventBus.cosmetics_changed.connect(request_rebuild)
 	super()
 
 func _build() -> void:
