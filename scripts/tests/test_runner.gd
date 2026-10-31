@@ -95,7 +95,17 @@ func _ready() -> void:
 		for artwork in ["assets/brand/icon-*.png", "assets/brand/adaptive-*.png", "assets/brand/play-store-icon-512.png"]:
 			assert_true(excluded.split(",").has(artwork), "El arte nativo no se duplica en el pack: " + preset + " " + artwork)
 		assert_true(not excluded.contains("boot_splash") and not excluded.contains("icon.svg"), "El logo y splash del juego se conservan")
+	for preset in ["preset.0.options", "preset.3.options"]:
+		for density in ["2x", "3x"]:
+			assert_equals(presets.get_value(preset, "storyboard/custom_image@" + density, ""), "",
+				"iOS hereda la imagen transparente sin un logo nativo personalizado: " + preset + " " + density)
 	for preset in ["preset.1.options", "preset.2.options"]:
+		assert_equals(presets.get_value(preset, "splash_screen/icon", ""),
+			ProjectSettings.get_setting("application/boot_splash/image"), "Android usa la imagen transparente, no el icono estático: " + preset)
+		assert_equals(presets.get_value(preset, "splash_screen/background_color", Color()),
+			ProjectSettings.get_setting("application/boot_splash/bg_color"), "El fondo nativo coincide con el arranque de Godot: " + preset)
+		assert_equals(presets.get_value(preset, "screen/background_color", Color()),
+			ProjectSettings.get_setting("application/boot_splash/bg_color"), "Android no cambia a negro entre el splash y Godot: " + preset)
 		assert_true(presets.get_value(preset, "architectures/arm64-v8a", false), "Android mantiene arm64: " + preset)
 		for arch in ["armeabi-v7a", "x86", "x86_64"]:
 			assert_true(not presets.get_value(preset, "architectures/" + arch, true), "Android no añade ABIs por defecto: " + arch)
@@ -103,6 +113,7 @@ func _ready() -> void:
 		"Sentry espera a cargar los ajustes de privacidad antes de inicializarse")
 
 	await test_mobile_experience()
+	await test_launch_overlay()
 	test_optimization_caches()
 	await test_save_optimizations()
 	await test_performance_regressions()
@@ -2618,6 +2629,68 @@ func test_hud_force_counters() -> void:
 	hud.free()
 	for b in [b_player, b_enemy, b_enemy2, b_neutral, battle]:
 		b.free()
+
+func test_launch_overlay() -> void:
+	print("\n-> Test: Animación de Arranque Ligera y de Una Sola Ejecución")
+	assert_true(not bool(ProjectSettings.get_setting("application/boot_splash/show_image", true)), "El arranque del motor no muestra otro logo antes de la animación")
+	var boot_path: String = ProjectSettings.get_setting("application/boot_splash/image", "")
+	var boot_texture: Texture2D = load(boot_path)
+	var boot: Image = boot_texture.get_image() if boot_texture != null else null
+	assert_true(boot != null and boot.get_size() == Vector2i.ONE and is_zero_approx(boot.get_pixel(0, 0).a), "iOS exporta una imagen transparente, no un segundo logo ni el splash de Godot")
+	assert_true(LaunchOverlay.Artwork.BRAND.resource_path != boot_path, "La animación conserva su logo separado de la imagen de arranque")
+	var old_settings := GameManager.settings.duplicate(true)
+	var old_shown := LaunchOverlay._shown
+	LaunchOverlay._shown = false
+	GameManager.settings["reduced_motion"] = true
+	LaunchOverlay.show_once(get_tree())
+	assert_true(LaunchOverlay._shown, "Movimiento reducido consume la intro sin añadir espera ni animación")
+	assert_true(get_tree().root.get_children().filter(func(n): return n is LaunchOverlay).is_empty(), "Movimiento reducido no monta ninguna capa")
+
+	LaunchOverlay._shown = false
+	GameManager.settings["reduced_motion"] = false
+	LaunchOverlay.show_once(get_tree())
+	LaunchOverlay.show_once(get_tree())
+	var overlays := get_tree().root.get_children().filter(func(n): return n is LaunchOverlay)
+	assert_equals(overlays.size(), 1, "La intro sólo se monta una vez por lanzamiento")
+	var overlay: LaunchOverlay = overlays[0]
+	assert_equals(overlay.get_parent(), get_tree().root, "La intro sobrevive al cambio de menú a tutorial")
+	assert_equals(overlay.process_mode, Node.PROCESS_MODE_ALWAYS, "Una pausa del tutorial no bloquea la salida de la intro")
+	assert_true(not overlay._artwork.is_processing(), "El dibujo sólo se actualiza desde el tween, sin bucle permanente")
+	assert_true(not overlay._tween.is_running(), "La intro espera al renderizador antes de consumir tiempo de animación")
+	assert_equals(overlay._artwork.elapsed, -1.0, "La espera inicial muestra sólo el fondo, no otro logo estático")
+	RenderingServer.force_draw()
+	assert_true(not overlay._tween.is_running(), "Un único dibujado no absorbe todavía el delta de carga del primer frame")
+	RenderingServer.force_draw()
+	assert_true(overlay.is_processing(), "Tras dos dibujados comienza la animación completa")
+	overlay._tween.custom_step(0.3)
+	assert_true(is_equal_approx(overlay._artwork.elapsed, 0.3), "La animación empieza desde cero, sin descontar el tiempo de arranque")
+	overlay._last_frame_usec = Time.get_ticks_usec() - 80_000
+	overlay._process(0.0)
+	assert_true(overlay._artwork.elapsed >= 0.38 and overlay._artwork.elapsed <= 0.4, "El reloj de la intro avanza aunque la velocidad de batalla deje delta en cero")
+	var before_stall := overlay._artwork.elapsed
+	overlay._last_frame_usec -= 2_000_000
+	overlay._process(2.0)
+	assert_true(is_equal_approx(overlay._artwork.elapsed - before_stall, 0.1), "Un atasco de dos segundos avanza como máximo 100 ms, sin saltarse la animación")
+	overlay._tween.custom_step(2.0)
+	await get_tree().process_frame
+	assert_true(not is_instance_valid(overlay), "La intro libera la capa y el tween al terminar")
+	LaunchOverlay.show_once(get_tree())
+	assert_true(get_tree().root.get_children().filter(func(n): return n is LaunchOverlay).is_empty(), "Volver al menú no repite la intro")
+
+	LaunchOverlay._shown = false
+	LaunchOverlay.show_once(get_tree())
+	overlay = get_tree().root.get_children().filter(func(n): return n is LaunchOverlay)[0]
+	RenderingServer.force_draw()
+	var touch := InputEventScreenTouch.new()
+	touch.pressed = true
+	overlay._input(touch)
+	assert_true(get_viewport().is_input_handled(), "El toque para saltar la intro se consume antes del mapa")
+	await get_tree().process_frame
+	assert_true(not is_instance_valid(overlay), "Un toque salta la intro y libera sus recursos")
+	RenderingServer.force_draw()
+	assert_true(RenderingServer.frame_post_draw.get_connections().filter(func(c): return c.callable.get_method() == "_on_startup_frame").is_empty(), "Saltar durante el arranque desconecta el aviso de renderizado")
+	GameManager.settings = old_settings
+	LaunchOverlay._shown = old_shown
 
 func test_main_menu_hub_navigation() -> void:
 	print("\n-> Test: Menú Principal con Secciones (Jugar, Retos, Ejército, Progreso)")
