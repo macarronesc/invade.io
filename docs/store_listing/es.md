@@ -1,7 +1,7 @@
 # invade.io — Google Play (Spanish)
 
 Copy the three localized blocks into the matching Play Console fields. This copy
-targets source version **0.3.2**; confirm production behavior before publishing.
+targets source version **0.4.0**; confirm production behavior before publishing.
 
 ## App name
 

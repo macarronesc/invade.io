@@ -11,7 +11,7 @@ document. Localized payloads below are preserved in their intended languages.
 recorded here, and early announcement templates contain placeholders and claims
 that must not be copied as current behavior. Confirm the shipped binary and
 current [privacy/publication gate](../PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
-The [0.3.2 candidate notes](#candidate-invadeio-032--telemetry-defaults-and-store-refresh)
+The [0.4.0 candidate notes](#candidate-invadeio-040--faster-battles-and-smoother-startup)
 are not suitable for a listing-only refresh without that application build.
 
 ## Version fields
@@ -209,6 +209,131 @@ confirm actual production behavior first:
 
 Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
 
+## Candidate: invade.io 0.4.0 — faster battles and smoother startup
+
+`versionCode` 7 · **owner must confirm code availability and publication status in Play Console**.
+
+- Faster, smoother battles and menus: batched drawing, reused map geometry, coalesced interface updates, and animations that pause after five seconds without input.
+- A new launch animation that can be skipped with a tap and is skipped entirely by Reduced Motion.
+- Smaller production mobile packages through the optimized engine, font width-axis trimming, and export-only artwork exclusions.
+- Safer save timing: interface-driven changes are grouped, while pause, background, close, purchases, and rewards still save immediately.
+- Existing saves and progress remain compatible. The game still has no accounts, ads, purchases, or online play.
+
+Publish the matching policy and review Data safety/consent requirements before
+distributing. Proposed payloads below apply **only to a shipped 0.4.0 binary**;
+confirm actual production behavior first. Translations are drafts and need the
+same native-speaker review as the listing copy:
+
+```text
+<es-ES>
+• Batallas y menús más fluidos: dibujo por lotes, mapas reutilizados y animaciones que se pausan tras cinco segundos sin interacción.
+• Nueva animación de inicio, omitible con un toque y desactivada con Movimiento reducido.
+• Descargas móviles más ligeras gracias al motor y las fuentes optimizados.
+• Guardado más seguro: los cambios de interfaz se agrupan; pausa, segundo plano, cierre, compras y recompensas siguen guardándose al instante.
+• Las partidas y el progreso existentes siguen siendo compatibles.
+</es-ES>
+<en-US>
+• Faster, smoother battles and menus with batched drawing, reused map geometry, and animations that pause after five seconds without input.
+• A new launch animation, skippable with a tap and skipped by Reduced Motion.
+• Smaller mobile downloads through the optimized engine and fonts.
+• Safer save timing: interface changes are grouped, while pause, background, close, purchases, and rewards still save immediately.
+• Existing saves and progress remain compatible.
+</en-US>
+<pt-BR>
+• Batalhas e menus mais fluidos: desenho em lotes, mapas reutilizados e animações que pausam após cinco segundos sem interação.
+• Nova animação de abertura, ignorável com um toque e desativada com Movimento reduzido.
+• Downloads móveis menores com o motor e as fontes otimizados.
+• Gravação mais segura: alterações de interface são agrupadas; pausa, segundo plano, fecho, compras e recompensas continuam a guardar imediatamente.
+• Os saves e o progresso existentes continuam compatíveis.
+</pt-BR>
+<fr-FR>
+• Batailles et menus plus fluides : dessin par lots, cartes réutilisées et animations suspendues après cinq secondes sans interaction.
+• Nouvelle animation de lancement, ignorable d’un toucher et désactivée avec Mouvement réduit.
+• Téléchargements mobiles plus légers grâce au moteur et aux polices optimisés.
+• Sauvegarde plus sûre : les réglages d’interface sont regroupés ; pause, arrière-plan, fermeture, achats et récompenses restent enregistrés immédiatement.
+• Les sauvegardes et la progression existantes restent compatibles.
+</fr-FR>
+<de-DE>
+• Flüssigere Kämpfe und Menüs: gebündeltes Zeichnen, wiederverwendete Karten und Animationen, die nach fünf Sekunden ohne Eingabe pausieren.
+• Neue Startanimation, per Tippen überspringbar und bei Reduzierter Bewegung deaktiviert.
+• Kleinere mobile Downloads durch optimierte Engine und Schriftarten.
+• Sichereres Speichern: Oberflächenänderungen werden gebündelt; Pause, Hintergrund, Schließen, Käufe und Belohnungen werden weiterhin sofort gespeichert.
+• Bestehende Spielstände und Fortschritte bleiben kompatibel.
+</de-DE>
+<it-IT>
+• Battaglie e menu più fluidi: disegno in batch, mappe riutilizzate e animazioni in pausa dopo cinque secondi senza interazione.
+• Nuova animazione di avvio, saltabile con un tocco e disattivata con Movimento ridotto.
+• Download mobili più leggeri grazie al motore e ai font ottimizzati.
+• Salvataggio più sicuro: le modifiche all’interfaccia vengono raggruppate; pausa, background, chiusura, acquisti e ricompense restano immediati.
+• I salvataggi e i progressi esistenti restano compatibili.
+</it-IT>
+<ru-RU>
+• Более плавные бои и меню: пакетная отрисовка, повторное использование карт и пауза анимаций через пять секунд без ввода.
+• Новая анимация запуска: пропускается касанием и отключается при уменьшенном движении.
+• Меньший размер мобильной загрузки благодаря оптимизированным движку и шрифтам.
+• Надёжнее сохранение: изменения интерфейса группируются; пауза, фон, закрытие, покупки и награды по-прежнему сохраняются сразу.
+• Существующие сохранения и прогресс остаются совместимыми.
+</ru-RU>
+<tr-TR>
+• Daha akıcı savaşlar ve menüler: toplu çizim, yeniden kullanılan haritalar ve beş saniye işlem yapılmayınca duraklayan animasyonlar.
+• Yeni açılış animasyonu bir dokunuşla atlanabilir ve Azaltılmış Hareket'te kapalıdır.
+• Optimize edilmiş motor ve yazı tipleriyle daha küçük mobil indirmeler.
+• Daha güvenli kayıt: arayüz değişiklikleri gruplanır; duraklatma, arka plan, kapatma, satın almalar ve ödüller anında kaydedilmeye devam eder.
+• Mevcut kayıtlar ve ilerleme uyumlu kalır.
+</tr-TR>
+<ar>
+• معارك وقوائم أكثر سلاسة: رسم مجمّع وخرائط معاد استخدامها ورسوم متحركة تتوقف بعد خمس ثوانٍ دون تفاعل.
+• رسوم بدء جديدة يمكن تخطيها بلمسة وتُعطّل مع تقليل الحركة.
+• تنزيلات جوال أصغر بفضل المحرك والخطوط المحسّنة.
+• حفظ أكثر أمانًا: تُجمّع تغييرات الواجهة، بينما يظل الحفظ فوريًا عند الإيقاف المؤقت والخلفية والإغلاق والمشتريات والمكافآت.
+• تظل عمليات الحفظ والتقدم الحالية متوافقة.
+</ar>
+<hi-IN>
+• अधिक सहज लड़ाइयाँ और मेन्यू: बैच में ड्रॉइंग, दोबारा उपयोग किए गए मैप और पाँच सेकंड बिना इनपुट के बाद रुकने वाले एनिमेशन।
+• नया लॉन्च एनिमेशन, टैप से छोड़ा जा सकता है और कम गति में बंद रहता है।
+• अनुकूलित इंजन और फ़ॉन्ट के साथ छोटे मोबाइल डाउनलोड।
+• अधिक सुरक्षित सेव: इंटरफ़ेस बदलाव एक साथ सेव होते हैं; पॉज़, बैकग्राउंड, बंद करना, खरीद और इनाम तुरंत सेव रहते हैं।
+• मौजूदा सेव और प्रगति संगत रहती है।
+</hi-IN>
+<id>
+• Pertempuran dan menu lebih lancar: penggambaran batch, peta yang dipakai ulang, dan animasi yang berhenti setelah lima detik tanpa interaksi.
+• Animasi peluncuran baru, dapat dilewati dengan ketukan dan dinonaktifkan saat Gerakan Dikurangi.
+• Unduhan seluler lebih kecil berkat mesin dan font yang dioptimalkan.
+• Penyimpanan lebih aman: perubahan antarmuka dikelompokkan; jeda, latar belakang, penutupan, pembelian, dan hadiah tetap disimpan segera.
+• Simpanan dan progres yang ada tetap kompatibel.
+</id>
+<vi>
+• Trận chiến và menu mượt hơn: vẽ theo lô, bản đồ dùng lại và hoạt ảnh tạm dừng sau năm giây không tương tác.
+• Hoạt ảnh khởi động mới, có thể bỏ qua bằng chạm và tắt khi bật Giảm chuyển động.
+• Bản tải xuống di động nhỏ hơn nhờ engine và phông chữ được tối ưu.
+• Lưu an toàn hơn: thay đổi giao diện được gom lại; tạm dừng, nền, đóng, mua và phần thưởng vẫn lưu ngay.
+• Bản lưu và tiến trình hiện có vẫn tương thích.
+</vi>
+<zh-CN>
+• 更流畅的战斗和菜单：批量绘制、复用地图，并在五秒无操作后暂停动画。
+• 新的启动动画，轻触即可跳过，减少动态效果时自动禁用。
+• 通过优化引擎和字体，移动端下载更小。
+• 更安全的保存：界面改动会合并写入；暂停、切到后台、关闭、购买和奖励仍会立即保存。
+• 现有存档和进度保持兼容。
+</zh-CN>
+<ja-JP>
+• バトルとメニューがより滑らかに：描画をまとめ、マップを再利用し、5秒間操作がないとアニメーションを停止します。
+• 新しい起動アニメーションはタップでスキップでき、視差効果を減らす設定では無効になります。
+• 最適化されたエンジンとフォントでモバイルのダウンロードが軽量化。
+• 保存がより安全に：画面設定の変更はまとめて保存され、一時停止・バックグラウンド・終了・購入・報酬は引き続き即時保存されます。
+• 既存のセーブと進行状況は互換性を保ちます。
+</ja-JP>
+<ko-KR>
+• 더 부드러운 전투와 메뉴: 일괄 그리기, 재사용되는 지도, 5초간 입력이 없으면 멈추는 애니메이션.
+• 새 시작 애니메이션은 탭으로 건너뛸 수 있으며 동작 줄이기에서 비활성화됩니다.
+• 최적화된 엔진과 글꼴로 모바일 다운로드 크기 감소.
+• 더 안전한 저장: 화면 변경은 묶어서 저장하고, 일시정지·백그라운드·종료·구매·보상은 계속 즉시 저장됩니다.
+• 기존 저장과 진행 상황은 호환됩니다.
+</ko-KR>
+```
+
+Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
+
 ## Candidate: invade.io 0.3.2 — telemetry defaults and store refresh
 
 `versionCode` 6 · **owner must confirm code availability and publication status in Play Console**.
@@ -326,3 +451,4 @@ Console and exact commits in GitHub releases; these rows are not deployment logs
 | 0.3.0 | 4 | Not recorded | Alternate controls, large-screen layouts, iOS improvements, and device-locale selection |
 | 0.3.1 | 5 | Verify before distribution | License viewer and build isolation/hardening |
 | 0.3.2 | 6 | Verify before distribution | Enabled telemetry defaults and localized store refresh |
+| 0.4.0 | 7 | Verify before distribution | Faster battles/menus, launch animation, safer save timing, and smaller mobile builds |
