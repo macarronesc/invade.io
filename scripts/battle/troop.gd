@@ -76,12 +76,18 @@ static func packet_count_for(units: int) -> int:
 static func emission_seconds(units: int, p_speed: float = BASE_SPEED) -> float:
 	return (packet_count_for(units) - 1) * PACKET_SPACING / p_speed
 
+static func arrival_distance(distance: float, target_radius: float) -> float:
+	return maxf(10.0, distance - target_radius * 0.45)
+
+static func arrival_seconds(distance: float, target_radius: float, units: int, p_speed: float) -> float:
+	return arrival_distance(distance, target_radius) / p_speed + emission_seconds(units, p_speed)
+
 func _set_path(from: Vector2, to: Vector2, target_radius: float) -> void:
 	start_pos = from
 	var path_vec := to - from
 	path_length = path_vec.length()
 	move_dir = path_vec / path_length if path_length > 0.001 else Vector2.RIGHT
-	arrival_dist = maxf(10.0, path_length - target_radius * 0.45)
+	arrival_dist = arrival_distance(path_length, target_radius)
 
 ## The board moved (screen rotation): keep each column at the same share of its route.
 ## start_pos always sits on origin_base, also after abort_mission swaps the ends.
@@ -281,8 +287,9 @@ func _draw() -> void:
 		if dist + PACKET_SPACING * 0.5 < emerge:
 			break
 		var dots := dots_for(v)
+		var offsets := _formation_offsets(dots, i)
 		for j in dots:
-			var o := formation_offset(j, dots, i)
+			var o := offsets[j]
 			var d := dist + o.x
 			if d < emerge or d > arrival_dist:
 				continue
@@ -295,6 +302,19 @@ func _draw() -> void:
 
 static func dots_for(units: int) -> int:
 	return mini(units * DOTS_PER_UNIT, MAX_DOTS)
+
+static var _formations: Dictionary = {}
+
+## Borrowed, read-only offsets: at most MAX_PACKETS × MAX_DOTS formations.
+static func _formation_offsets(dots: int, packet: int = 0) -> PackedVector2Array:
+	assert(dots > 0 and dots <= MAX_DOTS and packet >= 0 and packet < MAX_PACKETS)
+	var key := Vector2i(dots, packet)
+	if not _formations.has(key):
+		var offsets := PackedVector2Array()
+		for j in dots:
+			offsets.append(formation_offset(j, dots, packet))
+		_formations[key] = offsets
+	return _formations[key]
 
 ## Posición del punto j de un paquete con `dots` puntos: (avance, desplazamiento lateral).
 ## Ocupan todo el hueco del paquete y se reparten en 2–5 filas según cuántos sean.
@@ -317,9 +337,9 @@ static func draw_unit(canvas: CanvasItem, p: Vector2, r: float, color: Color, st
 	if style == "troop_big":
 		r *= 1.3
 	if style == "troop_halo":
-		canvas.draw_circle(p, r * 2.0, Color(color, 0.2))
-	canvas.draw_circle(p, r + 1.3, Color.WHITE)
-	canvas.draw_circle(p, r, color)
+		Icons.draw_disc(canvas, p, r * 2.0, Color(color, 0.2))
+	Icons.draw_disc(canvas, p, r + 1.3, Color.WHITE)
+	Icons.draw_disc(canvas, p, r, color)
 
 static var _badge_box: StyleBoxFlat
 
@@ -348,7 +368,10 @@ static func draw_count_badge(canvas: CanvasItem, center: Vector2, n: int, color:
 ## Paquete en formación con el estilo de la tienda (vista previa de Ejército)
 static func draw_packet(canvas: CanvasItem, pos: Vector2, units: int, color: Color, style: String, s: float = 1.0, angle: float = 0.0) -> void:
 	var dots := dots_for(units)
+	if dots <= 0:
+		return
 	var spread := 1.25 if style == "troop_big" else 1.0
+	var offsets := _formation_offsets(dots)
 	for j in dots:
-		var o := formation_offset(j, dots)
+		var o := offsets[j]
 		draw_unit(canvas, pos + Vector2(o.x, o.y * spread).rotated(angle) * s, DOT_RADIUS * s, color, style)

@@ -7,16 +7,25 @@ const LEVELS_PER_CONTINENT := 5
 
 ## Continentes en orden de campaña; sus niveles son "<id>_1" .. "<id>_5"
 const CONTINENTS: Array[Dictionary] = [
-	{"id": "europe", "name": "Europa", "name_en": "Europe", "color": Color(0.2, 0.6, 0.86)},
-	{"id": "north_america", "name": "América del Norte", "name_en": "North America", "color": Color(0.9, 0.4, 0.3)},
-	{"id": "south_america", "name": "América del Sur", "name_en": "South America", "color": Color(0.3, 0.75, 0.4)},
-	{"id": "africa", "name": "África", "name_en": "Africa", "color": Color(0.95, 0.7, 0.2)},
-	{"id": "asia", "name": "Asia", "name_en": "Asia", "color": Color(0.8, 0.3, 0.7)},
-	{"id": "oceania", "name": "Oceanía", "name_en": "Oceania", "color": Color(0.1, 0.7, 0.7)},
+	{"id": "europe", "color": Color(0.2, 0.6, 0.86)},
+	{"id": "north_america", "color": Color(0.9, 0.4, 0.3)},
+	{"id": "south_america", "color": Color(0.3, 0.75, 0.4)},
+	{"id": "africa", "color": Color(0.95, 0.7, 0.2)},
+	{"id": "asia", "color": Color(0.8, 0.3, 0.7)},
+	{"id": "oceania", "color": Color(0.1, 0.7, 0.7)},
 ]
 
 static func get_continents() -> Array[Dictionary]:
 	return CONTINENTS
+
+static func mode_of(level_id: String) -> String:
+	if DailyRewards.is_challenge(level_id):
+		return "daily"
+	if LevelGenerator.is_conquest(level_id):
+		return "conquest"
+	if InvasionDatabase.is_invasion(level_id):
+		return "invasion"
+	return "campaign"
 
 ## Nombre del continente en el idioma actual
 static func continent_name(continent_id: String) -> String:
@@ -31,17 +40,18 @@ static func get_continent_level_ids(continent_id: String) -> Array[String]:
 	return ids
 
 static func get_continent_of(level_id: String) -> String:
-	if InvasionDatabase.is_invasion(level_id):
+	if mode_of(level_id) == "invasion":
 		return str(InvasionDatabase.get_region(InvasionDatabase.get_region_of_level(level_id)).get("continent", ""))
 	return level_id.substr(0, level_id.rfind("_"))
 
 ## Posición del nivel dentro de su continente (campaña) o de su región (invasión)
 static func get_level_number(level_id: String) -> int:
-	if InvasionDatabase.is_invasion(level_id):
+	if mode_of(level_id) == "invasion":
 		return InvasionDatabase.get_front_of_level(level_id)
 	return int(level_id.substr(level_id.rfind("_") + 1))
 
 static var _definitions: Dictionary = {}
+static var _level_ids: Array = []
 static var _built: Dictionary = {}
 ## ponytail: FIFO de 64 mapas; usar LRU si la regeneración resulta costosa en móviles.
 const MAX_CACHED_LEVELS := 64
@@ -71,43 +81,52 @@ static func _localize(built: Dictionary, def: Dictionary) -> void:
 	var level_id: String = def.get("id", "")
 	if not _get_definitions().has(level_id):
 		return
-	var n := get_level_ids().find(level_id) + 1
 	var center := ""
 	for b in def.get("bases", []):
 		if b.get("faction") == GameManager.Faction.PLAYER:
 			center = GeoDatabase.city_name(GeoDatabase.get_city(b.get("city", "")))
 			break
-	var fallback_name := "Level %d: %s" % [n, continent_name(get_continent_of(level_id))]
-	built["name"] = LocaleStrings.text_or("level_%s_name" % level_id, fallback_name)
+	built["name"] = level_name(level_id)
 	var fallback_desc := LocaleStrings.text("level_desc_generic") % [center, built.get("target_time", 45)]
 	built["description"] = LocaleStrings.text_or("level_%s_desc" % level_id, fallback_desc)
 
+## Campaign labels do not need projected coastlines or a playable board.
+static func level_name(level_id: String) -> String:
+	var n := get_level_ids().find(level_id) + 1
+	var fallback := "Level %d: %s" % [n, continent_name(get_continent_of(level_id))]
+	return LocaleStrings.text_or("level_%s_name" % level_id, fallback)
+
 ## Definición original (ciudades y facciones) sin construir
 static func get_level_definition(level_id: String) -> Dictionary:
-	if DailyRewards.is_challenge(level_id):
+	var mode := mode_of(level_id)
+	if mode == "daily":
 		return LevelGenerator.daily_challenge_definition(DailyRewards.challenge_day(level_id))
-	if LevelGenerator.is_conquest(level_id):
+	if mode == "conquest":
 		return LevelGenerator.conquest_definition(LevelGenerator.conquest_index(level_id))
-	if InvasionDatabase.is_invasion(level_id):
+	if mode == "invasion":
 		return InvasionDatabase.get_level_definition(level_id)
 	return _get_definitions().get(level_id, {})
 
 ## Ids de la campaña en orden de juego
 static func get_level_ids() -> Array:
-	return _get_definitions().keys()
+	_get_definitions()
+	return _level_ids
 
 static func _get_definitions() -> Dictionary:
 	if _definitions.is_empty():
 		_definitions = _build_levels()
+		_level_ids = _definitions.keys()
+		_level_ids.make_read_only()
 	return _definitions
 
 ## Dificultad normalizada 0.0 (primer nivel) .. 1.0 (último nivel de la campaña)
 static func get_difficulty(level_id: String) -> float:
-	if DailyRewards.is_challenge(level_id):
+	var mode := mode_of(level_id)
+	if mode == "daily":
 		return DailyRewards.CHALLENGE_DIFFICULTY
-	if LevelGenerator.is_conquest(level_id):
+	if mode == "conquest":
 		return LevelGenerator.conquest_difficulty(LevelGenerator.conquest_index(level_id))
-	if InvasionDatabase.is_invasion(level_id):
+	if mode == "invasion":
 		var region := InvasionDatabase.get_region(InvasionDatabase.get_region_of_level(level_id))
 		var front := InvasionDatabase.get_front_of_level(level_id)
 		return clampf((float(region.get("tier", 1)) - 1.0) / 4.0 + (front - 1) * 0.05, 0.0, 1.0)
@@ -118,21 +137,22 @@ static func get_difficulty(level_id: String) -> float:
 ## continente/expedición da un respiro; la dificultad geográfica sigue separada.
 static func get_balance(level_id: String) -> Dictionary:
 	var difficulty := get_difficulty(level_id)
+	var mode := mode_of(level_id)
 	var cadence := lerpf(4.0, 2.8, difficulty)
 	var grace := lerpf(22.0, 14.0, difficulty)
 	var production := lerpf(0.85, 0.95, difficulty)
 	var actions := 1 if difficulty < 0.3 else 2
 	var joint := 2 if difficulty < 0.85 else 3
-	if DailyRewards.is_challenge(level_id):
+	if mode == "daily":
 		cadence = 2.8
 		grace = 6.0
 		production = 1.0
-	elif LevelGenerator.is_conquest(level_id):
+	elif mode == "conquest":
 		if LevelGenerator.expedition_step(LevelGenerator.conquest_index(level_id)) == 1:
 			cadence += 0.4
 			grace += 3.0
 			production -= 0.05
-	elif InvasionDatabase.is_invasion(level_id):
+	elif mode == "invasion":
 		var front := InvasionDatabase.get_front_of_level(level_id)
 		if front == 1:
 			cadence += 0.4
@@ -192,8 +212,6 @@ static func _build_levels() -> Dictionary:
 		# ===================== EUROPA =====================
 		"europe_1": {
 			"id": "europe_1",
-			"name": "Nivel 1: Península Ibérica y Galia",
-			"description": "Aprende los conceptos básicos: captura las bases neutrales y vence al enemigo rojo.",
 			"target_time": 45,
 			"bases": [
 				{"id": "b1", "city": "madrid", "faction": GameManager.Faction.PLAYER, "troops": 35, "tier": 1},
@@ -204,8 +222,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"europe_2": {
 			"id": "europe_2",
-			"name": "Nivel 2: Europa Central",
-			"description": "Una red más densa de bases neutrales separa tu avance de Berlín y Roma.",
 			"target_time": 55,
 			"bases": [
 				{"id": "b1", "city": "lisbon", "faction": GameManager.Faction.PLAYER, "troops": 35, "tier": 1},
@@ -217,8 +233,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"europe_3": {
 			"id": "europe_3",
-			"name": "Nivel 3: Países Nórdicos",
-			"description": "Bases costeras con conexiones estratégicas.",
 			"target_time": 60,
 			"bases": [
 				{"id": "b1", "city": "amsterdam", "faction": GameManager.Faction.PLAYER, "troops": 32, "tier": 1},
@@ -230,8 +244,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"europe_4": {
 			"id": "europe_4",
-			"name": "Nivel 4: Balcanes y Mediterráneo",
-			"description": "Captura la fábrica de Estambul para reclutar más rápido. Después asegura la capital.",
 			"target_time": 65,
 			"bases": [
 				{"id": "b1", "city": "athens", "faction": GameManager.Faction.PLAYER, "troops": 35, "tier": 2},
@@ -243,8 +255,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"europe_5": {
 			"id": "europe_5",
-			"name": "Nivel 5: Capital Continental",
-			"description": "Reúne tus bases para vencer al primer jefe. Captura la fábrica antes de asediarlo.",
 			"target_time": 75,
 			"bases": [
 				{"id": "b1", "city": "madrid", "faction": GameManager.Faction.PLAYER, "troops": 40, "tier": 3},
@@ -259,8 +269,6 @@ static func _build_levels() -> Dictionary:
 		# ===================== AMÉRICA DEL NORTE =====================
 		"north_america_1": {
 			"id": "north_america_1",
-			"name": "Nivel 1: Costa Este",
-			"description": "Inicia la campaña americana asegurando Nueva York y Boston.",
 			"target_time": 50,
 			"bases": [
 				{"id": "b1", "city": "miami", "faction": GameManager.Faction.PLAYER, "troops": 25, "tier": 1},
@@ -270,8 +278,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"north_america_2": {
 			"id": "north_america_2",
-			"name": "Nivel 2: Grandes Llanuras",
-			"description": "Territorios amplios donde la velocidad de marcha es vital.",
 			"target_time": 55,
 			"bases": [
 				{"id": "b1", "city": "dallas", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
@@ -282,8 +288,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"north_america_3": {
 			"id": "north_america_3",
-			"name": "Nivel 3: Costa Oeste",
-			"description": "Batalla a tres facciones entre California y el Pacífico.",
 			"target_time": 60,
 			"bases": [
 				{"id": "b1", "city": "san_diego", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
@@ -295,8 +299,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"north_america_4": {
 			"id": "north_america_4",
-			"name": "Nivel 4: Gran Norte (Canadá)",
-			"description": "Grandes distancias y bases de alto nivel.",
 			"target_time": 70,
 			"bases": [
 				{"id": "b1", "city": "toronto", "faction": GameManager.Faction.PLAYER, "troops": 35, "tier": 2},
@@ -307,8 +309,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"north_america_5": {
 			"id": "north_america_5",
-			"name": "Nivel 5: Megalópolis Continental",
-			"description": "Conquista final de Norteamérica frente a dos ejércitos simultáneos.",
 			"target_time": 80,
 			"bases": [
 				{"id": "b1", "city": "mexico_city", "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
@@ -322,8 +322,6 @@ static func _build_levels() -> Dictionary:
 		# ===================== SUDAMÉRICA =====================
 		"south_america_1": {
 			"id": "south_america_1",
-			"name": "Nivel 1: Cono Sur",
-			"description": "Incursión en Sudamérica comenzando en Buenos Aires y Santiago.",
 			"target_time": 45,
 			"bases": [
 				{"id": "b1", "city": "buenos_aires", "faction": GameManager.Faction.PLAYER, "troops": 25, "tier": 1},
@@ -333,8 +331,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"south_america_2": {
 			"id": "south_america_2",
-			"name": "Nivel 2: Cordillera de los Andes",
-			"description": "Avance montañoso a través de bases estratégicas de altura.",
 			"target_time": 50,
 			"bases": [
 				{"id": "b1", "city": "santiago", "faction": GameManager.Faction.PLAYER, "troops": 25, "tier": 1},
@@ -346,8 +342,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"south_america_3": {
 			"id": "south_america_3",
-			"name": "Nivel 3: Cuenca del Amazonas",
-			"description": "Dos frentes rivales convergen hacia el control del gran río.",
 			"target_time": 60,
 			"bases": [
 				{"id": "b1", "city": "brasilia", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
@@ -359,8 +353,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"south_america_4": {
 			"id": "south_america_4",
-			"name": "Nivel 4: Frentes Cruzados",
-			"description": "Batalla intensa a tres ejércitos por la costa atlántica.",
 			"target_time": 65,
 			"bases": [
 				{"id": "b1", "city": "montevideo", "faction": GameManager.Faction.PLAYER, "troops": 35, "tier": 2},
@@ -372,8 +364,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"south_america_5": {
 			"id": "south_america_5",
-			"name": "Nivel 5: Dominio Continental",
-			"description": "Reúne tus tropas para conquistar Sudamérica frente a dos ejércitos rivales.",
 			"target_time": 80,
 			"bases": [
 				{"id": "b1", "city": "buenos_aires", "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
@@ -388,8 +378,6 @@ static func _build_levels() -> Dictionary:
 		# ===================== ÁFRICA =====================
 		"africa_1": {
 			"id": "africa_1",
-			"name": "Nivel 1: Delta del Nilo",
-			"description": "Desierto del Sáhara y el valle del Nilo.",
 			"target_time": 45,
 			"bases": [
 				{"id": "b1", "city": "alexandria", "faction": GameManager.Faction.PLAYER, "troops": 25, "tier": 1},
@@ -399,8 +387,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"africa_2": {
 			"id": "africa_2",
-			"name": "Nivel 2: Magreb y Desierto",
-			"description": "Bases costeras del norte de África y pasos caravaneros.",
 			"target_time": 50,
 			"bases": [
 				{"id": "b1", "city": "marrakesh", "faction": GameManager.Faction.PLAYER, "troops": 25, "tier": 1},
@@ -412,8 +398,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"africa_3": {
 			"id": "africa_3",
-			"name": "Nivel 3: Golfo de Guinea",
-			"description": "Alta densidad de bases y frentes convergentes en África Occidental.",
 			"target_time": 60,
 			"bases": [
 				{"id": "b1", "city": "accra", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
@@ -425,8 +409,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"africa_4": {
 			"id": "africa_4",
-			"name": "Nivel 4: Valle del Rift y Cuerno",
-			"description": "Lucha por los Grandes Lagos y el este del continente.",
 			"target_time": 65,
 			"bases": [
 				{"id": "b1", "city": "mombasa", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
@@ -438,8 +420,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"africa_5": {
 			"id": "africa_5",
-			"name": "Nivel 5: Unión Panafricana",
-			"description": "Asedio total a cuatro frentes desde el Cabo hasta el Mediterráneo.",
 			"target_time": 85,
 			"bases": [
 				{"id": "b1", "city": "cape_town", "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
@@ -454,8 +434,6 @@ static func _build_levels() -> Dictionary:
 		# ===================== ASIA =====================
 		"asia_1": {
 			"id": "asia_1",
-			"name": "Nivel 1: Ruta de la Seda",
-			"description": "Un vasto continente con alta densidad militar.",
 			"target_time": 50,
 			"bases": [
 				{"id": "b1", "city": "samarqand", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
@@ -465,8 +443,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"asia_2": {
 			"id": "asia_2",
-			"name": "Nivel 2: Subcontinente Indio",
-			"description": "Rápida expansión en una península populosa y disputada.",
 			"target_time": 55,
 			"bases": [
 				{"id": "b1", "city": "bengaluru", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
@@ -478,8 +454,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"asia_3": {
 			"id": "asia_3",
-			"name": "Nivel 3: Oriente Medio",
-			"description": "Encrucijada petrolífera y fortalezas desérticas.",
 			"target_time": 60,
 			"bases": [
 				{"id": "b1", "city": "muscat", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
@@ -491,8 +465,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"asia_4": {
 			"id": "asia_4",
-			"name": "Nivel 4: Dragones de Asia",
-			"description": "Guerra insular y costera de alta velocidad de marcha.",
 			"target_time": 70,
 			"bases": [
 				{"id": "b1", "city": "singapore", "faction": GameManager.Faction.PLAYER, "troops": 35, "tier": 2},
@@ -504,8 +476,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"asia_5": {
 			"id": "asia_5",
-			"name": "Nivel 5: Emperadores de Oriente",
-			"description": "El mayor enfrentamiento táctico del planeta: megabases imperiales.",
 			"target_time": 90,
 			"bases": [
 				{"id": "b1", "city": "kolkata", "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},
@@ -520,8 +490,6 @@ static func _build_levels() -> Dictionary:
 		# ===================== OCEANÍA =====================
 		"oceania_1": {
 			"id": "oceania_1",
-			"name": "Nivel 1: Arrecife de Coral",
-			"description": "Bases insulares en el Pacífico.",
 			"target_time": 45,
 			"bases": [
 				{"id": "b1", "city": "sydney", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
@@ -531,8 +499,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"oceania_2": {
 			"id": "oceania_2",
-			"name": "Nivel 2: Outback Australiano",
-			"description": "Inmensas extensiones desérticas donde cada movimiento cuenta.",
 			"target_time": 50,
 			"bases": [
 				{"id": "b1", "city": "adelaide", "faction": GameManager.Faction.PLAYER, "troops": 25, "tier": 1},
@@ -543,8 +509,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"oceania_3": {
 			"id": "oceania_3",
-			"name": "Nivel 3: Polinesia y Mares del Sur",
-			"description": "Guerra de islas que requiere coordinación de múltiples orígenes.",
 			"target_time": 60,
 			"bases": [
 				{"id": "b1", "city": "wellington", "faction": GameManager.Faction.PLAYER, "troops": 30, "tier": 2},
@@ -556,8 +520,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"oceania_4": {
 			"id": "oceania_4",
-			"name": "Nivel 4: Archipiélago Austral",
-			"description": "Doble frente agresivo en las grandes costas oceánicas.",
 			"target_time": 65,
 			"bases": [
 				{"id": "b1", "city": "hobart", "faction": GameManager.Faction.PLAYER, "troops": 35, "tier": 2},
@@ -569,8 +531,6 @@ static func _build_levels() -> Dictionary:
 		},
 		"oceania_5": {
 			"id": "oceania_5",
-			"name": "Nivel 5: Soberanía del Pacífico",
-			"description": "La culminación de la campaña mundial: vence a tres imperios insulares.",
 			"target_time": 85,
 			"bases": [
 				{"id": "b1", "city": "perth", "faction": GameManager.Faction.PLAYER, "troops": 45, "tier": 3},

@@ -6,6 +6,7 @@ class_name BattleHUD
 ## cierra con el progreso ganado y un único siguiente objetivo.
 
 const DOMINANCE_UPDATE_INTERVAL := 0.1
+const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 const XP_BAR_SECONDS := 0.8
 ## Segundos iniciales en los que la regla del nivel tiene prioridad sobre la cuenta atrás de apertura
 const RULE_INTRO_SECONDS := 8.0
@@ -518,7 +519,7 @@ func _open_settings(accessibility: bool = false) -> void:
 	if is_instance_valid(_utility_panel):
 		return
 	Telemetry.screen_opened("settings")
-	_utility_panel = load("res://scripts/ui/settings_panel.gd").new()
+	_utility_panel = SettingsPanel.new()
 	_utility_panel.allow_backups = false # No reemplazar una partida mientras su batalla vive.
 	_utility_panel.focus_accessibility_on_open = accessibility
 	var return_focus: Control = btn_accessibility if accessibility else btn_settings
@@ -628,8 +629,10 @@ func _update_objective() -> void:
 		text = LocaleStrings.text("medal_lost" if lost else "medal_goal")
 		color = UIThemeHelper.colors.muted if lost else UIThemeHelper.colors.gold
 	objective_label.visible = text != ""
-	objective_label.text = text
-	objective_label.add_theme_color_override("font_color", color)
+	if objective_label.text != text:
+		objective_label.text = text
+	if objective_label.get_theme_color("font_color") != color:
+		objective_label.add_theme_color_override("font_color", color)
 
 func _process(delta: float) -> void:
 	if battle_controller:
@@ -975,7 +978,7 @@ func _on_battle_lost() -> void:
 	if is_instance_valid(battle_controller) and battle_controller.defeat_gold > 0:
 		defeat_xp_label.text += "\n" + LocaleStrings.text("defeat_gold") % battle_controller.defeat_gold
 	var upgrade := GameManager.recommended_combat_upgrade(true)
-	var daily := is_instance_valid(battle_controller) and DailyRewards.is_challenge(battle_controller.level_id)
+	var daily := is_instance_valid(battle_controller) and LevelDatabase.mode_of(battle_controller.level_id) == "daily"
 	btn_defeat_upgrade.visible = upgrade != "" and not daily
 	if btn_defeat_upgrade.visible:
 		UIThemeHelper.set_icon(btn_defeat_upgrade, "bolt", 36)
@@ -1078,7 +1081,7 @@ func _on_retry_pressed() -> void:
 	_leave_battle()
 
 func _on_next_level_pressed() -> void:
-	if InvasionDatabase.is_invasion(battle_controller.level_id):
+	if LevelDatabase.mode_of(battle_controller.level_id) == "invasion":
 		var next_invasion := GameManager.next_invasion_level(battle_controller.level_id)
 		if next_invasion == "":
 			_on_map_pressed()
@@ -1086,7 +1089,7 @@ func _on_next_level_pressed() -> void:
 		GameManager.play_level(next_invasion)
 		_leave_battle()
 		return
-	if LevelGenerator.is_conquest(battle_controller.level_id):
+	if LevelDatabase.mode_of(battle_controller.level_id) == "conquest":
 		GameManager.play_conquest(LevelGenerator.conquest_index(battle_controller.level_id) + 1)
 		_leave_battle()
 		return
@@ -1101,9 +1104,9 @@ func _on_next_level_pressed() -> void:
 func exit_tab() -> String:
 	if not is_instance_valid(battle_controller):
 		return "play"
-	if DailyRewards.is_challenge(battle_controller.level_id):
+	if LevelDatabase.mode_of(battle_controller.level_id) == "daily":
 		return "challenges"
-	if InvasionDatabase.is_invasion(battle_controller.level_id):
+	if LevelDatabase.mode_of(battle_controller.level_id) == "invasion":
 		return "invasion"
 	return "play"
 

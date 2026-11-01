@@ -18,8 +18,8 @@ var _completed := false
 
 func _ready() -> void:
 	GameManager.save_path = "user://balance_test_save.json"
-	AudioManager.is_muted = true
-	AudioManager.music_muted = true
+	GameManager.sound_muted = true
+	GameManager.music_muted = true
 	if "--ui" in OS.get_cmdline_user_args():
 		GameManager.save_path = "user://balance_ui_test_save.json"
 		OS.low_processor_usage_mode = false

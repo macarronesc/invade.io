@@ -12,6 +12,9 @@ var _save_status: Label
 var _save_retry: Button
 var _vibration_slider: HSlider
 var _vibration_test: Button
+var _ios_picker: Object
+var _ios_importing := false
+var _ios_path := ""
 
 const BACKUP_FILTER := "*.json ; invade.io ; application/json"
 const IOS_IMPORT_PATH := "user://backup_import.json"
@@ -44,6 +47,9 @@ func _close() -> void:
 	AudioManager.play_click()
 	closed.emit()
 	queue_free()
+
+func _exit_tree() -> void:
+	_disconnect_ios_picker()
 
 func _build(restore_focus: String = "") -> void:
 	var saved_scroll := 0
@@ -232,7 +238,7 @@ func _slider(key: String) -> HSlider:
 	slider.value = GameManager.settings[key]
 	slider.custom_minimum_size.y = 128
 	slider.value_changed.connect(func(value):
-		GameManager.set_setting(key, value)
+		GameManager.set_setting(key, value, false)
 		update.call(value)
 		slider.accessibility_description = label.text
 		if key == "vibration_intensity":
@@ -282,6 +288,8 @@ func _on_android_file_selected(ok: bool, paths: PackedStringArray, _filter: int,
 		_show_result(_write_backup(paths[0]))
 
 func _choose_ios_file(importing: bool) -> void:
+	if is_instance_valid(_ios_picker):
+		return
 	if not Engine.has_singleton("BackupFilePicker"):
 		_show_result(ERR_UNAVAILABLE)
 		return
@@ -289,11 +297,7 @@ func _choose_ios_file(importing: bool) -> void:
 	if importing:
 		var path := ProjectSettings.globalize_path(IOS_IMPORT_PATH)
 		DirAccess.remove_absolute(path)
-		picker.connect("file_selected", func(selected_path): _confirm_import(selected_path, true), CONNECT_ONE_SHOT)
-		picker.connect("canceled", func(): DirAccess.remove_absolute(path), CONNECT_ONE_SHOT)
-		picker.connect("failed", func():
-			DirAccess.remove_absolute(path)
-			_show_result(ERR_CANT_OPEN), CONNECT_ONE_SHOT)
+		_connect_ios_picker(picker, true, path)
 		picker.call("pick_open", path)
 		return
 
@@ -302,14 +306,44 @@ func _choose_ios_file(importing: bool) -> void:
 	if error != OK:
 		_show_result(error)
 		return
-	picker.connect("exported", func():
-		DirAccess.remove_absolute(path)
-		_show_result(OK), CONNECT_ONE_SHOT)
-	picker.connect("canceled", func(): DirAccess.remove_absolute(path), CONNECT_ONE_SHOT)
-	picker.connect("failed", func():
-		DirAccess.remove_absolute(path)
-		_show_result(ERR_CANT_CREATE), CONNECT_ONE_SHOT)
+	_connect_ios_picker(picker, false, path)
 	picker.call("pick_export", path)
+
+func _connect_ios_picker(picker: Object, importing: bool, path: String) -> void:
+	_disconnect_ios_picker()
+	_ios_picker = picker
+	_ios_importing = importing
+	_ios_path = path
+	picker.connect("file_selected", _on_ios_file_selected)
+	picker.connect("exported", _on_ios_exported)
+	picker.connect("canceled", _on_ios_canceled)
+	picker.connect("failed", _on_ios_failed)
+
+func _disconnect_ios_picker() -> void:
+	if is_instance_valid(_ios_picker):
+		for entry in [["file_selected", _on_ios_file_selected], ["exported", _on_ios_exported], ["canceled", _on_ios_canceled], ["failed", _on_ios_failed]]:
+			_ios_picker.disconnect(entry[0], entry[1])
+	_ios_picker = null
+	if _ios_path != "":
+		DirAccess.remove_absolute(_ios_path)
+		_ios_path = ""
+
+func _on_ios_file_selected(path: String) -> void:
+	_ios_path = "" # Keep the imported temporary file until confirmation or cancellation.
+	_disconnect_ios_picker()
+	_confirm_import(path, true)
+
+func _on_ios_exported() -> void:
+	_disconnect_ios_picker()
+	_show_result(OK)
+
+func _on_ios_canceled() -> void:
+	_disconnect_ios_picker()
+
+func _on_ios_failed() -> void:
+	var error := ERR_CANT_OPEN if _ios_importing else ERR_CANT_CREATE
+	_disconnect_ios_picker()
+	_show_result(error)
 
 func _write_backup(path: String) -> Error:
 	var file := FileAccess.open(path, FileAccess.WRITE)

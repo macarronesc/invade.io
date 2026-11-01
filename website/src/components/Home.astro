@@ -1,0 +1,79 @@
+---
+import { Image } from 'astro:assets';
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { copy } from '../data/copy';
+import { media, type Language } from '../data/media';
+import project from '../generated/project.json';
+import { href, REPO, PLAY } from '../../scripts/site.mjs';
+
+interface Props { lang?: Language }
+const { lang = 'en' } = Astro.props;
+const t = copy[lang];
+const images = media(lang);
+const localized = (path: string) => href(`${lang === 'es' ? 'es/' : ''}${path}`);
+---
+<SiteLayout title={t.title} description={t.description} lang={lang}>
+  <section class="hero container" id="game" aria-labelledby="hero-title">
+    <div class="hero-copy">
+      <p class="eyebrow">{t.eyebrow}</p>
+      <h1 id="hero-title">{t.headline[0]} <span>{t.headline[1]}</span></h1>
+      <p class="lead">{t.intro}</p>
+      <div class="button-row">
+        <a class="button" href={PLAY}>{t.download} <span aria-hidden="true">↗</span></a>
+        <a class="button secondary" href={REPO}>{t.code} <span aria-hidden="true">↗</span></a>
+      </div>
+      <a class="fine-print" href={localized('download/')}>{t.platforms}</a>
+      <ul class="trust-line">{t.trust.map((item) => <li>{item}</li>)}</ul>
+    </div>
+    <div class="hero-art">
+      <div class="screenshot-frame">
+        <div class="frame-label"><span>{t.scene}</span><span>{t.sceneType}</span></div>
+        <Image src={images.hero} widths={[480, 800, 1200]} sizes="(max-width: 850px) 94vw, 52vw" format="webp" alt={lang === 'es' ? 'Tropas azules marchan desde Lisboa hacia Madrid, la capital fortificada, en una batalla de invasión.' : 'Blue troops march from Lisbon toward Madrid, the fortified capital, during an invasion battle.'} loading="eager" fetchpriority="high" />
+      </div>
+      <div class="tactical-note"><strong>{t.tacticTitle}</strong><span>{t.tacticBody}</span></div>
+    </div>
+  </section>
+  <div class="source-note"><p class="container fine-print">{t.source} <strong>{project.version}</strong>. {t.sourceEnd} <a href={href('docs/#project-status')}>{lang === 'es' ? 'Estado del proyecto (inglés)' : 'Project status'}</a></p></div>
+  <div class="stats container">{t.stats.map(([value, label]) => <div class="stat"><strong>{value}</strong><span>{label}</span></div>)}</div>
+
+  <section class="section container" id="how-to-play" aria-labelledby="controls-title">
+    <div class="section-heading"><div><p class="eyebrow">{t.controlsLabel}</p><h2 id="controls-title">{t.controlsTitle}</h2></div><p>{t.controlsIntro}</p></div>
+    <div class="cards">{t.steps.map(([title, body], index) => <article class="card">
+      <span class="card-number">0{index + 1}</span><h3>{title}</h3><p>{body}</p>
+      <div class="order-diagram" aria-hidden="true"><span class="base">{index === 1 ? '24' : '32'}</span><span class="route"></span>{index === 1 && <><span class="base">18</span><span class="route"></span></>}<span class:list={['base', { enemy: index !== 2 }]}>{index === 2 ? '12' : '16'}</span></div>
+    </article>)}</div>
+    <p class="diagram-note">{t.diagramNote}</p><a href={href('docs/gameplay/')}>{t.controlsLink} <span aria-hidden="true">→</span></a>
+  </section>
+
+  <section class="section container split" aria-labelledby="tactics-title">
+    <div><p class="eyebrow">{t.tacticsLabel}</p><h2 id="tactics-title">{t.tacticsTitle}</h2><p class="lead">{t.tacticsIntro}</p><ul class="feature-list">{t.tactics.map(([title, body]) => <li><strong>{title}</strong><span>{body}</span></li>)}</ul></div>
+    <div class="screenshot-frame"><Image src={images.gallery[1].image} widths={[320, 540, 800]} sizes="(max-width: 580px) 94vw, 44vw" format="webp" alt={images.gallery[1].alt} loading="lazy" /></div>
+  </section>
+
+  <section class="section container" id="modes" aria-labelledby="modes-title">
+    <div class="section-heading"><div><p class="eyebrow">{t.modesLabel}</p><h2 id="modes-title">{t.modesTitle}</h2></div><p>{t.modesIntro}</p></div>
+    <div class="mode-grid">{t.modes.map(([tag, title, body]) => <article class="card"><div><span class="mode-tag">{tag}</span><h3>{title}</h3></div><p>{body}</p></article>)}</div>
+  </section>
+
+  <section class="section container split" aria-labelledby="progress-title">
+    <div class="screenshot-frame"><Image src={images.atlas} widths={[480, 800, 1200]} sizes="(max-width: 580px) 94vw, 46vw" format="webp" alt={t.atlasAlt} loading="lazy" /></div>
+    <div><p class="eyebrow">{t.progressLabel}</p><h2 id="progress-title">{t.progressTitle}</h2><p class="lead">{t.progressBody}</p><p class="fine-print">{t.progressNote}</p></div>
+  </section>
+
+  <section class="section container" id="gallery" aria-labelledby="gallery-title">
+    <div class="section-heading"><div><p class="eyebrow">{t.galleryLabel}</p><h2 id="gallery-title">{t.galleryTitle}</h2></div><p>{t.galleryIntro}</p></div>
+    <div class="gallery">{images.gallery.map((item) => <figure><a href={item.image.src} aria-label={`${item.headline} — ${lang === 'es' ? 'ver imagen completa' : 'view full screenshot'}`}><Image src={item.image} widths={[240, 400, 640]} sizes="(max-width: 850px) 44vw, 23vw" format="webp" alt={item.alt} loading="lazy" /></a><figcaption>{item.headline}</figcaption></figure>)}</div>
+    <p class="fine-print">{t.galleryNote}</p>
+  </section>
+
+  <section class="section container" id="open-source" aria-labelledby="open-title"><div class="open-source">
+    <p class="eyebrow">{t.openLabel}</p><h2 id="open-title">{t.openTitle}</h2><p class="lead">{t.openBody}</p>
+    <div class="button-row"><a class="button" href={localized('community/')}>{t.contribute} <span aria-hidden="true">→</span></a><a class="button secondary" href={href('docs/')}>{t.docs}</a></div>
+  </div></section>
+
+  <section class="section container faq" id="faq" aria-labelledby="faq-title">
+    <div><p class="eyebrow">{t.faqLabel}</p><h2 id="faq-title">{t.faqTitle}</h2><a href={href('privacy-policy.html')}>{lang === 'es' ? 'Política de privacidad (inglés)' : 'Read the privacy policy'}</a></div>
+    <div>{t.faq.map(([question, answer]) => <details><summary>{question}</summary><p>{answer}</p></details>)}</div>
+  </section>
+  <section class="closing container" aria-labelledby="closing-title"><h2 id="closing-title">{t.closingTitle}</h2><p class="lead">{t.closingBody}</p><div class="button-row"><a class="button" href={PLAY}>{t.download} <span aria-hidden="true">↗</span></a><a class="button secondary" href={localized('community/')}>{lang === 'es' ? 'Conocer la comunidad' : 'Meet the project'}</a></div></section>
+</SiteLayout>

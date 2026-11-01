@@ -1,0 +1,45 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { href, REPO, PLAY } from '../../scripts/site.mjs';
+import type { Language } from '../data/media';
+
+interface Props { lang?: Language }
+const { lang = 'en' } = Astro.props;
+const es = lang === 'es';
+const t = es ? {
+  title: 'Elige cómo empezar.', description: 'Descarga invade.io desde Google Play o consulta las versiones de prueba para Android e iOS y la ejecución local con Godot.',
+  label: 'Descargas y plataformas', intro: 'Google Play es la vía principal para jugar en Android. Las versiones de prueba y el código están disponibles para quienes quieran explorar el proyecto.',
+  cards: [
+    ['Para jugar', 'Android · Google Play', 'Instala el juego desde su ficha oficial. Consulta allí la versión, los requisitos y la disponibilidad para tu dispositivo.', 'Abrir Google Play', PLAY, 'La ficha de tienda es la referencia de distribución. Una release de GitHub no confirma una publicación en Play.'],
+    ['Para probar', 'Android · APK Debug', 'Las releases de GitHub incluyen un APK de prueba con un identificador de aplicación distinto. No actualiza la instalación de Google Play y utiliza un guardado separado.', 'Ver releases de GitHub', `${REPO}/releases`, 'Instala solo archivos de confianza y comprueba su resumen SHA-256 en GitHub. Exporta una copia del progreso antes de cambiar de instalación.'],
+    ['Pruebas con SideStore', 'iPhone · IPA sin firmar', 'Los IPA de GitHub están destinados a pruebas mediante SideStore, que aplica la firma con tu cuenta. No son versiones de App Store ni TestFlight.', 'Leer la guía de instalación (inglés)', href('docs/platforms/#iphone-with-sidestore'), 'Requiere iOS 15 o superior y la configuración y renovación que indique SideStore.'],
+    ['Para desarrollar', 'Linux y macOS · Godot', 'Clona el código y ejecuta el proyecto con el editor estándar de Godot 4.7.2. No necesitas un backend ni credenciales de las tiendas.', 'Ejecutar el proyecto (inglés)', href('docs/development/'), 'No se ofrecen paquetes de escritorio. Los exports de Windows y web no están integrados.'],
+  ],
+  safety: 'Antes de instalar una versión de prueba',
+  safetyBody: 'Tu progreso se guarda localmente. Las instalaciones de prueba no comparten el guardado de Google Play. Desinstalar puede borrar datos y no hay recuperación en la nube: guarda primero una copia desde Ajustes → Datos.',
+  formats: '¿APK, AAB o IPA?', formatsBody: 'El APK Debug sirve para pruebas en Android. El AAB está destinado al mantenedor para subirlo a Play Console: no es un instalador directo. El IPA sin firmar necesita el proceso de SideStore.',
+  privacy: 'Privacidad y controles', privacyBody: 'En el código documentado, las estadísticas y los informes de fallos empiezan activados; se respetan las preferencias guardadas. Se pueden desactivar por separado en Ajustes → Privacidad. Comprueba el comportamiento de la versión que instales.',
+  policy: 'Leer la política de privacidad (inglés)', guide: 'Plataformas, requisitos y verificaciones (inglés)',
+} : {
+  title: 'Choose your starting point.', description: 'Get invade.io on Google Play, explore Android and iOS test builds, or run the open-source Godot project locally.',
+  label: 'Downloads & platforms', intro: 'Google Play is the main way to play on Android. Test builds and the source are here for anyone who wants to explore the project.',
+  cards: [
+    ['For players', 'Android · Google Play', 'Install from the official listing. Check it for the distributed version, requirements and availability on your device.', 'Open Google Play', PLAY, 'The store listing is the distribution reference. A GitHub release does not confirm a Play rollout.'],
+    ['For testers', 'Android · Debug APK', 'GitHub releases include a test APK with a separate application identifier. It does not update your Google Play installation and uses a separate save.', 'Browse GitHub releases', `${REPO}/releases`, 'Only install files you trust and check their SHA-256 digests on GitHub. Export a backup before changing installations.'],
+    ['SideStore testing', 'iPhone · Unsigned IPA', 'GitHub IPAs are for SideStore testing. SideStore signs with your account; these are not App Store or TestFlight releases.', 'Read the installation guide', href('docs/platforms/#iphone-with-sidestore'), 'Requires iOS 15 or later and SideStore’s current setup and renewal process.'],
+    ['For contributors', 'Linux & macOS · Godot', 'Clone the source and run it with the standard Godot 4.7.2 editor. No backend or store credentials required.', 'Run the project locally', href('docs/development/'), 'There are no packaged desktop releases. Windows and Web exports are not integrated.'],
+  ],
+  safety: 'Before installing a test build',
+  safetyBody: 'Your progress is stored locally. Test installations do not share the Google Play save. Uninstalling can erase data and there is no cloud recovery: export a backup in Settings → Data first.',
+  formats: 'APK, AAB, or IPA?', formatsBody: 'The Debug APK is for Android testing. The AAB is a maintainer’s Play Console upload bundle, not a directly installable file. Unsigned IPAs need the SideStore installation process.',
+  privacy: 'Privacy & controls', privacyBody: 'In the documented source, usage statistics and crash reports start enabled; saved preferences are respected. Disable either separately in Settings → Privacy. Check the behavior of the version you install.',
+  policy: 'Read the privacy policy', guide: 'Platform requirements & verification',
+};
+---
+<SiteLayout title={t.title} description={t.description} lang={lang} page="download/">
+  <div class="container">
+    <header class="page-intro"><p class="eyebrow">{t.label}</p><h1>{t.title}</h1><p class="lead">{t.intro}</p></header>
+    <section class="platform-grid" aria-label={es ? 'Opciones de instalación' : 'Installation options'}>{t.cards.map(([tag, title, body, label, url, note], index) => <article class:list={['card', { 'primary-card': index === 0 }]}><span class="mode-tag">{tag}</span><h2 class="platform-title">{title}</h2><p>{body}</p><div class="button-row"><a class:list={['button', { secondary: index !== 0 }]} href={url}>{label} <span aria-hidden="true">↗</span></a></div><p class="fine-print">{note}</p></article>)}</section>
+    <section class="section prose"><h2>{t.safety}</h2><p>{t.safetyBody}</p><h2>{t.formats}</h2><p>{t.formatsBody}</p><p><a href={href('docs/platforms/')}>{t.guide} →</a></p><h2>{t.privacy}</h2><p>{t.privacyBody}</p><a href={href('privacy-policy.html')}>{t.policy} →</a></section>
+  </div>
+</SiteLayout>

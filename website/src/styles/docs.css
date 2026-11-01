@@ -1,0 +1,23 @@
+@import './tokens.css';
+
+:root {
+  --sl-font: var(--body);
+  --sl-color-accent-low: #14365a;
+  --sl-color-accent: #3b9eff;
+  --sl-color-accent-high: #c4e3ff;
+  --sl-color-black: #101b2a;
+}
+:root[data-theme='light'] {
+  --sl-color-accent-low: #dcedff;
+  --sl-color-accent: #1367b8;
+  --sl-color-accent-high: #0c4275;
+  --sl-color-black: #fff;
+}
+.site-title, h1, h2, h3 { font-family: var(--display); font-weight: 600; }
+.site-title img { border-radius: 0.6rem; }
+.sl-markdown-content { overflow-wrap: anywhere; }
+.sl-markdown-content table { font-size: 0.94rem; }
+.architecture-diagram { overflow-x: auto; padding: 1rem; background: #f3f7fc; border-radius: 1rem; color: #14283e; }
+.architecture-diagram svg { max-width: 100%; height: auto; min-width: 34rem; }
+.architecture-diagram figcaption { font-size: 0.85rem; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }

@@ -5,12 +5,15 @@ class CameraHarness extends BattleController:
 
 class SentryStub extends RefCounted:
 	var options := {}
+	var tags := {}
 	var enabled := false
 	func init(configure: Callable) -> void:
 		configure.call(options)
 		enabled = true
 	func is_enabled() -> bool:
 		return enabled
+	func set_tag(key: String, value: String) -> void:
+		tags[key] = value
 	func close() -> void:
 		enabled = false
 
@@ -20,6 +23,48 @@ class TelemetryHarness extends "res://scripts/autoload/telemetry.gd":
 		return false
 	func _sentry() -> Object:
 		return sdk
+
+class CandidateTelemetryHarness extends "res://scripts/autoload/telemetry.gd":
+	var sdk := SentryStub.new()
+	func _is_test_runtime() -> bool:
+		return false
+	func _is_size_candidate() -> bool:
+		return true
+	func _sentry() -> Object:
+		return sdk
+
+class AchievementMemoHarness extends "res://scripts/autoload/achievement_manager.gd":
+	var calls := {}
+	func get_stat(stat: String) -> int:
+		calls[stat] = calls.get(stat, 0) + 1
+		return 0
+
+class SaveCountingHarness extends "res://scripts/autoload/game_manager.gd":
+	var writes := 0
+	func _ready() -> void: pass
+	func _write_save_text(path: String, text: String) -> Error:
+		writes += 1
+		return super._write_save_text(path, text)
+
+class RebuildCountingHarness extends ScrollPage:
+	var builds := 0
+	func _build() -> void:
+		builds += 1
+
+class PickerStub extends RefCounted:
+	signal file_selected(path: String)
+	signal exported()
+	signal canceled()
+	signal failed()
+
+class PickerHarness extends "res://scripts/ui/settings_panel.gd":
+	var imported := ""
+	var results := []
+	func _ready() -> void: pass
+	func _confirm_import(path: String, _temporary: bool = false) -> void:
+		imported = path
+	func _show_result(error: Error) -> void:
+		results.append(error)
 
 ## TestRunner: Suite de pruebas de validación automatizada de mecánicas State.io
 
@@ -46,10 +91,33 @@ func _ready() -> void:
 	for preset in ["preset.0", "preset.1", "preset.2", "preset.3"]:
 		assert_true(not str(presets.get_value(preset, "custom_features", "")).split(",", false).has("aptabase_release"),
 			"La telemetría sigue el tipo de compilación, no el preset: " + preset)
+		var excluded := str(presets.get_value(preset, "exclude_filter", ""))
+		for artwork in ["assets/brand/icon-*.png", "assets/brand/adaptive-*.png", "assets/brand/play-store-icon-512.png"]:
+			assert_true(excluded.split(",").has(artwork), "El arte nativo no se duplica en el pack: " + preset + " " + artwork)
+		assert_true(not excluded.contains("boot_splash") and not excluded.contains("icon.svg"), "El logo y splash del juego se conservan")
+	for preset in ["preset.0.options", "preset.3.options"]:
+		for density in ["2x", "3x"]:
+			assert_equals(presets.get_value(preset, "storyboard/custom_image@" + density, ""), "",
+				"iOS hereda la imagen transparente sin un logo nativo personalizado: " + preset + " " + density)
+	for preset in ["preset.1.options", "preset.2.options"]:
+		assert_equals(presets.get_value(preset, "splash_screen/icon", ""),
+			ProjectSettings.get_setting("application/boot_splash/image"), "Android usa la imagen transparente, no el icono estático: " + preset)
+		assert_equals(presets.get_value(preset, "splash_screen/background_color", Color()),
+			ProjectSettings.get_setting("application/boot_splash/bg_color"), "El fondo nativo coincide con el arranque de Godot: " + preset)
+		assert_equals(presets.get_value(preset, "screen/background_color", Color()),
+			ProjectSettings.get_setting("application/boot_splash/bg_color"), "Android no cambia a negro entre el splash y Godot: " + preset)
+		assert_true(presets.get_value(preset, "architectures/arm64-v8a", false), "Android mantiene arm64: " + preset)
+		for arch in ["armeabi-v7a", "x86", "x86_64"]:
+			assert_true(not presets.get_value(preset, "architectures/" + arch, true), "Android no añade ABIs por defecto: " + arch)
 	assert_true(not ProjectSettings.get_setting("sentry/options/auto_init", true),
 		"Sentry espera a cargar los ajustes de privacidad antes de inicializarse")
 
 	await test_mobile_experience()
+	await test_launch_overlay()
+	test_optimization_caches()
+	await test_save_optimizations()
+	await test_performance_regressions()
+	test_music_disk_cache()
 	if "--mobile" in OS.get_cmdline_user_args():
 		await test_settings_and_backups()
 	elif "--quick" in OS.get_cmdline_user_args():
@@ -72,6 +140,7 @@ func _ready() -> void:
 		test_toast_notifications()
 		test_achievements_system()
 		test_telemetry_schema_and_privacy()
+		test_candidate_telemetry_is_tagged()
 		test_play_tab_campaign_route_and_briefing()
 		test_large_screen_layouts()
 		test_invasion_mode()
@@ -298,6 +367,290 @@ func run_all_tests() -> void:
 	test_packet_combat_and_migration()
 	test_campaign_balance_and_rewards()
 	test_telemetry_schema_and_privacy()
+	test_candidate_telemetry_is_tagged()
+
+func test_optimization_caches() -> void:
+	var saved := GameManager.save_data().duplicate(true)
+	var cached_levels := LevelDatabase._built.size()
+	for lang in LanguageCatalog.codes():
+		GameManager.language = lang
+		for id in LevelDatabase.get_level_ids():
+			assert_equals(LevelDatabase.level_name(id), LocaleStrings.text("level_%s_name" % id), "Lightweight campaign label: %s/%s" % [lang, id])
+	assert_equals(LevelDatabase._built.size(), cached_levels, "Reading campaign labels never builds geography")
+	assert_true(LevelDatabase.get_level_ids().is_read_only(), "Cached campaign order cannot be modified by a caller")
+	for packet in Troop.MAX_PACKETS:
+		for dots in range(1, Troop.MAX_DOTS + 1):
+			var expected := PackedVector2Array()
+			for j in dots:
+				expected.append(Troop.formation_offset(j, dots, packet))
+			assert_equals(Troop._formation_offsets(dots, packet), expected, "Cached formation preserves every offset: %d/%d" % [packet, dots])
+	assert_equals(Troop._formations.size(), Troop.MAX_PACKETS * Troop.MAX_DOTS, "Formation cache is bounded by packet and dot counts")
+	var canvas := Node2D.new()
+	Troop.draw_packet(canvas, Vector2.ZERO, 0, Color.WHITE, "troop_classic")
+	canvas.free()
+	assert_equals(Troop._formations.size(), Troop.MAX_PACKETS * Troop.MAX_DOTS, "Drawing an empty preview does not create a formation")
+	GameManager.achievements.clear()
+	var memo := AchievementMemoHarness.new()
+	memo.check_all()
+	assert_equals(memo.calls["invasion_regions"], 1, "Shared achievement statistics are evaluated once per check")
+	memo.check_all()
+	assert_equals(memo.calls["invasion_regions"], 2, "Achievement memoization never survives a check")
+	memo.calls.clear()
+	for stat in ["biggest_stream", "chain_max", "bases_captured", "retreats"]:
+		memo.check_all(stat)
+	assert_equals(memo.calls.size(), 4, "Battle events only evaluate the four affected statistics")
+	assert_true(not memo.calls.has("invasion_regions"), "Attacking never scans invasion progress")
+	assert_equals(memo.calls["bases_captured"], 1, "Related capture achievements still share a statistic")
+	memo.free()
+	var base := BaseNode.new()
+	var map := TerritoryMap2D.new()
+	map.generate_map([base], Rect2(0, 0, 300, 300))
+	assert_equals(map.cells[0].outlines[0], TerritoryMap2D._closed(map.cells[0].pieces[0]), "Cached territory outline has identical vertices")
+	map.generate_map([base], Rect2(0, 0, 200, 200))
+	assert_equals(map.cells[0].outlines.size(), 1, "Relayout replaces rather than appends cached outlines")
+	base.free()
+	map.free()
+	var troop := Troop.new()
+	for distance in [0.0, 100.0, 900.0]:
+		for radius in [50.0, 80.0]:
+			troop._set_path(Vector2.ZERO, Vector2(distance, 0), radius)
+			var travel := maxf(10.0, distance - radius * 0.45)
+			assert_equals(troop.arrival_dist, travel, "Shared arrival distance preserves short and long routes")
+			for units in [1, 5, 50]:
+				for speed in [Troop.BASE_SPEED, Troop.BASE_SPEED * 2.0]:
+					assert_equals(Troop.arrival_seconds(distance, radius, units, speed), travel / speed + Troop.emission_seconds(units, speed), "AI and player preview keep the original arrival formula")
+	troop.free()
+	GameManager._apply_save(saved)
+
+func test_save_optimizations() -> void:
+	var saved := GameManager.save_data().duplicate(true)
+	var manager := SaveCountingHarness.new()
+	add_child(manager)
+	var path := "user://test_batched_save.json"
+	manager.save_path = path
+	for suffix in ["", ".previous", ".tmp"]:
+		DirAccess.remove_absolute(path + suffix)
+	manager.coins = 321
+	assert_equals(manager.save_game(), OK, "Initial save is synchronous")
+	var original_text := FileAccess.get_file_as_string(path)
+	manager.coins = 654
+	manager.save_game()
+	assert_equals(FileAccess.get_file_as_string(path + ".previous"), original_text, "Recovery preserves the original serialized bytes")
+	manager.writes = 0
+	assert_equals(manager.save_game(), OK, "An unchanged save succeeds without rewriting files")
+	assert_equals(manager.writes, 0, "Unchanged saves perform no writes")
+	assert_equals(int(manager._read_save(path + ".previous")["data"]["coins"]), 321, "No-op saves preserve the distinct recovery point")
+	manager.begin_save_batch()
+	manager.coins = 700
+	manager.save_game()
+	manager.begin_save_batch()
+	manager.coins = 800
+	manager.save_game()
+	manager.end_save_batch()
+	assert_equals(manager.writes, 0, "Nested action batches do not write partial rewards")
+	assert_equals(manager.end_save_batch(), OK, "The outer action commits synchronously")
+	assert_equals(manager.writes, 2, "An action writes one recovery file and one primary file")
+	assert_equals(int(manager._read_save(path)["data"]["coins"]), 800, "The complete action is persisted")
+	manager.writes = 0
+	manager.coins = 900
+	manager.request_save()
+	manager.coins = 1000
+	manager.request_save()
+	await get_tree().process_frame
+	assert_equals(manager.writes, 0, "Slider changes do not write during the gesture")
+	await get_tree().create_timer(GameManager.SAVE_DELAY + 0.1, true, false, true).timeout
+	assert_equals(manager.writes, 2, "Repeated slider requests share one write after settling")
+	assert_equals(int(manager._read_save(path)["data"]["coins"]), 1000, "Deferred saves persist the latest value")
+	manager.writes = 0
+	manager.coins = 1100
+	manager.request_save()
+	manager._notification(NOTIFICATION_APPLICATION_FOCUS_OUT)
+	assert_equals(int(manager._read_save(path)["data"]["coins"]), 1100, "Backgrounding flushes pending slider changes immediately")
+	await get_tree().process_frame
+	assert_equals(manager.writes, 2, "A queued callback cannot repeat a lifecycle save")
+	var changes := []
+	var changed := func(): changes.append(true)
+	EventBus.settings_changed.connect(changed)
+	for key in ["volume", "music_volume", "vibration_intensity"]:
+		manager.set_setting(key, 0.5)
+	assert_equals(changes.size(), 0, "Audio and haptic sliders do not rebuild the battle presentation")
+	manager.set_setting("colorblind", true)
+	assert_equals(changes.size(), 1, "Visual settings still notify all presentation listeners")
+	EventBus.settings_changed.disconnect(changed)
+	manager.begin_save_batch()
+	manager.coins += 1
+	manager.save_game()
+	DirAccess.make_dir_absolute(path + ".tmp")
+	assert_true(manager.end_save_batch() != OK and manager.save_error != OK, "A batched write failure is reported at commit")
+	DirAccess.remove_absolute(path + ".tmp")
+	assert_equals(manager.save_game(), OK, "Failed action saves can be retried")
+	var future := manager.save_data().duplicate(true)
+	future["version"] = GameManager.SAVE_VERSION + 1
+	manager.write_save(path, future)
+	manager.writes = 0
+	assert_equals(manager.save_game(), ERR_UNAVAILABLE, "Even a no-op save validates the on-disk version")
+	assert_equals(manager.writes, 0, "Save optimization cannot overwrite a future version")
+	manager.free()
+	for suffix in ["", ".previous", ".tmp"]:
+		DirAccess.remove_absolute(path + suffix)
+	GameManager._apply_save(saved)
+
+func test_performance_regressions() -> void:
+	var saved := GameManager.save_data().duplicate(true)
+	var disc := Icons.texture("disc", 256)
+	assert_true(disc == Icons.texture("disc", 256), "All circles share one cached texture")
+	var image := disc.get_image()
+	assert_true(image.get_pixel(128, 128).is_equal_approx(Color.WHITE) and image.get_pixel(0, 0).a == 0.0, "Batched discs retain an opaque centre and transparent corners")
+	var square := PackedVector2Array([Vector2.ZERO, Vector2(20, 0), Vector2(20, 20), Vector2(0, 20)])
+	var shifted := PackedVector2Array([Vector2(50, 0), Vector2(70, 0), Vector2(70, 20), Vector2(50, 20)])
+	var merged := FilledPolygon.build_all([square, shifted])
+	assert_equals(merged.size(), 1, "Disconnected land pieces use one draw command")
+	assert_equals(merged[0].points, square + shifted, "Merging retains every land vertex in order")
+	var expected := Geometry2D.triangulate_polygon(square)
+	for index in Geometry2D.triangulate_polygon(shifted):
+		expected.append(index + square.size())
+	assert_equals(merged[0].indices, expected, "Merged triangles keep their topology and receive the correct index offset")
+	assert_true(FilledPolygon.build_all([PackedVector2Array()]).is_empty(), "Empty geometry creates no draw commands")
+	var geo := {"land": [square, shifted], "borders": []}
+	var silhouette := GeoSilhouette.new()
+	silhouette.set_geography(geo, Color.WHITE)
+	var fill: FilledPolygon = geo["fills"][0]
+	silhouette.set_geography(geo, Color.RED)
+	assert_true(silhouette._fills[0] == fill and silhouette._outlines.size() == 2, "Menu rebuilds reuse fills and outlines")
+	var base := BaseNode.new()
+	var map := TerritoryMap2D.new()
+	map.generate_map([base], Rect2(0, 0, 100, 100), geo)
+	assert_true(map._land_fills[0] == fill, "Battle setup reuses the same pretriangulated land")
+	map.generate_map([base], Rect2(0, 0, 100, 100))
+	assert_true(not map.cells[0].fills.is_empty(), "Abstract maps retain their territorial fill")
+	for node in [silhouette, base, map]:
+		node.free()
+	for item in CosmeticsDatabase.ITEMS:
+		assert_equals(CosmeticsDatabase.get_by_id(item["id"]), item, "Indexed cosmetic lookup preserves " + item["id"])
+	assert_true(CosmeticsDatabase.get_by_id("missing").is_empty(), "Unknown cosmetics keep the empty result")
+	GameManager.settings["colorblind"] = false
+	GameManager.settings["high_contrast_map"] = false
+	GameManager.cosmetics_equipped["army_color"] = "color_pink"
+	assert_equals(GameManager.faction_color(GameManager.Faction.PLAYER), CosmeticsDatabase.get_by_id("color_pink")["color"], "Indexed colours reflect equipment immediately")
+	GameManager.settings["colorblind"] = true
+	assert_equals(GameManager.faction_color(GameManager.Faction.PLAYER), GameManager.ACCESSIBLE_FACTION_COLORS[GameManager.Faction.PLAYER], "Accessible faction colours still take priority")
+	var page := RebuildCountingHarness.new()
+	add_child(page)
+	page.request_rebuild()
+	page.request_rebuild()
+	EventBus.coins_updated.emit(GameManager.coins)
+	await get_tree().process_frame
+	assert_equals(page.builds, 2, "Cosmetics and coins coalesce into one rebuild after the initial build")
+	page.free()
+	GameManager._apply_save({})
+	GameManager.application_active = true
+	GameManager.settings["reduced_motion"] = false
+	for id in LevelDatabase.get_continent_level_ids("europe"):
+		GameManager.completed_levels[id] = 3
+	var menu: MainMenuUI = load(MainMenuUI.SCENE).instantiate()
+	add_child(menu)
+	var touch := InputEventScreenTouch.new()
+	touch.pressed = true
+	for tab in ["play", "invasion"]:
+		menu.show_tab(tab)
+		var animated = menu._content.get_child(0)
+		animated._process(5.1)
+		assert_true(not animated.is_processing(), "Menu animation sleeps after inactivity: " + tab)
+		animated._input(touch)
+		assert_true(animated.is_processing(), "Touch restarts menu animation: " + tab)
+		GameManager.settings["reduced_motion"] = true
+		animated._wake_animation()
+		assert_true(not animated.is_processing(), "Reduced motion disables menu processing: " + tab)
+		GameManager.settings["reduced_motion"] = false
+		animated._wake_animation()
+	menu._open_settings()
+	assert_true(not menu._content.get_child(0).can_process(), "Settings suspends the covered menu")
+	menu._utility_panel._close()
+	assert_true(menu._content.get_child(0).can_process(), "Closing settings restores the menu")
+	var invasion: InvasionPage = menu._content.get_child(0)
+	var original_map := invasion.map_container
+	var original_detail := invasion.detail_card
+	var target := invasion._map_region_ids[1]
+	invasion.region_buttons[target].grab_focus()
+	invasion._select_region(target)
+	assert_true(invasion.map_container == original_map and invasion.detail_card == original_detail, "Region selection reuses the map and detail container")
+	assert_equals(invasion.selected_region, target, "Region selection still updates the selected region")
+	assert_true(invasion.region_buttons[target].button_pressed and invasion.front_buttons.size() == 3, "Region selection refreshes its button and all three fronts")
+	assert_true(invasion.region_buttons[target].has_focus(), "Region selection preserves accessible keyboard focus")
+	menu.free()
+	var picker := PickerStub.new()
+	var panel := PickerHarness.new()
+	add_child(panel)
+	var path := "user://test_picker_temp.json"
+	for outcome in ["canceled", "failed", "exported", "file_selected"]:
+		var temporary := FileAccess.open(path, FileAccess.WRITE)
+		temporary.store_string("temporary backup")
+		temporary.close()
+		panel._connect_ios_picker(picker, outcome == "file_selected", path)
+		if outcome == "file_selected":
+			picker.file_selected.emit(path)
+			assert_equals(panel.imported, path, "iOS import is delivered exactly once")
+			assert_true(FileAccess.file_exists(path), "Imported temporary data survives until confirmation")
+		else:
+			picker.emit_signal(outcome)
+			assert_true(not FileAccess.file_exists(path), "iOS completion cleans temporary data: " + outcome)
+		for signal_name in ["file_selected", "exported", "canceled", "failed"]:
+			assert_true(picker.get_signal_connection_list(signal_name).is_empty(), "iOS completion disconnects every sibling handler: " + signal_name)
+	panel._connect_ios_picker(picker, false, path)
+	panel.free()
+	assert_true(picker.get_signal_connection_list("failed").is_empty(), "Closing the panel disconnects a pending native picker")
+	DirAccess.remove_absolute(path)
+	GameManager._apply_save(saved)
+
+func test_music_disk_cache() -> void:
+	var directory := "user://test_music_cache"
+	DirAccess.make_dir_recursive_absolute(directory)
+	for track in MusicSynth.TRACKS:
+		var path := MusicSynth._cache_path(track, directory)
+		DirAccess.remove_absolute(path)
+		var obsolete := directory.path_join(track + "-obsolete.wav")
+		var old_file := FileAccess.open(obsolete, FileAccess.WRITE)
+		old_file.store_string("old synthesis version")
+		old_file.close()
+		var start := Time.get_ticks_usec()
+		var cold := MusicSynth.load_or_render_track(track, directory)
+		var cold_ms := (Time.get_ticks_usec() - start) / 1000.0
+		assert_true(FileAccess.file_exists(path), "A generated music track is cached on disk: " + track)
+		assert_true(not FileAccess.file_exists(obsolete), "Replacing a track removes obsolete versions: " + track)
+		start = Time.get_ticks_usec()
+		var warm := MusicSynth.load_or_render_track(track, directory)
+		var warm_ms := (Time.get_ticks_usec() - start) / 1000.0
+		assert_equals(warm.data, cold.data, "Cached music preserves every PCM byte: " + track)
+		assert_equals([warm.format, warm.mix_rate, warm.stereo, warm.loop_mode, warm.loop_begin, warm.loop_end],
+			[cold.format, cold.mix_rate, cold.stereo, cold.loop_mode, cold.loop_begin, cold.loop_end], "Cached music preserves format and loop boundaries: " + track)
+		print("MUSIC CACHE %s: cold %.2f ms, warm %.2f ms" % [track, cold_ms, warm_ms])
+		var broken := FileAccess.open(path, FileAccess.WRITE)
+		broken.store_string("interrupted cache")
+		broken.close()
+		assert_equals(MusicSynth.load_or_render_track(track, directory).data, cold.data, "A damaged cache regenerates identical audio: " + track)
+		var wrong_rate := MusicSynth.to_wav(MusicSynth.render_track(track), true)
+		wrong_rate.mix_rate = 44100
+		wrong_rate.save_to_wav(path)
+		assert_equals(MusicSynth.load_or_render_track(track, directory).data, cold.data, "A cache with the wrong sample rate is replaced: " + track)
+		assert_true(not FileAccess.file_exists(path.trim_suffix(".wav") + ".tmp.wav"), "Music cache leaves no temporary file: " + track)
+		DirAccess.remove_absolute(path)
+	DirAccess.remove_absolute(directory)
+	var blocked := FileAccess.open(directory, FileAccess.WRITE)
+	blocked.store_string("not a directory")
+	blocked.close()
+	assert_true(not MusicSynth.load_or_render_track("battle", directory).data.is_empty(), "Unavailable cache storage does not prevent music playback")
+	DirAccess.remove_absolute(directory)
+	if DisplayServer.get_name() != "headless":
+		var muted := [GameManager.sound_muted, GameManager.music_muted]
+		for flags in [[true, false], [false, true]]:
+			GameManager.sound_muted = flags[0]
+			GameManager.music_muted = flags[1]
+			var audio = load("res://scripts/autoload/audio_manager.gd").new()
+			add_child(audio)
+			assert_true(audio._music_tasks.is_empty(), "Muted startup schedules no music synthesis")
+			audio.free()
+		GameManager.sound_muted = muted[0]
+		GameManager.music_muted = muted[1]
 
 func test_mobile_experience() -> void:
 	print("\n-> Test: Guardado Local, Hápticos y Ciclo de Vida Móvil")
@@ -504,13 +857,13 @@ func test_mobile_experience() -> void:
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets móviles se pueden leer")
 	assert_true(presets.get_value("preset.1.options", "permissions/vibrate", false), "Android exporta el permiso de vibración sin pedir permisos de usuario")
 	assert_true(presets.get_value("preset.0.options", "plugins/BackupFilePicker", false), "iOS habilita el selector nativo de copias")
-	var app_version := str(ProjectSettings.get_setting("application/config/version", "0.3.2"))
-	assert_equals(app_version, "0.3.2", "La versión del proyecto avanza a 0.3.2")
+	var app_version := str(ProjectSettings.get_setting("application/config/version", "0.4.0"))
+	assert_equals(app_version, "0.4.0", "La versión del proyecto avanza a 0.4.0")
 	assert_equals(presets.get_value("preset.0.options", "application/short_version", ""),
 		app_version, "La versión de iOS coincide con la versión reportada por analítica")
 	for preset in ["preset.1.options", "preset.2.options"]:
 		assert_equals(presets.get_value(preset, "version/name", ""), app_version, "El nombre de versión Android coincide: " + preset)
-		assert_equals(presets.get_value(preset, "version/code", 0), 6, "Android usa el siguiente versionCode: " + preset)
+		assert_equals(presets.get_value(preset, "version/code", 0), 7, "Android usa el siguiente versionCode: " + preset)
 	assert_equals(presets.get_value("preset.3", "name", ""), "iOS Diagnostics", "Existe un preset de diagnóstico iOS separado de Release")
 	assert_true(not presets.get_value("preset.3.options", "plugins/BackupFilePicker", true), "La IPA de diagnóstico evita enlazar el selector nativo de copias")
 	var picker_plugin := ConfigFile.new()
@@ -2277,6 +2630,68 @@ func test_hud_force_counters() -> void:
 	for b in [b_player, b_enemy, b_enemy2, b_neutral, battle]:
 		b.free()
 
+func test_launch_overlay() -> void:
+	print("\n-> Test: Animación de Arranque Ligera y de Una Sola Ejecución")
+	assert_true(not bool(ProjectSettings.get_setting("application/boot_splash/show_image", true)), "El arranque del motor no muestra otro logo antes de la animación")
+	var boot_path: String = ProjectSettings.get_setting("application/boot_splash/image", "")
+	var boot_texture: Texture2D = load(boot_path)
+	var boot: Image = boot_texture.get_image() if boot_texture != null else null
+	assert_true(boot != null and boot.get_size() == Vector2i.ONE and is_zero_approx(boot.get_pixel(0, 0).a), "iOS exporta una imagen transparente, no un segundo logo ni el splash de Godot")
+	assert_true(LaunchOverlay.Artwork.BRAND.resource_path != boot_path, "La animación conserva su logo separado de la imagen de arranque")
+	var old_settings := GameManager.settings.duplicate(true)
+	var old_shown := LaunchOverlay._shown
+	LaunchOverlay._shown = false
+	GameManager.settings["reduced_motion"] = true
+	LaunchOverlay.show_once(get_tree())
+	assert_true(LaunchOverlay._shown, "Movimiento reducido consume la intro sin añadir espera ni animación")
+	assert_true(get_tree().root.get_children().filter(func(n): return n is LaunchOverlay).is_empty(), "Movimiento reducido no monta ninguna capa")
+
+	LaunchOverlay._shown = false
+	GameManager.settings["reduced_motion"] = false
+	LaunchOverlay.show_once(get_tree())
+	LaunchOverlay.show_once(get_tree())
+	var overlays := get_tree().root.get_children().filter(func(n): return n is LaunchOverlay)
+	assert_equals(overlays.size(), 1, "La intro sólo se monta una vez por lanzamiento")
+	var overlay: LaunchOverlay = overlays[0]
+	assert_equals(overlay.get_parent(), get_tree().root, "La intro sobrevive al cambio de menú a tutorial")
+	assert_equals(overlay.process_mode, Node.PROCESS_MODE_ALWAYS, "Una pausa del tutorial no bloquea la salida de la intro")
+	assert_true(not overlay._artwork.is_processing(), "El dibujo sólo se actualiza desde el tween, sin bucle permanente")
+	assert_true(not overlay._tween.is_running(), "La intro espera al renderizador antes de consumir tiempo de animación")
+	assert_equals(overlay._artwork.elapsed, -1.0, "La espera inicial muestra sólo el fondo, no otro logo estático")
+	RenderingServer.force_draw()
+	assert_true(not overlay._tween.is_running(), "Un único dibujado no absorbe todavía el delta de carga del primer frame")
+	RenderingServer.force_draw()
+	assert_true(overlay.is_processing(), "Tras dos dibujados comienza la animación completa")
+	overlay._tween.custom_step(0.3)
+	assert_true(is_equal_approx(overlay._artwork.elapsed, 0.3), "La animación empieza desde cero, sin descontar el tiempo de arranque")
+	overlay._last_frame_usec = Time.get_ticks_usec() - 80_000
+	overlay._process(0.0)
+	assert_true(overlay._artwork.elapsed >= 0.38 and overlay._artwork.elapsed <= 0.4, "El reloj de la intro avanza aunque la velocidad de batalla deje delta en cero")
+	var before_stall := overlay._artwork.elapsed
+	overlay._last_frame_usec -= 2_000_000
+	overlay._process(2.0)
+	assert_true(is_equal_approx(overlay._artwork.elapsed - before_stall, 0.1), "Un atasco de dos segundos avanza como máximo 100 ms, sin saltarse la animación")
+	overlay._tween.custom_step(2.0)
+	await get_tree().process_frame
+	assert_true(not is_instance_valid(overlay), "La intro libera la capa y el tween al terminar")
+	LaunchOverlay.show_once(get_tree())
+	assert_true(get_tree().root.get_children().filter(func(n): return n is LaunchOverlay).is_empty(), "Volver al menú no repite la intro")
+
+	LaunchOverlay._shown = false
+	LaunchOverlay.show_once(get_tree())
+	overlay = get_tree().root.get_children().filter(func(n): return n is LaunchOverlay)[0]
+	RenderingServer.force_draw()
+	var touch := InputEventScreenTouch.new()
+	touch.pressed = true
+	overlay._input(touch)
+	assert_true(get_viewport().is_input_handled(), "El toque para saltar la intro se consume antes del mapa")
+	await get_tree().process_frame
+	assert_true(not is_instance_valid(overlay), "Un toque salta la intro y libera sus recursos")
+	RenderingServer.force_draw()
+	assert_true(RenderingServer.frame_post_draw.get_connections().filter(func(c): return c.callable.get_method() == "_on_startup_frame").is_empty(), "Saltar durante el arranque desconecta el aviso de renderizado")
+	GameManager.settings = old_settings
+	LaunchOverlay._shown = old_shown
+
 func test_main_menu_hub_navigation() -> void:
 	print("\n-> Test: Menú Principal con Secciones (Jugar, Retos, Ejército, Progreso)")
 	GameManager.reset_save()
@@ -2338,7 +2753,7 @@ func test_large_screen_layouts() -> void:
 	# 1. El mismo nivel en tablero apaisado: mismas bases, dentro de su zona y sin solaparse
 	var zones := LevelGenerator.layout(true)
 	assert_equals(zones["map"], LevelGenerator.LANDSCAPE_MAP_RECT, "El tablero apaisado mide 1920×1080")
-	var level_ids: Array = LevelDatabase.get_level_ids()
+	var level_ids: Array = LevelDatabase.get_level_ids().duplicate()
 	level_ids.append_array([LevelGenerator.conquest_id(7), DailyRewards.challenge_id(DailyRewards.today())])
 	for region in InvasionDatabase.get_regions():
 		level_ids.append_array(InvasionDatabase.get_region_level_ids(region["id"]))
@@ -4485,10 +4900,11 @@ func test_telemetry_schema_and_privacy() -> void:
 	telemetry.free()
 	GameManager._apply_save({})
 	assert_true(EventBus.has_signal("battle_finished"), "La batalla publica un resultado único para analítica")
-	assert_equals(Telemetry._mode("europe_1"), "campaign", "Nivel de campaña identificado")
-	assert_equals(Telemetry._mode(DailyRewards.challenge_id(20000)), "daily", "Desafío diario identificado")
-	assert_equals(Telemetry._mode(LevelGenerator.conquest_id(3)), "conquest", "Conquista identificada")
-	assert_equals(Telemetry._mode(InvasionDatabase.level_id("iberia", 1)), "invasion", "Invasión identificada")
+	assert_equals(LevelDatabase.mode_of("europe_1"), "campaign", "Nivel de campaña identificado")
+	assert_equals(LevelDatabase.mode_of(DailyRewards.challenge_id(20000)), "daily", "Desafío diario identificado")
+	assert_equals(LevelDatabase.mode_of(LevelGenerator.conquest_id(3)), "conquest", "Conquista identificada")
+	assert_equals(LevelDatabase.mode_of(InvasionDatabase.level_id("iberia", 1)), "invasion", "Invasión identificada")
+
 	assert_equals(Telemetry._bucket(0.0, Telemetry.LEVEL_BUCKETS), "0_20", "Duración corta agrupada")
 	assert_equals(Telemetry._bucket(25.0, Telemetry.LEVEL_BUCKETS), "20_40", "Duración media agrupada")
 	assert_equals(Telemetry._bucket(500.0, Telemetry.LEVEL_BUCKETS), "120_plus", "Duración larga agrupada")
@@ -4570,6 +4986,35 @@ func test_telemetry_schema_and_privacy() -> void:
 	GameManager.reset_save()
 	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Reiniciar progreso conserva las opciones de privacidad")
 
+func test_candidate_telemetry_is_tagged() -> void:
+	print("\n-> Test: Telemetría de candidata marcada, no silenciada")
+	GameManager._apply_save({})
+	Aptabase.disable()
+	var telemetry := CandidateTelemetryHarness.new()
+	telemetry._init_analytics()
+	assert_true(telemetry._analytics_ready, "La candidata inicializa Aptabase si el ajuste está activo")
+	# The probe below must stay local; do not let the flush timer reach production.
+	Aptabase._flush_timer.stop()
+	assert_equals(telemetry._telemetry_channel(), "size_candidate", "La candidata usa un canal propio")
+	assert_equals(Aptabase._system_props.get("appVersion"), telemetry._app_version() + "-size",
+		"Aptabase separa la versión de candidata")
+	telemetry._track("candidate_probe", {})
+	assert_equals(Aptabase._event_queue.back().get("props", {}).get("build_channel"), "size_candidate",
+		"Los eventos de candidata llevan build_channel")
+	Aptabase.disable()
+	telemetry._analytics_ready = false
+	telemetry._init_crashes()
+	assert_true(telemetry._crash_ready, "La candidata inicializa Sentry si el ajuste está activo")
+	assert_equals(telemetry.sdk.options.get("environment"), "size_candidate", "Sentry separa la candidata en su entorno")
+	assert_equals(telemetry.sdk.tags.get("build_channel"), "size_candidate", "Sentry marca la candidata")
+	GameManager.settings["share_analytics"] = false
+	GameManager.settings["share_crashes"] = false
+	telemetry._on_settings_changed()
+	assert_true(not telemetry._analytics_ready and not telemetry._crash_ready,
+		"La candidata respeta los ajustes de privacidad")
+	telemetry.free()
+	GameManager._apply_save({})
+
 func test_aptabase_http_delivery() -> void:
 	print("\n-> Test: Envío HTTP de Aptabase contra servidor local")
 	Aptabase.disable()
@@ -4594,6 +5039,8 @@ func test_aptabase_http_delivery() -> void:
 	Aptabase.track("ci_smoke", {"flag": 1})
 	var request: Dictionary = await _receive_mock_aptabase_request(server)
 	assert_true(not request.is_empty(), "Aptabase envía un lote al servidor local")
+	if is_instance_valid(Aptabase._active_http):
+		assert_true(Aptabase._active_http.use_threads, "Analytics HTTP polling and TLS run off the game thread")
 	if request.is_empty():
 		Aptabase.disable()
 		server.stop()

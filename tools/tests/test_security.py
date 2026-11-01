@@ -11,7 +11,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from build_notices import ROOT, build
 from check_release import versions
 from check_repository import sensitive_content, sensitive_path
-from verify_artifact import NOTICES, check_entries, pck_entries
+from verify_artifact import NOTICES, check_entries, pck_entries, verify
 
 
 class SecurityChecks(unittest.TestCase):
@@ -28,13 +28,20 @@ class SecurityChecks(unittest.TestCase):
         check_entries([notices, ("scripts/main.gdc", b"game")])
         for prefix in ("assets/", "base/assets/", "assetPackInstallTime/assets/"):
             check_entries([(prefix + notices[0], notices[1])])
-        for path in ("build/headers/a.import", "scripts/tests/test.gdc", "../escape", "upload.jks", ".tmp", ".git/config"):
+        for path in ("build/headers/a.import", "scripts/tests/test.gdc", "website/src/pages/index.astro", "website/node_modules/test.js", "../escape", "upload.jks", ".tmp", ".git/config"):
             with self.subTest(path=path), self.assertRaises(ValueError):
                 check_entries([notices, (path, b"data")])
         with self.assertRaises(ValueError):
             check_entries([("scripts/main.gdc", b"game")])
         with self.assertRaises(ValueError):
             check_entries([notices, notices])
+
+    def test_website_is_excluded_from_all_game_exports(self):
+        self.assertTrue((ROOT / "website/.gdignore").is_file())
+        filters = [line for line in (ROOT / "export_presets.cfg").read_text().splitlines() if line.startswith("exclude_filter=")]
+        self.assertEqual(len(filters), 4)
+        for line in filters:
+            self.assertIn("website/*", line)
 
     def test_pck_v4(self):
         name = NOTICES.encode()
@@ -44,6 +51,15 @@ class SecurityChecks(unittest.TestCase):
         header = struct.pack("<6IQQ", 0x43504447, 4, 4, 7, 2, 2, base, base + len(content)).ljust(base, b"\0")
         directory = struct.pack("<II", 1, len(name)) + name + struct.pack("<QQQQI", 0, len(content), 0, 0, 0)
         check_entries(pck_entries(header + content + directory))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "fixture.ipa"
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("Payload/invadeio.app/invadeio.pck", header + content + directory)
+            verify(path)
+            with zipfile.ZipFile(path, "a") as archive:
+                archive.writestr("scripts/tests/accidental.gdc", b"test")
+            with self.assertRaisesRegex(ValueError, "Development resource"):
+                verify(path)
         with self.assertRaises(ValueError):
             list(pck_entries(b"bad"))
 

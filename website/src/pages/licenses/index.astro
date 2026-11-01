@@ -1,0 +1,26 @@
+---
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import license from '../../../../LICENSE?raw';
+import notice from '../../../../NOTICE?raw';
+import notices from '../../../../assets/legal/notices.txt?raw';
+import fontLicense from '../../../../assets/fonts/LICENSE-OFL.txt?raw';
+import frameworkNotices from '../../generated/licenses.json';
+import { href, REPO } from '../../../scripts/site.mjs';
+---
+<SiteLayout title="Licenses & credits" description="Open-source licenses, original-author attribution, font credits and third-party notices for invade.io and its website." page={null}>
+  <article class="container section prose">
+    <p class="eyebrow">Open source, with attribution</p><h1>Licenses & credits.</h1>
+    <p class="lead">invade.io’s first-party code and assets are available under Apache-2.0. Commercial use, modification and proprietary derivatives are permitted under its terms.</p>
+    <h2 id="original-author">Original author</h2><pre>{notice}</pre>
+    <p>Preserve the relevant copyright, attribution and NOTICE text when redistributing original or derivative code. This is not a requirement to add a main-screen credit or publish private/internal changes. Third-party work keeps its own license.</p>
+    <p><a href={`${REPO}/blob/dev/LICENSE`}>License source on GitHub</a> · <a href={href('docs/contributing/#license-and-attribution')}>Contribution and redistribution guidance</a></p>
+    <details><summary>Full Apache License 2.0</summary><pre>{license}</pre></details>
+    <h2 id="third-party">Game components & data</h2>
+    <ul><li>Godot Engine — MIT; its engine and third-party license viewer is included in the game.</li><li>Aptabase and Sentry — MIT; optional usage statistics and crash-reporting integrations.</li><li>Fredoka and Noto fonts — SIL Open Font License 1.1.</li><li>Natural Earth geographical data — public domain.</li></ul>
+    <details><summary>Bundled game notices</summary><pre>{notices}</pre></details>
+    <details><summary>Font attribution & SIL Open Font License</summary><pre>{fontLicense}</pre></details>
+    <h2>Website tools</h2><p>This website uses Astro, Starlight and Pagefind. Documentation diagrams are rendered at build time with beautiful-mermaid. These are website tools, not new game dependencies.</p>
+    {frameworkNotices.map(({ name, text }) => <details><summary>{name} license</summary><pre>{text}</pre></details>)}
+    <p>The website has no analytics or third-party embeds. Fonts and images are served with the site; only your theme preference is stored in your browser. GitHub Pages handles hosting requests under <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub’s privacy statement</a>. Game telemetry is explained separately in the <a href={href('privacy-policy.html')}>game privacy policy</a>.</p>
+  </article>
+</SiteLayout>

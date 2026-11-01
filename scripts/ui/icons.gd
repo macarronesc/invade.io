@@ -9,6 +9,7 @@ const COLORED := ["coin", "star"]
 const THEMED := ["toggle_on", "toggle_off", "knob", "chevron_down", "chevron_up"]
 
 const SVG := {
+	"disc": '<circle cx="12" cy="12" r="12" fill="#fff" stroke="none"/>',
 	"play": '<path d="M8 5v14l11-7z" fill="#fff" stroke="none"/>',
 	"map": '<path d="M3 6.5l6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/>',
 	"target": '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6" fill="#fff" stroke="none"/>',
@@ -42,6 +43,13 @@ const SVG := {
 }
 
 static var _cache: Dictionary = {}
+static var _disc: Texture2D
+
+## Textured quads batch in Compatibility; individual draw_circle polygons do not.
+static func draw_disc(canvas: CanvasItem, center: Vector2, radius: float, color: Color) -> void:
+	if _disc == null:
+		_disc = texture("disc", 256)
+	canvas.draw_texture_rect(_disc, Rect2(center - Vector2.ONE * radius, Vector2.ONE * radius * 2.0), false, color)
 
 ## Textura del icono a `size` píxeles de alto (cacheada)
 static func texture(name: String, size: int = 48) -> Texture2D:

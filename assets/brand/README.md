@@ -8,7 +8,14 @@ All icon PNGs are rendered from the vector app icon (`/icon.svg`).
 - `icon-48.png` through `icon-192.png` — Android launcher density sizes (mdpi through xxxhdpi).
 - `icon-1024.png` — iOS app icon and high-resolution master.
 - `adaptive-foreground-432.png`, `adaptive-background-432.png`, and `adaptive-monochrome-432.png` — Android adaptive icon layers.
-- `boot_splash.png` — branded Godot boot splash; the engine splash is configured in `project.godot`.
+- `boot_splash.png` — logo used by the animated launch overlay, not the static boot screen.
+- `launch_blank.png` — transparent 1 × 1 PNG for native startup screens. Godot's boot
+  image is hidden; iOS still exports this image into its launch storyboard, and
+  Android uses it instead of the default launch icon. The background remains
+  visible until Godot can animate the real logo.
+- `menu_logo.svg` — rounded rendition of `icon.svg` for the 84 px menu tile;
+  update its artwork with the app icon. Its baked corner mask avoids an offscreen
+  clipping pass, and the 336 px import includes mipmaps for smaller displays.
 
 The Android and iOS export presets already point to their platform icon assets.
 

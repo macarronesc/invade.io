@@ -1,38 +1,77 @@
-name: Privacy policy
+name: Website and documentation
 
 on:
   push:
     branches: [main]
-    paths: ['docs/privacy-policy.html', '.github/workflows/pages.yml']
+    paths:
+      - 'website/**'
+      - 'docs/**'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'SECURITY.md'
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'assets/brand/**'
+      - 'assets/fonts/Fredoka.ttf'
+      - 'assets/fonts/LICENSE-OFL.txt'
+      - 'assets/legal/notices.txt'
+      - 'icon.svg'
+      - 'project.godot'
+      - '.github/workflows/pages.yml'
   pull_request:
-    paths: ['docs/privacy-policy.html', '.github/workflows/pages.yml']
+    branches: [dev, main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: privacy-policy-${{ github.ref }}
+  group: website-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   pages-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: website
+    env:
+      ASTRO_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Package only the public privacy policy
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Install locked website dependencies
+        run: npm ci
+      - name: Check canonical content and build the public website
         run: |
-          mkdir _site
-          cp docs/privacy-policy.html _site/privacy-policy.html
-          tar -C _site -cf "$RUNNER_TEMP/artifact.tar" .
+          npm test
+          npm run build
+      - name: Check real browser journeys and accessibility
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:browser
+      - name: Package only the checked static output
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [[ "$EVENT" == pull_request && "$BASE_REF" == dev ]]; then
+            tar -C dist -cf "$RUNNER_TEMP/artifact.tar" --transform='s,^,invade.io/,' .
+          else
+            tar -C dist -cf "$RUNNER_TEMP/artifact.tar" .
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: github-pages
+          name: ${{ github.event_name == 'pull_request' && github.base_ref == 'dev' && format('website-preview-pr-{0}', github.event.pull_request.number) || 'github-pages' }}
           path: ${{ runner.temp }}/artifact.tar
-          retention-days: 1
+          retention-days: ${{ github.event_name == 'pull_request' && github.base_ref == 'dev' && 7 || 1 }}
           if-no-files-found: error
   pages-deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

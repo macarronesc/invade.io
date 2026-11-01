@@ -17,6 +17,7 @@ does not certify mobile ergonomics, performance, native SDKs, or store complianc
 | Change | Suggested checks |
 |---|---|
 | Guide prose, navigation, or README images | Review links/anchors, English prose, alt text, GitHub rendering, `git diff --check`; check store assets if referenced |
+| Website or guides published on Pages | [Website checks](WEBSITE.md#run-and-validate): unit tests, production build/link checks, and browser/accessibility checks |
 | Gameplay, economy, or data | Python/repository checks, full Godot suite, relevant balance simulations |
 | UI, language, fonts, or accessibility | Quick suite plus `--ui`; add wide/rotation/gesture checks and physical-device review as applicable |
 | Save, settings, or lifecycle | `--mobile` plus full suite and the [device checklist](PLATFORM_INTEGRATION.md#physical-device-checklist) |
@@ -40,6 +41,14 @@ workflow behavior using disposable fixtures—not production credentials. Instal
 JDK 17 (`keytool` and `jarsigner`) to exercise the signing regression; without it,
 that test is skipped locally. CI requires those tools and does not permit the
 skip. Never provide a real signing key to a test.
+
+The font checks use `fonttools==4.57.0` (installed explicitly in CI); without it they
+are skipped locally. The export-identity integration check similarly needs Godot on
+`PATH`. Run both before changing fonts or candidate packaging. The artifact
+tests cover PCK parsing and rejection of invalid/development resources and missing
+notices. Custom-engine promotion additionally requires testing
+the actual [exported candidates](RELEASES.md#main-releases-and-manual-validation),
+not only this editor-based suite.
 
 CI also runs pinned Gitleaks, actionlint, and ShellCheck. Maintainers can install
 the checksum-verified versions with
@@ -68,6 +77,23 @@ real analytics to Aptabase. Results are printed to the console and written to
 `user://test_results.txt`; use the process exit code as well as that report.
 
 ## Balance and progression simulations
+
+For behavior-preserving refactors, record a baseline **before changing runtime
+scripts**, then compare afterward using the same engine, machine, and local day:
+
+```sh
+mkdir -p /tmp/opencode
+godot --headless --path . res://scenes/tests/refactor_check.tscn -- --record=/tmp/opencode/invade-baseline.json
+godot --headless --path . res://scenes/tests/refactor_check.tscn -- --compare=/tmp/opencode/invade-baseline.json
+```
+
+This compares built levels in every language/orientation, packet formations, and
+victory results/save state for first clears and replays across all modes. Daily
+missions depend on the local date, so this is a before/after aid, not a timeless
+golden fixture. Run the normal suites too: these signatures do not measure frame
+times, input behavior, or rendered pixels. Music cache tests in the normal suite
+compare PCM bytes and loop boundaries, exercise corrupt/unwritable caches, and
+print cold/warm timings without a hardware-dependent timing assertion.
 
 ```sh
 # 720 campaign simulations, plus expedition/invasion samples.
@@ -109,12 +135,54 @@ xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --rotate-ui
 
 # Touch/mouse scrolling and troop-drag gestures in both orientations.
 xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --gestures
+
+# Launch → first-run tutorial → menu, with portrait/landscape intro captures.
+xvfb-run -a godot --path . res://scenes/tests/launch_check.tscn -- --capture
+
+# Regression: a slow cold-start frame must not consume the entire intro.
+xvfb-run -a godot --path . res://scenes/tests/launch_check.tscn -- --slow-startup
 ```
+
+The launch check uses an isolated save. Add `--returning` to check a returning
+player, `--dark` for dark appearance, or `--reduced` to verify Reduced Motion skips
+the animation. Without `--capture`, it also runs headlessly. Captures are saved as
+`user://launch-*.png`. The intro normally lasts 1.23 seconds after two renderer
+warmup frames, is skippable by touch/click/key, and runs only once per process while the initial
+scene loads underneath it. Warmup displays only the plain background. A long
+initial frame therefore cannot consume the tween before it is visible. A monotonic
+clock drives the tween independently of battle speed, capped at 100 ms per frame
+so later loading hitches cannot skip the entire animation either. Severe stalls
+can lengthen the intro rather than consume it unseen.
+`--slow-startup` simulates a 1.6-second startup stall; combine it with `--returning`
+and `--dark` to cover the menu path too. Headless checks force the two dummy draws;
+they do not validate Android's native splash or the displayed animation.
+Native and engine startup screens use a plain background with no logo, so the
+brand appears only in the animation. Scripts cannot animate the pre-engine stage
+or remove its loading time. Check a fresh mobile export on-device: iOS must use
+the transparent launch image, and Android must not fall back to its app icon.
+Regenerate the iOS export rather than rebuilding an older generated Xcode project.
 
 Images from these UI checks are written to `user://*.png`, not to the tracked
 store gallery. See [Development](DEVELOPMENT.md#saves-and-independent-worktrees)
 for the user-data directory. Inspect full-size captures as well as thumbnails:
 automated fit/glyph checks cannot approve translation quality or usability.
+
+### Performance captures
+
+```sh
+XDG_DATA_HOME=/tmp/opencode/invade-perf-data LP_NUM_THREADS=4 xvfb-run -a \
+  godot --path . --audio-driver Dummy --disable-vsync \
+  res://scenes/tests/performance_check.tscn -- --out=/tmp/opencode/invade-perf
+```
+
+This reuses the deterministic store fixtures without replacing store artwork.
+It captures six real scenes and all three troop styles (including a 2× preview),
+and writes PNGs plus `metrics.json` with average draw calls and elapsed frame time.
+Run the same command/environment before and after a rendering change. Rendering
+must be enabled; headless results cannot measure draw calls or pixels.
+The software renderer's frame times are not mobile FPS or battery measurements.
+See [performance validation](PERFORMANCE.md) for the optimization results and
+the remaining physical-device release gates.
 
 ## Store material checks
 
@@ -140,7 +208,9 @@ Test-scene startup selects `user://automation_startup_save.json` before autoload
 read player data, then each suite switches to its own fixture save. Store captures
 also compare the normal player-save hash before and after generation. Headless
 runs, editor tooling, test scenes, and `--no-telemetry` suppress provider startup.
-Ordinary editor-launched gameplay is different; see [Analytics](ANALYTICS.md).
+Manual size candidates are different: they respect the privacy toggles and tag
+their telemetry for device validation; see [Analytics](ANALYTICS.md).
+Ordinary editor-launched gameplay can also send data if the settings allow it.
 
 Worktrees can still share Godot user data. Do not run these commands concurrently
 against the same data directory or run multiple store generators in one checkout.
@@ -157,8 +227,8 @@ Accessibility labels and desktop screenshots alone do not prove TalkBack or
 VoiceOver support on mobile.
 
 The [CI workflow](../.github/workflows/ci.yml) runs Python/security checks, the full
-Godot suite on Linux, locale/wide UI checks, store generation, Android exports,
-and an iOS build with quick regressions. Rotation, gesture, and the longer balance
+Godot suite on Linux, slow-start launch and locale/wide UI checks, store generation,
+Android exports, and an iOS build with quick regressions. Rotation, gesture, and the longer balance
 simulations are available locally but are not all run by the current workflow.
 See [Releases](RELEASES.md) for artifact verification and signing boundaries.
 

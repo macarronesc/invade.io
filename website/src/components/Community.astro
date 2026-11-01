@@ -1,0 +1,67 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { href, REPO } from '../../scripts/site.mjs';
+import type { Language } from '../data/media';
+
+interface Props { lang?: Language }
+const { lang = 'en' } = Astro.props;
+const es = lang === 'es';
+const t = es ? {
+  title: 'Hay más de una forma de conquistar.',
+  description: 'Participa en invade.io: código, traducciones, pruebas, accesibilidad y documentación. Un proyecto de Godot abierto a la comunidad.',
+  label: 'Un proyecto abierto',
+  intro: 'Puedes ayudar a mejorar invade.io aunque no escribas código. El punto de encuentro es GitHub: propuestas concretas, pruebas reproducibles y cambios que podamos revisar juntos.',
+  issues: 'Explorar las issues', guide: 'Guía de contribución (inglés)',
+  cards: [
+    ['Juega y comparte lo que encuentres', 'Cuéntanos qué esperabas, qué ocurrió y cómo repetirlo. Indica versión, dispositivo, idioma y orientación. Comparte solo capturas y registros sin datos privados.'],
+    ['Hazlo más claro para más personas', 'Revisa traducciones, textos largos, contraste y controles. Las pruebas en dispositivos reales son especialmente útiles para comprobar accesibilidad y ergonomía.'],
+    ['Mejora el proyecto', 'Aporta una corrección, una prueba de regresión o una guía más clara. Una contribución pequeña y completa es un gran punto de partida.'],
+  ],
+  stepsLabel: 'Tu primera contribución', stepsTitle: 'Del primer vistazo a tu primera PR.',
+  steps: [
+    ['Encuentra un cambio concreto', 'Revisa las issues o abre una propuesta antes de modificar comportamientos importantes. Las ideas no son compromisos de una futura versión.'],
+    ['Parte de dev', 'Crea un fork y una rama desde dev. Las PR de contribuciones van a dev; main se reserva para el proceso de release.'],
+    ['Ejecuta y verifica', 'Sigue la guía de desarrollo. Añade una prueba para nueva lógica o correcciones y comprueba los idiomas y diseños afectados.'],
+    ['Explica tu aportación', 'Describe el motivo, el resultado y las pruebas realizadas. Para cambios visuales, incluye antes y después y las limitaciones de dispositivos comprobados.'],
+  ],
+  localTitle: 'Godot. Git. Y ganas de explorar.', localBody: 'El proyecto usa GDScript y el editor estándar de Godot 4.7.2. Puedes ejecutarlo sin credenciales, herramientas de publicación ni un servidor. El comando de la guía desactiva la telemetría durante esa ejecución.',
+  localLink: 'Preparar el entorno (inglés)', mapLink: 'Encontrar dónde hacer un cambio (inglés)',
+  trustTitle: 'Abierto también significa responsable.',
+  trustBody: 'El código y los recursos propios son Apache-2.0. Conserva las atribuciones y licencias de terceros al redistribuir. Los informes de vulnerabilidades deben enviarse en privado, nunca como una issue pública.',
+  licenses: 'Licencias y créditos (inglés)', security: 'Comunicar una vulnerabilidad (inglés)',
+  support: '¿Necesitas ayuda como jugador?', supportBody: 'Para errores comunes, utiliza GitHub Issues. También puedes contactar por correo. No incluyas copias de seguridad personales ni registros privados en informes públicos.',
+} : {
+  title: 'There’s more than one way to conquer.',
+  description: 'Help shape invade.io through code, translation review, device testing, accessibility feedback and documentation. An open Godot project for the community.',
+  label: 'An open project',
+  intro: 'You do not have to write code to help improve invade.io. GitHub is our meeting point: focused proposals, reproducible reports, and changes we can review together.',
+  issues: 'Explore the issues', guide: 'Contribution guide',
+  cards: [
+    ['Play and share what you find', 'Tell us what you expected, what happened, and how to reproduce it. Include the version, device, language and orientation. Only share sanitized screenshots and logs.'],
+    ['Make it clearer for more people', 'Review translations, long text, contrast and controls. Reports from real devices are especially valuable for checking accessibility and ergonomics.'],
+    ['Make the project better', 'Contribute a fix, a regression test, or a clearer guide. A small, complete change is a great place to start.'],
+  ],
+  stepsLabel: 'Your first contribution', stepsTitle: 'From a first look to your first PR.',
+  steps: [
+    ['Find a focused change', 'Browse the issues or open a proposal before changing major behavior. Ideas are not commitments to future releases.'],
+    ['Start from dev', 'Fork and branch from dev. Contribution PRs target dev; main is reserved for the release process.'],
+    ['Run and verify', 'Follow the development guide. Add a test for new logic or fixes and check affected languages and layouts.'],
+    ['Explain your contribution', 'Describe the motivation, result, and checks performed. For visual changes, include before/after images and the limits of device verification.'],
+  ],
+  localTitle: 'Godot. Git. A little curiosity.', localBody: 'The project uses GDScript and the standard Godot 4.7.2 editor. Run it without credentials, publishing tools, or a server. The guide’s launch command disables telemetry for that run.',
+  localLink: 'Set up your environment', mapLink: 'Find where to make a change',
+  trustTitle: 'Open also means responsible.',
+  trustBody: 'First-party code and assets are Apache-2.0. Keep attribution and third-party notices when redistributing. Report vulnerabilities privately, never in a public issue.',
+  licenses: 'Licenses & credits', security: 'Report a vulnerability privately',
+  support: 'Need help as a player?', supportBody: 'Use GitHub Issues for ordinary bugs. You can also get in touch by email. Do not include personal backups or private logs in public reports.',
+};
+---
+<SiteLayout title={t.title} description={t.description} lang={lang} page="community/">
+  <div class="container">
+    <header class="page-intro"><p class="eyebrow">{t.label}</p><h1>{t.title}</h1><p class="lead">{t.intro}</p><div class="button-row"><a class="button" href={`${REPO}/issues`}>{t.issues} <span aria-hidden="true">↗</span></a><a class="button secondary" href={href('docs/contributing/')}>{t.guide}</a></div></header>
+    <section class="cards" aria-label={es ? 'Formas de colaborar' : 'Ways to contribute'}>{t.cards.map(([title, body], i) => <article class="card"><span class="card-number">0{i + 1}</span><h2 class="platform-title">{title}</h2><p>{body}</p></article>)}</section>
+    <section class="section prose"><p class="eyebrow">{t.stepsLabel}</p><h2>{t.stepsTitle}</h2><ol class="contribution-steps">{t.steps.map(([title, body]) => <li><h3>{title}</h3><p>{body}</p></li>)}</ol><h2>{t.localTitle}</h2><p>{t.localBody}</p><div class="button-row"><a class="button secondary" href={href('docs/development/')}>{t.localLink}</a><a href={href('docs/architecture/#where-to-make-a-change')}>{t.mapLink} →</a></div></section>
+    <section class="open-source prose"><h2>{t.trustTitle}</h2><p>{t.trustBody}</p><div class="button-row"><a href={href('licenses/')}>{t.licenses} →</a><a href={href('docs/security/')}>{t.security} →</a></div></section>
+    <section class="section prose"><h2>{t.support}</h2><p>{t.supportBody}</p><a href="mailto:alegandro2507@gmail.com">alegandro2507@gmail.com</a></section>
+  </div>
+</SiteLayout>

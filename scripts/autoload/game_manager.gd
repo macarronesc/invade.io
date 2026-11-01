@@ -20,22 +20,6 @@ const FACTION_COLORS = {
 	Faction.ENEMY_3: Color(0.30, 0.69, 0.31)     # Verde esmeralda
 }
 
-const FACTION_NAMES = {
-	Faction.NEUTRAL: "Neutral",
-	Faction.PLAYER: "Tú",
-	Faction.ENEMY_1: "Rojo",
-	Faction.ENEMY_2: "Ámbar",
-	Faction.ENEMY_3: "Verde"
-}
-
-const FACTION_NAMES_EN = {
-	Faction.NEUTRAL: "Neutral",
-	Faction.PLAYER: "You",
-	Faction.ENEMY_1: "Red",
-	Faction.ENEMY_2: "Amber",
-	Faction.ENEMY_3: "Green"
-}
-
 const UPGRADE_BASE_COSTS = {
 	"starting_troops": 50,
 	"production_rate": 75,
@@ -65,7 +49,6 @@ const MAX_SAVE_BYTES := 2_000_000
 const HAPTIC_INTERVAL_MS := 80
 const GAME_SPEEDS := [0.75, 1.0, 1.5, 2.0]
 const ACCESSIBLE_FACTION_COLORS := [Color("8796a5"), Color("0072b2"), Color("d55e00"), Color("f0e442"), Color("cc79a7")]
-const SUPPORTED_LANGUAGES := ["en", "es", "pt_BR", "fr", "de", "it", "ru", "tr", "ar", "hi", "id", "vi", "zh_CN", "ja", "ko"]
 ## Cosméticos iniciales: uno gratis por categoría
 const DEFAULT_COSMETICS_EQUIPPED := {"army_color": "color_blue", "troop_style": "troop_classic", "base_shape": "base_round", "map_theme": "theme_daylight"}
 
@@ -143,6 +126,11 @@ var application_active := true
 var _last_haptic_ms := -HAPTIC_INTERVAL_MS
 var _last_haptic_duration := 0
 var _save_blocked := false
+var _save_batch_depth := 0
+var _save_requested := false
+var _save_scheduled := false
+var _save_timer: Timer
+const SAVE_DELAY := 0.5
 
 func _init() -> void:
 	# Autoloads run before the test scene can select its per-suite save file.
@@ -229,7 +217,7 @@ func recommended_combat_upgrade(affordable_only: bool = false) -> String:
 	return best
 
 func can_suggest_combat_upgrade() -> bool:
-	return not DailyRewards.is_challenge(get_battle_level_id()) and recommended_combat_upgrade(true) != ""
+	return LevelDatabase.mode_of(get_battle_level_id()) != "daily" and recommended_combat_upgrade(true) != ""
 
 ## Primera compra guiada: aún no ha mejorado nada y ya puede permitírselo
 func should_suggest_first_upgrade() -> bool:
@@ -264,6 +252,67 @@ func calculate_victory_gold(level_id: String, stars: int, base_amount: int) -> i
 		if previous == 0 and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT:
 			base_amount += FIRST_BOSS_GOLD
 	return int(round(base_amount * factor * get_gold_multiplier()))
+
+## Apply mode-specific progression and return the existing victory presentation fields.
+func victory_rewards(level_id: String, stars: int, player_bases_count: int, flawless: bool) -> Dictionary:
+	var mode := LevelDatabase.mode_of(level_id)
+	var is_replay: bool
+	var total_gold: int
+	var new_medal := false
+	var new_continent := false
+	var boss_gold := 0
+	var region_complete := false
+	var region_mastered := false
+	var region_bonus := 0
+	var mastery_bonus := 0
+	var continent_reward := ""
+	match mode:
+		"daily":
+			is_replay = is_daily_challenge_done(DailyRewards.challenge_day(level_id))
+			total_gold = complete_daily_challenge(level_id)
+		"conquest":
+			is_replay = false
+			total_gold = complete_conquest(LevelGenerator.conquest_index(level_id))
+		"invasion":
+			var invasion_result := complete_invasion_level(level_id, stars)
+			is_replay = bool(invasion_result.get("is_replay", false))
+			total_gold = int(invasion_result.get("gold", 0))
+			region_complete = bool(invasion_result.get("region_complete", false))
+			region_mastered = bool(invasion_result.get("region_mastered", false))
+			region_bonus = int(invasion_result.get("region_bonus", 0))
+			mastery_bonus = int(invasion_result.get("mastery_bonus", 0))
+			continent_reward = str(invasion_result.get("continent_reward", ""))
+		_:
+			var continent := LevelDatabase.get_continent_of(level_id)
+			new_continent = not is_continent_complete(continent)
+			var previous_stars: int = int(completed_levels.get(level_id, 0))
+			if previous_stars == 0 and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT:
+				boss_gold = roundi(FIRST_BOSS_GOLD * get_gold_multiplier())
+			is_replay = previous_stars > 0 and stars <= previous_stars
+			total_gold = calculate_victory_gold(level_id, stars, 60 + player_bases_count * 15)
+			new_medal = flawless and not medals.has(level_id)
+			complete_level(level_id, stars, flawless)
+			new_continent = new_continent and is_continent_complete(continent)
+	add_coins(total_gold)
+	return {
+		"gold_earned": total_gold,
+		"is_continent_conquest": mode == "campaign" and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT,
+		"is_replay": is_replay,
+		"is_daily_challenge": mode == "daily",
+		"is_conquest": mode == "conquest",
+		"is_invasion": mode == "invasion",
+		"region_id": InvasionDatabase.get_region_of_level(level_id) if mode == "invasion" else "",
+		"region_complete": region_complete,
+		"region_mastered": region_mastered,
+		"region_bonus": region_bonus,
+		"mastery_bonus": mastery_bonus,
+		"continent_reward": continent_reward,
+		"new_medal": new_medal,
+		"new_continent": new_continent,
+		"invasions_unlocked": LevelDatabase.get_continent_of(level_id) if new_continent else "",
+		"boss_gold": boss_gold,
+		"expedition_finale": mode == "conquest" and LevelGenerator.is_expedition_finale(LevelGenerator.conquest_index(level_id)),
+	}
 
 ## No recompensa abandonar, perder enseguida, repetir un nivel ganado ni
 ## capturar la misma base varias veces. No depende de las mejoras de botín.
@@ -310,7 +359,7 @@ func get_battle_level_id() -> String:
 
 ## Elige el nivel de la próxima batalla sin perder el punto de la campaña
 func play_level(level_id: String) -> void:
-	if DailyRewards.is_challenge(level_id) or LevelGenerator.is_conquest(level_id) or InvasionDatabase.is_invasion(level_id):
+	if LevelDatabase.mode_of(level_id) != "campaign":
 		special_level_id = level_id
 	else:
 		special_level_id = ""
@@ -690,16 +739,21 @@ func _haptic_parameters(duration_ms: int, now_ms: int) -> Vector2:
 	_last_haptic_duration = duration
 	return Vector2(duration, intensity)
 
-func set_setting(key: String, value: Variant) -> void:
+func set_setting(key: String, value: Variant, immediate_save: bool = true) -> void:
 	if not DEFAULT_SETTINGS.has(key):
 		return
 	if DEFAULT_SETTINGS[key] is bool:
 		settings[key] = _as_bool(value)
 	else:
 		settings[key] = _setting_number(key, value)
-	AudioManager.apply_volumes()
-	save_game()
-	EventBus.settings_changed.emit()
+	if key in ["volume", "music_volume"]:
+		AudioManager.apply_volumes()
+	if immediate_save:
+		save_game()
+	else:
+		request_save()
+	if key not in ["volume", "music_volume", "vibration_intensity"]:
+		EventBus.settings_changed.emit()
 
 static func _setting_number(key: String, value: Variant) -> float:
 	var number := float(value) if (value is int or value is float) else float(DEFAULT_SETTINGS[key])
@@ -806,17 +860,55 @@ func save_data() -> Dictionary:
 		"invasion_stars": invasion_stars, "invasion_rewards": invasion_rewards,
 	}
 
+## Explicit batches only span a synchronous action, never a frame or a UI gesture.
+func begin_save_batch() -> void:
+	_save_batch_depth += 1
+
+func end_save_batch() -> Error:
+	assert(_save_batch_depth > 0)
+	_save_batch_depth -= 1
+	if _save_batch_depth == 0 and _save_requested:
+		_save_requested = false
+		return save_game()
+	return OK
+
+## Slider events can share a write; lifecycle/manual saves still flush immediately.
+func request_save() -> void:
+	if _save_timer == null:
+		_save_timer = Timer.new()
+		_save_timer.one_shot = true
+		_save_timer.ignore_time_scale = true
+		_save_timer.process_mode = Node.PROCESS_MODE_ALWAYS
+		_save_timer.timeout.connect(_flush_save_request)
+		add_child(_save_timer)
+	_save_scheduled = true
+	_save_timer.start(SAVE_DELAY)
+
+func _flush_save_request() -> void:
+	if _save_scheduled:
+		save_game()
+
 func save_game() -> Error:
+	_save_scheduled = false
+	if _save_timer:
+		_save_timer.stop()
 	if _save_blocked:
 		return _set_save_status(ERR_UNAVAILABLE)
+	if _save_batch_depth > 0:
+		_save_requested = true
+		return OK
+	var text := JSON.stringify(save_data())
 	if FileAccess.file_exists(save_path):
 		var previous := _read_save(save_path)
 		if previous["error"] != OK:
 			return _set_save_status(previous["error"])
-		var error := write_save(save_path + ".previous", previous["data"])
+		# Compare the serialized bytes: parsing JSON turns integers into floats.
+		if previous["text"] == text:
+			return _set_save_status(OK)
+		var error := _write_save_text(save_path + ".previous", previous["text"])
 		if error != OK:
 			return _set_save_status(error)
-	return _set_save_status(write_save(save_path, save_data()))
+	return _set_save_status(_write_save_text(save_path, text))
 
 func _set_save_status(error: Error) -> Error:
 	if save_error != error:
@@ -832,7 +924,8 @@ func _read_save(path: String) -> Dictionary:
 	if file.get_length() > MAX_SAVE_BYTES:
 		return {"error": ERR_INVALID_DATA}
 	var json := JSON.new()
-	if json.parse(file.get_as_text()) != OK or not json.data is Dictionary:
+	var text := file.get_as_text()
+	if json.parse(text) != OK or not json.data is Dictionary:
 		return {"error": ERR_PARSE_ERROR}
 	if json.data.has("version"):
 		var version: Variant = json.data["version"]
@@ -840,16 +933,19 @@ func _read_save(path: String) -> Dictionary:
 			return {"error": ERR_INVALID_DATA}
 		if float(version) > SAVE_VERSION:
 			return {"error": ERR_UNAVAILABLE}
-	return {"error": OK, "data": json.data}
+	return {"error": OK, "data": json.data, "text": text}
 
 ## También utilizado por la copia manual; nunca truncar el archivo de destino.
 func write_save(path: String, data: Dictionary) -> Error:
+	return _write_save_text(path, JSON.stringify(data))
+
+func _write_save_text(path: String, text: String) -> Error:
 	# Escritura atómica: un cierre inesperado a mitad de escritura no corrompe la partida
 	var tmp_path = path + ".tmp"
 	var file = FileAccess.open(tmp_path, FileAccess.WRITE)
 	if not file:
 		return FileAccess.get_open_error()
-	file.store_string(JSON.stringify(data))
+	file.store_string(text)
 	file.flush()
 	var error := file.get_error()
 	file.close()
@@ -943,6 +1039,9 @@ func reset_save() -> Error:
 ## Aplica un guardado validando cada campo: lo que falta o no es válido toma su valor inicial.
 ## Con un diccionario vacío deja la partida nueva.
 func _apply_save(data: Dictionary) -> void:
+	_save_scheduled = false
+	if _save_timer:
+		_save_timer.stop()
 	settings = DEFAULT_SETTINGS.duplicate()
 	var saved_settings := _as_dict(data.get("settings"))
 	for key in settings:
@@ -1072,9 +1171,7 @@ func _apply_save(data: Dictionary) -> void:
 			cosmetics_equipped[key] = item["id"]
 
 static func _is_campaign_level(level_id: Variant) -> bool:
-	return level_id is String and not DailyRewards.is_challenge(level_id) \
-		and not LevelGenerator.is_conquest(level_id) \
-		and not InvasionDatabase.is_invasion(level_id) \
+	return level_id is String and LevelDatabase.mode_of(level_id) == "campaign" \
 		and not LevelDatabase.get_level_definition(level_id).is_empty()
 
 ## JSON devuelve los números como float y un guardado dañado puede traer cualquier tipo

@@ -48,7 +48,6 @@ const NAME_FONTS := ["names_latin.ttf", "names_cyrillic.ttf", "names_arabic.ttf"
 
 static var _bold: FontVariation
 static var _regular: FontVariation
-static var _font_cache: Dictionary = {}
 
 static func bold_font() -> FontVariation:
 	if _bold == null or _bold.get_meta("locale", "") != LocaleStrings.lang:
@@ -64,9 +63,6 @@ static func regular_font() -> FontVariation:
 	return _regular
 
 static func _weighted_font(weight: int) -> FontVariation:
-	var key := "%s|%d" % [LocaleStrings.lang, weight]
-	if _font_cache.has(key):
-		return _font_cache[key]
 	var base: FontVariation = load("res://assets/fonts/game_font.tres")
 	var font := FontVariation.new()
 	font.base_font = base.base_font
@@ -86,7 +82,6 @@ static func _weighted_font(weight: int) -> FontVariation:
 	if script != null:
 		fallbacks.append(script)
 	font.fallbacks = fallbacks
-	_font_cache[key] = font
 	return font
 
 static func _script_font(code: String, weight: int) -> FontVariation:
@@ -148,7 +143,9 @@ static func _apply_font_scale_to_control(control: Control) -> void:
 		if base_size <= 0:
 			return
 		control.set_meta("_base_font_size", base_size)
-	control.add_theme_font_size_override("font_size", scaled_font_size(int(control.get_meta("_base_font_size"))))
+	var size := scaled_font_size(int(control.get_meta("_base_font_size")))
+	if control.get_theme_font_size("font_size") != size:
+		control.add_theme_font_size_override("font_size", size)
 
 ## Cambia entre modo claro y oscuro al instante, sin recargar escenas. Los colores fijados
 ## con overrides los refresca cada pantalla al recibir EventBus.settings_changed.
@@ -516,6 +513,16 @@ static func stars_label(stars: int, variation: String = "Heading") -> Label:
 	set_stars(l, stars)
 	return l
 
+static func style_map_pin(btn: Button, fill: Color, ink: Color) -> void:
+	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+		var b := box(fill.darkened(0.12) if state == "pressed" else fill, 999, 0)
+		b.draw_center = state != "focus"
+		b.set_border_width_all(4)
+		b.border_color = colors.bg if state != "focus" else colors.gold
+		btn.add_theme_stylebox_override(state, b)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color", "icon_disabled_color"]:
+		btn.add_theme_color_override(c, ink)
+
 ## Título de sección con una línea explicativa opcional
 static func section(parent: Control, title: String, subtitle: String = "", variation: String = "Title") -> void:
 	var head := vbox(4)
@@ -546,6 +553,13 @@ static func pass_scroll_events(control: Control) -> void:
 static func go_to(from: Node, scene_path: String) -> void:
 	AudioManager.play_click()
 	from.get_tree().change_scene_to_file(scene_path)
+
+static func show_menu_tab(from: Node, tab: String) -> void:
+	var node := from
+	while node and not node is MainMenuUI:
+		node = node.get_parent()
+	if node:
+		(node as MainMenuUI).show_tab(tab)
 
 ## Empieza una batalla; sin `level_id` repite la última elegida
 static func start_battle(from: Node, level_id: String = "") -> void:

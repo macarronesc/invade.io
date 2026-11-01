@@ -14,6 +14,7 @@ class TerritoryCell extends RefCounted:
 	var polygon: PackedVector2Array = PackedVector2Array()
 	## Partes visibles: la celda recortada a tierra firme (o la celda entera sin geografía)
 	var pieces: Array[PackedVector2Array] = []
+	var outlines: Array[PackedVector2Array] = []
 	## Las mismas partes trianguladas una vez para rellenarlas sin coste en cada redibujado
 	var fills: Array[FilledPolygon] = []
 
@@ -43,6 +44,7 @@ var land: Array[PackedVector2Array] = []
 var country_borders: Array[PackedVector2Array] = []
 var _land_bounds: Array[Rect2] = []
 var _land_fills: Array[FilledPolygon] = []
+var _land_outlines: Array[PackedVector2Array] = []
 
 func _ready() -> void:
 	EventBus.base_captured.connect(func(base, _prev, new_faction): on_base_conquered(base, new_faction))
@@ -57,7 +59,16 @@ func generate_map(bases: Array, bounds: Rect2 = Rect2(), geo: Dictionary = {}) -
 	_land_bounds.clear()
 	for poly in land:
 		_land_bounds.append(GeoDatabase.bounds_of(poly))
-	_land_fills = FilledPolygon.build_all(land)
+	if not geo.has("fills"):
+		geo["fills"] = FilledPolygon.build_all(land)
+	_land_fills = geo["fills"]
+	if not geo.has("outlines"):
+		var outlines: Array[PackedVector2Array] = []
+		for poly in land:
+			if not poly.is_empty():
+				outlines.append(_closed(poly))
+		geo["outlines"] = outlines
+	_land_outlines = geo["outlines"]
 
 	cells.clear()
 	var valid_bases: Array[BaseNode] = []
@@ -102,6 +113,9 @@ func generate_map(bases: Array, bounds: Rect2 = Rect2(), geo: Dictionary = {}) -
 		cells.append(cell)
 
 	_build_pieces()
+	for cell in cells:
+		for piece in cell.pieces:
+			cell.outlines.append(_closed(piece))
 	queue_redraw()
 
 ## Recorta cada celda a la tierra firme (o la deja entera si el nivel no tiene geografía)
@@ -112,6 +126,7 @@ func _build_pieces() -> void:
 			continue
 		if land.is_empty():
 			cell.pieces.append(cell.polygon)
+			cell.fills = FilledPolygon.build_all(cell.pieces)
 			continue
 		var cell_bounds := GeoDatabase.bounds_of(cell.polygon)
 		for i in land.size():
@@ -192,17 +207,17 @@ func _draw() -> void:
 	# 3. Fronteras reales entre países y línea de costa (referencia cartográfica sutil)
 	for line in country_borders:
 		draw_polyline(line, country_border_color, 1.0, true)
-	for poly in land:
-		draw_polyline(_closed(poly), coast_color, 1.8, true)
+	for outline in _land_outlines:
+		draw_polyline(outline, coast_color, 1.8, true)
 
 	# 4. Fronteras territoriales: sombra y trazo. El borde de juego manda; no se duplica
 	#    con un tercer acento de facción que ensuciaba los límites.
 	for cell in cells:
-		for piece in cell.pieces:
-			draw_polyline(_closed(piece), Color(0.02, 0.05, 0.08, 0.28), border_width + 1.2, true)
+		for outline in cell.outlines:
+			draw_polyline(outline, Color(0.02, 0.05, 0.08, 0.28), border_width + 1.2, true)
 	for cell in cells:
-		for piece in cell.pieces:
-			draw_polyline(_closed(piece), border_color, border_width, true)
+		for outline in cell.outlines:
+			draw_polyline(outline, border_color, border_width, true)
 
 	# 5. Marco perimetral (sólo en el mapa abstracto sin geografía)
 	if land.is_empty():

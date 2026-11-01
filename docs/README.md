@@ -6,6 +6,12 @@ Welcome to the reference for playing, developing, and maintaining invade.io.
 Choose a path below; you do not need mobile build tools or store credentials to
 start contributing.
 
+Read these same guides with navigation and search on the
+[project website](https://macarronesc.github.io/invade.io/docs/), or browse the
+[visual game tour](https://macarronesc.github.io/invade.io/). The website is built
+from these canonical Markdown files, not a separately edited copy. Pages deploys
+from `main`; this checkout can contain changes not published yet.
+
 ## Play and understand
 
 | Guide | What you will find |
@@ -35,6 +41,7 @@ contributions alongside code. The development guide includes
 | [Play Store refresh](PLAY_STORE_UPDATE.md) | Localized copy, screenshot provenance, packaging, and Console review |
 | [Telemetry](ANALYTICS.md) | Privacy settings, event schema, providers, and Debug/Release behavior |
 | [Security policy](../SECURITY.md) | Private reports, credentials, and maintainer review requirements |
+| [Website and documentation publishing](WEBSITE.md) | Astro/Starlight setup, content sources, web checks, and Pages deployment |
 
 ## Project status
 
@@ -53,13 +60,15 @@ for published build artifacts. A GitHub release is not automatic store submissio
 | Online competition | No multiplayer, live PvP, or online leaderboard |
 | Accessibility | Configurable presentation and alternate battle controls; mobile screen-reader support is not established |
 
-The store material captured on October 28 was prepared against source version
-**0.3.1** and is carried into the **0.3.2** release candidate. The public
-listing/policy reviewed on October 29 still contained older descriptions and
-opt-in telemetry wording, while this source defaults telemetry to enabled. This
-is a dated observation, not a live status feed or verification of the shipped
-binary. Before publishing, match the build, listing, policy, and Data safety
-declarations using the [store update checklist](PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
+The store material was fully recaptured on November 1 for source version
+**0.4.0**; earlier captures were prepared against **0.3.1** and carried into
+**0.3.2**. On October 30 the
+public policy described enabled telemetry defaults, while the Google Play listing
+still contained older descriptions and opt-in/no-collection wording. This source
+also defaults telemetry to enabled. These are dated public-page observations, not
+a live status feed or verification of the shipped binary. Before publishing, match
+the build, listing, policy, and Data safety declarations using the
+[store update checklist](PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
 
 ## Keeping these guides accurate
 
@@ -70,5 +79,6 @@ declarations using the [store update checklist](PLAY_STORE_UPDATE.md#7-mandatory
 - Link to the source of a rule rather than copying constants into several guides.
 - When changing behavior, update the affected guide and screenshots if necessary.
   Do not regenerate the store gallery for a text-only documentation change.
+- After editing guides, validate the generated site with the [website checks](WEBSITE.md#run-and-validate).
 - Keep unsupported features distinct from implemented ones. An idea is not a
   release commitment, and an automated test is not physical-device certification.

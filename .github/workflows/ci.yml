@@ -5,6 +5,11 @@ on:
     branches: ['**']
   pull_request:
   workflow_dispatch:
+    inputs:
+      optimized_templates:
+        description: 'Validate smaller custom engines (no production signing or publishing)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -15,6 +20,10 @@ concurrency:
 
 env:
   GODOT_VERSION: '4.7.2'
+  # Main releases use the custom engine. The manual candidate flow keeps its
+  # separate `.size` identity; PRs, commits and dev keep official templates.
+  CUSTOM_ENGINE: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true) }}
+  OPTIMIZED_TEMPLATES: ${{ github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true }}
 
 defaults:
   run:
@@ -49,6 +58,7 @@ jobs:
         run: |
           command -v keytool
           command -v jarsigner
+          python3 -m pip install 'fonttools==4.57.0'
           python3 -m unittest discover -s tools/tests -v
           actionlint
           shellcheck scripts/*.sh tools/install_security_tools.sh
@@ -70,7 +80,7 @@ jobs:
   build-android:
     needs: checks
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true)) && 120 || 60 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -99,6 +109,11 @@ jobs:
           templates="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p "$templates"
           unzip -q -j templates.tpz templates/android_source.zip -d "$templates"
+      - name: Build custom Android engine template
+        if: env.CUSTOM_ENGINE == 'true'
+        run: |
+          bash scripts/build_mobile_templates.sh android "$RUNNER_TEMP/mobile-templates"
+          cp "$RUNNER_TEMP/mobile-templates/android_source.zip" "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip"
       - name: Configure SDK paths
         run: |
           mkdir -p "$HOME/.config/godot"
@@ -116,8 +131,11 @@ jobs:
           echo "BUNDLETOOL_JAR=$RUNNER_TEMP/bundletool.jar" >> "$GITHUB_ENV"
       - name: Import and run complete tests
         run: |
+          python3 -m unittest discover -s tools/tests -p test_mobile_templates.py -v
           godot --headless --path . --editor --import
           godot --headless --path . res://scenes/tests/test_runner.tscn
+          timeout 60 xvfb-run -a godot --audio-driver Dummy --path . res://scenes/tests/launch_check.tscn -- --slow-startup
+          timeout 60 xvfb-run -a godot --audio-driver Dummy --path . res://scenes/tests/launch_check.tscn -- --slow-startup --returning --dark
           xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --ui
           xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --wide-ui
       - name: Generate and validate localized store material
@@ -159,6 +177,36 @@ jobs:
           godot --headless --path . --export-release 'Android AAB' build/android/invadeio-unsigned.aab
           bash scripts/verify_play_bundle.sh build/android/invadeio-unsigned.aab build/android/invadeio-debug.apk
           python3 tools/verify_artifact.py build/android/invadeio-unsigned.aab
+      - name: Verify custom engine in release AAB
+        if: env.CUSTOM_ENGINE == 'true'
+        run: |
+          archive=build/android/invadeio-unsigned.aab
+          engine="$RUNNER_TEMP/libgodot_android.so"
+          unzip -p "$archive" base/lib/arm64-v8a/libgodot_android.so > "$engine"
+          size="$(wc -c < "$engine")"
+          # Stock is ~71 MB; the size profile is ~39 MB. Fail closed on fallback.
+          test "$size" -gt 30000000
+          test "$size" -lt 60000000
+      - name: Build installable Release APK for engine validation only
+        if: env.OPTIMIZED_TEMPLATES == 'true'
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: size-test
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: android
+        run: |
+          # A disposable candidate key only; production signing stays isolated below.
+          keytool -genkeypair -keystore "$RUNNER_TEMP/size-test.p12" -alias size-test -keyalg RSA -keysize 2048 -validity 30 -dname 'CN=Engine validation only' -storepass android -keypass android
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$RUNNER_TEMP/size-test.p12"
+          godot --headless --path . --script tools/configure_ci_export.gd -- --size-candidate
+          godot --headless --path . --export-release Android build/android/invadeio-size-candidate.apk
+          EXPECTED_PACKAGE=macarronesc.invadeio.size bash scripts/verify_play_bundle.sh build/android/invadeio-size-candidate.apk
+          python3 tools/verify_artifact.py build/android/invadeio-size-candidate.apk
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: env.OPTIMIZED_TEMPLATES == 'true'
+        with:
+          path: build/android/invadeio-size-candidate.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: build/android/invadeio-debug.apk
@@ -184,7 +232,7 @@ jobs:
   build-ios:
     needs: checks
     runs-on: macos-26
-    timeout-minutes: 30
+    timeout-minutes: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true)) && 60 || 30 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -204,12 +252,17 @@ jobs:
           templates="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p "$templates"
           unzip -q -j templates.tpz templates/ios.zip -d "$templates"
+      - name: Build custom iOS engine template
+        if: env.CUSTOM_ENGINE == 'true'
+        run: |
+          bash scripts/build_mobile_templates.sh ios "$RUNNER_TEMP/mobile-templates"
+          cp "$RUNNER_TEMP/mobile-templates/ios.zip" "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable/ios.zip"
       - name: Build native picker, import and test
         env:
           PRODUCTION: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         run: |
           mode=Debug
-          if [[ "$PRODUCTION" == true ]]; then mode=Release; fi
+          if [[ "$PRODUCTION" == true || "$CUSTOM_ENGINE" == true ]]; then mode=Release; fi
           bash scripts/build_ios_backup_picker.sh "$mode"
           godot --headless --path . --editor --import
           godot --headless --path . res://scenes/tests/test_runner.tscn -- --quick
@@ -231,11 +284,23 @@ jobs:
               echo 'IOS_EXPORT=--export-debug'
               echo 'IPA_NAME=invade.io-debug.ipa'
             } >> "$GITHUB_ENV"
+            if [[ "$OPTIMIZED_TEMPLATES" == true ]]; then
+              godot --headless --path . --script tools/configure_ci_export.gd -- --size-candidate
+              {
+                echo 'IOS_CONFIGURATION=Release'
+                echo 'IOS_EXPORT=--export-release'
+                echo 'IPA_NAME=invade.io-size-candidate.ipa'
+              } >> "$GITHUB_ENV"
+            fi
           fi
       - name: Export and archive without Apple signing credentials
         run: |
           mkdir -p "$RUNNER_TEMP/ios"
           godot --headless --path . "$IOS_EXPORT" iOS "$RUNNER_TEMP/ios/invadeio.xcodeproj"
+          if [[ "$CUSTOM_ENGINE" == true ]]; then
+            # The custom engine has no Vulkan renderer, so MoltenVK is unused.
+            python3 tools/strip_ios_moltenvk.py "$RUNNER_TEMP/ios/invadeio.xcodeproj/project.pbxproj"
+          fi
           xcodebuild archive -quiet -project "$RUNNER_TEMP/ios/invadeio.xcodeproj" -scheme invadeio \
             -configuration "$IOS_CONFIGURATION" -sdk iphoneos -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/ios/invadeio.xcarchive" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='' \
@@ -251,8 +316,13 @@ jobs:
           test ! -e Payload/invadeio.app/embedded.mobileprovision
           plutil -lint Payload/invadeio.app/Info.plist
           lipo Payload/invadeio.app/invadeio -verify_arch arm64
-          zip -q -r "$IPA_NAME" Payload
+          zip -q -9 -r "$IPA_NAME" Payload
           python3 "$GITHUB_WORKSPACE/tools/verify_artifact.py" "$IPA_NAME"
+      - name: Verify custom engine in release IPA
+        if: env.CUSTOM_ENGINE == 'true'
+        run: |
+          # Stock Release is >30 MB; the custom Release is ~20 MB. Fail closed on fallback.
+          test "$(stat -f%z "$RUNNER_TEMP/ios/$IPA_NAME")" -lt 28000000
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: ${{ runner.temp }}/ios/${{ env.IPA_NAME }}
@@ -359,10 +429,7 @@ jobs:
           # Atomic creation also rejects an existing/racing tag or an API/network failure.
           gh api "repos/$GH_REPO/git/refs" --method POST -f ref="refs/tags/$tag" -f sha="$GITHUB_SHA" >/dev/null
           cd release
-          printf '%s\n' "$GITHUB_SHA" > COMMIT.txt
-          sha256sum invadeio.aab invade.io.ipa invadeio-debug.apk COMMIT.txt > SHA256SUMS
           # Assemble assets as a draft; only expose a complete release.
-          gh release create "$tag" --verify-tag --target "$GITHUB_SHA" --title "invade.io $VERSION" --generate-notes --draft \
-            --notes 'AAB: Google Play upload. IPA: unsigned SideStore build, not App Store/TestFlight. APK: Debug with a separate application ID, not a Play update. See SHA256SUMS and COMMIT.txt.'
-          gh release upload "$tag" invadeio.aab invade.io.ipa invadeio-debug.apk COMMIT.txt SHA256SUMS
+          gh release create "$tag" --verify-tag --target "$GITHUB_SHA" --title "invade.io $VERSION" --generate-notes --draft
+          gh release upload "$tag" invadeio.aab invade.io.ipa invadeio-debug.apk
           gh release edit "$tag" --draft=false

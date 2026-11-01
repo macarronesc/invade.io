@@ -131,11 +131,7 @@ func _build_invasions() -> void:
 	card.add_child(go)
 
 func _go_to_invasions() -> void:
-	var node: Node = self
-	while node and not (node is MainMenuUI):
-		node = node.get_parent()
-	if node:
-		(node as MainMenuUI).show_tab("invasion")
+	UIThemeHelper.show_menu_tab(self, "invasion")
 
 ## Atlas: mapa del mundo con las ciudades conquistadas, recuento por continente y últimas conquistas
 func _build_atlas() -> void:
@@ -259,5 +255,5 @@ class AtlasDots extends Control:
 
 	func _draw() -> void:
 		for p in points:
-			draw_circle(p, 10.0, Color(UIThemeHelper.colors.primary, 0.25))
-			draw_circle(p, 5.0, UIThemeHelper.colors.primary)
+			Icons.draw_disc(self, p, 10.0, Color(UIThemeHelper.colors.primary, 0.25))
+			Icons.draw_disc(self, p, 5.0, UIThemeHelper.colors.primary)

@@ -6,14 +6,15 @@ class_name CampaignRules
 ## para que cada día tenga una particularidad. Las expediciones también rotan esas reglas.
 static func apply(level: Dictionary) -> void:
 	var id: String = level.get("id", "")
+	var mode := LevelDatabase.mode_of(id)
 	if level.has("invasion_region"):
 		_apply_invasion(level, str(level["invasion_region"]))
 		return
 	var continent := ""
-	if DailyRewards.is_challenge(id):
+	if mode == "daily":
 		var continents := LevelDatabase.get_continents()
 		continent = continents[posmod(DailyRewards.challenge_day(id), continents.size())]["id"]
-	elif LevelGenerator.is_conquest(id):
+	elif mode == "conquest":
 		var continents := LevelDatabase.get_continents()
 		var index := LevelGenerator.conquest_index(id)
 		continent = continents[posmod(index + LevelGenerator.expedition_of(index) - 1, continents.size())]["id"]
@@ -44,7 +45,7 @@ static func apply(level: Dictionary) -> void:
 			level["travel_multiplier"] = 0.8
 		"oceania":
 			level["sea_lanes"] = sea_lanes(bases, level.get("_route_positions", []))
-	if DailyRewards.is_challenge(id):
+	if mode == "daily":
 		if continent in ["europe", "africa"]:
 			level["objective"] = "hold_capital"
 			level["hold_seconds"] = 12.0

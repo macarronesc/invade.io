@@ -7,9 +7,16 @@ conquest. invade.io is an open-source, single-player strategy game with offline
 gameplay, no ads, and no in-app purchases.
 
 [**Play on Google Play**](https://play.google.com/store/apps/details?id=macarronesc.invadeio)
-· [Documentation](docs/README.md)
+· [Website](https://macarronesc.github.io/invade.io/)
+· [Documentation](https://macarronesc.github.io/invade.io/docs/)
 · [Run locally](#run-locally)
 · [Contribute](CONTRIBUTING.md)
+
+The website includes a visual game tour, English/Spanish player pages, platform
+downloads, and searchable guides. Prefer reading in the repository? Start with
+the [Markdown documentation index](docs/README.md). Website changes deploy from
+`main`; PRs targeting `dev` provide a separate downloadable website/docs preview
+for testing. See the [preview instructions](docs/WEBSITE.md#download-a-dev-pr-preview).
 
 ![invade.io: blue troops advance from Lisbon toward a fortified enemy base in Madrid on a real-world map.](docs/store_assets/feature-graphic-1024x500.png)
 
@@ -92,6 +99,7 @@ Contribution PRs target **`dev`**; release PRs target `main`.
 | Automated checks and manual QA | [Testing](docs/TESTING.md) |
 | Android builds and iOS/SideStore testing | [Platform integration](docs/PLATFORM_INTEGRATION.md) |
 | Signing and release maintenance | [Release guide](docs/RELEASES.md) |
+| Website, generated guides, and GitHub Pages | [Website guide](docs/WEBSITE.md) |
 
 ## Privacy and support
 

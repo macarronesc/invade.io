@@ -44,6 +44,7 @@ var btn_daily: Button
 var _silhouette: GeoSilhouette
 var _node_positions := PackedVector2Array()
 var _redraw_accum := 0.0
+var _animation_left := 5.0
 ## Mapa y ficha: uno sobre otra en vertical, lado a lado en pantallas anchas
 var _split: BoxContainer
 var _side: ScrollContainer
@@ -56,7 +57,9 @@ func _ready() -> void:
 			current_continent_index = i
 	_build()
 	EventBus.settings_changed.connect(_fit_shortcut_cards)
+	EventBus.settings_changed.connect(_wake_animation)
 	_refresh_display()
+	_wake_animation()
 
 func _build() -> void:
 	_split = BoxContainer.new()
@@ -243,7 +246,9 @@ static func _conquest_subtitle() -> String:
 	return LocaleStrings.text("conquest_row") % [expedition, LevelGenerator.expedition_step(index), GameManager.EXPEDITION_SIZE]
 
 func _process(delta: float) -> void:
-	if GameManager.settings["reduced_motion"]:
+	_animation_left -= delta
+	if GameManager.settings["reduced_motion"] or _animation_left <= 0.0 or not GameManager.application_active:
+		set_process(false)
 		return
 	marching_phase = fmod(marching_phase + delta * 0.8, 1.0)
 	pulse_time += delta * 3.0
@@ -252,6 +257,15 @@ func _process(delta: float) -> void:
 	if _redraw_accum >= 0.05:
 		_redraw_accum = 0.0
 		route_container.queue_redraw()
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenDrag or (event is InputEventScreenTouch and event.pressed) \
+			or (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed):
+		_wake_animation()
+
+func _wake_animation() -> void:
+	_animation_left = 5.0
+	set_process(not GameManager.settings["reduced_motion"])
 
 func _refresh_display() -> void:
 	var cont := continents[current_continent_index]
@@ -295,18 +309,17 @@ func _build_level_node(level_id: String, index: int) -> Control:
 	btn.add_theme_font_size_override("font_size", 40)
 	holder.add_child(btn)
 	var stars: int = GameManager.completed_levels.get(level_id, 0)
-	var data := LevelDatabase.get_level_data(level_id)
-	btn.accessibility_name = LocaleStrings.text("accessible_level_name") % [index + 1, data["name"]]
+	btn.accessibility_name = LocaleStrings.text("accessible_level_name") % [index + 1, LevelDatabase.level_name(level_id)]
 	btn.accessibility_description = LocaleStrings.text("level_locked") if not GameManager.is_level_unlocked(level_id) else LocaleStrings.text("accessible_level_stars") % stars
 	if not GameManager.is_level_unlocked(level_id):
 		btn.disabled = true
 		btn.icon = Icons.texture("lock", 40)
 		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_style_node(btn, UIThemeHelper.colors.surface_2, UIThemeHelper.colors.muted)
+		UIThemeHelper.style_map_pin(btn, UIThemeHelper.colors.surface_2, UIThemeHelper.colors.muted)
 	else:
 		btn.text = str(index + 1)
 		# Hecho: azul. Pendiente: blanco, para que el siguiente paso destaque
-		_style_node(btn, UIThemeHelper.colors.primary if stars > 0 else UIThemeHelper.colors.text, UIThemeHelper.colors.ink)
+		UIThemeHelper.style_map_pin(btn, UIThemeHelper.colors.primary if stars > 0 else UIThemeHelper.colors.text, UIThemeHelper.colors.ink)
 		btn.pressed.connect(_select_level.bind(level_id))
 	if stars > 0:
 		var star_row := UIThemeHelper.stars_label(stars, "Caption")
@@ -329,16 +342,6 @@ func refresh_appearance() -> void:
 	_refresh_display()
 	_select_level(selection)
 
-func _style_node(btn: Button, fill: Color, ink: Color) -> void:
-	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
-		var b := UIThemeHelper.box(fill.darkened(0.12) if state == "pressed" else fill, 999, 0)
-		b.draw_center = state != "focus"
-		b.set_border_width_all(4)
-		b.border_color = UIThemeHelper.colors.bg if state != "focus" else UIThemeHelper.colors.gold
-		btn.add_theme_stylebox_override(state, b)
-	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color", "icon_disabled_color"]:
-		btn.add_theme_color_override(c, ink)
-
 ## Coloca cada nivel sobre su región real del continente y dibuja la silueta detrás
 func _apply_continent_layout(continent_id: String, color: Color) -> void:
 	if not _layout_cache.has(continent_id):
@@ -349,20 +352,9 @@ func _apply_continent_layout(continent_id: String, color: Color) -> void:
 
 static func _build_continent_layout(continent_id: String) -> Dictionary:
 	var per_level: Array = []
-	var all_lonlats: Array[Vector2] = []
 	for level_id in LevelDatabase.get_continent_level_ids(continent_id):
-		var lonlats := LevelDatabase.get_level_lonlats(level_id)
-		per_level.append(lonlats)
-		all_lonlats.append_array(lonlats)
-	var proj := LevelGenerator.fit_projection(all_lonlats, SILHOUETTE_RECT)
-	var nodes := PackedVector2Array()
-	for lonlats in per_level:
-		var center := Vector2.ZERO
-		for ll in lonlats:
-			center += proj.project(ll)
-		nodes.append(center / maxf(1.0, lonlats.size()))
-	nodes = LevelGenerator.separate_points(nodes, func(_i, _j): return NODE_MIN_DISTANCE, NODE_RECT)
-	return {"geo": LevelGenerator.project_geography(proj, SILHOUETTE_CLIP), "nodes": nodes}
+		per_level.append(LevelDatabase.get_level_lonlats(level_id))
+	return LevelGenerator.overview_layout(per_level, SILHOUETTE_RECT, SILHOUETTE_CLIP, NODE_RECT, NODE_MIN_DISTANCE)
 
 func _select_level(level_id: String) -> void:
 	AudioManager.play_click()
@@ -466,5 +458,5 @@ func _change_continent(step: int) -> void:
 	AudioManager.play_click()
 	current_continent_index = posmod(current_continent_index + step, continents.size())
 	GameManager.current_continent = continents[current_continent_index]["id"]
-	GameManager.save_game()
+	GameManager.request_save()
 	_refresh_display()
