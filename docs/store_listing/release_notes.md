@@ -226,10 +226,10 @@ same native-speaker review as the listing copy:
 
 ```text
 <es-ES>
-• Batallas y menús más fluidos: dibujo por lotes, mapas reutilizados y animaciones que se pausan tras cinco segundos sin interacción.
+• Batallas y menús más fluidos: dibujo por lotes, mapas reutilizados y animaciones que se pausan sin interacción.
 • Nueva animación de inicio, omitible con un toque y desactivada con Movimiento reducido.
 • Descargas móviles más ligeras gracias al motor y las fuentes optimizados.
-• Guardado más seguro: los cambios de interfaz se agrupan; pausa, segundo plano, cierre, compras y recompensas siguen guardándose al instante.
+• Guardado más seguro: los cambios de interfaz se agrupan; pausa, segundo plano, cierre, compras y recompensas se guardan al instante.
 • Las partidas y el progreso existentes siguen siendo compatibles.
 </es-ES>
 <en-US>
@@ -247,17 +247,17 @@ same native-speaker review as the listing copy:
 • Os saves e o progresso existentes continuam compatíveis.
 </pt-BR>
 <fr-FR>
-• Batailles et menus plus fluides : dessin par lots, cartes réutilisées et animations suspendues après cinq secondes sans interaction.
+• Batailles et menus plus fluides : dessin par lots, cartes réutilisées et animations qui se suspendent sans interaction.
 • Nouvelle animation de lancement, ignorable d’un toucher et désactivée avec Mouvement réduit.
 • Téléchargements mobiles plus légers grâce au moteur et aux polices optimisés.
-• Sauvegarde plus sûre : les réglages d’interface sont regroupés ; pause, arrière-plan, fermeture, achats et récompenses restent enregistrés immédiatement.
-• Les sauvegardes et la progression existantes restent compatibles.
+• Sauvegarde plus sûre : les réglages d’interface sont regroupés ; pause, arrière-plan, fermeture, achats et récompenses restent immédiats.
+• Les sauvegardes et la progression restent compatibles.
 </fr-FR>
 <de-DE>
-• Flüssigere Kämpfe und Menüs: gebündeltes Zeichnen, wiederverwendete Karten und Animationen, die nach fünf Sekunden ohne Eingabe pausieren.
+• Flüssigere Kämpfe und Menüs: gebündeltes Zeichnen, wiederverwendete Karten und pausierende Animationen.
 • Neue Startanimation, per Tippen überspringbar und bei Reduzierter Bewegung deaktiviert.
 • Kleinere mobile Downloads durch optimierte Engine und Schriftarten.
-• Sichereres Speichern: Oberflächenänderungen werden gebündelt; Pause, Hintergrund, Schließen, Käufe und Belohnungen werden weiterhin sofort gespeichert.
+• Sichereres Speichern: Oberflächenänderungen werden gebündelt; Pause, Hintergrund, Schließen, Käufe und Belohnungen speichern weiterhin sofort.
 • Bestehende Spielstände und Fortschritte bleiben kompatibel.
 </de-DE>
 <it-IT>

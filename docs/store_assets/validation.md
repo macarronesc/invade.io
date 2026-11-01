@@ -2,6 +2,23 @@
 
 ## Release-candidate revalidation
 
+Date: 1 November 2026. Target source version: **0.4.0**.
+
+- Full Godot capture completed for 15 locales: 120 phone images, 60 tablet images,
+  and one feature graphic. The manifest records version 0.4.0, commit `050f96c`,
+  and a clean working tree at capture time.
+- All 181 PNGs changed from the 0.3.2 set: the new menu logo, batched disc
+  rendering, and reused map geometry alter the captured scenes. English and
+  Spanish contact sheets and the feature graphic were reviewed; no layout,
+  clipping, missing-text, or blank-image regression was found.
+- `python3 tools/build_store_listings.py --check` and `--package` passed. The
+  package is generated under ignored `build/` and is not published to Play.
+- Full regression suite: 6,052 passed, 0 failed. Quick: 4,592 passed. Mobile:
+  1,029 passed. Launch, UI, wide-UI, rotation, and gesture checks passed. Existing
+  Godot shutdown resource-leak warnings remain.
+
+## Previous release-candidate revalidation
+
 Date: 29 October 2026. Target source version: **0.3.2**.
 
 - Full Godot capture completed for 15 locales: 120 phone images, 60 tablet images,
