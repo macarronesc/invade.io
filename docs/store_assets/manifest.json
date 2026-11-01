@@ -1,7 +1,7 @@
 {
-	"commit": "db938d90dd05accc17e788781c2917706501bf14",
+	"commit": "050f96cd599e0ab0f7e719cee111e46ca065ec41",
 	"daily_day": 20754,
-	"feature_sha256": "4bfdd6b332adc76ef304f3d66b53d0b664ea1ec11236eeca07035f70b7e1945e",
+	"feature_sha256": "126d155773143f564a650af6d607434014b45d4a4b41299608704b4d014ebf20",
 	"godot": "4.7.2-stable (official)",
 	"locales": {
 		"ar": [
@@ -15,7 +15,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "d7053978cb08e6b91228381a545a6e5a7f8d1cea6a50e5ce0923f58e23189238",
+				"sha256": "9a334386de18b46657e71e89ab77508838b68bb0d9aabeefa98e9aca05627770",
 				"subtitle": "استراتيجية دون اتصال وبلا إعلانات."
 			},
 			{
@@ -28,7 +28,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "54371634c794e9964fe2b6d06a55b91d16ed014a40449fe6565d5eb42e044eb7",
+				"sha256": "7d16640c5e8e8fba723794308cecad361fee2b3542f4e47a8a70e647c7aab1b0",
 				"subtitle": "المصانع والحصون ومعارك الزعماء."
 			},
 			{
@@ -41,7 +41,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "4c619559f8eb1970fbecfd6c9486e404c9a49250a69f1010e5c78f20bf4455fe",
+				"sha256": "0be7a1aba771201aea8e4a1d68a41666379c03a6bb49007bd02820930f4f7b46",
 				"subtitle": "ثلاث جبهات. منطقة واحدة لإتقانها."
 			},
 			{
@@ -54,7 +54,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "dfbee52c3f807019fff7aa558c3ee4b71d7a3da941509b3cbbb23928d5faec7a",
+				"sha256": "70587ccc886f8e250af1032b1e6eb9f3f566659ad59e74cd3edd35a568ff919d",
 				"subtitle": "30 مستوى للحملة + حملات الغزو."
 			},
 			{
@@ -67,7 +67,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "ab9a63cc36a98609deb6717a7ac58a494af49db501c0ad9902dfd3475cc12102",
+				"sha256": "17458e5b151eaa879086bf93d63ea74f82dc47491f3e58295c1e6e6df97b9e60",
 				"subtitle": "قوات متساوية. حطّم رقمك الشخصي."
 			},
 			{
@@ -80,7 +80,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "5ec94a0e3289223c658f710a04961b1fa9c74422e69c1e5e57e949b2144df90b",
+				"sha256": "7014b9e0aeae912cd8ba92c33ee3ff8558d59fcae0b660f509b5cf82f8ded533",
 				"subtitle": "جنّد أسرع. هاجم أبكر."
 			},
 			{
@@ -93,7 +93,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "e59f582225cfcd9177a1dabce98a3ed6ea137887344529be2d001dc5b3198de3",
+				"sha256": "f2b0c4d8f34b79eeac5539eccd570f49deab90fc1c23e543676b464445114025",
 				"subtitle": "ألوان الجيش وأشكال القواعد وسمات الخرائط."
 			},
 			{
@@ -106,7 +106,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "de3a76545b6654146dda8bedbb891656af8d844c81a705c66d93af24e22d3b59",
+				"sha256": "49bda74876086c1eebe829b5b303aaf53257ee13cd2b6154cb44dff034d85485",
 				"subtitle": "مدن ورتب و20 إنجازًا."
 			}
 		],
@@ -121,7 +121,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "4d62d28431ad2a4e6f6b6ab424cce17df3eb6b239603982cb3fb985c40ee9a13",
+				"sha256": "75b755af59b7dd70f82546a06338b058ae2a8d968e6240c46451a321e40ede3a",
 				"subtitle": "Offline-Strategie. Keine Werbung."
 			},
 			{
@@ -134,7 +134,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "d743443a3139ace9f68a22cb40683b33244295735749d9f4b555905e7ed65ee9",
+				"sha256": "fdc654663472591151e08f4f40cf7cf2a2428be2a002d1333b4ee72c3716471f",
 				"subtitle": "Fabriken, Festungen und Bosskämpfe."
 			},
 			{
@@ -147,7 +147,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "fa736a750eefcc0d8537b74ca75bab5e5e513ce9b802c5eb627128744ab4a702",
+				"sha256": "25a3ea5f61915f78dd724f1f552303155a1a590d4a9b7a11054418c489ed54ae",
 				"subtitle": "Drei Fronten. Eine Region meistern."
 			},
 			{
@@ -160,7 +160,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "b852980e5815b823498064b0597ef413e562495fb88d09e304ce44b557a5d590",
+				"sha256": "de1bc8ac3600be02835ad9b83e0464d94262c8f8dd747c155edebef5cfb9d7cf",
 				"subtitle": "30 Kampagnenlevel + Eroberungsexpeditionen."
 			},
 			{
@@ -173,7 +173,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "cdb9197f40c7eda428a6cff2993d60c824a52541ec3f8788ec33f433a51d48e2",
+				"sha256": "4ba5e54f2cbe813b0efd8651fa749b2653e53b632d064d46a65117a570f0cad5",
 				"subtitle": "Gleiche Kräfte. Übertriff deinen Rekord."
 			},
 			{
@@ -186,7 +186,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "bcbddf86e5d1b16223d308dedc7e2deb6a1110cb03bfc5584f6a808343608789",
+				"sha256": "40ce2d3459b6ad67c8cff64919cf0a2a7781a3a8dda060065ae9941940506cf4",
 				"subtitle": "Schneller rekrutieren. Früher angreifen."
 			},
 			{
@@ -199,7 +199,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "f7f5849aacf28ebfef8814d3214c14512fe407762c3246f24a3b354466057126",
+				"sha256": "5dcbbf1e0e4b9cae394acc0137880bd93151b7c41b022f22db361d2618951f31",
 				"subtitle": "Armeefarben, Basisformen und Kartenthemen."
 			},
 			{
@@ -212,7 +212,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "37e229bcd9890bcaaf6a310cb680ce5166f014f51db1732789a714d2cc51a383",
+				"sha256": "ca2643a3d6231173d7187a95a27eb5d9c44329f957bf1cafcb3bd2bbe073e4e9",
 				"subtitle": "Städte, Ränge und 20 Erfolge."
 			}
 		],
@@ -227,7 +227,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "fda508591df294d9aeed2dbb000abad599d65a0f6bf1834e740b40e87b7da427",
+				"sha256": "5bfe71f7bd33f460233ad9f78e74e061797cc6fdea6bcf69df70e17485c5b542",
 				"subtitle": "Offline strategy. No ads."
 			},
 			{
@@ -240,7 +240,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "750eafb6cd25e72fddf58091152859e85c811221a704375130847af69db53be6",
+				"sha256": "bff03259b004e6651cad29f7a07a44d831891d0fd2282962f3e7e3059c30d030",
 				"subtitle": "Factories, fortresses and boss battles."
 			},
 			{
@@ -253,7 +253,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "e278285ada3a7170c3e347975f865018a162a25d7649cb605c8a77fe18780541",
+				"sha256": "1b5e05a58d6c5a477e5f804713f49384afb0aa3fd81c3defe4d4679f9a2ca00a",
 				"subtitle": "Three fronts. One region to master."
 			},
 			{
@@ -266,7 +266,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "0002e9a036e04157dd4aa6fba28a2c791e7512cbc77d175c1381ae94891d44a6",
+				"sha256": "a059730d3620f334036f0be0e51aabe199360fb64579f60fbaec7748cc9a53c7",
 				"subtitle": "30 campaign levels + conquest expeditions."
 			},
 			{
@@ -279,7 +279,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "880edbd0c32b627462e9b4ec16cac02eb844d51e084864cc02ed46e8f16b05b0",
+				"sha256": "14b3df613d41381bcec553e50af5ccf8606d674c60ac4f238eb80ee2b0b9016e",
 				"subtitle": "Equal forces. Beat your personal best."
 			},
 			{
@@ -292,7 +292,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "efbd9aa84df94131ed338a8f077eaa6b37f28d2684693dd501d77aaabfd3f9ff",
+				"sha256": "3415cf67216fc309a99882ecf239a64f837d678fa8c14136e53a90d502d6314b",
 				"subtitle": "Recruit faster. Strike sooner."
 			},
 			{
@@ -305,7 +305,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "c250b263ef5f3970fe90d592a29f999dcb884505ba75848ff4acdad66b13dfec",
+				"sha256": "19ff4bd28389c3bf30a198731350d6e5ff777133b70e3f29ba00cc24e823fe1b",
 				"subtitle": "Army colors, base shapes and map themes."
 			},
 			{
@@ -318,7 +318,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "6826c314cccc22cd6faea612488a97443074e47ca215ab205f22d6145882ecb0",
+				"sha256": "58cb24f7001bc35d163cb97d9fb873db9d32115ade7f305aef8ad448658c7da2",
 				"subtitle": "Cities, ranks and 20 achievements."
 			}
 		],
@@ -333,7 +333,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "6d2744b3dacaed27de3ca1a14e443ae89d5d8b08827573bfe3092affd9d4945e",
+				"sha256": "3c44b11ffe5bd2b76633721dd93e25215d8bfc924b26924b92aed628c3c0938a",
 				"subtitle": "Estrategia sin conexión y sin anuncios."
 			},
 			{
@@ -346,7 +346,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "010e92b764f0127cf7761bc2ef740a83f5011509853cf3b4082c379a9143d911",
+				"sha256": "5d2b9530fe4a60a4db815136cf889d72c0d3a3b8062c1c3eedabd05d5d61dfd6",
 				"subtitle": "Fábricas, fortalezas y batallas contra jefes."
 			},
 			{
@@ -359,7 +359,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "ba966b11218e34893c5f687b57906fca0778b7041d795f6aaf3cea159fa0b34c",
+				"sha256": "f0dc86a2adecb47070650e2e5bb9502976bc20749f6f8c43ae499325f3ebed5e",
 				"subtitle": "Tres frentes. Una región por dominar."
 			},
 			{
@@ -372,7 +372,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "98dd29809dc14fbf54da158329b4b8d8a1698bc3c897668360771183decccc14",
+				"sha256": "d63378926352db79e0007bb9d6b92fc01c25be89cfd68c1042fad32346c7d396",
 				"subtitle": "30 niveles de campaña y expediciones libres."
 			},
 			{
@@ -385,7 +385,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "e592d5ea2d3614e9590ad5ffa78c32805e950fae1082323899c9218b600f01cc",
+				"sha256": "7d8c052e2a77e598eb59099f16e4c77a13a1d83035bf22f830137be92717fa30",
 				"subtitle": "Fuerzas iguales. Bate tu propia marca."
 			},
 			{
@@ -398,7 +398,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "6102adae2a7b93354b0b9466c8a221122186af5fb6be1ff4c7b743df0c599928",
+				"sha256": "977848ed48c6e547871b29b993c981cbd90d10a03bedd18681df8306cff04b09",
 				"subtitle": "Recluta más rápido. Ataca antes."
 			},
 			{
@@ -411,7 +411,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "2210ff9c779455e2c8b4649bc7adcb7fce190f29f935d0b00f0e01cad171fb53",
+				"sha256": "6348e6e530c70720d74f43a628d38e4311c8010716b114c43ef80c281041817a",
 				"subtitle": "Colores, formas de base y temas de mapa."
 			},
 			{
@@ -424,7 +424,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "e83c10a6f52d5f790756f450595eaa98cc9f09d47dc7c396ef957f4a28bb605d",
+				"sha256": "fa1e0e13329f8bac4f3e9252f2e1cffb49ab61f0537e2aa01737cb6224537e48",
 				"subtitle": "Ciudades, rangos y 20 logros."
 			}
 		],
@@ -439,7 +439,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "b487c30e24104f75b6a3e1d4d402695d8809351be00f40d8a12964b2665462f5",
+				"sha256": "704074ee15aa9f6dfcfa804b9286f1b0d6853bdc4ffd0881ae9c858e8f12ac91",
 				"subtitle": "Stratégie hors ligne. Aucune publicité."
 			},
 			{
@@ -452,7 +452,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "cce1fb27571602edc49cb0e1b27e0ee90af134f63e7b6eec244ed70d5bab1867",
+				"sha256": "bd1227f1d229689a76091be3446f2f7077755d3c0f1524b5efee83a0060e3fe9",
 				"subtitle": "Usines, forteresses et combats de boss."
 			},
 			{
@@ -465,7 +465,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "1e3765ee448728f0276ce4af3fb536a7b7eff4d73f5f82b0d7ecd6ecbcfab3a8",
+				"sha256": "74609d69144aecf5704dc855fb74fce9de88f3548c22aaa302186a2b6ad9fa40",
 				"subtitle": "Trois fronts. Une région à maîtriser."
 			},
 			{
@@ -478,7 +478,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "b4626fec57e24e5671e72a4dcf25270bd15b88005acfff6f2377ff5a021ea757",
+				"sha256": "1c8e463a7f4765b593e3f3bf11425ba483303e9ebbcfdf8be51b16e6e57a3fd1",
 				"subtitle": "30 niveaux de campagne + expéditions de conquête."
 			},
 			{
@@ -491,7 +491,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "a5dda293482dc62f6b1d76e17e08b74a539f1aacbcf7a5f8008b0edfbc6a7d35",
+				"sha256": "f1a4e6a13811bbd4ead3444975d5d38bb18a4190767b866ac198aacf776dbee1",
 				"subtitle": "Forces égales. Battez votre record personnel."
 			},
 			{
@@ -504,7 +504,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "8681e1a661b29a0ebc7ee8cc07b0182ff348b41e17ca72ab5b859c21b1da93da",
+				"sha256": "191b1459298363b02308ac2d035d6c5ccc6b8d1382d20ab25a634a26c6d56496",
 				"subtitle": "Recrutez plus rapidement. Frappez plus tôt."
 			},
 			{
@@ -517,7 +517,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "8ead2cd282c3f545f3ad0c53acef623fbbf9e79404e9411bdbfe0bd743541bb3",
+				"sha256": "edd3779764132f3004e0b50d2355c28f682beea05cab2a5b4b563643ce7c9bff",
 				"subtitle": "Couleurs de l'armée, formes de base et thèmes de carte."
 			},
 			{
@@ -530,7 +530,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "c4829ef1373cfdf4c76ae2ee61f4b9d975688fa830629a7f269068f7783865ca",
+				"sha256": "f739ab5649b53ba311f0ef9913d3386485b29c2ed3e34f83ea0b0a4c49d150bc",
 				"subtitle": "Villes, rangs et 20 succès."
 			}
 		],
@@ -545,7 +545,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "c997179ed3a95669bbb5371d96d5d5f857f395897f08cf4af769b24298be6445",
+				"sha256": "e6f5afcdd0d6a730d509dd7c5b22d8937a7deffa698bd28d7cae28ddf3cdfea6",
 				"subtitle": "ऑफ़लाइन रणनीति। कोई विज्ञापन नहीं।"
 			},
 			{
@@ -558,7 +558,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "b7e328496c1d21b2aad1158b268d0a80f89131c360d1dfce1f65c964ffbcddb3",
+				"sha256": "8f43dd656ee64c095790fbf790a109bbf6862cda11f6f2ac801948df09c472ac",
 				"subtitle": "कारखाने, किले और बॉस की लड़ाइयाँ।"
 			},
 			{
@@ -571,7 +571,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "60b3c6137328544382b9205e22fb0ea74d12e0a2c683bd2ee4ba5ec49b5d2379",
+				"sha256": "c3f3bcb0f2af546c94d842e435d75dfb457fa88516fe052dd65ae6e3fce52f9c",
 				"subtitle": "तीन मोर्चे। एक क्षेत्र पर जीत।"
 			},
 			{
@@ -584,7 +584,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "ee7b83944b42a13f793e3c1a428e3beea97434e170830c66abc38953c3d385aa",
+				"sha256": "a2a089c72fd2ffebce4548f622e525c07bba98c11d5bba73a6e218007b2ae913",
 				"subtitle": "30 अभियान स्तर + विजय अभियान।"
 			},
 			{
@@ -597,7 +597,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "a411f1352ac365bf3050d4e8f2fd2d9d0063e76e272517240f24efac70688fd3",
+				"sha256": "a7eb735e0f3a2e71f619cd61ad138063d201e71e96fb66f7c941138ff589cca4",
 				"subtitle": "बराबर सेनाएँ। अपना रिकॉर्ड तोड़ें।"
 			},
 			{
@@ -610,7 +610,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "301ccf4531383c0303fc48d88ee2a616570f2c502a0318d369dfb5351200c00f",
+				"sha256": "6cafe266a4d49bf893ce555ed72f502b65ae718c03a6c95d173b0b3c7056e777",
 				"subtitle": "तेज़ भर्ती करें। पहले हमला करें।"
 			},
 			{
@@ -623,7 +623,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "1738c13a56ac0aba4a1fa418004a70bd391800bac93b19bb55daaa97432b6c40",
+				"sha256": "25ae7fc98c705c554163ede6f30a3d1a25f85088f1ed840aa559c458046829ed",
 				"subtitle": "सेना के रंग, बेस के आकार और नक्शों की थीम।"
 			},
 			{
@@ -636,7 +636,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "bda19817c1eac314855b65522a1fd2be430a6235af56cefe3ae2f7fe535b6427",
+				"sha256": "6b08bb10996d155f9d26e74ce2f5faa80f422209c859d28b0e0363447f22ae0a",
 				"subtitle": "शहर, रैंक और 20 उपलब्धियाँ।"
 			}
 		],
@@ -651,7 +651,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "1a293934630b2d9029cb423ef4fcda6997eb1ff98a1fbec2ea8f76db31c91ba3",
+				"sha256": "0e1c5941010249628401a1a192d51576009df274a8da6e544b52159091a2b960",
 				"subtitle": "Strategi offline. Tanpa iklan."
 			},
 			{
@@ -664,7 +664,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "a80fe2d3e0d2d702bede243dfc1dece3b16ede31dddf66c3529ec83a88215bf1",
+				"sha256": "5085ec421e13534cd3b53e6f98cde3dd73a2696a923865aea201c8a8f5175756",
 				"subtitle": "Pabrik, benteng, dan pertarungan bos."
 			},
 			{
@@ -677,7 +677,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "7f4a8a97a4f9fef17573ae2559ef331c648c8ccb744a07e58d567be2b12abae6",
+				"sha256": "065d18ca9d03541a6f26e78085b6a90d475a2b0ea964624a420f15c0623f60e2",
 				"subtitle": "Tiga front. Satu wilayah untuk dikuasai."
 			},
 			{
@@ -690,7 +690,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "cc985abf51794ab4abbf0ba36c6844dd815e90d768c3f29f2e05cf87a67d71b0",
+				"sha256": "f6655819109622892b292cd95ce4781bf8350ddaf292924789435c188e60b203",
 				"subtitle": "30 level kampanye + ekspedisi penaklukan."
 			},
 			{
@@ -703,7 +703,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "b96724b7b5e43df242cfb1f737d319da7bdc4cd67c6e562c3966f72564f9c3c4",
+				"sha256": "59401e4696b4d8591929e6ccdd872252869b1cce051285e7765990736fa43e24",
 				"subtitle": "Kekuatan setara. Pecahkan rekormu."
 			},
 			{
@@ -716,7 +716,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "cac48d848dee7174408b94013999acbfa9a1ef72ca14c6dcc63a6044b9081ffe",
+				"sha256": "cc7914b986a838ed70dd84db3082ffd9efaef8d930513dc48984757757e2ff89",
 				"subtitle": "Rekrut lebih cepat. Serang lebih cepat."
 			},
 			{
@@ -729,7 +729,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "e28b58d94d2004e57bfe242b5c746833c86329e00ab7730f17aebb712bd6b7c2",
+				"sha256": "8d6e54a273be833d8e7c86d7a80f14375fe74ad2f3bac080bb9f6ebeea874b2c",
 				"subtitle": "Warna pasukan, bentuk pangkalan, tema peta."
 			},
 			{
@@ -742,7 +742,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "eecc0d38f1515e7937db6c9a8111998ccdfee1eea8480a4711158983205bfbcf",
+				"sha256": "804fc594643bed9a0059c2c26fdf6dafa6da62e1e270ece1d7f4569198b2703c",
 				"subtitle": "Kota, peringkat dan 20 prestasi."
 			}
 		],
@@ -757,7 +757,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "a5284c4f2e5176de35b884435d3c33cc7c9d06345a56dcd1579f70ff5d8be49e",
+				"sha256": "183afad3d0ee49ec2ecdf326b62c914d8f0d8aaa822cd15667c77fec29170118",
 				"subtitle": "Strategia offline. Nessuna pubblicità."
 			},
 			{
@@ -770,7 +770,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "05259e2938a788588f8c6439c6b5c77487f1fc320d0f6f772b9c05a66060a018",
+				"sha256": "7d9e446adb30f51af0057c40b8c43fb653b2b7c23754c7fd6c25b9cdab7ca123",
 				"subtitle": "Fabbriche, fortezze e battaglie contro i boss."
 			},
 			{
@@ -783,7 +783,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "113d6f29e02eeae15c0fc6cbb7bcfe2c7b6133bb466db7673f5ffc28ff2da728",
+				"sha256": "cc1c3000a17ad3367dc36fc801cd267297689b32155a1c241bea2cca3711a593",
 				"subtitle": "Tre fronti. Una regione da padroneggiare."
 			},
 			{
@@ -796,7 +796,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "bbe3af61890eb998ad78eff4953defbfdd00b9ba13502eee1bd8ab457649b89d",
+				"sha256": "d7ef0f65b728afb7734aa624821fd3d73960f6616f20d30b7a7ade4194e749c7",
 				"subtitle": "30 livelli di campagna + spedizioni di conquista."
 			},
 			{
@@ -809,7 +809,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "a92b07885a804b6d20217269ae488a1a640423398f5c9d4baf030166cb22e356",
+				"sha256": "a380fb133f55c4ccc13fa7b037629f3963e3138b8530f40079149ec3fdb9ee7b",
 				"subtitle": "Forze uguali. Batti il tuo record."
 			},
 			{
@@ -822,7 +822,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "60a1a37798a911903e419f6ce6169ca09fc6469561ebebb0319e854faa05d1b1",
+				"sha256": "895803cc6d289ed45169bc1331fa1207970b05afb3600cc21442030f9ed35f18",
 				"subtitle": "Recluta più velocemente. Colpisci prima."
 			},
 			{
@@ -835,7 +835,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "698967a77222fb91ee3b48f1d95043662b87164fa6523fdc08655024aacbbe59",
+				"sha256": "d2099f1ca6d09b4259a8eefcc00ba513fd4f8f3ce8a01d187efe94749cecca51",
 				"subtitle": "Colori, forme delle basi e temi della mappa."
 			},
 			{
@@ -848,7 +848,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "689dee6c188d147f174d53eb3bb22f7fc9facd334b73deb0a9310c44dbcb6214",
+				"sha256": "da1b4ed914e19b402f584a2de5a6653ee146ff8e75b117bc610904c74de4690c",
 				"subtitle": "Città, gradi e 20 obiettivi."
 			}
 		],
@@ -863,7 +863,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "72756ab78978bdadd494b49c2485155c7b62ff0d44815c30ad796c1940916c45",
+				"sha256": "4f10809dcffc978d73d3260686e767df2e6377709a4ad363c786b9905013958c",
 				"subtitle": "オフラインで戦略を。広告なし。"
 			},
 			{
@@ -876,7 +876,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "f615a7685131432cf0f228f4458641cb40b487498d668715e2d8ba3dac79ca48",
+				"sha256": "810f4e9e778150ad8647d2d7570d31fe882e8282d48089eb72449d1acb7d657b",
 				"subtitle": "工場、要塞、ボス戦。"
 			},
 			{
@@ -889,7 +889,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "b8ce819803fe557cf4890bf861a9beaba922bc3f8fa82f198714ebd19366fc34",
+				"sha256": "911772d67a410412629aff96967a1edb3b054b90824e8064764c78df633bb950",
 				"subtitle": "3つの戦線を突破し、地域を制覇。"
 			},
 			{
@@ -902,7 +902,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "9a21c6fa44d638e6ffc83dd18b3920e262abfedc67631300d151de0d1b9697fb",
+				"sha256": "a14620b8669f143f279b5eea689d61b5fbd612c90457df378fb1049e046667b2",
 				"subtitle": "30のキャンペーンステージと征服遠征。"
 			},
 			{
@@ -915,7 +915,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "451d7181872bfae9085350bb5ede0120a41ba431f09a096b4b8ff0dbf9eeef2a",
+				"sha256": "8e9f3e35074340a929150569e0d62ab943a1cca4fcb996c1873cca328f9b09de",
 				"subtitle": "同じ戦力で、自己ベストに挑戦。"
 			},
 			{
@@ -928,7 +928,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "236793b0d28978fb2c58d65b04e9d0f435a44400743d2ee95ab0e78b1a0a12e0",
+				"sha256": "eaff05c4f6451c2681d4690cfe4cdbc85f3c62f8cc21c8c173ae4502c6ffe9d5",
 				"subtitle": "徴兵を速め、先手を取ろう。"
 			},
 			{
@@ -941,7 +941,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "cae10ca6219eee1c234237e3e43da13534eb1942f0fb1237d3eda5abd39a791d",
+				"sha256": "76d5a272b6840964abcadf2959fdc2c88bae61df0b9e1aa92a2db1dddb4a3a72",
 				"subtitle": "軍の色、拠点の形、マップテーマ。"
 			},
 			{
@@ -954,7 +954,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "4c3aa6fce15ce4d32e57585d7fbbe7f8f6d1d71d8a92424112cca10376cfd8c1",
+				"sha256": "7e145bb7781020b5cbe22e0574c32d29daa2fe72cc911139903a59d57ff3f229",
 				"subtitle": "都市、ランク、20の実績。"
 			}
 		],
@@ -969,7 +969,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "90b743c6d05d39361826d80f69b2d542e76bedb6de1f6331c5575c2884ccb27e",
+				"sha256": "edca3c0fcb85a2b2b4ee77a99a41aa426fb6e39f5b5f5ce29661cfda5c1e7b01",
 				"subtitle": "광고 없는 오프라인 전략."
 			},
 			{
@@ -982,7 +982,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "3da5eb20605d63a3091a3469385ff930543cb2cf86a91bf035d7b7d1a84d5e63",
+				"sha256": "673f08dc0e4d2cf8e86b34aef5b32971f7b86c59cde0d27c04629d777e14d832",
 				"subtitle": "공장, 요새, 보스 전투."
 			},
 			{
@@ -995,7 +995,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "2d0422002ac38168434e47b91f58792ce9a7a11a30926d2e98f2a85909da753e",
+				"sha256": "22cd14a8cabe344ab7cdb21c298b9e2efc9b405b23e421001fd021c6475129dd",
 				"subtitle": "세 전선을 돌파하고 지역을 정복하세요."
 			},
 			{
@@ -1008,7 +1008,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "ba31b0f939f46da1ecb55ad5aa65151cfc11c54ff02a6b2fd327d3467c71d7a1",
+				"sha256": "1b0049970475746f5c15cfe053b3f0129f374fa8a3d6aa07d727082e5a0c3ef3",
 				"subtitle": "30개의 캠페인 레벨 + 정복 탐험."
 			},
 			{
@@ -1021,7 +1021,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "eb7ac416d33a1d2c3dd22f1637a7d2b956936a0b302115d14b0ea3aa220a383a",
+				"sha256": "d1e8932b05de71f1e1e6d6c9f8eb71ed8e30f9c00060ae2546430f2d971c7aba",
 				"subtitle": "동등한 힘. 개인 최고 기록을 경신하세요."
 			},
 			{
@@ -1034,7 +1034,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "b8da29c374be9fe8c603fdb4cc3b9f06c262d0ec9d3073af33e7197050bd9f5e",
+				"sha256": "84277b16b553bbbbf1608d4858e6f6c07a18429738fd69cfe1707408aa9ad4b1",
 				"subtitle": "더 빠르게 모집하고 먼저 공격하세요."
 			},
 			{
@@ -1047,7 +1047,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "89721b38a36fb72e6ba512579c79626284528b74c662c3010ecd9cd59ced200d",
+				"sha256": "2e534a6231f6f1f0cbe98ca35556f53b37fc77961448cc937a34fbf4004e5458",
 				"subtitle": "군대 색상, 기지 모양, 지도 테마."
 			},
 			{
@@ -1060,7 +1060,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "097656d2435ab4b3b5e56618db8e159293f3f65fa08a8a3db94891820dc2fb59",
+				"sha256": "8f6e9edada884e873d87a29a9727921dfadb1f57547f59a1db44fe3d4b3f8392",
 				"subtitle": "도시, 계급, 20개의 업적."
 			}
 		],
@@ -1075,7 +1075,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "8ae5ed7a74e51a3656118a4d403f97ebe867755f8e8a2ffadb3778f421f8b3fd",
+				"sha256": "6b2879a968a2ecc23e7469152e30f24faab34fb2dc73726897430f804726b7f8",
 				"subtitle": "Estratégia off-line. Sem anúncios."
 			},
 			{
@@ -1088,7 +1088,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "9ae382daa6c1667ddcbb66bed634ac46394891b68b4a36c7b3a35547e51f482d",
+				"sha256": "56a7f9a369767cea1a1efc3f2910bef9a13a092df7bd7b0aa08436487c67189f",
 				"subtitle": "Fábricas, fortalezas e batalhas contra chefes."
 			},
 			{
@@ -1101,7 +1101,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "311d3398869044de629f53d862f67fe7aa9fe4b5194f9755d2e8d7d8ed4dfba5",
+				"sha256": "f0855e06e733370f941604b4340140a0b4e9a3436de5a9a2d761f3b93f130ff4",
 				"subtitle": "Três frentes. Uma região para dominar."
 			},
 			{
@@ -1114,7 +1114,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "ed77f5f87b1db584f6c3ce2ee8f3bb1743f4415f0af8480854393d226df77319",
+				"sha256": "9874b9342b75ce72c46abcdd3114e8c395191da139717877b3f3d0c865794e03",
 				"subtitle": "30 níveis de campanha + expedições de conquista."
 			},
 			{
@@ -1127,7 +1127,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "2598867306a90cf2d3c556b48d89c617ff74d433fdf0d0e5fea4f1b8fa0e856f",
+				"sha256": "a52c8737076b8dc5e3215c5df4a361cb3310588c78ce17da3a4f86f1d85f1faf",
 				"subtitle": "Forças iguais. Bata o seu recorde pessoal."
 			},
 			{
@@ -1140,7 +1140,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "7aaec5dcde28f7ac1e26dea7215fa2157d7099f6ce22e1dee3ebdb08f0c84a4e",
+				"sha256": "4274237e11ac6a1c9412fc97ae75f4314313c9b188abe9fc1a3ade0a439cbb39",
 				"subtitle": "Recrute mais rápido. Ataque mais cedo."
 			},
 			{
@@ -1153,7 +1153,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "eecfcff831499ce8a01a08ec386ed08ed5cfc372470865e14481f0fcb96ff3e6",
+				"sha256": "3d887995373bf9c45cec53dc4d62cef54f30889da1a99ce12a94ced4debc2cc1",
 				"subtitle": "Cores do exército, formas de base e temas de mapas."
 			},
 			{
@@ -1166,7 +1166,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "fb1b6a3ffeea8fac995b9bd3927f02d46f342bff8a767dd459c055f37ffd7ce9",
+				"sha256": "e538d41632920d8967000e92b990fa2c87f1d88764ceb50cc8be8367ba725e39",
 				"subtitle": "Cidades, patentes e 20 conquistas."
 			}
 		],
@@ -1181,7 +1181,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "cdd05a8860b0e66065d2a6596ecb7dfbf1dbae037f27106863ed95786ecdca17",
+				"sha256": "9522600af1dbeb142a4fdd762c2ecb3e0064751fe41b7fb9b0649b04b011e7cb",
 				"subtitle": "Стратегия без интернета и рекламы."
 			},
 			{
@@ -1194,7 +1194,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "026eff195972c8f1be038b7cdc68942303afabe3774ffbaf6f7922a4350fa614",
+				"sha256": "a8cd123974f09027dc109b0060b9ac80e0015b7cbb9a44ee5fff9f610e2756af",
 				"subtitle": "Заводы, крепости и битвы с боссами."
 			},
 			{
@@ -1207,7 +1207,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "abda7ebf97158b9ceb0a8054b5d4c2ed1c3e1f36e59bca3e0b9dec3576fab0c9",
+				"sha256": "b0c6d332986e066815fec932976a86879ca24ada870a75c723622aab40dddb47",
 				"subtitle": "Три фронта. Один регион для победы."
 			},
 			{
@@ -1220,7 +1220,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "913c43a2de13211ae9daf01c2bc281fd2ae8d9a6f24772220e56ac06f4c2f37a",
+				"sha256": "670111612c7a0dbfddf948e428f2a4d8d1be0a632ec32046ed97fe7668607020",
 				"subtitle": "30 уровней кампании + завоевательные экспедиции."
 			},
 			{
@@ -1233,7 +1233,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "17bcc308472644e4d54e47d8368963ec7fd331e43738df476c83859dec5f6780",
+				"sha256": "4360fee9a9c65d48e89118deb2f7bb300ddbbe53438ef91087f638ff17f84d78",
 				"subtitle": "Равные силы. Побей свой личный рекорд."
 			},
 			{
@@ -1246,7 +1246,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "4ab3588d32eec717eff3f9537eb8226eba9ab203a2deb1c74dfc49a0177ea9cd",
+				"sha256": "33450a6c17f99f7d47257dce22bd70466486f0c3eb733351757182dca6d9df62",
 				"subtitle": "Быстрее набор. Раньше атака."
 			},
 			{
@@ -1259,7 +1259,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "694ba1369c10ba718d58e36967a4adfaf4b23c1628d74ad97801bf27a82d33a0",
+				"sha256": "fb4f2becf4256e14868573d69c7c1ad22be7678d685fdc1e5e3aa8f9585d538c",
 				"subtitle": "Цвета армии, формы баз и темы карт."
 			},
 			{
@@ -1272,7 +1272,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "f4bc0e590ce75e33f5a07baf4991ab0fa41828c14ce1ca48ad47d125c3843810",
+				"sha256": "9edb961371eb15abf0eac334a0e366512261683997d1fa910af6d0fe1fc24a69",
 				"subtitle": "Города, звания и 20 достижений."
 			}
 		],
@@ -1287,7 +1287,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "0c44b61cec011ffb89bed44f298318e9925f28dbf27e648f9b4644a2a5f5ca5b",
+				"sha256": "a330e31a6fc3b9b292bd6d24630945a75dea23eab9973abac61cb058bf672947",
 				"subtitle": "Çevrimdışı strateji. Reklam yok."
 			},
 			{
@@ -1300,7 +1300,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "0501e619a344cbce1d3e83032f15f8181ed1f27ff468759fcbbb1fd8d0ae650d",
+				"sha256": "573347f7000bf3160bc29cb9e59c0c1eb1f0b15acb136a906095b39deb349eb6",
 				"subtitle": "Fabrikalar, kaleler ve bölüm sonu savaşları."
 			},
 			{
@@ -1313,7 +1313,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "7988cbe19dbf7f0fdb793bacc84cdc0f0dd78eb9a470e0fa0d979a61f39293e4",
+				"sha256": "17f47f886bcda0fc818ec9ed523a99613ac4404a91e3941a22fd7682e656e952",
 				"subtitle": "Üç cephe. Uzmanlaşılacak bir bölge."
 			},
 			{
@@ -1326,7 +1326,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "50f18c44f0466f30df553d5401095355a8ffcb2c1fb15833150572cfdbd9222f",
+				"sha256": "fcf1478d07d8a3e48040c1319f6a6ae100dd3b411f86f98ff9246e55d03a6ea2",
 				"subtitle": "30 kampanya seviyesi + fetih seferi."
 			},
 			{
@@ -1339,7 +1339,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "d68b88277e7ec1d074fa4036a56de6d382fa4c30ff088f767164df09d5a90aea",
+				"sha256": "b0d67d390d9473228063c790ad0db4df2d49c19434eb411accb7823a898cd478",
 				"subtitle": "Eşit kuvvetler. Kişisel rekorunuzu kırın."
 			},
 			{
@@ -1352,7 +1352,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "54899a5c22f957b23187ad1733e2749e7a90596a70b46f4a3e653b7d81b18645",
+				"sha256": "5daa35d5379815de73defc0442c10aa49e8a3e8a8c20970c0f0543354c9ed109",
 				"subtitle": "Daha hızlı asker topla. Önce saldır."
 			},
 			{
@@ -1365,7 +1365,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "538a8837f55f2f6efd8d2f66efc0caf9964ffdedadd222a7c7e95604555304de",
+				"sha256": "2771f8ec8065b9ca7d51c3723af2a72bb05304c0728cb9303c36c411e317fa1c",
 				"subtitle": "Ordu renkleri, üs şekilleri ve harita temaları."
 			},
 			{
@@ -1378,7 +1378,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "0d2c88ce94c4bbdc0f32dce4a31befd0dc475526b51208d6c5ee96436aac47fc",
+				"sha256": "4b423c310dbf5a7bbec3eac9e1a2050faea792fd8e58fae3ef7298ddfb670d42",
 				"subtitle": "Şehirler, rütbeler ve 20 başarı."
 			}
 		],
@@ -1393,7 +1393,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "08833c409c8b66918cc4f97c9684ec9ce70f170d3885390a36c64e8503d0ac1d",
+				"sha256": "73c3debeb45f368037f4d407b0040f66ed0e98c40789ebbd956d59ed955a3bb4",
 				"subtitle": "Chiến thuật ngoại tuyến. Không quảng cáo."
 			},
 			{
@@ -1406,7 +1406,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "6b89ab8ff1d82849e396c65a391106d9fcee16d92d82debe6d62d9f1144d9a41",
+				"sha256": "538034cc453802a78f339b93a25c7efa84b81974bee5305f08b896ad3d4b5f0b",
 				"subtitle": "Nhà máy, pháo đài và trận đánh trùm."
 			},
 			{
@@ -1419,7 +1419,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "09819633e6d4b8846a561d9eb9f259e9b73049370d8462367d385faee6461c0a",
+				"sha256": "fa45ad3a59f47f6dfd8f56a5d990e84a7d2bf309d0ea9b396d701b91e98fc758",
 				"subtitle": "Ba mặt trận. Một khu vực để làm chủ."
 			},
 			{
@@ -1432,7 +1432,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "5a158cd39ea3ebf8b5f99b56e1c63321746ffabd60ff854e9377b4a64dc43029",
+				"sha256": "5318323a606c6ae517163312a86d9cdae489a9777eb0dc994a3bb1ca5f9e8472",
 				"subtitle": "30 màn chiến dịch và các cuộc viễn chinh."
 			},
 			{
@@ -1445,7 +1445,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "22db0d5b246ecb0d83749c51cbb2bd3f3dbaa97a00100844571defcaf0c23be6",
+				"sha256": "f55a3c5b305c1462ea008ce2e7a892c6de96647e32e08af3217c628a7212ef80",
 				"subtitle": "Lực lượng ngang nhau. Phá kỷ lục của bạn."
 			},
 			{
@@ -1458,7 +1458,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "092847ef4e5dbe7d64c88896dd16463e83e62ada07f8e1012e201176615c4a35",
+				"sha256": "c43bd190dc02c6aeb0bba31b06421eda4fbfef830e497b9543e0416cce7d91db",
 				"subtitle": "Tuyển quân nhanh hơn. Tấn công sớm hơn."
 			},
 			{
@@ -1471,7 +1471,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "f7efc4b50ba243429defb3900cae390eaba0ba038286a51e7263109536ae1b15",
+				"sha256": "ba1d7856f4a928d1b3d9ff3b30377e889b0aa25d6b70573fe2613c3d9a3b1974",
 				"subtitle": "Màu sắc quân đội, hình dạng căn cứ và chủ đề bản đồ."
 			},
 			{
@@ -1484,7 +1484,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "f35688677517572f5cbed691560cd3c0fbf5860a33e266387541667966ad855c",
+				"sha256": "571dd49827b6f01366c7ef6817a402e9d45edaa58fb6d7cdb0df95b6961bba54",
 				"subtitle": "Thành phố, cấp bậc và 20 thành tích."
 			}
 		],
@@ -1499,7 +1499,7 @@
 					1600
 				],
 				"scenario": "europe_4",
-				"sha256": "7572713eacb4e5634ff26108d736e8fefcd12dac17ae48fd91b5c29a01b153d6",
+				"sha256": "6b62836273f47ac3f444ac3cf4740b6a5745b6d80754e1c129ab752f6c0152b9",
 				"subtitle": "离线策略，无广告。"
 			},
 			{
@@ -1512,7 +1512,7 @@
 					1600
 				],
 				"scenario": "europe_5",
-				"sha256": "6e19ec5fd4db5034a386406197082684e2767ced3bd120d31bb43b360c3fb1fc",
+				"sha256": "6d576cb1a48ef0cd67e9428ebd047ad3c7252dca7f1198706988765635ed024d",
 				"subtitle": "工厂、堡垒和头目战。"
 			},
 			{
@@ -1525,7 +1525,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "6244c9ee3645e448a358f598d0b56256f7c79f80e3fbbc9e4560ab52bc40feb2",
+				"sha256": "e2a2e30151932bf318f9189fe884ac748c1ab73a7ae856752073fde25a198e0d",
 				"subtitle": "突破三条战线，征服整个地区。"
 			},
 			{
@@ -1538,7 +1538,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "cd7811d10bc54e4307e4e4d652be98388dbe193bdf142cf148020538eac1293a",
+				"sha256": "fb3ae2db5a1a0743e17a652b860c1c22171c4e2fa17cefcb599f797be68a6733",
 				"subtitle": "30 个战役关卡 + 征服探险。"
 			},
 			{
@@ -1551,7 +1551,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "273eb62752da1ec68a19aa04f4add332fd31d4cde074766f7f0ea4c0b7787ad3",
+				"sha256": "93d2a6678a372758d9988e9fb9a5ab3803e3236e4009f758e31dd5b3393bafd3",
 				"subtitle": "相同兵力，挑战个人最佳纪录。"
 			},
 			{
@@ -1564,7 +1564,7 @@
 					1600
 				],
 				"scenario": "upgrades",
-				"sha256": "ddb463c0dc11ad704b7ab87525f893dd681df904cff5f7165dd689a18db3d8ee",
+				"sha256": "6fbb971b86f33c005342447747c4af8fa71bc0463de2a3c9d438a46fd8d0e1c4",
 				"subtitle": "加速招募，抢先出击。"
 			},
 			{
@@ -1577,7 +1577,7 @@
 					1600
 				],
 				"scenario": "cosmetics",
-				"sha256": "be1dfe93c52b9234d1f5e672a849de196516069efd368267a6be29949bc109c1",
+				"sha256": "1b1fead19567ecbe836b168d7aeb9457229249e1a1d97039b5ec0df038fd16f4",
 				"subtitle": "军队颜色、基地形状和地图主题。"
 			},
 			{
@@ -1590,7 +1590,7 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "ea9965253a54bc8777b28d84ec704a443efff2b85b0393a56bd74b53cc4ba9b5",
+				"sha256": "7370bc530832e536b63250281b40931d08b42545384bdd4d086bffc2ddbf4cac",
 				"subtitle": "城市、军衔和20项成就。"
 			}
 		]
@@ -1601,333 +1601,333 @@
 			{
 				"alt": "تُظهر خريطة الحملة النجوم المكتسبة والمعركة التالية وإمكانية الوصول إلى حملات الغزو الحر.",
 				"file": "1_campaign.png",
-				"sha256": "436d950133147d280ebc500a19305cf3f9b9e3d6120eb5f0979a3ca176a037bd"
+				"sha256": "36377e7903549eac270962196e0545b90d6d174aa9cf8144204fff8e20a99619"
 			},
 			{
 				"alt": "جبهة الغزو الأخيرة في أيبيريا، مع تقدم القوات نحو عاصمة المنطقة.",
 				"file": "2_invasions.png",
-				"sha256": "85a08efc878c4410678560deba585248485caec71d47a2eb8ff140c38de25a4e"
+				"sha256": "8dd7b9bc1f6301fcd859e0a8db09b86bdd468c02212c5fc35bfdbcc807e6dab1"
 			},
 			{
 				"alt": "تعرض شاشة المظهر أنماطًا مختلفة للقوات ومعاينات للقواعد.",
 				"file": "3_cosmetics.png",
-				"sha256": "609b267f05c41e6546422bb9fc7c59967ca6fe3e505abe25fdfc25e2f4dec459"
+				"sha256": "7f862a4078bc25113f0aca2a351c6c33cd6ccd849a428fc4487c5a36423d5b6f"
 			},
 			{
 				"alt": "يُظهر الأطلس المدن المفتوحة بالأزرق على خريطة العالم، مع التقدّم حسب القارة.",
 				"file": "4_atlas.png",
-				"sha256": "b8fadc43f641f1a4037f33e5bebc5731ad111e45a96432ddc1769165c763449b"
+				"sha256": "94d05590c7ea9b630422fb00a166ffef318f71d3ff1c4c6eb227d2d3a9b9e7a4"
 			}
 		],
 		"de": [
 			{
 				"alt": "Die Kampagnenkarte zeigt verdiente Sterne, die nächste Schlacht und freie Eroberungsexpeditionen.",
 				"file": "1_campaign.png",
-				"sha256": "823b0b4a2037583b8675d1f29fcf4564f6396a9a2db3ea7820d9eeb589967ee2"
+				"sha256": "bf223654f78954f7d39dcf68ae3ccf12cc606f7b1083181ed8561f69ce12cfc0"
 			},
 			{
 				"alt": "Die letzte Invasionsfront in Iberia, mit Truppen, die in Richtung der Hauptstadt der Region vorrücken.",
 				"file": "2_invasions.png",
-				"sha256": "ab699b3e8259697637fdd17f361fc8f26bcae9f5108cd5b42334f6fa76c51eed"
+				"sha256": "e4cdc1800224317f795b75cdb778850c430ec1f40ca6df8215739fd0cf8ba49d"
 			},
 			{
 				"alt": "Die Armeeansicht zeigt verschiedene Truppenstile und Basisvorschauen.",
 				"file": "3_cosmetics.png",
-				"sha256": "f8c7f0a4a98aa32819c4fb2336ab5d7481be0a8edd5720a80917960134356efa"
+				"sha256": "f1a1b74d5e6fb762b3dccc5d501fcd4b114e3ef31c1fc5811fa915b0239ef7fb"
 			},
 			{
 				"alt": "Der Weltatlas markiert eroberte Städte in Blau und zeigt den Fortschritt je Kontinent.",
 				"file": "4_atlas.png",
-				"sha256": "e4fbab349575f3f0fa42f587d7aed3a54af535c4caeb14684e9dcf054e9a5ddf"
+				"sha256": "d103ed7aed6f044044aef7112e0acdd1f37273a00d880ca9b44bbd636030aa7c"
 			}
 		],
 		"en": [
 			{
 				"alt": "The campaign map shows earned stars, the next battle and access to free-conquest expeditions.",
 				"file": "1_campaign.png",
-				"sha256": "153d06af144b8a982f30d5004d67b00d45b2b8e98dc3a7543f41cb76b02cfeca"
+				"sha256": "a7e2f08a52371f9e2cbb157d97bfb25265ef634402342cd3fc37af4b2c9b9428"
 			},
 			{
 				"alt": "The final invasion front in Iberia, with troops advancing toward the region's capital.",
 				"file": "2_invasions.png",
-				"sha256": "a9f19101cc6837ae9b5277a237658728c1cb298a9892f01bf01d3beabc47de76"
+				"sha256": "ae0fe46041646513cfb5fcc50bafa95ad034b46c94ff2f789707dc081eef1f2b"
 			},
 			{
 				"alt": "The army appearance screen shows different troop styles and base previews.",
 				"file": "3_cosmetics.png",
-				"sha256": "c02cff4a7509c327a34cc735c2d5dde4efdfa2c3d21786b9315826f34a2366c7"
+				"sha256": "67b61d55a9c863a3ec3ee3ffa48c6c5f81c524610912d025d5b1746b0fa4f8a1"
 			},
 			{
 				"alt": "The world atlas marks conquered cities in blue, with progress totals by continent.",
 				"file": "4_atlas.png",
-				"sha256": "b3b156a5c363413b79d99fab840d3d8ad7ae4c01fc8217b8e02fe4edf2eb68b9"
+				"sha256": "8c8952a63ccf6ba7f9c3dab740b8e5860c281115ecdb7b0aea4d238f9b7472a0"
 			}
 		],
 		"es": [
 			{
 				"alt": "El mapa de campaña muestra estrellas ganadas, la próxima batalla y acceso a expediciones de conquista libre.",
 				"file": "1_campaign.png",
-				"sha256": "edc1c64b0fb752ee4671208954f830b3554c98ad07d50483d6fa77077f41120d"
+				"sha256": "4930fd6d0f4554bdfb2bc7c424f52c9c7d5f597a94d03b67e2bb8dbf59f94c6b"
 			},
 			{
 				"alt": "El frente final de la invasión de Iberia, con tropas avanzando hacia la capital de la región.",
 				"file": "2_invasions.png",
-				"sha256": "ecc2eb025fc5e4f1b04963ac5c205c084b3dd5356a6e5178f2ede6a7aeb9177d"
+				"sha256": "5b0cdce8d4c43ba5cc1bed707b0b903beac292a7be89c45f2947951c1391253e"
 			},
 			{
 				"alt": "La pantalla de aspecto muestra estilos de tropa y vistas previas de las bases.",
 				"file": "3_cosmetics.png",
-				"sha256": "0825a72777d31adfb92f52915108bed7e03423de2f6c67f0105c7e3f2e018cc6"
+				"sha256": "bc544723963c20294b4775bef6a38444f8206a22227d6172219d269a16c24fee"
 			},
 			{
 				"alt": "El atlas marca las ciudades conquistadas en azul sobre el mundo, con progreso por continente.",
 				"file": "4_atlas.png",
-				"sha256": "401a09ffa883a328544621efe87c49e4b3a051a0a66242a20f4a0e9a8cb0b02a"
+				"sha256": "cc6aa00679bdb21ab8f2bbbbad6936987356210ce886c0bae3d1bfdb820f0aa4"
 			}
 		],
 		"fr": [
 			{
 				"alt": "La carte de campagne montre les étoiles gagnées, la prochaine bataille et les expéditions de conquête libre.",
 				"file": "1_campaign.png",
-				"sha256": "61d0bff07e8dfc8a7b455fa365b9e397c8e4bf1753698b10d541663983afe76e"
+				"sha256": "fd538a0550ce60e13a1889c44b01970e9385f4f20eaa706279dee37305ca4b86"
 			},
 			{
 				"alt": "Le dernier front d'invasion en Ibérie, avec des troupes avançant vers la capitale de la région.",
 				"file": "2_invasions.png",
-				"sha256": "0eeeb31bceeadfcd6ead0ef0cc22fa22bb0e87e2bd91a6a119539aa8bd636e3b"
+				"sha256": "9454c8199348a04632410e1d65c83a629124b273ad90fe7d2e933d6d4258a943"
 			},
 			{
 				"alt": "L'écran d'apparence montre différents styles de troupes et des aperçus des bases.",
 				"file": "3_cosmetics.png",
-				"sha256": "a07c8e10f1e541d01a8a0b3edb07852827c9bed65f05de3619aa53309903c9e5"
+				"sha256": "40f49efb34b8d33677c33c90e4f278cf0066f1f3bafc184ace439b34e8c365f8"
 			},
 			{
 				"alt": "L'atlas marque les villes conquises en bleu sur le monde, avec la progression par continent.",
 				"file": "4_atlas.png",
-				"sha256": "00b31dd04a7fabceb48f357f6c1097c7c1ab9eb7d2a11030f17b56a8cf1d170e"
+				"sha256": "910bc73f22fb42d23b4a9ca64838d3a8b713a18b5f2d3f9da131ada3ced578c3"
 			}
 		],
 		"hi": [
 			{
 				"alt": "अभियान मानचित्र अर्जित सितारों, अगली लड़ाई और मुक्त-विजय अभियानों तक पहुंच दिखाता है।",
 				"file": "1_campaign.png",
-				"sha256": "a8c9e2c10d9d061cbdedd867551e9aa19615a97bb6b5456f4206602a8a67f1cb"
+				"sha256": "1db359fda11292c92408b3dbd7de95fe9221b5bb391d72f1bc4989a3f299b267"
 			},
 			{
 				"alt": "इबेरिया में अंतिम आक्रमण मोर्चा, जिसमें सैनिक क्षेत्र की राजधानी की ओर बढ़ रहे हैं।",
 				"file": "2_invasions.png",
-				"sha256": "926ac8be22720428842e2e9ec08c352b0da24e94660e747d8e5cf8f7beb972d0"
+				"sha256": "0392d7c7bdbb5c5e48c78aff79308eb6c8705da0fa5622647a21bd65ad55318b"
 			},
 			{
 				"alt": "सेना की रूप-रंग स्क्रीन में सैनिक शैलियाँ और बेस के पूर्वावलोकन दिखाई देते हैं।",
 				"file": "3_cosmetics.png",
-				"sha256": "12f15470f0fe3edb3bebdc59f81965d65039c50c7ea2e92961252411e8f9e766"
+				"sha256": "68501eaa9fd08c2280ce05a17ed4465da5efc8e9af5df75074bffc0e791440cb"
 			},
 			{
 				"alt": "एटलस में जीते हुए शहर विश्व नक्शे पर नीले रंग में और हर महाद्वीप की प्रगति के साथ दिखते हैं।",
 				"file": "4_atlas.png",
-				"sha256": "45b32d1e6b2929da84425970e7b53d310c95474c91287adc5d8c6b77268f2758"
+				"sha256": "46d52c352300cc58e7d4a61f3c19602ab82e1c78b9d755f95dfb4663b35cdd5e"
 			}
 		],
 		"id": [
 			{
 				"alt": "Peta kampanye menunjukkan bintang, pertempuran berikutnya, dan akses ke ekspedisi penaklukan bebas.",
 				"file": "1_campaign.png",
-				"sha256": "157bc8aa47fa6a7f2191b22da2d5d4403d165aec90809f545aa8375dd2c68b0d"
+				"sha256": "e9f78771b18587a3cae909a0b3d8a8176b6a4251c54e8bac8ce41a1323f4c28b"
 			},
 			{
 				"alt": "Front invasi terakhir di Iberia, dengan pasukan maju menuju ibu kota wilayah tersebut.",
 				"file": "2_invasions.png",
-				"sha256": "405deb461b79f41efcaf3ffd04bd9959d3db667246f59cf8ea2a95201a91fa10"
+				"sha256": "fdd61314940c6756073db9e570c37ab1467080b80ef707a7fa0ee558ba341b38"
 			},
 			{
 				"alt": "Layar tampilan menunjukkan beragam gaya pasukan dan pratinjau pangkalan.",
 				"file": "3_cosmetics.png",
-				"sha256": "cde24e5c59c01cdfa7d03e9c95c18d7fabbe6bb5c48293525a87030af68abc33"
+				"sha256": "6b6e08f8a51a6d06bab3b4523474851b27262766e84c4c2cf7816bd7f6eb463a"
 			},
 			{
 				"alt": "Atlas dunia menandai kota yang ditaklukkan dengan warna biru dan menampilkan progres tiap benua.",
 				"file": "4_atlas.png",
-				"sha256": "e80b2aa4c15d0b73e8dcb5b1e0091d70372f546798047afa713e1c6e060133b8"
+				"sha256": "8c6a927cf8adcd6bca9ea79b4369ca8055c6d5fff43edae0195ca8ca0c4991ba"
 			}
 		],
 		"it": [
 			{
 				"alt": "La mappa della campagna mostra le stelle guadagnate, la battaglia successiva e l'accesso alle spedizioni di conquista libera.",
 				"file": "1_campaign.png",
-				"sha256": "31782c612df511251312dd730a7c0c6fc270e4059b03c5f39de2c7e8bb666389"
+				"sha256": "1e0ef274402a211c244e10431e7e0be2a2c4683940dcf3eb4bf59b0431d68be7"
 			},
 			{
 				"alt": "L'ultimo fronte d'invasione in Iberia, con le truppe che avanzano verso la capitale della regione.",
 				"file": "2_invasions.png",
-				"sha256": "a30ce488c4f723e1d51736623205eef4e53a71d497539e39bee311956570cd6f"
+				"sha256": "bafe6114ce2418fbd090ce76670a575aa5467015b5dabc173393fce1b99879ec"
 			},
 			{
 				"alt": "La schermata dell'aspetto mostra stili delle truppe e anteprime delle basi.",
 				"file": "3_cosmetics.png",
-				"sha256": "9ae26ed7fb53d629f4ce5e4be76581d9c4b83a80aee7b7bf4d35a31933bc6659"
+				"sha256": "2f19568ecf9dde6a463303c5d5d392b1600f029b9c5e8e571b6e0fa5a3b32d6c"
 			},
 			{
 				"alt": "L'atlante mondiale segna le città conquistate in blu e mostra i progressi per continente.",
 				"file": "4_atlas.png",
-				"sha256": "3dbfd02c239654c78478b3c10c27a582a97b79bf6643cf7d793dd283a7fb490f"
+				"sha256": "4cc6ee0d8404aea37e162e6a523b867cc64c0fc7c88803d310f93a43b2e10186"
 			}
 		],
 		"ja": [
 			{
 				"alt": "キャンペーン マップには、獲得したスター、次の戦闘、自由征服遠征へのアクセスが表示されます。",
 				"file": "1_campaign.png",
-				"sha256": "c0f47dbda480d5e5957b19ae2665659fe5c504a14b5933be93b232e060d283b2"
+				"sha256": "da46b79a275ac58441abf9d86784ef697129df1055dd08b071dc47aace2d15c1"
 			},
 			{
 				"alt": "イベリア半島最後の侵攻戦線。軍隊はこの地域の首都に向かって前進している。",
 				"file": "2_invasions.png",
-				"sha256": "ab6d6dd0fc7a5d2170d8ab07544a5bc5b5624532ca656b7ff3f28d18bd8efa21"
+				"sha256": "addf1326f67d6b65418767e4600bc111889fa61f765edd7cb1d6383c53f6ba3a"
 			},
 			{
 				"alt": "軍の外観画面に、さまざまな部隊スタイルと拠点のプレビューが表示されます。",
 				"file": "3_cosmetics.png",
-				"sha256": "ef158b0fee261a8f35ea53a27e8ec6c569f97584d9025d1832d930b1b02daa93"
+				"sha256": "6235cdb64957060c2ab719e0edb7abc58b9d0eedd7c39862a1116046be9e1bfd"
 			},
 			{
 				"alt": "世界地図帳では、征服した都市を青で示し、大陸ごとの進行状況を表示します。",
 				"file": "4_atlas.png",
-				"sha256": "6e362ea468975267f04771667a3449361fb93d2603bf258536ca4aaca5d9ef97"
+				"sha256": "344ed07e23f29ebad58ecb3b4504009d457959fa7f9cf2dfcd7af7dc651a6fbd"
 			}
 		],
 		"ko": [
 			{
 				"alt": "캠페인 지도에는 획득한 별, 다음 전투, 무료 정복 원정에 대한 액세스가 표시됩니다.",
 				"file": "1_campaign.png",
-				"sha256": "310bfe1b26c76cb396afa48b7cf7da715e187558a21c7947f1e1e80b972ff241"
+				"sha256": "96162ab830e6a5b09e9c337e7b1f747d9c4bbe72a3f22b017eb52cfcaf459ef1"
 			},
 			{
 				"alt": "군대가 지역의 수도를 향해 진군하는 이베리아의 마지막 침공 전선입니다.",
 				"file": "2_invasions.png",
-				"sha256": "a6c1c81bdf69e2fbd9b2559b5a898d3d372277c80f706015090b8e0279021286"
+				"sha256": "b25883cb5908240d5b773adaedcc9ee9ab3e223a97cc00a125f2ec4da5f59f0d"
 			},
 			{
 				"alt": "군대 외형 화면은 다양한 부대 스타일과 기지 미리보기를 보여줍니다.",
 				"file": "3_cosmetics.png",
-				"sha256": "013ccd1ff83f9eb86c2c537e9d6991243ef06d979ebb8ab47b1dc30e2ebdb274"
+				"sha256": "9c4271429ac1deed720aed934337faa5843fdf2256ddac21e1f87c5512b0ec26"
 			},
 			{
 				"alt": "세계 도감은 정복한 도시를 파란색으로 표시하고 대륙별 진행 상황을 보여줍니다.",
 				"file": "4_atlas.png",
-				"sha256": "3142626da5b894c0fa280c1219f1a6594291441279393bc231e9d2d838707b52"
+				"sha256": "b4cbcb51c6d9a65340381cabe0f5086baef1b0c141d967e01c988cf70643c240"
 			}
 		],
 		"pt_BR": [
 			{
 				"alt": "O mapa da campanha mostra estrelas conquistadas, a próxima batalha e expedições de conquista livre.",
 				"file": "1_campaign.png",
-				"sha256": "cd42564474a4caab560181f27205476e8288e6e43b8cedda4eca3618e7e28fd8"
+				"sha256": "bdf2b3076935d93b4305d645128d7e8e1291c162025c4afd1a996d1d5eb8626a"
 			},
 			{
 				"alt": "A última frente de invasão na Península Ibérica, com tropas avançando em direção à capital da região.",
 				"file": "2_invasions.png",
-				"sha256": "98216ea6c6ec561a38f2608bfa120439792bc7c1d59e9f39eb74e6c3bf5082c1"
+				"sha256": "095afbfc23482e34678908f66d00bc46ef86e01caf41a704d77607585d38c2bb"
 			},
 			{
 				"alt": "A tela de aparência mostra estilos de tropas e prévias das bases.",
 				"file": "3_cosmetics.png",
-				"sha256": "817731ef26985dcff012506ee39133bcdfbf98167794130de7cfa4119ff702e5"
+				"sha256": "5518ed8525fca9fe76a313e49c6cf05e909e9c4576405a74abc5a9e4520eec9c"
 			},
 			{
 				"alt": "O atlas marca cidades conquistadas em azul no mapa mundial, com progresso por continente.",
 				"file": "4_atlas.png",
-				"sha256": "fd6d18c9e6c276681afc50915da00b3d5304c2cc06fa91113f801ec493b2fb37"
+				"sha256": "92cd32ec0587eca89b04d5b841fa354dbc8357cffb7fb698b6324d6d197a6235"
 			}
 		],
 		"ru": [
 			{
 				"alt": "На карте кампании показаны заработанные звезды, следующая битва и доступ к экспедициям свободного завоевания.",
 				"file": "1_campaign.png",
-				"sha256": "121eb96e30358375c0b67920f20c1b6f57bcd9f2de2c8f38f5c8e18b2afe8b8a"
+				"sha256": "85f3cebcfbdd53cc9a7f4eba55346e36750a79bde9d75be14ce582b1d2ecd5b0"
 			},
 			{
 				"alt": "Последний фронт вторжения в Иберию, войска продвигаются к столице региона.",
 				"file": "2_invasions.png",
-				"sha256": "909d9711d6d9df574898568ec9d5a05bd15ca8eb2756572d271eb9c782d394cb"
+				"sha256": "6ccea5952b5ffb97880c68532ed17baf29675d4f3afaa9b2a2a769699f81afc9"
 			},
 			{
 				"alt": "Экран внешнего вида показывает разные стили войск и предварительный вид баз.",
 				"file": "3_cosmetics.png",
-				"sha256": "28aff76348b4b3046587e6eb7f68f441de5cc9e056db841631efff7dee08d022"
+				"sha256": "2d4d5d24ffe3a340eb166394bc78a07c3fad85dea94c85eb2b5265a08ab331e1"
 			},
 			{
 				"alt": "На карте мира завоёванные города отмечены синим, рядом показан прогресс по континентам.",
 				"file": "4_atlas.png",
-				"sha256": "bfd6f8079a4fa8a283ff792717c2e00a468ca346f38c9656d468cab38eb9c4e7"
+				"sha256": "acdcf5c9f03d7eef0b1820e6cd16de22a3ba1fb848b3eaf872761c6eed940a94"
 			}
 		],
 		"tr": [
 			{
 				"alt": "Sefer haritası kazanılan yıldızları, sıradaki savaşı ve serbest fetih seferlerine erişimi gösterir.",
 				"file": "1_campaign.png",
-				"sha256": "a49744dcfeb1e3e37f1efeeeb48bca5df82e928a43b126f0b42330790400def9"
+				"sha256": "f1a9788da7645aa55cdc73b1fd834390220f7f1f8d612feba9475b8c49ba230e"
 			},
 			{
 				"alt": "Birliklerin bölgenin başkentine doğru ilerlediği İberya'daki son işgal cephesi.",
 				"file": "2_invasions.png",
-				"sha256": "5307f61d39b84f2add9bdf56488e318ced9732082962ff65d90466bb77135a00"
+				"sha256": "ee262453d4a907ccb7c3eefb401f14646dee86dafb51288eed8df5ddcbf7e8dd"
 			},
 			{
 				"alt": "Görünüm ekranı farklı birlik stillerini ve üs önizlemelerini gösterir.",
 				"file": "3_cosmetics.png",
-				"sha256": "7f4c9ade08bbb0d6781e8e4b157e3796117c18e7dc2863c48a8c7815d97023b2"
+				"sha256": "24b6c5a17de239233abb5db5c3316ac54b8e0ec9f4b573bdc66e6babfa3c0f13"
 			},
 			{
 				"alt": "Dünya atlası fethedilen şehirleri maviyle ve kıtalara göre ilerleme toplamlarıyla gösterir.",
 				"file": "4_atlas.png",
-				"sha256": "92b7a865e9b6a04ae5e17f53add292c88d447f86ec46d598ced45e9d4265f34c"
+				"sha256": "d87d46aee58ae75ef38654c2f75dfd9fcd609851b7d4b509c4bcb8fadf1ecbb1"
 			}
 		],
 		"vi": [
 			{
 				"alt": "Bản đồ chiến dịch hiển thị số sao kiếm được, trận chiến tiếp theo và quyền truy cập vào các cuộc thám hiểm chinh phục miễn phí.",
 				"file": "1_campaign.png",
-				"sha256": "56eec3751578b53abf9fd8afee0cdd020db72e21f4d395bf9bd95339db411799"
+				"sha256": "f75b9706780fd45154d86b7b327ca369bf140b97c673887d2737ca91a134d640"
 			},
 			{
 				"alt": "Mặt trận xâm lược cuối cùng ở Iberia, với quân đội tiến về thủ đô của khu vực.",
 				"file": "2_invasions.png",
-				"sha256": "b681bedd6b728c37075d1f6ebeae3021d83016d84d0454fd4c2a23d8e0d6645f"
+				"sha256": "2d3eec26b2da57ef0b937d5d2576824683bced3632fc65038010615dd6186269"
 			},
 			{
 				"alt": "Màn hình ngoại hình hiển thị các kiểu quân và hình xem trước của căn cứ.",
 				"file": "3_cosmetics.png",
-				"sha256": "d4c3969e9abc2f40e4b6f34664eaf531396e144500269b2934def373dae9e50f"
+				"sha256": "e1d155c65c9dfeba87231d5d274912ac44f4a4626df91199e9ca1ac2e79c2483"
 			},
 			{
 				"alt": "Bản đồ thế giới đánh dấu thành phố đã chinh phục bằng màu xanh, cùng tiến trình theo lục địa.",
 				"file": "4_atlas.png",
-				"sha256": "8c0fe029645590c87010353a6376a4f0e9328ab204135a0243ce9723816948c8"
+				"sha256": "507fa5d66e1f3eba717bc550c57f202a27091f9941adf8217d57107c49995e97"
 			}
 		],
 		"zh_CN": [
 			{
 				"alt": "战役地图显示了获得的星星、下一场战斗以及免费征服探险的机会。",
 				"file": "1_campaign.png",
-				"sha256": "ce7ab45a8d7ed44d2352ffd8b4cb6a7f5d3db05b12b87b4ffc90597c78fa2678"
+				"sha256": "44b3ced1a28740098f82ceb0ce82a99a2887b703c0cc19da05a9fa9e51a737b9"
 			},
 			{
 				"alt": "伊比利亚的最后入侵战线，部队向该地区的首府挺进。",
 				"file": "2_invasions.png",
-				"sha256": "8d8276829548b10c3dc0f88dae4a4f62ef280a64c34d9faa9f08c5e12f6ad657"
+				"sha256": "2aaccb407d04604dd77e06d32a38421422adc254398f20dcc59f93c6f16165fd"
 			},
 			{
 				"alt": "军队外观界面展示不同部队风格和基地预览。",
 				"file": "3_cosmetics.png",
-				"sha256": "cffe4d8230c03126ace39a395b762020b180403f041f2dead0d001f2085d3624"
+				"sha256": "3f8982305490e38e7274e7ea2361c3670c1fd37269347545c37c4cda45d032bb"
 			},
 			{
 				"alt": "世界图集用蓝色标记已征服的城市，并显示各大洲的进度。",
 				"file": "4_atlas.png",
-				"sha256": "c97668cf5563cf35efe3eebc921ff31b0d76ee7f2ea416bc28e6d949ca01a81e"
+				"sha256": "29ab6739e52f284fd080ec8d40c636f446c17636eed241d2b9892955ca7d57f7"
 			}
 		]
 	},
-	"version": "0.3.2",
-	"working_tree_dirty": true
+	"version": "0.4.0",
+	"working_tree_dirty": false
 }

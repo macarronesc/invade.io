@@ -1,7 +1,7 @@
 # invade.io — Google Play (English)
 
 Copy the three blocks into the matching Play Console fields. This copy targets the
-repository's **0.3.2** release candidate; confirm production behavior before publishing.
+repository's **0.4.0** release candidate; confirm production behavior before publishing.
 
 ## App name
 

@@ -857,13 +857,13 @@ func test_mobile_experience() -> void:
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets móviles se pueden leer")
 	assert_true(presets.get_value("preset.1.options", "permissions/vibrate", false), "Android exporta el permiso de vibración sin pedir permisos de usuario")
 	assert_true(presets.get_value("preset.0.options", "plugins/BackupFilePicker", false), "iOS habilita el selector nativo de copias")
-	var app_version := str(ProjectSettings.get_setting("application/config/version", "0.3.2"))
-	assert_equals(app_version, "0.3.2", "La versión del proyecto avanza a 0.3.2")
+	var app_version := str(ProjectSettings.get_setting("application/config/version", "0.4.0"))
+	assert_equals(app_version, "0.4.0", "La versión del proyecto avanza a 0.4.0")
 	assert_equals(presets.get_value("preset.0.options", "application/short_version", ""),
 		app_version, "La versión de iOS coincide con la versión reportada por analítica")
 	for preset in ["preset.1.options", "preset.2.options"]:
 		assert_equals(presets.get_value(preset, "version/name", ""), app_version, "El nombre de versión Android coincide: " + preset)
-		assert_equals(presets.get_value(preset, "version/code", 0), 6, "Android usa el siguiente versionCode: " + preset)
+		assert_equals(presets.get_value(preset, "version/code", 0), 7, "Android usa el siguiente versionCode: " + preset)
 	assert_equals(presets.get_value("preset.3", "name", ""), "iOS Diagnostics", "Existe un preset de diagnóstico iOS separado de Release")
 	assert_true(not presets.get_value("preset.3.options", "plugins/BackupFilePicker", true), "La IPA de diagnóstico evita enlazar el selector nativo de copias")
 	var picker_plugin := ConfigFile.new()

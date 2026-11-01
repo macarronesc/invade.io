@@ -2,7 +2,7 @@
 
 [Documentation](README.md) · [Android publishing](PLAY_STORE.md) · [Release process](RELEASES.md)
 
-**Prepared for the repository's 0.3.2 release candidate, 29 October 2026.**
+**Prepared for the repository's 0.3.2 store refresh; graphics revalidated for the 0.4.0 release on 1 November 2026.**
 
 This document records the implemented marketing work, the files to upload, and the
 checks the owner must make in Play Console. Nothing in this workflow publishes an
