@@ -91,6 +91,9 @@ jobs:
     needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true)) && 120 || 60 }}
+    outputs:
+      unsigned_artifact_id: ${{ steps.upload_unsigned_aab.outputs.artifact-id }}
+      unsigned_sha256: ${{ steps.unsigned_digest.outputs.sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -224,20 +227,35 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        id: upload_unsigned_aab
         with:
           path: build/android/invadeio-unsigned.aab
           archive: false
           if-no-files-found: error
           retention-days: 7
+      - name: Record unsigned candidate digest
+        id: unsigned_digest
+        run: echo "sha256=$(sha256sum build/android/invadeio-unsigned.aab | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
-      - name: Verify the raw artifact handoff used by the isolated signer
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+  verify-android-handoff:
+    # Artifacts can take a moment to become visible in the same job. A dependent
+    # job is the supported way to verify the handoff used by the isolated signer.
+    needs: build-android
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: invadeio-unsigned.aab
+          artifact-ids: ${{ needs.build-android.outputs.unsigned_artifact_id }}
           path: ${{ runner.temp }}/artifact-roundtrip
           skip-decompress: true
       - name: Check downloaded candidate bytes
-        run: cmp build/android/invadeio-unsigned.aab "$RUNNER_TEMP/artifact-roundtrip/invadeio-unsigned.aab"
+        env:
+          EXPECTED_SHA256: ${{ needs.build-android.outputs.unsigned_sha256 }}
+        run: |
+          candidate="$(find "$RUNNER_TEMP/artifact-roundtrip" -name 'invadeio-unsigned.aab' -type f -print -quit)"
+          test -n "$candidate"
+          test "$(sha256sum "$candidate" | cut -d' ' -f1)" = "$EXPECTED_SHA256"
 
   build-ios:
     needs: checks
