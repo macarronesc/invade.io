@@ -1,12 +1,20 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { guides } from '../../scripts/site.mjs';
+
+const guideRoutes = guides.filter(([, slug]) => slug).map(([, slug]) => `docs/${slug}/`);
+const routes = [
+  '', 'es/', 'download/', 'es/download/', 'community/', 'es/community/',
+  'docs/', ...guideRoutes, 'licenses/', 'privacy-policy.html', '404.html',
+];
 
 for (const locale of ['', 'es/']) {
   test(`player journey, images, themes, and keyboard: ${locale || 'en'}`, async ({ page, isMobile }, info) => {
     const errors: string[] = [];
     const remote: string[] = [];
+    const origin = new URL(info.project.use.baseURL!).origin;
     page.on('pageerror', (error) => errors.push(error.message));
-    page.on('request', (request) => { if (!request.url().startsWith('http://127.0.0.1:4327/')) remote.push(request.url()); });
+    page.on('request', (request) => { if (new URL(request.url()).origin !== origin) remote.push(request.url()); });
     await page.goto(locale || './');
     await expect(page.locator('html')).toHaveAttribute('lang', locale ? 'es' : 'en');
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
@@ -51,9 +59,11 @@ for (const locale of ['', 'es/']) {
   });
 }
 
-for (const route of ['', 'es/', 'download/', 'es/download/', 'community/', 'es/community/', 'docs/', 'docs/architecture/', 'docs/gameplay/', 'licenses/', 'privacy-policy.html']) {
+for (const route of routes) {
   test(`accessible rendered page: /${route}`, async ({ page }) => {
     await page.goto(route || './');
+    // Expressive Code adds keyboard-scrollable regions after an idle pass.
+    await page.waitForTimeout(250);
     const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(audit.violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -76,10 +86,10 @@ test('documentation search, source links, and build-time diagram', async ({ page
   await expect(page.locator('h1')).toBeVisible();
 });
 
-test('the essential player experience works without JavaScript', async ({ browser }) => {
+test('the essential player experience works without JavaScript', async ({ browser }, info) => {
   const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.goto('http://127.0.0.1:4327/invade.io/es/');
+  await page.goto(new URL('/invade.io/es/', info.project.use.baseURL!).href);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Mapas reales');
   await page.locator('.mobile-nav summary').click();
   await expect(page.locator('.mobile-nav nav')).toBeVisible();

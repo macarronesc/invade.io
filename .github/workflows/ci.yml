@@ -40,6 +40,16 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Check website lockfile and advisories
+        working-directory: website
+        run: |
+          npm ci --dry-run
+          npm audit --package-lock-only --audit-level=high
       - name: Install checksum-verified security tools
         run: |
           bash tools/install_security_tools.sh "$RUNNER_TEMP/security-tools"
@@ -58,7 +68,7 @@ jobs:
         run: |
           command -v keytool
           command -v jarsigner
-          python3 -m pip install 'fonttools==4.57.0'
+          python3 -m pip install --require-hashes -r tools/requirements-ci.txt
           python3 -m unittest discover -s tools/tests -v
           actionlint
           shellcheck scripts/*.sh tools/install_security_tools.sh

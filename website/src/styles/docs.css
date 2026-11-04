@@ -17,6 +17,7 @@
 .site-title img { border-radius: 0.6rem; }
 .sl-markdown-content { overflow-wrap: anywhere; }
 .sl-markdown-content table { font-size: 0.94rem; }
+.sl-markdown-content table:focus-visible { outline: 3px solid var(--sl-color-accent); outline-offset: 2px; }
 .architecture-diagram { overflow-x: auto; padding: 1rem; background: #f3f7fc; border-radius: 1rem; color: #14283e; }
 .architecture-diagram svg { max-width: 100%; height: auto; min-width: 34rem; }
 .architecture-diagram figcaption { font-size: 0.85rem; }

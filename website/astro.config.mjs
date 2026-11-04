@@ -4,12 +4,26 @@ import { unified } from '@astrojs/markdown-remark';
 import { SITE, BASE, REPO, guides, href } from './scripts/site.mjs';
 import { repositoryMarkdown } from './scripts/content.mjs';
 
+// Starlight makes wide tables scrollable (display:block; overflow:auto), so give
+// each table keyboard access without relying on client-side JavaScript.
+function accessibleTables() {
+  return (tree) => {
+    const walk = (node) => {
+      if (node.type === 'table') {
+        node.data = { ...node.data, hProperties: { ...node.data?.hProperties, tabindex: '0' } };
+      }
+      for (const child of node.children ?? []) walk(child);
+    };
+    walk(tree);
+  };
+}
+
 export default defineConfig({
   site: SITE,
   base: BASE,
   trailingSlash: 'always',
   output: 'static',
-  markdown: { processor: unified({ remarkPlugins: [repositoryMarkdown] }) },
+  markdown: { processor: unified({ remarkPlugins: [repositoryMarkdown, accessibleTables] }) },
   integrations: [starlight({
     title: 'invade.io',
     disable404Route: true,

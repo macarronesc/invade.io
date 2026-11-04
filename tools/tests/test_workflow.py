@@ -21,6 +21,21 @@ def run_block(name, workflow=WORKFLOW):
 
 
 class WorkflowChecks(unittest.TestCase):
+    def test_dev_dependency_updates_and_audit_are_enforced(self):
+        dependabot = (ROOT / ".github/dependabot.yml").read_text()
+        self.assertEqual(dependabot.count("target-branch: dev"), 2)
+        self.assertEqual(dependabot.count("interval: daily"), 2)
+        self.assertIn('dependency-name: "typescript"', dependabot)
+        self.assertIn('versions: [">=7.0.0"]', dependabot)
+        checks = WORKFLOW.split("\n  checks:\n", 1)[1].split("\n  build-android:\n", 1)[0]
+        for check in ("actions/setup-node@", "node-version: '24'", "npm ci --dry-run",
+                      "npm audit --package-lock-only --audit-level=high",
+                      "python3 -m pip install --require-hashes -r tools/requirements-ci.txt"):
+            self.assertIn(check, checks)
+        pages = (ROOT / ".github/workflows/pages.yml").read_text()
+        push = pages.split("  push:\n", 1)[1].split("  pull_request:", 1)[0]
+        self.assertIn("branches: [dev, main]", push)
+
     def test_pages_builds_untrusted_prs_without_deployment_privileges(self):
         pages = (ROOT / ".github/workflows/pages.yml").read_text()
         build, deploy = pages.split("\n  pages-deploy:\n")

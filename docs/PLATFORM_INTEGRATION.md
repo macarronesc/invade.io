@@ -158,28 +158,28 @@ support without a compatible bridge/engine and physical-device verification.
 
 Before distributing a build, check the exact artifact on the intended platforms:
 
-- [ ] Cold-launch Android and iOS with new and existing saves: the plain native
+- Cold-launch Android and iOS with new and existing saves: the plain native
       background must hand off to the full animated intro before the tutorial/menu.
       Check Reduced Motion skips it, rotation still fits, and a touch can dismiss it.
-- [ ] Start, win, buy an upgrade, change settings, and reopen in airplane mode.
-- [ ] Check small phones, safe areas/notches, gesture bars, tablets/foldables,
+- Start, win, buy an upgrade, change settings, and reopen in airplane mode.
+- Check small phones, safe areas/notches, gesture bars, tablets/foldables,
       rotation, and resizing during menus and battles with troops in motion.
-- [ ] Test haptic intensity, opt-out, order/capture/result pulses, and a device
+- Test haptic intensity, opt-out, order/capture/result pulses, and a device
       with no supported haptic motor.
-- [ ] Interrupt a drag, manual pause, help overlay, and resume animation by
+- Interrupt a drag, manual pause, help overlay, and resume animation by
       switching apps, locking the phone, or receiving a call. Simulation/audio
       must stop; resume must remain explicit.
-- [ ] Terminate after saving, then update without uninstalling. Progress should
+- Terminate after saving, then update without uninstalling. Progress should
       remain; an interrupted battle should not be restored.
-- [ ] Export/import through the real native picker; test cancellation, inaccessible
+- Export/import through the real native picker; test cancellation, inaccessible
       destinations, invalid/future/oversized backups, and write failures safely.
-- [ ] Check English/Spanish, representative long-text languages, Arabic RTL, both
+- Check English/Spanish, representative long-text languages, Arabic RTL, both
       themes, text scales, contrast, and alternate controls. Verify actual
       assistive technology before claiming support.
-- [ ] On a clean profile, test a supported locale such as `fr-FR`/`ar-EG` and an
+- On a clean profile, test a supported locale such as `fr-FR`/`ar-EG` and an
       unsupported one. Change language, relaunch, and confirm the saved choice
       takes precedence. An old save without a language should follow the device.
-- [ ] Check native crash/reporting behavior and privacy opt-outs, cold start,
+- Check native crash/reporting behavior and privacy opt-outs, cold start,
       low-end performance, and Android 16 KB library compatibility as applicable.
 
 The [mobile suite](TESTING.md#godot-regression-suites) simulates lifecycle events

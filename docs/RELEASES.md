@@ -85,9 +85,10 @@ These are maintainer-managed settings to preserve and verify in GitHub, not
 configuration a local checkout can prove is enabled:
 
 - Keep secret scanning, push protection, Dependabot alerts/security updates and private reports enabled.
+  Keep `dev` as the default branch so security updates also target `dev`; `main` remains release-only.
 - Actions: selected GitHub-owned Actions plus the exact pinned Android setup action; external
   contributors require approval. Preserve SHA pinning in CI and Pages.
-- `main`/`dev`: require `checks`, `build-android`, and `build-ios`, strict checks,
+- `main`/`dev`: require `checks`, `build-android`, `build-ios`, and `pages-build`, strict checks,
   administrator enforcement, resolved conversations, and no force pushes/deletion.
 - `play-release`: only branch `main`, owner approval, no admin bypass, three environment secrets
   and the public certificate fingerprint. Keep `ci` and repository secrets empty.
@@ -214,7 +215,8 @@ device-tested candidate; their smaller possible gains do not justify silent regr
 | Aptabase Godot | 0.0.1, locally modified `addons/aptabase` | Review changes and privacy/HTTP tests |
 | Android | SDK 36, build-tools 36.1.0, NDK 29.0.14206865 | Review template/SDK compatibility and manifests |
 | bundletool | 1.18.3, checksum in CI | Review/update checksum and alignment checks |
-| Actions | Full SHAs in workflows | Weekly Dependabot PRs to dev |
+| Website | Astro 7.4.5, Starlight 0.42.8, `@astrojs/check` 0.9.12, TypeScript 6.0.3 | Daily Dependabot PRs to dev; per-commit `npm ci --dry-run` and high-severity audit in `checks` |
+| Actions | Full SHAs in workflows | Daily Dependabot PRs to dev |
 | Security tools | Versions/hashes in `tools/install_security_tools.sh` | Review upstream advisories/releases manually |
 | Fonts/geography | OFL Noto/Fredoka; public-domain Natural Earth | Preserve source metadata/licenses and regenerate/test subsets |
 
