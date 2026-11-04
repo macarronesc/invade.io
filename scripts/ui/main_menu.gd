@@ -34,7 +34,7 @@ var _logo_io: Label
 var _appearance := ""
 
 func _notification(what: int) -> void:
-	if what != NOTIFICATION_WM_GO_BACK_REQUEST or is_instance_valid(_utility_panel):
+	if what != NOTIFICATION_WM_GO_BACK_REQUEST or is_instance_valid(_utility_panel) or not is_instance_valid(_content):
 		return # Los paneles superpuestos gestionan su propio botón atrás.
 	if current_tab != "play":
 		show_tab("play")
@@ -151,6 +151,8 @@ func _apply_safe_area() -> void:
 func show_tab(id: String) -> void:
 	if not TABS.has(id):
 		id = "play"
+	var focused := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	var focus_was_content := is_instance_valid(focused) and is_instance_valid(_content) and _content.is_ancestor_of(focused)
 	current_tab = id
 	Telemetry.tab_opened(id)
 	for tab in _nav:
@@ -162,6 +164,8 @@ func show_tab(id: String) -> void:
 		return_to_battle = false
 	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_content.add_child(page)
+	if focus_was_content:
+		_nav[id].grab_focus.call_deferred()
 	_refresh_badges()
 
 ## Punto dorado sólo cuando hay algo que recoger
@@ -192,11 +196,22 @@ func _open_settings() -> void:
 	Telemetry.screen_opened("settings")
 	_utility_panel = SettingsPanel.new()
 	_content.process_mode = Node.PROCESS_MODE_DISABLED
+	_set_background_focus(false)
 	_utility_panel.closed.connect(func(): _content.process_mode = Node.PROCESS_MODE_INHERIT)
 	_utility_panel.closed.connect(_refresh_appearance)
 	_utility_panel.closed.connect(func(): Telemetry.screen_opened("menu"))
-	_utility_panel.closed.connect(func(): btn_settings.grab_focus.call_deferred())
+	_utility_panel.closed.connect(func():
+		_set_background_focus(true)
+		btn_settings.grab_focus.call_deferred())
 	add_child(_utility_panel)
+
+func _set_background_focus(enabled: bool) -> void:
+	var mode := Control.FOCUS_ALL if enabled else Control.FOCUS_NONE
+	if is_instance_valid(btn_settings):
+		btn_settings.focus_mode = mode
+	for button in _nav.values():
+		if is_instance_valid(button):
+			button.focus_mode = mode
 
 func _appearance_key() -> String:
 	return "%s|%s" % [UIThemeHelper.palette_name, GameManager.language]

@@ -232,7 +232,16 @@ func _check_ui() -> void:
 			await _snapshot("menu_details_%s_%s" % [lang, str(light)])
 			play.btn_details.pressed.emit()
 			_require(not play.level_details.visible, "Detalles vuelve a plegarse")
-			_require(play.btn_daily.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y, "Accesos secundarios no quedan bajo la navegación (%s): %s / %s" % [lang, play.btn_daily.get_global_rect(), menu._nav["play"].get_global_rect()])
+			var nav_top: float = (menu._nav["play"] as Control).get_global_rect().position.y
+			if play.btn_daily.get_global_rect().end.y > nav_top:
+				var side_bar: VScrollBar = play._side.get_v_scroll_bar()
+				_require(side_bar.max_value > side_bar.page, "La ficha puede desplazarse para alcanzar los accesos (%s)" % lang)
+				play._side.scroll_vertical = int(side_bar.max_value)
+				await get_tree().process_frame
+				_require(play.btn_daily.get_global_rect().end.y <= nav_top + 1.0,
+					"Al desplazar, los accesos quedan sobre la navegación (%s)" % lang)
+			else:
+				_require(true, "Accesos secundarios sobre la navegación (%s)" % lang)
 			for label in play.btn_daily.find_children("*", "Label", true, false):
 				_require(play.btn_daily.get_global_rect().grow(6).encloses(label.get_global_rect()), "El texto del desafío diario queda dentro de su tarjeta")
 			menu.show_tab("challenges")

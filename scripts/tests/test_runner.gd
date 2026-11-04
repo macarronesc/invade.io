@@ -144,6 +144,7 @@ func _ready() -> void:
 		test_candidate_telemetry_is_tagged()
 		test_play_tab_campaign_route_and_briefing()
 		test_large_screen_layouts()
+		await test_large_text_and_focus()
 		test_invasion_mode()
 		test_language_system()
 		await test_locale_ui_fit()
@@ -337,6 +338,7 @@ func run_all_tests() -> void:
 	test_main_menu_hub_navigation()
 	test_play_tab_campaign_route_and_briefing()
 	test_large_screen_layouts()
+	await test_large_text_and_focus()
 	test_army_tab_upgrades_and_looks()
 	test_battle_hud_modals_and_sound_toggle()
 	test_theme_and_ui_helpers()
@@ -2836,7 +2838,7 @@ func test_large_screen_layouts() -> void:
 	assert_equals(play._side.vertical_scroll_mode, ScrollContainer.SCROLL_MODE_AUTO, "La columna lateral se desplaza")
 	play.size = Vector2(1080, 1700)
 	play._apply_layout()
-	assert_true(play._split.vertical and play._side.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED, "En vertical se apilan como siempre")
+	assert_true(play._split.vertical and play._side.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_AUTO, "En vertical la ficha también se desplaza")
 	remove_child(play)
 	play.free()
 
@@ -2870,6 +2872,108 @@ func test_large_screen_layouts() -> void:
 	remove_child(hud)
 	hud.free()
 	GameManager.set_setting("text_scale", 0.0)
+
+func test_large_text_and_focus() -> void:
+	print("\n-> Test: Texto Grande, Modales Desplazables y Foco")
+	var original_language := GameManager.language
+	var original_scale: float = GameManager.settings["text_scale"]
+	GameManager.set_language("de")
+	GameManager.set_setting("text_scale", 1.0)
+
+	# 1. Una página con contenido ancho no recursiona al limitar sus márgenes.
+	var page := ScrollPage.new()
+	page.size = Vector2(1080, 1920)
+	add_child(page)
+	var wide := Label.new()
+	wide.text = "Straßenkarte mit außergewöhnlich langen Ortsnamen und vielen zusätzlichen Wörtern"
+	wide.autowrap_mode = TextServer.AUTOWRAP_OFF
+	wide.custom_minimum_size.x = 2000
+	page.content.add_child(wide)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var margin := page.get_child(0) as MarginContainer
+	assert_true(margin != null and margin.get_theme_constant("margin_left") >= UIThemeHelper.PAGE_MARGIN,
+		"El ancho máximo se aplica sin recursión")
+	remove_child(page)
+	page.free()
+
+	# 2. Las filas crecen con el título y el subtítulo en varias líneas.
+	var holder := Control.new()
+	holder.size = Vector2(1080, 800)
+	add_child(holder)
+	var row := UIThemeHelper.row_button("flag", "Sehr lange Überschrift für eine Militärkampagne",
+		"Eine ausführliche Beschreibung, die auf schmalen Bildschirmen mehrere Zeilen benötigt.", "next")
+	holder.add_child(row)
+	row.size = Vector2(1080, row.custom_minimum_size.y)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_true(row.custom_minimum_size.y > 128.0, "La fila crece para que el texto no se recorte")
+	for label in row.find_children("*", "Label", true, false):
+		assert_true((label as Label).autowrap_mode != TextServer.AUTOWRAP_OFF, "El texto de la fila puede saltar de línea")
+	remove_child(holder)
+	holder.free()
+
+	# 3. Una tarjeta modal larga cabe en pantalla y deja visible el botón de confirmar.
+	var long_body := ("Eine sehr lange Erklärung mit mehreren Absätzen. ".repeat(80)).strip_edges()
+	var card := UIThemeHelper.create_modal_card("Hilfe", long_body, "Verstanden", func(): pass, true)
+	add_child(card)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var body_scroll := card.find_child("BodyScroll", true, false) as ScrollContainer
+	var confirm := card.find_child("BtnConfirm", true, false) as Button
+	assert_true(body_scroll != null, "La tarjeta modal tiene una zona desplazable")
+	assert_true(confirm != null and confirm.is_visible_in_tree(), "El botón de confirmar sigue visible")
+	if body_scroll != null:
+		assert_true(body_scroll.custom_minimum_size.y <= card.get_viewport_rect().size.y - 320.0 + 1.0,
+			"La tarjeta no supera el alto de la pantalla")
+	card.queue_free()
+	await get_tree().process_frame
+
+	# 4. Ajustes bloquea el foco del fondo y lo devuelve al cerrar.
+	var menu: MainMenuUI = load("res://scenes/ui/main_menu.tscn").instantiate()
+	add_child(menu)
+	await get_tree().process_frame
+	menu._open_settings()
+	await get_tree().process_frame
+	assert_equals(menu._nav["play"].focus_mode, Control.FOCUS_NONE, "El fondo no recibe foco con Ajustes abierto")
+	assert_equals(menu.btn_settings.focus_mode, Control.FOCUS_NONE, "La cabecera tampoco recibe foco")
+	menu._utility_panel._close()
+	await get_tree().process_frame
+	assert_equals(menu._nav["play"].focus_mode, Control.FOCUS_ALL, "El foco del fondo se restaura al cerrar")
+	assert_equals(menu.btn_settings.focus_mode, Control.FOCUS_ALL, "La cabecera recupera el foco")
+
+	# 5. Cambiar de pestaña desde un botón de contenido devuelve el foco a la barra.
+	var content_button := menu._content.find_children("*", "BaseButton", true, false)[0] as Control
+	content_button.grab_focus()
+	menu.show_tab("army")
+	await get_tree().process_frame
+	assert_equals(menu.get_viewport().gui_get_focus_owner(), menu._nav["army"],
+		"El foco vuelve a la pestaña activa tras reconstruir el contenido")
+	remove_child(menu)
+	menu.free()
+
+	# 6. Reproducción del caso más estrecho: 1080×1920, ruso y 150% en todas las pestañas.
+	var old_window_size := get_window().size
+	get_window().size = Vector2i(1080, 1920)
+	UIThemeHelper.fit_canvas(get_window())
+	GameManager.set_language("ru")
+	var narrow: MainMenuUI = load("res://scenes/ui/main_menu.tscn").instantiate()
+	add_child(narrow)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for tab in ["play", "invasion", "challenges", "army", "progress"]:
+		narrow.show_tab(tab)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var tab_page: Control = narrow._content.get_child(0)
+		assert_true(tab_page.size.x <= 1080.0 + 1.0, "La pestaña %s cabe a 1080 px con texto al 150%%" % tab)
+	remove_child(narrow)
+	narrow.free()
+	get_window().size = old_window_size
+	UIThemeHelper.fit_canvas(get_window())
+
+	GameManager.set_setting("text_scale", original_scale)
+	GameManager.set_language(original_language)
 
 func test_play_tab_campaign_route_and_briefing() -> void:
 	print("\n-> Test: Jugar (Mapa del Continente, Ficha del Nivel y Accesos Directos)")

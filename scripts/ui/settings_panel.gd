@@ -12,6 +12,7 @@ var _save_status: Label
 var _save_retry: Button
 var _vibration_slider: HSlider
 var _vibration_test: Button
+var _help_card: Control
 var _ios_picker: Object
 var _ios_importing := false
 var _ios_path := ""
@@ -34,12 +35,20 @@ func _focus_control(control_name: String) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		if is_instance_valid(_help_card):
+			_help_card.queue_free()
+			_help_card = null
+			return
 		var licenses := get_node_or_null("LicenseDetails")
 		if licenses != null:
 			licenses.queue_free()
 			call_deferred("_focus_control", "OpenSourceLicenses")
 		else:
 			_close()
+
+func _show_help() -> void:
+	_help_card = UIThemeHelper.how_to_play_card()
+	add_child(_help_card)
 
 func _close() -> void:
 	if is_queued_for_deletion():
@@ -86,7 +95,7 @@ func _build(restore_focus: String = "") -> void:
 	var speed_changed := func(index): GameManager.set_setting("speed", GameManager.GAME_SPEEDS[index])
 	_group.add_child(_options(speeds, GameManager.GAME_SPEEDS.find(float(GameManager.settings["speed"])),
 		speed_changed, "Speed", LocaleStrings.text("speed")))
-	_button("how_to_play", func(): add_child(UIThemeHelper.how_to_play_card()), "help")
+	_button("how_to_play", _show_help, "help")
 
 	_section("section_sound")
 	_toggle("sound_enabled", not AudioManager.is_muted, func(value): AudioManager.set_muted(not value))

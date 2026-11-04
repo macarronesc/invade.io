@@ -206,9 +206,10 @@ func _apply_layout() -> void:
 	var wide := size.x > size.y and size.x >= SIDE_WIDTH * 2.0
 	_split.vertical = not wide
 	_side.custom_minimum_size.x = SIDE_WIDTH if wide else 0.0
-	_side.size_flags_vertical = Control.SIZE_EXPAND_FILL if wide else Control.SIZE_FILL
-	# En vertical la ficha mide lo que su contenido (sin scroll), como siempre
-	_side.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if wide else ScrollContainer.SCROLL_MODE_DISABLED
+	_side.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# La ficha siempre puede desplazarse; en vertical evita que el texto grande
+	# quede debajo de la barra de navegación sin forma de alcanzarlo.
+	_side.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	call_deferred("_fit_shortcut_cards")
 
 ## On a short landscape column the level sheet folds its secondary lines (description, chips, rule)
