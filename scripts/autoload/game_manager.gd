@@ -476,7 +476,7 @@ func recommended_invasion_region(continent_id: String = "") -> String:
 	for region in candidates:
 		if not is_region_complete(region["id"]):
 			return str(region["id"])
-	return str(candidates[0]["id"]) if not candidates.is_empty() else ""
+	return ""
 
 func next_invasion_level(level_id: String) -> String:
 	var parsed := InvasionDatabase.parse_level(level_id)

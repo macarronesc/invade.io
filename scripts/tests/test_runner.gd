@@ -2926,6 +2926,15 @@ func test_large_text_and_focus() -> void:
 	if body_scroll != null:
 		assert_true(body_scroll.custom_minimum_size.y <= card.get_viewport_rect().size.y - 320.0 + 1.0,
 			"La tarjeta no supera el alto de la pantalla")
+	if confirm != null:
+		confirm.grab_focus()
+		var tab_event := InputEventAction.new()
+		tab_event.action = "ui_focus_next"
+		tab_event.pressed = true
+		card.get_viewport().push_input(tab_event)
+		await get_tree().process_frame
+		assert_equals(card.get_viewport().gui_get_focus_owner(), confirm,
+			"El foco del modal no escapa al contenido del fondo")
 	card.queue_free()
 	await get_tree().process_frame
 
@@ -3599,6 +3608,7 @@ func test_real_geography_and_bigger_levels() -> void:
 	# 1. Datos geográficos
 	assert_true(GeoDatabase.get_land().size() > 100, "Se cargan las costas reales")
 	assert_true(GeoDatabase.get_borders().size() > 100, "Se cargan las fronteras entre países")
+	assert_equals(GeoDatabase.bounds_of(PackedVector2Array()), Rect2(), "Una geometría vacía no rompe los límites")
 	var madrid = GeoDatabase.get_city("madrid")
 	assert_equals(madrid.get("name_es", ""), "Madrid", "Las ciudades traen su nombre en español")
 	assert_true(madrid["lonlat"].distance_to(Vector2(-3.7, 40.4)) < 0.3, "Madrid está en su posición real")
@@ -4478,6 +4488,7 @@ func test_invasion_mode() -> void:
 	assert_equals(GameManager.total_invasion_fronts(), 3, "Tres frentes completados")
 	assert_equals(GameManager.total_invasion_stars(), 6, "Seis estrellas de invasión")
 	assert_equals(GameManager.get_total_stars(), 15, "La campaña conserva sus 15 estrellas")
+	assert_equals(GameManager.recommended_invasion_region("iberia"), "", "Una región completa no se propone como siguiente")
 
 	var replay_after_complete := GameManager.complete_invasion_level("inv_iberia_1", 3)
 	assert_true(not replay_after_complete["region_complete"] or int(replay_after_complete["region_bonus"]) == 0, "Repetir no vuelve a pagar la región")
@@ -4667,6 +4678,8 @@ func test_review_regressions() -> void:
 	assert_true(GameManager.is_cosmetic_owned("color_blue"), "Los cosméticos gratuitos siempre están disponibles")
 	assert_equals(LocaleStrings.lang, LanguageCatalog.preferred_from_system(), "Un idioma guardado inválido sigue el idioma del dispositivo")
 	assert_equals(GameManager.conquest_next, 0, "La progresión corrupta vuelve a cero")
+	assert_true(LevelDatabase.collection_cities("no_existe").is_empty(), "Una colección desconocida no devuelve ciudades")
+	assert_true(not LevelDatabase._collections.has("no_existe"), "Una colección desconocida no contamina la caché")
 	assert_true(not GameManager.conquer_city("no_existe"), "El atlas sólo admite ciudades reales")
 	var battle := BattleController.new()
 	var hud: BattleHUD = load("res://scenes/ui/battle_hud.tscn").instantiate()
@@ -4834,6 +4847,10 @@ func test_progression_overhaul() -> void:
 	for d in 6:
 		twists[LevelDatabase.get_level_data(DailyRewards.challenge_id(20000 + d)).get("rule_key", "")] = true
 	assert_equals(twists.size(), 6, "El desafío rota las seis reglas de continente")
+	var expedition_rules := {}
+	for i in range(12):
+		expedition_rules[LevelDatabase.get_level_data(LevelGenerator.conquest_id(i)).get("rule_key", "")] = true
+	assert_equals(expedition_rules.size(), 6, "Las expediciones rotan las seis reglas de continente")
 	assert_true(LevelDatabase.get_level_data("conquest_1").has("rule_key"), "Las expediciones varían sus reglas")
 
 	# 6. Expediciones: la quinta región es un jefe y paga el doble
