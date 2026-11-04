@@ -17,6 +17,12 @@ class SentryStub extends RefCounted:
 	func close() -> void:
 		enabled = false
 
+class SentryEventStub extends RefCounted:
+	var message := ""
+	var crash := false
+	func is_crash() -> bool:
+		return crash
+
 class TelemetryHarness extends "res://scripts/autoload/telemetry.gd":
 	var sdk := SentryStub.new()
 	func _is_test_runtime() -> bool:
@@ -141,6 +147,7 @@ func _ready() -> void:
 		test_toast_notifications()
 		test_achievements_system()
 		test_telemetry_schema_and_privacy()
+		test_sentry_engine_noise_filtering()
 		test_candidate_telemetry_is_tagged()
 		test_play_tab_campaign_route_and_briefing()
 		test_large_screen_layouts()
@@ -515,6 +522,16 @@ func test_performance_regressions() -> void:
 		expected.append(index + square.size())
 	assert_equals(merged[0].indices, expected, "Merged triangles keep their topology and receive the correct index offset")
 	assert_true(FilledPolygon.build_all([PackedVector2Array()]).is_empty(), "Empty geometry creates no draw commands")
+	var sliver := PackedVector2Array()
+	var asia_geo: Dictionary = LevelDatabase.get_level_data("asia_1", true).get("geo", {})
+	for piece in asia_geo.get("land", []):
+		if piece.size() == 3 and piece[0].x > 2000.0:
+			sliver = piece
+			break
+	assert_true(not sliver.is_empty(), "Large-coordinate sliver fixture is available")
+	var sliver_fills := FilledPolygon.build(sliver)
+	assert_equals(sliver_fills.size(), 1, "A large-coordinate sliver still produces a fill")
+	assert_equals(sliver_fills[0].points.size(), 3, "The sliver triangulates locally instead of using the Clipper fallback")
 	var geo := {"land": [square, shifted], "borders": []}
 	var silhouette := GeoSilhouette.new()
 	silhouette.set_geography(geo, Color.WHITE)
@@ -5083,6 +5100,7 @@ func test_telemetry_schema_and_privacy() -> void:
 	assert_true(telemetry._crash_ready, "Los informes de fallos se inicializan con el ajuste predeterminado")
 	assert_equals(telemetry.sdk.options.get("environment"), "debug" if OS.is_debug_build() else "production", "Sentry usa la misma variante que Aptabase")
 	assert_true(not telemetry.sdk.options["send_default_pii"] and not telemetry.sdk.options["attach_log"] and not telemetry.sdk.options["attach_scene_tree"], "Sentry mantiene las restricciones de privacidad")
+	assert_equals(telemetry.sdk.tags.get("software_renderer"), "1" if telemetry._software_renderer else "0", "Sentry marca si el renderizador es software")
 	GameManager.settings["share_crashes"] = false
 	GameManager.settings["share_analytics"] = false
 	telemetry._on_settings_changed()
@@ -5184,6 +5202,46 @@ func test_telemetry_schema_and_privacy() -> void:
 	DirAccess.remove_absolute(GameManager.save_path + ".backup")
 	GameManager.reset_save()
 	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Reiniciar progreso conserva las opciones de privacidad")
+
+func test_sentry_engine_noise_filtering() -> void:
+	print("\n-> Test: Sentry descarta ruido del motor sin ocultar fallos reales")
+	GameManager._apply_save({})
+	var telemetry := TelemetryHarness.new()
+	telemetry._init_crashes()
+	assert_true(telemetry._crash_ready, "El filtro de Sentry se instala al inicializar los fallos")
+	var before_send: Callable = telemetry.sdk.options.get("before_send", Callable())
+	assert_true(before_send.is_valid(), "Sentry recibe el callback before_send")
+
+	var event := SentryEventStub.new()
+	event.message = "Mouse is not supported by this display server."
+	assert_true(before_send.call(event) == null, "El aviso de ratón de iOS no crea una incidencia")
+
+	event = SentryEventStub.new()
+	event.message = "CanvasShaderGLES3: Program linking failed:\nFragment shader active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)"
+	telemetry._software_renderer = false
+	assert_true(before_send.call(event) == event, "Un fallo real de shader en una GPU normal sigue reportándose")
+	telemetry._software_renderer = true
+	assert_true(before_send.call(event) == null, "El límite de uniforms de SwiftShader no crea una incidencia")
+	event = SentryEventStub.new()
+	event.message = "Method/function failed."
+	assert_true(before_send.call(event) == null, "El error secundario de SwiftShader no crea una incidencia")
+	telemetry._software_renderer = false
+	assert_true(before_send.call(event) == event, "Un Method/function failed. real no se confunde con SwiftShader")
+
+	event = SentryEventStub.new()
+	event.message = "Invalid call. Nonexistent function 'foo' in base 'Node'."
+	assert_true(before_send.call(event) == event, "Los errores de GDScript nunca se filtran")
+	event = SentryEventStub.new()
+	event.message = "CanvasShaderGLES3: Program linking failed: otro fallo"
+	assert_true(before_send.call(event) == event, "Los shaders que fallan por otra causa siguen reportándose")
+
+	event = SentryEventStub.new()
+	event.message = "CanvasShaderGLES3: Program linking failed:\nFragment shader active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)"
+	event.crash = true
+	telemetry._software_renderer = true
+	assert_true(before_send.call(event) == event, "Un crash fatal nunca se filtra, aunque coincida con el ruido")
+	telemetry.free()
+	GameManager._apply_save({})
 
 func test_candidate_telemetry_is_tagged() -> void:
 	print("\n-> Test: Telemetría de candidata marcada, no silenciada")

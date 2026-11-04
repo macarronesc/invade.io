@@ -156,9 +156,12 @@ durations will be incomplete.
   Frequent visits combined with frequent quits can indicate friction, not success.
 - **Navigation/economy:** use `tab_view`, `screen_view`, `upgrade_bought`, and the
   documented reward-event semantics.
-- **Crashes:** Sentry receives `screen`, `level`, `mode`, and `player_level` tags
-  plus battle breadcrumbs when enabled. Review release/session health alongside
-  native platform reports.
+- **Crashes:** Sentry receives `screen`, `level`, `mode`, `player_level`, and
+  `software_renderer` tags plus battle breadcrumbs when enabled. Review
+  release/session health alongside native platform reports.
+- **Software renderers:** `software_renderer=1` identifies emulators and other
+  software GL implementations. Keep them out of real-device alerts if needed;
+  never filter fatal crashes in the app.
 
 Temporary session IDs do not provide persistent-player cohorts. This integration
 does not establish user retention, MAU, or cross-session user funnels. Use store
@@ -173,6 +176,15 @@ logs, scene trees, and tracing, and does not set a game user. Do not add
 `SentrySDK.set_user()` or project-specific identifiers without an explicit privacy
 review. Providers can still receive connection IPs; verify IP removal and actual
 retention in their dashboards.
+
+The Godot logger also forwards engine diagnostics. `Telemetry` filters two known
+non-actionable classes before they leave the device: the iOS "Mouse is not
+supported by this display server" warning raised by popup controls, and the GLES3
+shader-link failure produced by Google Play's SwiftShader pre-launch device.
+`before_send` always keeps fatal crashes, and every event carries
+`software_renderer=0|1` so automated software-renderer runs can be excluded from
+alerts without hiding real-device failures. Do not widen this filter to generic
+engine errors; add a regression test and a matching dashboard note instead.
 
 Early engine-startup crashes before initialization are outside this integration;
 Play Console and App Store Connect reports remain relevant. Native stack traces
