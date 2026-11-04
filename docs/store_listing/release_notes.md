@@ -40,8 +40,9 @@ version numbering.
 ## Before each release
 
 Follow [RELEASES.md](../RELEASES.md#before-merging-a-release), add accurate notes
-and a history entry here, and confirm the artifact and Console version. Do not
-treat a placeholder date or prepared text as a record of publication.
+and a history entry here in ascending version order, and confirm the artifact
+and Console version. Do not treat a placeholder date or prepared text as a
+record of publication.
 
 ## Historical draft: invade.io 0.1.0 — first public release
 
@@ -183,6 +184,33 @@ A major update for invade.io!
 </en-US>
 ```
 
+## Reference: invade.io 0.3.0 — accessibility and large screens
+
+`versionCode` 4 · `versionName` 0.3.0.
+
+Historical Play Console payloads (under 500 characters per language). The phrase
+“screen-reader-friendly” describes the controls, not verified mobile TalkBack or
+VoiceOver support; see [platform limitations](../PLATFORM_INTEGRATION.md#accessibility).
+
+```
+<es-ES>
+¡Nueva actualización de invade.io!
+• Más accesibilidad: texto grande, más contraste y controles de batalla para lector de pantalla.
+• Menús y batallas para tabletas y apaisado, incluso al girar durante una partida.
+• Partidas nuevas y guardados sin idioma siguen el idioma del dispositivo; se conserva tu elección.
+• Más estabilidad en iPhone y diagnósticos opcionales.
+• Tu progreso se conserva al actualizar.
+</es-ES>
+<en-US>
+New invade.io update!
+• Accessibility options: larger text, stronger map contrast, and screen-reader-friendly battle controls.
+• Menus and battles adapt to tablets and landscape screens, including rotation during a match.
+• New games and older saves without a saved language follow your device language; saved choices stay in place.
+• Improved iPhone stability and optional diagnostics.
+• Your progress is preserved when you update.
+</en-US>
+```
+
 ## Candidate: invade.io 0.3.1 — contributions and build safety
 
 `versionCode` 5 · **owner must confirm code availability and publication status in Play Console**.
@@ -205,6 +233,84 @@ confirm actual production behavior first:
 • Open-source licenses are available in Settings, including offline.
 • Your existing progress is preserved when you update.
 </en-US>
+```
+
+Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
+
+## Candidate: invade.io 0.3.2 — telemetry defaults and store refresh
+
+`versionCode` 6 · **owner must confirm code availability and publication status in Play Console**.
+
+- Usage statistics and crash reports start enabled for new or missing settings; saved choices, including opt-outs, remain unchanged.
+- Each option can be disabled separately in Settings → Privacy; analytics events waiting to be sent are discarded when disabled.
+- Telemetry uses the actual Godot Debug/Release build type; editor tooling, tests, and headless runs do not initialize providers.
+- The Play listing and its localized phone/tablet gallery are refreshed across 15 languages. These are store materials, not new in-game features.
+
+Publish the matching policy and review Data safety/consent requirements before
+distributing. Proposed payloads below apply **only to a shipped 0.3.2 binary**;
+confirm actual production behavior first:
+
+```text
+<es-ES>
+• Las estadísticas de uso y los informes de fallos empiezan activados; se respetan tus preferencias guardadas. Desactiva cada opción en Ajustes → Privacidad.
+• Tu progreso se conserva al actualizar.
+</es-ES>
+<en-US>
+• Usage statistics and crash reports now start enabled; your saved choices are respected. Turn either off in Settings → Privacy.
+• Your existing progress is preserved when you update.
+</en-US>
+<pt-BR>
+• As estatísticas de uso e os relatórios de falhas agora começam ativados; suas preferências salvas são respeitadas. Desative cada opção em Configurações → Privacidade.
+• Seu progresso é mantido ao atualizar.
+</pt-BR>
+<fr-FR>
+• Les statistiques d’utilisation et les rapports d'erreur sont désormais activés au départ ; vos choix enregistrés sont respectés. Désactivez chaque option dans Paramètres → Confidentialité.
+• Votre progression est conservée lors de la mise à jour.
+</fr-FR>
+<de-DE>
+• Nutzungsstatistiken und Absturzberichte sind jetzt zunächst aktiviert; gespeicherte Einstellungen bleiben erhalten. Deaktiviere die Optionen einzeln unter Einstellungen → Privatsphäre.
+• Dein Fortschritt bleibt beim Update erhalten.
+</de-DE>
+<it-IT>
+• Le statistiche di utilizzo e i rapporti sugli incidenti sono ora attivi inizialmente; le preferenze salvate vengono rispettate. Disattiva ogni opzione in Impostazioni → Privacy.
+• I tuoi progressi vengono conservati con l’aggiornamento.
+</it-IT>
+<ru-RU>
+• Статистика использования и отчёты о сбоях теперь включены по умолчанию; сохранённые настройки учитываются. Каждую опцию можно отключить в разделе Настройки → Конфиденциальность.
+• Ваш прогресс сохраняется при обновлении.
+</ru-RU>
+<tr-TR>
+• Kullanım istatistikleri ve kilitlenme raporları artık başlangıçta açık; kaydedilmiş tercihleriniz korunur. Her seçeneği Ayarlar → Mahremiyet bölümünden kapatabilirsiniz.
+• İlerlemeniz güncelleme sırasında korunur.
+</tr-TR>
+<ar>
+• أصبحت إحصاءات الاستخدام وتقارير الأعطال مفعّلة افتراضيًا؛ تُحترم تفضيلاتك المحفوظة. يمكنك تعطيل كل خيار على حدة من إعدادات → خصوصية.
+• يُحفظ تقدمك عند التحديث.
+</ar>
+<hi-IN>
+• उपयोग के आँकड़े और दुर्घटना की रिपोर्ट अब शुरुआत में चालू रहते हैं; आपकी सहेजी गई पसंद का सम्मान किया जाता है। सेटिंग्स → गोपनीयता में हर विकल्प अलग से बंद करें।
+• अपडेट करने पर आपकी प्रगति सुरक्षित रहती है।
+</hi-IN>
+<id>
+• Statistik penggunaan dan laporan kerusakan kini aktif secara default; pilihan yang tersimpan tetap dihormati. Nonaktifkan setiap opsi di Pengaturan → Pribadi.
+• Progres Anda tetap tersimpan saat memperbarui.
+</id>
+<vi>
+• Thống kê sử dụng và báo cáo sự cố hiện được bật mặc định; lựa chọn đã lưu của bạn được giữ nguyên. Tắt từng tùy chọn trong Cài đặt → Sự riêng tư.
+• Tiến trình của bạn được giữ lại khi cập nhật.
+</vi>
+<zh-CN>
+• 使用统计和崩溃报告现在默认开启；已保存的选择保持不变。可在设置 → 隐私中分别关闭这两个选项。
+• 更新后保留现有游戏进度。
+</zh-CN>
+<ja-JP>
+• 利用状況の統計とクラッシュレポートが初期設定で有効になりました。保存済みの設定は引き継がれます。設定 → プライバシーでそれぞれ無効にできます。
+• アップデート後もゲームの進行状況は保持されます。
+</ja-JP>
+<ko-KR>
+• 사용 통계와 충돌 보고서가 이제 기본으로 켜집니다. 저장된 설정은 그대로 유지됩니다. 설정 → 개인정보에서 각 항목을 따로 끌 수 있습니다.
+• 업데이트해도 기존 게임 진행 상황이 유지됩니다.
+</ko-KR>
 ```
 
 Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
@@ -333,111 +439,6 @@ same native-speaker review as the listing copy:
 ```
 
 Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
-
-## Candidate: invade.io 0.3.2 — telemetry defaults and store refresh
-
-`versionCode` 6 · **owner must confirm code availability and publication status in Play Console**.
-
-- Usage statistics and crash reports start enabled for new or missing settings; saved choices, including opt-outs, remain unchanged.
-- Each option can be disabled separately in Settings → Privacy; analytics events waiting to be sent are discarded when disabled.
-- Telemetry uses the actual Godot Debug/Release build type; editor tooling, tests, and headless runs do not initialize providers.
-- The Play listing and its localized phone/tablet gallery are refreshed across 15 languages. These are store materials, not new in-game features.
-
-Publish the matching policy and review Data safety/consent requirements before
-distributing. Proposed payloads below apply **only to a shipped 0.3.2 binary**;
-confirm actual production behavior first:
-
-```text
-<es-ES>
-• Las estadísticas de uso y los informes de fallos empiezan activados; se respetan tus preferencias guardadas. Desactiva cada opción en Ajustes → Privacidad.
-• Tu progreso se conserva al actualizar.
-</es-ES>
-<en-US>
-• Usage statistics and crash reports now start enabled; your saved choices are respected. Turn either off in Settings → Privacy.
-• Your existing progress is preserved when you update.
-</en-US>
-<pt-BR>
-• As estatísticas de uso e os relatórios de falhas agora começam ativados; suas preferências salvas são respeitadas. Desative cada opção em Configurações → Privacidade.
-• Seu progresso é mantido ao atualizar.
-</pt-BR>
-<fr-FR>
-• Les statistiques d’utilisation et les rapports d'erreur sont désormais activés au départ ; vos choix enregistrés sont respectés. Désactivez chaque option dans Paramètres → Confidentialité.
-• Votre progression est conservée lors de la mise à jour.
-</fr-FR>
-<de-DE>
-• Nutzungsstatistiken und Absturzberichte sind jetzt zunächst aktiviert; gespeicherte Einstellungen bleiben erhalten. Deaktiviere die Optionen einzeln unter Einstellungen → Privatsphäre.
-• Dein Fortschritt bleibt beim Update erhalten.
-</de-DE>
-<it-IT>
-• Le statistiche di utilizzo e i rapporti sugli incidenti sono ora attivi inizialmente; le preferenze salvate vengono rispettate. Disattiva ogni opzione in Impostazioni → Privacy.
-• I tuoi progressi vengono conservati con l’aggiornamento.
-</it-IT>
-<ru-RU>
-• Статистика использования и отчёты о сбоях теперь включены по умолчанию; сохранённые настройки учитываются. Каждую опцию можно отключить в разделе Настройки → Конфиденциальность.
-• Ваш прогресс сохраняется при обновлении.
-</ru-RU>
-<tr-TR>
-• Kullanım istatistikleri ve kilitlenme raporları artık başlangıçta açık; kaydedilmiş tercihleriniz korunur. Her seçeneği Ayarlar → Mahremiyet bölümünden kapatabilirsiniz.
-• İlerlemeniz güncelleme sırasında korunur.
-</tr-TR>
-<ar>
-• أصبحت إحصاءات الاستخدام وتقارير الأعطال مفعّلة افتراضيًا؛ تُحترم تفضيلاتك المحفوظة. يمكنك تعطيل كل خيار على حدة من إعدادات → خصوصية.
-• يُحفظ تقدمك عند التحديث.
-</ar>
-<hi-IN>
-• उपयोग के आँकड़े और दुर्घटना की रिपोर्ट अब शुरुआत में चालू रहते हैं; आपकी सहेजी गई पसंद का सम्मान किया जाता है। सेटिंग्स → गोपनीयता में हर विकल्प अलग से बंद करें।
-• अपडेट करने पर आपकी प्रगति सुरक्षित रहती है।
-</hi-IN>
-<id>
-• Statistik penggunaan dan laporan kerusakan kini aktif secara default; pilihan yang tersimpan tetap dihormati. Nonaktifkan setiap opsi di Pengaturan → Pribadi.
-• Progres Anda tetap tersimpan saat memperbarui.
-</id>
-<vi>
-• Thống kê sử dụng và báo cáo sự cố hiện được bật mặc định; lựa chọn đã lưu của bạn được giữ nguyên. Tắt từng tùy chọn trong Cài đặt → Sự riêng tư.
-• Tiến trình của bạn được giữ lại khi cập nhật.
-</vi>
-<zh-CN>
-• 使用统计和崩溃报告现在默认开启；已保存的选择保持不变。可在设置 → 隐私中分别关闭这两个选项。
-• 更新后保留现有游戏进度。
-</zh-CN>
-<ja-JP>
-• 利用状況の統計とクラッシュレポートが初期設定で有効になりました。保存済みの設定は引き継がれます。設定 → プライバシーでそれぞれ無効にできます。
-• アップデート後もゲームの進行状況は保持されます。
-</ja-JP>
-<ko-KR>
-• 사용 통계와 충돌 보고서가 이제 기본으로 켜집니다. 저장된 설정은 그대로 유지됩니다. 설정 → 개인정보에서 각 항목을 따로 끌 수 있습니다.
-• 업데이트해도 기존 게임 진행 상황이 유지됩니다.
-</ko-KR>
-```
-
-Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
-
-## Reference: invade.io 0.3.0 — accessibility and large screens
-
-`versionCode` 4 · `versionName` 0.3.0.
-
-Historical Play Console payloads (under 500 characters per language). The phrase
-“screen-reader-friendly” describes the controls, not verified mobile TalkBack or
-VoiceOver support; see [platform limitations](../PLATFORM_INTEGRATION.md#accessibility).
-
-```
-<es-ES>
-¡Nueva actualización de invade.io!
-• Más accesibilidad: texto grande, más contraste y controles de batalla para lector de pantalla.
-• Menús y batallas para tabletas y apaisado, incluso al girar durante una partida.
-• Partidas nuevas y guardados sin idioma siguen el idioma del dispositivo; se conserva tu elección.
-• Más estabilidad en iPhone y diagnósticos opcionales.
-• Tu progreso se conserva al actualizar.
-</es-ES>
-<en-US>
-New invade.io update!
-• Accessibility options: larger text, stronger map contrast, and screen-reader-friendly battle controls.
-• Menus and battles adapt to tablets and landscape screens, including rotation during a match.
-• New games and older saves without a saved language follow your device language; saved choices stay in place.
-• Improved iPhone stability and optional diagnostics.
-• Your progress is preserved when you update.
-</en-US>
-```
 
 ## Version reference
 
