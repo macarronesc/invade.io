@@ -59,8 +59,10 @@ class MobileTemplateChecks(unittest.TestCase):
     def test_candidates_cannot_change_production_template_selection(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text()
         self.assertIn("github.event_name == 'workflow_dispatch' && inputs.optimized_templates == true", workflow)
-        self.assertIn('PATH="$work/venv/bin:$PATH" ./gradlew generateGodotTemplates', (ROOT / "scripts/build_mobile_templates.sh").read_text())
-        self.assertIn("arch=arm64 metal=no", (ROOT / "scripts/build_mobile_templates.sh").read_text())
+        script = (ROOT / "scripts/build_mobile_templates.sh").read_text()
+        self.assertIn('PATH="$work/venv/bin:$PATH" ./gradlew generateGodotTemplates', script)
+        self.assertIn("distributionSha256Sum=f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6", script)
+        self.assertIn("arch=arm64 metal=no", script)
         self.assertIn("- name: Build installable Release APK for engine validation only\n"
                       "        if: env.OPTIMIZED_TEMPLATES == 'true'", workflow)
 

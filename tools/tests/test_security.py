@@ -23,12 +23,18 @@ class SecurityChecks(unittest.TestCase):
         self.assertTrue(sensitive_content(b"ghp_" + b"a" * 36))
         self.assertFalse(sensitive_content(b"https://public@o123.ingest.sentry.io/123"))
 
+    def test_release_missing_base_fails_cleanly(self):
+        result = subprocess.run([sys.executable, str(ROOT / "tools/check_release.py"), "--base", "does-not-exist"],
+                                cwd=ROOT, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("Traceback", result.stderr)
+
     def test_export_boundaries(self):
         notices = (NOTICES, build().encode())
         check_entries([notices, ("scripts/main.gdc", b"game")])
         for prefix in ("assets/", "base/assets/", "assetPackInstallTime/assets/"):
             check_entries([(prefix + notices[0], notices[1])])
-        for path in ("build/headers/a.import", "scripts/tests/test.gdc", "website/src/pages/index.astro", "website/node_modules/test.js", "../escape", "upload.jks", ".tmp", ".git/config"):
+        for path in ("build/headers/a.import", "scripts/tests/test.gdc", "base/scripts/tests/test.gdc", "base/scenes/tests/a.tscn", "website/src/pages/index.astro", "website/node_modules/test.js", "../escape", "upload.jks", ".tmp", ".git/config"):
             with self.subTest(path=path), self.assertRaises(ValueError):
                 check_entries([notices, (path, b"data")])
         with self.assertRaises(ValueError):

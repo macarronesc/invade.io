@@ -79,6 +79,8 @@ var achievements: Dictionary = {}
 var daily: Dictionary = {}
 ## Nivel diario o de conquista en juego; vacío = campaña. No se persiste.
 var special_level_id: String = ""
+## Nivel de campaña elegido para la batalla; no mueve el marcador si es una repetición.
+var battle_level_id: String = ""
 ## Código canónico del idioma de la interfaz (ver LanguageCatalog).
 var language: String:
 	get:
@@ -140,8 +142,13 @@ func _init() -> void:
 
 func _ready() -> void:
 	load_game()
+	# Consent is stored separately so recovering an older gameplay backup cannot
+	# silently re-enable a privacy choice the player already turned off.
+	_load_privacy_settings()
 	if save_error == OK and not FileAccess.file_exists(save_path):
 		save_game()
+	elif save_error == OK and not FileAccess.file_exists(privacy_path()):
+		_write_privacy_settings()
 
 func _notification(what: int) -> void:
 	match what:
@@ -334,13 +341,14 @@ func complete_level(level_id: String, stars: int, medal: bool = false) -> void:
 	if medal and not medals.has(level_id):
 		medals.append(level_id)
 
-	# Desbloquear siguiente nivel
+	# Desbloquear siguiente nivel. Repetir un nivel antiguo no mueve el marcador.
 	var next_id = get_next_level(level_id)
 	if next_id != "":
 		if not unlocked_levels.has(next_id):
 			unlocked_levels.append(next_id)
-		current_level_id = next_id
-		current_continent = LevelDatabase.get_continent_of(next_id)
+		if level_id == current_level_id:
+			current_level_id = next_id
+			current_continent = LevelDatabase.get_continent_of(next_id)
 
 	save_game()
 
@@ -355,15 +363,22 @@ func get_next_level(level_id: String) -> String:
 
 ## Nivel que carga la batalla sin perder el punto de la campaña
 func get_battle_level_id() -> String:
-	return special_level_id if special_level_id != "" else current_level_id
+	if special_level_id != "":
+		return special_level_id
+	return battle_level_id if battle_level_id != "" else current_level_id
 
 ## Elige el nivel de la próxima batalla sin perder el punto de la campaña
 func play_level(level_id: String) -> void:
 	if LevelDatabase.mode_of(level_id) != "campaign":
 		special_level_id = level_id
+		battle_level_id = ""
 	else:
 		special_level_id = ""
-		current_level_id = level_id
+		battle_level_id = level_id
+		# Repetir un nivel ya superado no retrocede el marcador de campaña.
+		if not completed_levels.has(level_id):
+			current_level_id = level_id
+			current_continent = LevelDatabase.get_continent_of(level_id)
 
 ## Juega una región de conquista libre ("conquest_<n>")
 func play_conquest(index: int) -> void:
@@ -461,7 +476,7 @@ func recommended_invasion_region(continent_id: String = "") -> String:
 	for region in candidates:
 		if not is_region_complete(region["id"]):
 			return str(region["id"])
-	return str(candidates[0]["id"]) if not candidates.is_empty() else ""
+	return ""
 
 func next_invasion_level(level_id: String) -> String:
 	var parsed := InvasionDatabase.parse_level(level_id)
@@ -512,10 +527,11 @@ func complete_invasion_level(level_id: String, stars: int) -> Dictionary:
 	var before_complete := is_region_complete(region_id)
 	var before_mastered := is_region_mastered(region_id)
 	var before_continent := all_regions_complete(str(region["continent"]))
+	# Calculate before writing the new stars: the payout compares against the old value.
+	var gold := calculate_invasion_gold(level_id, stars)
 	if stars > previous:
 		invasion_stars[level_id] = clampi(stars, 1, 3)
 
-	var gold := calculate_invasion_gold(level_id, stars)
 	var region_bonus := 0
 	var mastery_bonus := 0
 	if is_region_complete(region_id) and not before_complete and not invasion_rewards.has(region_id):
@@ -624,7 +640,9 @@ func is_daily_challenge_done(day: int = DailyRewards.today()) -> bool:
 ## Registra la victoria en un desafío diario; devuelve el oro (completo sólo la primera vez del día)
 func complete_daily_challenge(level_id: String) -> int:
 	var day := DailyRewards.challenge_day(level_id)
-	var is_replay := is_daily_challenge_done(day)
+	var marker := int(daily["challenge_day"])
+	# A clock rollback must not make an older challenge count as today's first clear.
+	var is_replay := day <= marker
 	if not is_replay:
 		daily["challenge_day"] = day
 		add_stat("daily_challenges")
@@ -748,6 +766,10 @@ func set_setting(key: String, value: Variant, immediate_save: bool = true) -> vo
 		settings[key] = _setting_number(key, value)
 	if key in ["volume", "music_volume"]:
 		AudioManager.apply_volumes()
+	if key in ["share_analytics", "share_crashes"]:
+		var privacy_error := _write_privacy_settings()
+		if privacy_error != OK:
+			_set_save_status(privacy_error)
 	if immediate_save:
 		save_game()
 	else:
@@ -916,6 +938,30 @@ func _set_save_status(error: Error) -> Error:
 		save_status_changed.emit()
 	return error
 
+## Privacy choices live beside the save so an older `.previous` copy cannot undo them.
+func privacy_path() -> String:
+	return save_path + ".privacy.json"
+
+func _write_privacy_settings() -> Error:
+	return _write_save_text(privacy_path(), JSON.stringify({
+		"share_analytics": bool(settings["share_analytics"]),
+		"share_crashes": bool(settings["share_crashes"]),
+	}))
+
+func _load_privacy_settings() -> void:
+	var file := FileAccess.open(privacy_path(), FileAccess.READ)
+	if not file:
+		return
+	if file.get_length() > 4096:
+		return
+	var json := JSON.new()
+	if json.parse(file.get_as_text()) != OK or not json.data is Dictionary:
+		return
+	var saved: Dictionary = json.data
+	for key in ["share_analytics", "share_crashes"]:
+		if saved.get(key) is bool:
+			settings[key] = saved[key]
+
 ## La carga local acepta campos antiguos; la importación exige además la estructura del juego.
 func _read_save(path: String) -> Dictionary:
 	var file := FileAccess.open(path, FileAccess.READ)
@@ -974,6 +1020,11 @@ func import_save(path: String) -> Error:
 	error = save_game()
 	if error != OK:
 		_apply_save(previous)
+	else:
+		var privacy_error := _write_privacy_settings()
+		if privacy_error != OK:
+			_set_save_status(privacy_error)
+	AudioManager.apply_volumes()
 	EventBus.settings_changed.emit()
 	return error
 
@@ -983,6 +1034,7 @@ func load_game() -> Error:
 	var loaded := _read_save(save_path)
 	if loaded["error"] == OK:
 		_apply_save(loaded["data"])
+		_load_privacy_settings()
 		return _set_save_status(OK)
 	if loaded["error"] == ERR_UNAVAILABLE:
 		_save_blocked = true # Una versión antigua nunca sobrescribe una partida más nueva.
@@ -999,6 +1051,7 @@ func load_game() -> Error:
 	var previous := _read_save(save_path + ".previous")
 	if previous["error"] == OK:
 		_apply_save(previous["data"])
+		_load_privacy_settings()
 		save_recovered = true
 		var error := write_save(save_path, save_data())
 		save_error = error
@@ -1016,16 +1069,23 @@ func reset_save() -> Error:
 		return ERR_UNAVAILABLE
 	var previous := save_data().duplicate(true)
 	var current_language := language
-	var share_analytics: bool = settings["share_analytics"]
-	var share_crashes: bool = settings["share_crashes"]
+	var current_settings: Dictionary = settings.duplicate(true)
+	var current_sound_muted := sound_muted
+	var current_music_muted := music_muted
 	_apply_save({})
-	language = current_language # Reiniciar el progreso no cambia el idioma elegido.
-	settings["share_analytics"] = share_analytics
-	settings["share_crashes"] = share_crashes
+	language = current_language # Reiniciar el progreso no cambia las preferencias.
+	settings = current_settings
+	sound_muted = current_sound_muted
+	music_muted = current_music_muted
+	AudioManager.apply_volumes()
 	var error := save_game()
 	if error != OK:
 		_apply_save(previous)
+		AudioManager.apply_volumes()
 		return error
+	var privacy_error := _write_privacy_settings()
+	if privacy_error != OK:
+		_set_save_status(privacy_error)
 	special_level_id = ""
 	normalized_battle = false
 	save_recovered = false
@@ -1042,6 +1102,9 @@ func _apply_save(data: Dictionary) -> void:
 	_save_scheduled = false
 	if _save_timer:
 		_save_timer.stop()
+	special_level_id = ""
+	battle_level_id = ""
+	normalized_battle = false
 	settings = DEFAULT_SETTINGS.duplicate()
 	var saved_settings := _as_dict(data.get("settings"))
 	for key in settings:

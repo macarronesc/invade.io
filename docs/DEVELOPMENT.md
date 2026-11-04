@@ -130,7 +130,7 @@ virtual environment rather than changing the project's runtime dependencies:
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install fonttools==4.57.0
+.venv/bin/python -m pip install --require-hashes -r tools/requirements-ci.txt
 .venv/bin/python tools/build_locale_fonts.py /path/to/noto-source-fonts
 godot --headless --path . --editor --import
 ```

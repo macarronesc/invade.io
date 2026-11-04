@@ -226,33 +226,33 @@ source already describes this behavior. This marketing work does not change it.
 
 Before submitting:
 
-- [ ] Confirm the actual production AAB/version and the commit used for captures.
+- Confirm the actual production AAB/version and the commit used for captures.
       The manifest records the base commit and whether the working tree was dirty.
       These prepared assets include local changes until you commit them; do not
       mistake the recorded base commit for an already released build.
-- [ ] Match the full-description privacy paragraph to the shipped build. If the
+- Match the full-description privacy paragraph to the shipped build. If the
       production app still has opt-in defaults, use accurate wording for that build,
       not the supplied 0.3.2 defaults paragraph. Preserve honesty in every translation.
-- [ ] Review consent/disclosure requirements before shipping enabled-by-default
+- Review consent/disclosure requirements before shipping enabled-by-default
       analytics; a toggle or store description is not itself prior consent.
-- [ ] Publish the matching policy at
+- Publish the matching policy at
       `https://macarronesc.github.io/invade.io/privacy-policy.html` and verify the
       public contents. The existing Pages workflow deploys from `main`; merely
       editing a local HTML file does not update the public page.
-- [ ] Review Data safety for **all currently distributed versions/tracks** that
+- Review Data safety for **all currently distributed versions/tracks** that
       are in scope. Optional telemetry is still collection when data leaves the
       device. Check app activity, crash/diagnostic data, IP-derived location and
       session identifiers against the SDKs and provider configuration.
-- [ ] Determine whether the service-provider sharing exception applies; do not
+- Determine whether the service-provider sharing exception applies; do not
       mark all third-party processing as sharing or as no collection by assumption.
-- [ ] Keep the no-ads/no-purchases and no-account access declarations only while
+- Keep the no-ads/no-purchases and no-account access declarations only while
       they remain true. No credentials are needed to review this game.
-- [ ] Confirm target audience and Families settings. The public page displayed a
+- Confirm target audience and Families settings. The public page displayed a
       Families commitment, while the repository policy says the game is not directed
       at under-13s. Resolve this intentionally; **PEGI 3 is not a target-audience choice**.
-- [ ] Keep IARC/content-rating answers truthful. Do not manufacture a new rating
+- Keep IARC/content-rating answers truthful. Do not manufacture a new rating
       based on a marketing preference.
-- [ ] For an app release, use an unused increasing versionCode, follow
+- For an app release, use an unused increasing versionCode, follow
       `docs/RELEASES.md`, and run the existing Android bundle verification. No
       signing credentials or release codes were changed for this store refresh.
 

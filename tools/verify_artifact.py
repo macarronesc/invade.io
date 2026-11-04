@@ -42,6 +42,12 @@ def resource_path(name):
     parts = pathlib.PurePosixPath(name).parts
     if name.startswith("/") or ".." in parts:
         raise ValueError("Unsafe archive path")
+    # Strip one container prefix (AAB module, asset pack) while keeping the game
+    # root visible so development-only folders cannot hide behind it.
+    if "/" in name and not name.startswith("assets/"):
+        _, rest = name.split("/", 1)
+        if rest.startswith(("assets/", "scripts/", "scenes/", "locale/", "addons/")):
+            name = rest
     # Strip exactly one container prefix: APK assets/assets vs AAB module/assets/assets.
     if name.startswith("assets/"):
         return name[len("assets/"):]

@@ -25,6 +25,8 @@ const TAP_SLOP := 24.0
 
 var bases: Array[BaseNode] = []
 var active_troops: Array[Troop] = []
+## Reused per-frame snapshot so the simulation does not allocate a duplicate every frame.
+var _frame_troops: Array[Troop] = []
 var ai_controllers: Array[AIController] = []
 
 var selected_sources: Array[BaseNode] = []
@@ -265,11 +267,13 @@ func _process(delta: float) -> void:
 			battle_time += delta
 			_process_boss(delta)
 			_update_level_objective(delta)
-			for t in active_troops.duplicate():
+			_frame_troops.assign(active_troops)
+			for t in _frame_troops:
 				if _is_alive(t):
 					t.advance(delta)
 			_process_troop_collisions()
-			for t in active_troops.duplicate():
+			_frame_troops.assign(active_troops)
+			for t in _frame_troops:
 				if _is_alive(t):
 					t.resolve_arrivals()
 		_check_decisive_assault()
@@ -745,7 +749,10 @@ func _trigger_victory() -> void:
 	if is_game_over:
 		return
 	is_game_over = true
-	start_slow_motion()
+	if GameManager.settings["reduced_motion"]:
+		reset_time_scale()
+	else:
+		start_slow_motion()
 
 	var stars = 1
 	if battle_time <= target_time:

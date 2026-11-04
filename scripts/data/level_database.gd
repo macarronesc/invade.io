@@ -196,6 +196,8 @@ static var _collections: Dictionary = {}
 ## Colección del atlas de un continente: las ciudades de sus 5 niveles de campaña, todas
 ## alcanzables jugando (se conquistan al ganar con ellas en tu poder)
 static func collection_cities(continent_id: String) -> Array[String]:
+	if not get_continents().any(func(c): return c["id"] == continent_id):
+		return []
 	if not _collections.has(continent_id):
 		var keys: Array[String] = []
 		for level_id in get_continent_level_ids(continent_id):

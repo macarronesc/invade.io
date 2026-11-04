@@ -21,7 +21,10 @@ static func _ensure_loaded() -> void:
 		return
 	_loaded = true
 	var res = load(DATA_PATH)
-	var data: Dictionary = res.data if res is JSON else {}
+	if not res is JSON or not res.data is Dictionary:
+		push_warning("Geography data missing or invalid: " + DATA_PATH)
+		return
+	var data: Dictionary = res.data
 	for flat in data.get("land", []):
 		var poly := _to_points(flat)
 		_land.append(poly)
@@ -49,6 +52,8 @@ static func _to_points(flat: Array) -> PackedVector2Array:
 
 ## Rectángulo que envuelve los puntos
 static func bounds_of(pts: PackedVector2Array) -> Rect2:
+	if pts.is_empty():
+		return Rect2()
 	var r := Rect2(pts[0], Vector2.ZERO)
 	for p in pts:
 		r = r.expand(p)
