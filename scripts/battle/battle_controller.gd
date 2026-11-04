@@ -745,7 +745,10 @@ func _trigger_victory() -> void:
 	if is_game_over:
 		return
 	is_game_over = true
-	start_slow_motion()
+	if GameManager.settings["reduced_motion"]:
+		reset_time_scale()
+	else:
+		start_slow_motion()
 
 	var stars = 1
 	if battle_time <= target_time:

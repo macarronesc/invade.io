@@ -79,6 +79,7 @@ func _ready() -> void:
 	assert_equals(GameManager.save_path, "user://automation_startup_save.json", "El autoload aísla el guardado antes de iniciar las pruebas")
 	# Los tests nunca deben tocar la partida real del jugador
 	GameManager.save_path = TEST_SAVE_PATH
+	DirAccess.remove_absolute(GameManager.privacy_path())
 	GameManager.load_game()
 	print("\n=======================================================")
 	print("  INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS: INVADE.IO  ")
@@ -156,6 +157,7 @@ func _ready() -> void:
 	print("\n-------------------------------------------------------")
 	DirAccess.remove_absolute(TEST_SAVE_PATH)
 	DirAccess.remove_absolute(TEST_SAVE_PATH + ".previous")
+	DirAccess.remove_absolute(GameManager.privacy_path())
 	print("RESULTADOS: %d Pasadas, %d Falladas (Total: %d)" % [passed_tests, failed_tests, total_tests])
 	print("=======================================================\n")
 
@@ -428,7 +430,7 @@ func test_save_optimizations() -> void:
 	add_child(manager)
 	var path := "user://test_batched_save.json"
 	manager.save_path = path
-	for suffix in ["", ".previous", ".tmp"]:
+	for suffix in ["", ".previous", ".tmp", ".privacy.json"]:
 		DirAccess.remove_absolute(path + suffix)
 	manager.coins = 321
 	assert_equals(manager.save_game(), OK, "Initial save is synchronous")
@@ -491,7 +493,7 @@ func test_save_optimizations() -> void:
 	assert_equals(manager.save_game(), ERR_UNAVAILABLE, "Even a no-op save validates the on-disk version")
 	assert_equals(manager.writes, 0, "Save optimization cannot overwrite a future version")
 	manager.free()
-	for suffix in ["", ".previous", ".tmp"]:
+	for suffix in ["", ".previous", ".tmp", ".privacy.json"]:
 		DirAccess.remove_absolute(path + suffix)
 	GameManager._apply_save(saved)
 
@@ -658,7 +660,7 @@ func test_mobile_experience() -> void:
 	var path := "user://test_mobile_save.json"
 	# Limpia restos de una ejecución interrumpida: un `.tmp` como directorio haría
 	# fallar la escritura atómica y dejaría el archivo anterior intacto.
-	for suffix in ["", ".previous", ".corrupt", ".backup", ".import", ".tmp"]:
+	for suffix in ["", ".previous", ".corrupt", ".backup", ".import", ".tmp", ".privacy.json"]:
 		DirAccess.remove_absolute(path + suffix)
 	manager.save_path = path
 	manager.coins = 321
@@ -723,7 +725,7 @@ func test_mobile_experience() -> void:
 	assert_equals(manager._haptic_parameters(60, 1600), Vector2.ZERO, "La intensidad cero no genera vibración")
 	assert_equals(manager._haptic_parameters(-5, 1700), Vector2.ZERO, "Una duración inválida no llega al dispositivo")
 	manager.free()
-	for suffix in ["", ".previous", ".corrupt", ".backup", ".import", ".tmp"]:
+	for suffix in ["", ".previous", ".corrupt", ".backup", ".import", ".tmp", ".privacy.json"]:
 		DirAccess.remove_absolute(path + suffix)
 
 	GameManager.reset_save()
@@ -2171,6 +2173,19 @@ func test_slow_motion_and_time_scale_safety() -> void:
 	battle._exit_tree()
 	assert_equals(Engine.time_scale, 1.0, "BattleController._exit_tree restablece limpiamente Engine.time_scale a 1.0")
 
+	# 8. Reduced Motion no activa la cámara lenta de victoria
+	var reduced_battle = BattleControllerScript.new()
+	reduced_battle.level_id = "europe_1"
+	reduced_battle.target_time = 45.0
+	reduced_battle.battle_time = 0.0
+	GameManager.settings["reduced_motion"] = true
+	reduced_battle._trigger_victory()
+	assert_true(not reduced_battle.is_slow_motion_active, "Reduced Motion omite la cámara lenta de victoria")
+	assert_equals(Engine.time_scale, 1.0, "Reduced Motion mantiene Engine.time_scale a 1.0")
+	GameManager.settings["reduced_motion"] = false
+	reduced_battle.free()
+	GameManager.reset_save()
+
 	remove_child(hud)
 	hud.free()
 	b_player.free()
@@ -3334,6 +3349,35 @@ func test_save_robustness_and_replay_rewards() -> void:
 	AudioManager.set_muted(was_muted)
 	GameManager.reset_save()
 
+	# 5. Recuperar una copia vieja no resucita la telemetría que el jugador desactivó
+	GameManager.reset_save()
+	GameManager.set_setting("share_analytics", false)
+	GameManager.set_setting("share_crashes", false)
+	assert_true(FileAccess.file_exists(GameManager.privacy_path()), "El consentimiento tiene su propia copia")
+	f = FileAccess.open(TEST_SAVE_PATH, FileAccess.WRITE)
+	f.store_string("{roto")
+	f.close()
+	GameManager.load_game()
+	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"],
+		"La recuperación conserva la privacidad elegida")
+	DirAccess.remove_absolute(TEST_SAVE_PATH + ".corrupt")
+
+	# 6. Reiniciar el progreso conserva accesibilidad, audio y tema
+	var original_settings: Dictionary = GameManager.settings.duplicate(true)
+	GameManager.reset_save()
+	GameManager.set_setting("text_scale", 1.0)
+	GameManager.set_setting("reduced_motion", true)
+	GameManager.set_setting("light_mode", false)
+	GameManager.set_setting("volume", 0.25)
+	GameManager.reset_save()
+	assert_equals(GameManager.settings["text_scale"], 1.0, "Reiniciar conserva el tamaño de texto")
+	assert_true(GameManager.settings["reduced_motion"], "Reiniciar conserva Reduced Motion")
+	assert_true(not GameManager.settings["light_mode"], "Reiniciar conserva el tema")
+	assert_equals(GameManager.settings["volume"], 0.25, "Reiniciar conserva el volumen")
+	GameManager._apply_save({})
+	GameManager.settings = original_settings
+	GameManager.reset_save()
+
 func test_ai_projected_defense_and_difficulty() -> void:
 	print("\n-> Test: IA con Tropas en Camino, Producción Durante el Viaje y Curva de Dificultad")
 	assert_equals(LevelDatabase.get_difficulty("europe_1"), 0.0, "europe_1 es el nivel más fácil")
@@ -3759,6 +3803,15 @@ func test_daily_challenge_levels() -> void:
 	assert_true(GameManager.is_daily_challenge_done(), "El desafío de hoy queda superado")
 	assert_true(GameManager.complete_daily_challenge(id) < full, "Repetirlo el mismo día da menos oro")
 	assert_equals(GameManager.get_stat("daily_challenges"), 1, "Sólo cuenta un desafío por día para los logros")
+	# Un reloj atrasado no puede rebobinar el marcador ni volver a pagar el día completo.
+	GameManager.daily["challenge_day"] = today + 1
+	var old_day := DailyRewards.challenge_id(today)
+	assert_equals(GameManager.complete_daily_challenge(old_day),
+		int(round(DailyRewards.DAILY_CHALLENGE_GOLD * GameManager.REPLAY_GOLD_FACTOR * GameManager.get_gold_multiplier())),
+		"Un desafío de un día anterior paga la tarifa reducida")
+	assert_equals(int(GameManager.daily["challenge_day"]), today + 1,
+		"Un reloj atrasado no mueve el marcador hacia atrás")
+	assert_equals(GameManager.get_stat("daily_challenges"), 1, "Un día anterior no suma otro desafío")
 	assert_equals(GameManager.get_total_stars(), 0, "Los desafíos no suman estrellas de campaña")
 	assert_true(not GameManager.completed_levels.has(id), "Los desafíos no se guardan como niveles de campaña")
 	GameManager.reset_save()
@@ -4294,12 +4347,22 @@ func test_invasion_mode() -> void:
 	assert_true(not GameManager.is_invasion_level_unlocked("inv_iberia_2"), "El segundo frente requiere el primero")
 	assert_equals(GameManager.get_total_stars(), 15, "Las estrellas de campaña no cambian")
 
+	var first_expected := GameManager.calculate_invasion_gold("inv_iberia_1", 3)
 	var first := GameManager.complete_invasion_level("inv_iberia_1", 3)
 	assert_true(int(first["gold"]) > 0, "El frente paga oro")
+	assert_equals(int(first["gold"]), first_expected, "El primer frente paga la tarifa completa")
 	assert_equals(GameManager.invasion_level_stars("inv_iberia_1"), 3, "El frente guarda sus estrellas")
 	assert_true(not GameManager.completed_levels.has("inv_iberia_1"), "Las invasiones no contaminan la campaña")
 	assert_true(GameManager.is_invasion_level_unlocked("inv_iberia_2"), "Ganar el primero abre el segundo")
 	assert_true(not GameManager.is_invasion_level_unlocked("inv_iberia_3"), "El tercero sigue cerrado")
+	GameManager.invasion_stars["inv_iberia_1"] = 1
+	var improve_expected := GameManager.calculate_invasion_gold("inv_iberia_1", 3)
+	var improve := GameManager.complete_invasion_level("inv_iberia_1", 3)
+	assert_equals(int(improve["gold"]), improve_expected, "Mejorar estrellas paga la tarifa de mejora")
+	GameManager.invasion_stars["inv_iberia_1"] = 3
+	var replay_expected := GameManager.calculate_invasion_gold("inv_iberia_1", 3)
+	var replay := GameManager.complete_invasion_level("inv_iberia_1", 3)
+	assert_equals(int(replay["gold"]), replay_expected, "Repetir sin mejorar paga la tarifa reducida")
 	GameManager.complete_invasion_level("inv_iberia_2", 2)
 	var third := GameManager.complete_invasion_level("inv_iberia_3", 1)
 	assert_true(third["region_complete"], "Los tres frentes completan la región")
@@ -4312,8 +4375,8 @@ func test_invasion_mode() -> void:
 	assert_equals(GameManager.total_invasion_stars(), 6, "Seis estrellas de invasión")
 	assert_equals(GameManager.get_total_stars(), 15, "La campaña conserva sus 15 estrellas")
 
-	var replay := GameManager.complete_invasion_level("inv_iberia_1", 3)
-	assert_true(not replay["region_complete"] or int(replay["region_bonus"]) == 0, "Repetir no vuelve a pagar la región")
+	var replay_after_complete := GameManager.complete_invasion_level("inv_iberia_1", 3)
+	assert_true(not replay_after_complete["region_complete"] or int(replay_after_complete["region_bonus"]) == 0, "Repetir no vuelve a pagar la región")
 	GameManager.complete_invasion_level("inv_iberia_2", 3)
 	var mastery := GameManager.complete_invasion_level("inv_iberia_3", 3)
 	assert_true(mastery["region_mastered"], "Tres estrellas en los tres frentes dan dominio")
@@ -4630,6 +4693,21 @@ func test_progression_overhaul() -> void:
 	GameManager.load_game()
 	assert_true(GameManager.medals.has("europe_1"), "Las medallas persisten")
 	assert_equals(GameManager.victory_xp({"stars": 3, "new_medal": true}), 80, "La medalla nueva da XP extra")
+
+	# 3b. Repetir un nivel antiguo no retrocede el marcador de campaña
+	GameManager.current_level_id = "europe_3"
+	GameManager.current_continent = "europe"
+	GameManager.play_level("europe_1")
+	assert_equals(GameManager.get_battle_level_id(), "europe_1", "La batalla carga el nivel repetido")
+	assert_equals(GameManager.current_level_id, "europe_3", "Repetir no mueve el marcador")
+	GameManager.complete_level("europe_1", 3)
+	assert_equals(GameManager.current_level_id, "europe_3", "Completar una repetición tampoco mueve el marcador")
+	GameManager.play_level("asia_1")
+	assert_equals(GameManager.current_level_id, "asia_1", "Un nivel nuevo sí actualiza el marcador")
+	assert_equals(GameManager.current_continent, "asia", "El continente sigue al nivel elegido")
+	GameManager.current_level_id = "europe_3"
+	GameManager.current_continent = "europe"
+	GameManager.play_level("europe_3")
 
 	# 4. Colecciones: ciudades de campaña alcanzables y premio único
 	var cities := LevelDatabase.collection_cities("europe")
