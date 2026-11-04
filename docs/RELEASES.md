@@ -88,7 +88,7 @@ configuration a local checkout can prove is enabled:
   Keep `dev` as the default branch so security updates also target `dev`; `main` remains release-only.
 - Actions: selected GitHub-owned Actions plus the exact pinned Android setup action; external
   contributors require approval. Preserve SHA pinning in CI and Pages.
-- `main`/`dev`: require `checks`, `build-android`, `build-ios`, and `pages-build`, strict checks,
+- `main`/`dev`: require `checks`, `build-android`, `build-ios`, `verify-android-handoff`, and `pages-build`, strict checks,
   administrator enforcement, resolved conversations, and no force pushes/deletion.
 - `play-release`: only branch `main`, owner approval, no admin bypass, three environment secrets
   and the public certificate fingerprint. Keep `ci` and repository secrets empty.

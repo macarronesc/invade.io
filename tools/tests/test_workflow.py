@@ -36,6 +36,17 @@ class WorkflowChecks(unittest.TestCase):
         push = pages.split("  push:\n", 1)[1].split("  pull_request:", 1)[0]
         self.assertIn("branches: [dev, main]", push)
 
+    def test_android_handoff_uses_a_dependent_job(self):
+        build = WORKFLOW.split("\n  build-android:\n", 1)[1].split("\n  verify-android-handoff:\n", 1)[0]
+        self.assertNotIn("actions/download-artifact@", build, "Do not download an artifact in the job that uploaded it")
+        self.assertIn("id: upload_unsigned_aab", build)
+        self.assertIn("unsigned_artifact_id: ${{ steps.upload_unsigned_aab.outputs.artifact-id }}", build)
+        handoff = WORKFLOW.split("\n  verify-android-handoff:\n", 1)[1].split("\n  build-ios:\n", 1)[0]
+        self.assertIn("needs: build-android", handoff)
+        self.assertIn("artifact-ids: ${{ needs.build-android.outputs.unsigned_artifact_id }}", handoff)
+        self.assertIn("EXPECTED_SHA256: ${{ needs.build-android.outputs.unsigned_sha256 }}", handoff)
+        self.assertIn("sha256sum", handoff)
+
     def test_pages_builds_untrusted_prs_without_deployment_privileges(self):
         pages = (ROOT / ".github/workflows/pages.yml").read_text()
         build, deploy = pages.split("\n  pages-deploy:\n")
