@@ -61,6 +61,7 @@ func _ready() -> void:
 	# Reclamar cualquier recompensa mueve el oro, así que basta con escuchar estos avisos
 	EventBus.coins_updated.connect(_refresh_badges.unbind(1))
 	EventBus.achievement_unlocked.connect(_refresh_badges.unbind(1))
+	EventBus.save_replaced.connect(_on_save_replaced)
 	AudioManager.play_music("menu")
 	AchievementManager.check_all()
 	_update_coins(GameManager.coins)
@@ -148,13 +149,14 @@ func _apply_safe_area() -> void:
 	_nav_margin.add_theme_constant_override("margin_right", UIThemeHelper.get_safe_area_right(self))
 	_nav_margin.add_theme_constant_override("margin_bottom", UIThemeHelper.get_safe_area_bottom(self))
 
-func show_tab(id: String) -> void:
+func show_tab(id: String, track: bool = true) -> void:
 	if not TABS.has(id):
 		id = "play"
 	var focused := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
 	var focus_was_content := is_instance_valid(focused) and is_instance_valid(_content) and _content.is_ancestor_of(focused)
 	current_tab = id
-	Telemetry.tab_opened(id)
+	if track:
+		Telemetry.tab_opened(id)
 	for tab in _nav:
 		_nav[tab].set_pressed_no_signal(tab == id)
 	UIThemeHelper.clear(_content)
@@ -167,6 +169,17 @@ func show_tab(id: String) -> void:
 	if focus_was_content:
 		_nav[id].grab_focus.call_deferred()
 	_refresh_badges()
+
+## Restaurar o reiniciar sustituye todo el estado: la cabecera, los avisos y la sección
+## visible se reconstruyen desde el guardado nuevo, sin recargar la aplicación.
+func _on_save_replaced() -> void:
+	if not is_instance_valid(_content):
+		return
+	# La navegación y el retorno a una batalla anterior pertenecen al guardado sustituido.
+	return_to_battle = false
+	InvasionPage.reset_navigation()
+	_update_coins(GameManager.coins)
+	show_tab(current_tab, false)
 
 ## Punto dorado sólo cuando hay algo que recoger
 func _refresh_badges() -> void:

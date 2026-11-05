@@ -16,6 +16,11 @@ static var last_continent := ""
 static var last_region := ""
 static var _layout_cache: Dictionary = {}
 
+## La vista recordada pertenece a la partida anterior; al sustituirla se vuelve a la recomendada.
+static func reset_navigation() -> void:
+	last_continent = ""
+	last_region = ""
+
 var selected_continent := ""
 var selected_region := ""
 var continent_buttons: Dictionary = {}

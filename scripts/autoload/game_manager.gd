@@ -1020,13 +1020,14 @@ func import_save(path: String) -> Error:
 	error = save_game()
 	if error != OK:
 		_apply_save(previous)
-	else:
-		var privacy_error := _write_privacy_settings()
-		if privacy_error != OK:
-			_set_save_status(privacy_error)
+		return error
+	var privacy_error := _write_privacy_settings()
+	if privacy_error != OK:
+		_set_save_status(privacy_error)
 	AudioManager.apply_volumes()
 	EventBus.settings_changed.emit()
-	return error
+	EventBus.save_replaced.emit()
+	return OK
 
 func load_game() -> Error:
 	_save_blocked = false
@@ -1092,8 +1093,8 @@ func reset_save() -> Error:
 	# Tras reiniciar, la recuperación tampoco debe resucitar el progreso borrado.
 	if FileAccess.file_exists(save_path + ".previous"):
 		DirAccess.remove_absolute(save_path + ".previous")
-	EventBus.coins_updated.emit(coins)
 	EventBus.settings_changed.emit()
+	EventBus.save_replaced.emit()
 	return OK
 
 ## Aplica un guardado validando cada campo: lo que falta o no es válido toma su valor inicial.
