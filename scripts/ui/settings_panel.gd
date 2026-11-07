@@ -135,6 +135,9 @@ func _build(restore_focus: String = "") -> void:
 	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("privacy_note")))
 	_button("privacy_policy", func(): OS.shell_open(Telemetry.PRIVACY_URL), "shield")
 	_button("open_source_licenses", _show_licenses, "help")
+	_button("share", func():
+		DisplayServer.clipboard_set(DailyShare.APP_URL)
+		Toasts.show_toast("✅", "invade.io", LocaleStrings.text("copied")), "share")
 
 	_section("section_data")
 	_group.add_child(UIThemeHelper.label(LocaleStrings.text("save_auto"), "Heading"))

@@ -36,7 +36,7 @@ export default defineConfig({
       ...['Start here', 'Play', 'Develop', 'Maintain', 'Trust'].map((group) => ({
         label: group,
         items: guides.filter(([, , section]) => section === group).map(([, slug]) => ({
-          label: ({ '': 'Documentation', gameplay: 'Gameplay', development: 'Run locally', contributing: 'Contributing', architecture: 'Architecture', testing: 'Testing', platforms: 'Platforms', releases: 'Releases', publishing: 'Google Play', 'store-material': 'Store material', 'release-notes': 'Release-note reference', 'capture-validation': 'Capture validation record', brand: 'Brand assets', telemetry: 'Telemetry', security: 'Security', website: 'Website maintenance' })[slug],
+          label: ({ '': 'Documentation', gameplay: 'Gameplay', development: 'Run locally', contributing: 'Contributing', architecture: 'Architecture', testing: 'Testing', forking: 'Make your own version', platforms: 'Platforms', releases: 'Releases', publishing: 'Google Play', 'store-material': 'Store material', 'release-notes': 'Release-note reference', 'capture-validation': 'Capture validation record', brand: 'Brand assets', telemetry: 'Telemetry', security: 'Security', website: 'Website maintenance' })[slug],
           link: `/docs/${slug ? `${slug}/` : ''}`,
         })),
       })),

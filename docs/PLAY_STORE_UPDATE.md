@@ -147,6 +147,21 @@ for both tablet sizes is appropriate only if the real layouts match.
   as `icon-512.png`. Do not replace Android launcher assets with the feature graphic.
 - Contact sheets and raw captures stay in `build/store_capture/`; do not upload them.
 
+## Trailer
+
+The promo video is rendered from the real game, like the screenshots: scripted
+battles driven by `PlayerBot`, the shared `StoreFixture` save, and captions from
+`docs/store_listing/graphics.json`.
+
+```sh
+scripts/render_trailer.sh en      # any game locale; needs godot, xvfb-run and ffmpeg
+```
+
+The output is `build/trailer/invadeio-trailer-<lang>.mp4` (1920×1080, about 35 s,
+the game's own audio). Upload it to YouTube (public or unlisted, **ads off**,
+captions on) and paste the URL in Play Console → Store listing → Video. It is not
+committed. The video opens on gameplay, never on a logo, and ends on the browser-demo URL.
+
 ## 5. Locale mapping
 
 Game locales are not always the same identifiers as Console locales. Packaging

@@ -13,8 +13,6 @@ const GAME := Vector2i(1080, 1600)
 const TABLET := Vector2i(1920, 1080)
 const SHOTS := ["conquer", "tactics", "invasions", "campaign", "daily", "upgrades", "cosmetics", "atlas"]
 const TABLET_SHOTS := ["campaign", "invasions", "cosmetics", "atlas"]
-const DAILY_DAY := 20754
-const SEED := 20261028
 const OLD_SHOTS := ["1_menu.png", "2_invasion.png", "3_march.png", "4_victory.png", "5_army.png", "6_challenges.png", "7_progress.png"]
 
 var _failed := false
@@ -22,7 +20,7 @@ var _copy: Dictionary
 var _view: SubViewport
 var _lang := "en"
 var _real_save_hash := ""
-var _manifest := {"version": "", "seed": SEED, "daily_day": DAILY_DAY, "locales": {}, "tablets": {}}
+var _manifest := {"version": "", "seed": StoreFixture.SEED, "daily_day": StoreFixture.DAILY_DAY, "locales": {}, "tablets": {}}
 
 func _ready() -> void:
     if DisplayServer.get_name() == "headless":
@@ -113,44 +111,11 @@ func _ready() -> void:
     get_tree().quit(1 if _failed else 0)
 
 func _fixture() -> void:
-    seed(SEED)
-    GameManager._apply_save({})
-    GameManager.sound_muted = true
-    GameManager.music_muted = true
-    GameManager.language = _lang
-    GameManager.has_started = true
-    GameManager.settings.merge({"reduced_motion": true, "light_mode": true, "share_analytics": false, "share_crashes": false}, true)
-    GameManager.coins = 1320
-    GameManager.experience = 1600
-    GameManager.upgrades = {"starting_troops": 3, "production_rate": 3, "troop_speed": 2, "gold_bonus": 1}
-    for id in LevelDatabase.get_level_ids().slice(0, 12):
-        GameManager.completed_levels[id] = 3
-        GameManager.unlocked_levels.append(id)
-        for base in LevelDatabase.get_level_definition(id)["bases"]:
-            if not GameManager.conquered_cities.has(base["city"]):
-                GameManager.conquered_cities.append(base["city"])
-    GameManager.unlocked_levels.append("south_america_3")
-    for city in ["tokyo", "seoul", "sydney", "auckland", "cairo", "nairobi"]:
-        GameManager.conquered_cities.append(city)
-    GameManager.invasion_stars = {"inv_iberia_1": 3, "inv_iberia_2": 3}
-    GameManager.conquest_next = 7
-    GameManager.stats = {"victories": 24, "bases_captured": 140, "flawless_victories": 9, "chain_max": 3}
-    for id in ["color_cyan", "color_violet", "color_orange", "color_pink", "troop_big", "troop_halo", "base_square", "theme_ocean", "theme_paper"]:
-        GameManager.cosmetics_owned.append(id)
-    for id in ["first_victory", "conqueror", "strategist", "continental", "coordination", "flawless"]:
-        GameManager.achievements[id] = GameManager.ACHIEVEMENT_CLAIMED
-    GameManager.seen_tips = ["drag", "factory", "fortress", "rival_0", "rival_1", "rival_2"]
-    GameManager.current_level_id = "south_america_3"
-    GameManager.current_continent = "south_america"
-    MainMenuUI.next_tab = "play"
-    MainMenuUI.return_to_battle = false
-    InvasionPage.last_continent = "europe"
-    InvasionPage.last_region = "iberia"
-    UIThemeHelper.apply_palette(get_tree(), true)
+    StoreFixture.apply(_lang, get_tree())
 
 func _scenario(shot: String) -> String:
     return {"conquer": "europe_4", "tactics": "europe_5", "invasions": "inv_iberia_3",
-        "daily": DailyRewards.challenge_id(DAILY_DAY)}.get(shot, shot)
+        "daily": DailyRewards.challenge_id(StoreFixture.DAILY_DAY)}.get(shot, shot)
 
 func _new_view(dimensions: Vector2i) -> void:
     _view = SubViewport.new()

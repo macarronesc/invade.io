@@ -745,6 +745,7 @@ func test_mobile_experience() -> void:
 	settings._notification(NOTIFICATION_WM_GO_BACK_REQUEST)
 	assert_true(not settings.is_queued_for_deletion(), "Volver desde las licencias conserva Ajustes")
 	assert_true(settings.find_child("BackupImport", true, false) == null, "Durante la batalla no se ofrece sustituir la partida")
+	assert_true(settings.find_child("Share", true, false) != null, "Ajustes ofrece copiar el enlace para jugar")
 	var vibration: CheckButton = settings.find_child("Vibration", true, false)
 	vibration.set_pressed(false)
 	assert_true(not settings._vibration_slider.editable and settings._vibration_test.disabled, "Desactivar vibración deshabilita intensidad y prueba")

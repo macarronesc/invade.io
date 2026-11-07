@@ -2,6 +2,7 @@ extends RefCounted
 class_name DailyShare
 
 const URL := "https://macarronesc.github.io/invade.io/play/?utm_source=share&utm_medium=daily"
+const APP_URL := "https://macarronesc.github.io/invade.io/play/?utm_source=app&utm_medium=settings"
 
 ## Tarjeta de texto para pegar en un chat (emojis: se verán en cualquier aplicación)
 static func text(result: Dictionary) -> String:
