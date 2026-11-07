@@ -95,8 +95,8 @@ Each `docs/store_listing/<game-locale>.md` has exactly three fenced blocks:
 Only paste the block contents, not Markdown headings or fences. The ZIP already
 separates them into `title.txt`, `short_description.txt` and `full_description.txt`.
 
-English title: **invade.io: Territory Strategy** (29 characters).
-Spanish title: **invade.io: Conquista el mapa** (28 characters).
+English title: **invade.io: Offline Strategy** (27 characters).
+Spanish title: **invade.io: Estrategia offline** (29 characters).
 
 Titles change only the listing; the installed game's name and permanent package
 identifier `macarronesc.invadeio` remain unchanged.

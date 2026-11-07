@@ -6,7 +6,7 @@ targets source version **0.4.0**; confirm production behavior before publishing.
 ## App name
 
 ```
-invade.io: Conquista el mapa
+invade.io: Estrategia offline
 ```
 
 ## Short description
@@ -39,6 +39,9 @@ JUEGA A TU MANERA
 • 15 idiomas: español, inglés, portugués de Brasil, francés, alemán, italiano, ruso, turco, árabe, hindi, indonesio, vietnamita, chino simplificado, japonés y coreano. El árabe incluye una interfaz de derecha a izquierda.
 • Temas claro y oscuro, tamaño de texto, paleta para daltonismo, movimiento reducido, contraste del mapa, velocidad y respuesta táctil ajustables.
 • Sin cuenta. El progreso se guarda en tu dispositivo, con copias exportables e importables; no hay guardado en la nube.
+
+CÓDIGO ABIERTO
+invade.io es gratuito y de código abierto (Apache-2.0). Pruébalo en tu navegador en macarronesc.github.io/invade.io/play/, o lee, bifurca y mejora el código en github.com/macarronesc/invade.io.
 
 PRIVACIDAD
 Las estadísticas de uso y los informes de fallos son opcionales y están activados de forma predeterminada en esta versión. Desactiva cada opción por separado en Ajustes → Privacidad; se respetan tus preferencias guardadas. No necesitas conexión para jugar. Consulta la política de privacidad para más información.
