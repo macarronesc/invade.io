@@ -198,5 +198,5 @@ class CosmeticPreview extends Control:
 				Troop.draw_packet(self, c + Vector2(30, 0), 12, player, style, 1.3)
 
 	func _base(pos: Vector2, r: float, color: Color, shape: String) -> void:
-		BaseNode.draw_frame(self, pos, r, shape)
+		BaseNode.draw_frame(self, pos, r, shape, color)
 		draw_circle(pos, r, color)
