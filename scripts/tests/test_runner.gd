@@ -4286,6 +4286,7 @@ func test_daily_missions_xp_and_share() -> void:
 	assert_equals(GameManager.daily_best["time"], 34.2, "Resultado peor no reemplaza récord")
 	var text := DailyShare.text(GameManager.daily_best)
 	assert_true(text.contains("35s") and text.contains("×1.5") and text.contains("⭐⭐⭐"), "Tarjeta con estrellas, tiempo y velocidad")
+	assert_true(text.ends_with(DailyShare.URL), "La tarjeta termina con el enlace para jugar")
 	GameManager.set_language("en")
 	assert_true(DailyShare.text(GameManager.daily_best).contains("Daily challenge"), "Tarjeta traducida")
 	GameManager.save_game()
