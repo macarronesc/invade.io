@@ -430,7 +430,7 @@ func _draw() -> void:
 		draw_arc(Vector2.ZERO, current_radius + RING_GAP + 9.0, 0, TAU, 48, Color.WHITE, 4.0, true)
 
 	# 4. Marco y cuerpo: el tamaño ya indica el nivel; las ventajas van en insignias
-	draw_frame(self, Vector2.ZERO, current_radius, GameManager.base_shape())
+	draw_frame(self, Vector2.ZERO, current_radius, GameManager.base_shape(), color)
 	Icons.draw_disc(self, Vector2.ZERO, current_radius, color)
 
 	# 5. Símbolo de facción sólo en modo daltónico (el color ya distingue los bandos)
@@ -524,15 +524,16 @@ static func draw_faction_symbol(canvas: CanvasItem, center: Vector2, s: float, o
 		GameManager.Faction.ENEMY_3:
 			canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(0, -s), center + Vector2(s, 0), center + Vector2(0, s), center + Vector2(-s, 0)]), col)
 
-## Marco exterior de la base estándar según la forma de la tienda (también en la vista previa de Ejército)
-static func draw_frame(canvas: CanvasItem, center: Vector2, r: float, shape: String) -> void:
+## Marco exterior de la base estándar según la forma de la tienda (también en la vista previa de Ejército).
+## Cuadrado y rombo toman el color de la base: un marco blanco desaparece sobre fondos claros.
+static func draw_frame(canvas: CanvasItem, center: Vector2, r: float, shape: String, color: Color) -> void:
 	match shape:
 		"base_square":
 			var half := r + 4.5
-			canvas.draw_rect(Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), Color.WHITE, true)
+			canvas.draw_rect(Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), color, true)
 		"base_diamond":
-			var d := r + 6.0
-			canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(0, -d), center + Vector2(d, 0), center + Vector2(0, d), center + Vector2(-d, 0)]), Color.WHITE)
+			var d := r + 16.0
+			canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(0, -d), center + Vector2(d, 0), center + Vector2(0, d), center + Vector2(-d, 0)]), color)
 		_:
 			Icons.draw_disc(canvas, center, r + 4.5, Color.WHITE)
 
