@@ -422,7 +422,9 @@ func _draw() -> void:
 	draw_set_transform(shake_offset, 0.0, elastic_scale)
 
 	# 2. Sombra suave (una sola capa)
-	Icons.draw_disc(self, Vector2(0, 6), current_radius + 5.0, Color(0, 0, 0, 0.22))
+	# con la silueta del marco: un disco fijo asomaría bajo el cuadrado y el rombo
+	var shadow := Color(0, 0, 0, 0.22)
+	draw_frame(self, Vector2(0, 6), current_radius + 0.5, GameManager.base_shape(), shadow, shadow)
 
 	# 3. Halo de selección por fuera del anillo de capacidad
 	if is_selected:
@@ -526,7 +528,7 @@ static func draw_faction_symbol(canvas: CanvasItem, center: Vector2, s: float, o
 
 ## Marco exterior de la base estándar según la forma de la tienda (también en la vista previa de Ejército).
 ## Cuadrado y rombo toman el color de la base: un marco blanco desaparece sobre fondos claros.
-static func draw_frame(canvas: CanvasItem, center: Vector2, r: float, shape: String, color: Color) -> void:
+static func draw_frame(canvas: CanvasItem, center: Vector2, r: float, shape: String, color: Color, round_color: Color = Color.WHITE) -> void:
 	match shape:
 		"base_square":
 			var half := r + 4.5
@@ -535,7 +537,7 @@ static func draw_frame(canvas: CanvasItem, center: Vector2, r: float, shape: Str
 			var d := r + 16.0
 			canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(0, -d), center + Vector2(d, 0), center + Vector2(0, d), center + Vector2(-d, 0)]), color)
 		_:
-			Icons.draw_disc(canvas, center, r + 4.5, Color.WHITE)
+			Icons.draw_disc(canvas, center, r + 4.5, round_color)
 
 func _draw_siege_alert(current_radius: float) -> void:
 	var p = (sin(siege_pulse_time) + 1.0) * 0.5
