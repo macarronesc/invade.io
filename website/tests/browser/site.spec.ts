@@ -62,8 +62,10 @@ for (const locale of ['', 'es/']) {
 for (const route of routes) {
   test(`accessible rendered page: /${route}`, async ({ page }) => {
     await page.goto(route || './');
-    // Expressive Code adds keyboard-scrollable regions after an idle pass.
-    await page.waitForTimeout(250);
+    // Expressive Code adds keyboard access to scrollable blocks after an idle
+    // pass. Wait for the actual enhancement instead of racing a fixed delay.
+    await page.waitForFunction(() => [...document.querySelectorAll('.expressive-code pre')]
+      .every((pre) => pre.scrollWidth <= pre.clientWidth || pre.getAttribute('tabindex') !== null));
     const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(audit.violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

@@ -56,6 +56,14 @@ class StoreChecks(unittest.TestCase):
             with self.subTest(locale=locale, text=text[:40]):
                 self.assertLessEqual(len(text.strip()), 500)
 
+    def test_release_notes_are_chronological(self):
+        notes = (store.LISTING / "release_notes.md").read_text(encoding="utf-8")
+        versions = [tuple(map(int, version.split("."))) for version in re.findall(
+            r"^## .*?invade\.io (\d+\.\d+\.\d+)", notes, re.M)]
+        self.assertTrue(versions)
+        self.assertEqual(versions, sorted(versions), "Release notes must be in ascending version order")
+        self.assertEqual(len(versions), len(set(versions)), "Release notes contain a duplicate version")
+
     def test_png_format_and_alpha(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "fixture.png"

@@ -17,6 +17,12 @@ class SentryStub extends RefCounted:
 	func close() -> void:
 		enabled = false
 
+class SentryEventStub extends RefCounted:
+	var message := ""
+	var crash := false
+	func is_crash() -> bool:
+		return crash
+
 class TelemetryHarness extends "res://scripts/autoload/telemetry.gd":
 	var sdk := SentryStub.new()
 	func _is_test_runtime() -> bool:
@@ -141,6 +147,7 @@ func _ready() -> void:
 		test_toast_notifications()
 		test_achievements_system()
 		test_telemetry_schema_and_privacy()
+		test_sentry_engine_noise_filtering()
 		test_candidate_telemetry_is_tagged()
 		test_play_tab_campaign_route_and_briefing()
 		test_large_screen_layouts()
@@ -515,6 +522,16 @@ func test_performance_regressions() -> void:
 		expected.append(index + square.size())
 	assert_equals(merged[0].indices, expected, "Merged triangles keep their topology and receive the correct index offset")
 	assert_true(FilledPolygon.build_all([PackedVector2Array()]).is_empty(), "Empty geometry creates no draw commands")
+	var sliver := PackedVector2Array()
+	var asia_geo: Dictionary = LevelDatabase.get_level_data("asia_1", true).get("geo", {})
+	for piece in asia_geo.get("land", []):
+		if piece.size() == 3 and piece[0].x > 2000.0:
+			sliver = piece
+			break
+	assert_true(not sliver.is_empty(), "Large-coordinate sliver fixture is available")
+	var sliver_fills := FilledPolygon.build(sliver)
+	assert_equals(sliver_fills.size(), 1, "A large-coordinate sliver still produces a fill")
+	assert_equals(sliver_fills[0].points.size(), 3, "The sliver triangulates locally instead of using the Clipper fallback")
 	var geo := {"land": [square, shifted], "borders": []}
 	var silhouette := GeoSilhouette.new()
 	silhouette.set_geography(geo, Color.WHITE)
@@ -2747,6 +2764,13 @@ func test_main_menu_hub_navigation() -> void:
 
 	# Reinicio agrupado en ajustes, con confirmación nativa explícita
 	GameManager.coins = 999
+	var replacements := []
+	var on_save_replaced := func(): replacements.append(true)
+	EventBus.save_replaced.connect(on_save_replaced)
+	MainMenuUI.return_to_battle = true
+	InvasionPage.last_continent = "asia"
+	InvasionPage.last_region = "china"
+	var tabs_before_refresh: int = Telemetry._session_tabs
 	menu._open_settings()
 	menu._utility_panel._confirm_reset()
 	assert_equals(GameManager.coins, 999, "El primer toque en reiniciar sólo pide confirmación")
@@ -2756,6 +2780,40 @@ func test_main_menu_hub_navigation() -> void:
 	assert_equals(GameManager.coins, 150, "Reiniciar progreso restaura monedas iniciales a 150")
 	assert_equals(GameManager.get_total_stars(), 0, "Reiniciar progreso resetea estrellas completadas a 0")
 	assert_true(menu.coins_label.text.contains("150"), "Etiqueta de monedas se actualiza tras reseteo")
+	assert_equals(replacements.size(), 1, "Reiniciar anuncia un único reemplazo del guardado")
+	assert_equals(Telemetry._session_tabs, tabs_before_refresh, "Un refresco de datos no cuenta como abrir una pestaña")
+	var play_after_reset = menu._content.get_child(0)
+	assert_equals(play_after_reset.selected_level_id, "europe_1", "Reiniciar vuelve a proponer el primer nivel sin reabrir el menú")
+	assert_equals(play_after_reset.btn_start_level.text, LocaleStrings.text("continue"), "La ficha de Jugar refleja el progreso reiniciado")
+	assert_true(not MainMenuUI.return_to_battle, "Reiniciar descarta volver a una batalla anterior")
+	assert_equals(InvasionPage.last_continent, "", "Reiniciar descarta la navegación de invasión anterior")
+	menu.show_tab("army")
+	assert_true(menu._content.get_child(0).find_child("BtnReturnToBattle", true, false) == null, "Ejército no ofrece volver a la batalla anterior tras reiniciar")
+
+	# Restaurar una copia reconstruye la cabecera y la sección visible, no sólo el guardado
+	var import_path := "user://menu_restore_test.json"
+	var imported: Dictionary = GameManager.save_data().duplicate(true)
+	imported["coins"] = 777
+	imported["completed_levels"] = {"europe_1": 3}
+	imported["unlocked_levels"] = ["europe_1", "europe_2"]
+	GameManager.write_save(import_path, imported)
+	menu.show_tab("progress")
+	var tabs_before_import: int = Telemetry._session_tabs
+	var page_before_restore = menu._content.get_child(0)
+	assert_equals(GameManager.import_save(import_path), OK, "La copia se restaura con el menú abierto")
+	assert_equals(replacements.size(), 2, "Restaurar anuncia un único reemplazo del guardado")
+	assert_equals(Telemetry._session_tabs, tabs_before_import, "Restaurar tampoco cuenta como abrir una pestaña")
+	assert_true(menu.coins_label.text.contains("777"), "La cabecera refleja el oro restaurado")
+	assert_true(menu._content.get_child(0) != page_before_restore, "La sección visible se reconstruye tras restaurar")
+	var stars := (menu._content.get_child(0) as Control).find_child("Stat_stat_stars", true, false) as Label
+	assert_true(stars != null and stars.text == "3/%d" % GameManager.get_max_possible_stars(), "El progreso restaurado aparece en la sección abierta")
+	var page_after_restore = menu._content.get_child(0)
+	assert_equals(GameManager.import_save("user://missing_menu_restore.json"), ERR_INVALID_DATA, "Una copia inexistente se rechaza")
+	assert_true(menu._content.get_child(0) == page_after_restore, "Una restauración fallida no reconstruye la interfaz")
+	assert_equals(replacements.size(), 2, "Una restauración fallida no anuncia un reemplazo")
+	EventBus.save_replaced.disconnect(on_save_replaced)
+	DirAccess.remove_absolute(import_path)
+	DirAccess.remove_absolute(GameManager.save_path + ".backup")
 
 	remove_child(menu)
 	menu.free()
@@ -4350,6 +4408,7 @@ func test_settings_and_backups() -> void:
 	GameManager.save_game()
 	assert_equals(GameManager.import_save(export_path), OK, "Restaurar copia")
 	assert_equals(GameManager.coins, 456, "Restauración conserva economía")
+	assert_true(EventBus.save_replaced.get_connections().any(func(c): return c["callable"].get_object() == AudioManager and c["callable"].get_method() == "_refresh_music"), "Restaurar la partida refresca también el silencio de la música")
 	var backup = JSON.parse_string(FileAccess.get_file_as_string(original_path + ".backup"))
 	assert_equals(int(backup["coins"]), 12, "Se conserva copia de la partida reemplazada")
 	GameManager.write_save(import_path, {"version": GameManager.SAVE_VERSION + 1, "upgrades": {}, "completed_levels": {}})
@@ -5085,6 +5144,7 @@ func test_telemetry_schema_and_privacy() -> void:
 	assert_true(telemetry._crash_ready, "Los informes de fallos se inicializan con el ajuste predeterminado")
 	assert_equals(telemetry.sdk.options.get("environment"), "debug" if OS.is_debug_build() else "production", "Sentry usa la misma variante que Aptabase")
 	assert_true(not telemetry.sdk.options["send_default_pii"] and not telemetry.sdk.options["attach_log"] and not telemetry.sdk.options["attach_scene_tree"], "Sentry mantiene las restricciones de privacidad")
+	assert_equals(telemetry.sdk.tags.get("software_renderer"), "1" if telemetry._software_renderer else "0", "Sentry marca si el renderizador es software")
 	GameManager.settings["share_crashes"] = false
 	GameManager.settings["share_analytics"] = false
 	telemetry._on_settings_changed()
@@ -5186,6 +5246,46 @@ func test_telemetry_schema_and_privacy() -> void:
 	DirAccess.remove_absolute(GameManager.save_path + ".backup")
 	GameManager.reset_save()
 	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Reiniciar progreso conserva las opciones de privacidad")
+
+func test_sentry_engine_noise_filtering() -> void:
+	print("\n-> Test: Sentry descarta ruido del motor sin ocultar fallos reales")
+	GameManager._apply_save({})
+	var telemetry := TelemetryHarness.new()
+	telemetry._init_crashes()
+	assert_true(telemetry._crash_ready, "El filtro de Sentry se instala al inicializar los fallos")
+	var before_send: Callable = telemetry.sdk.options.get("before_send", Callable())
+	assert_true(before_send.is_valid(), "Sentry recibe el callback before_send")
+
+	var event := SentryEventStub.new()
+	event.message = "Mouse is not supported by this display server."
+	assert_true(before_send.call(event) == null, "El aviso de ratón de iOS no crea una incidencia")
+
+	event = SentryEventStub.new()
+	event.message = "CanvasShaderGLES3: Program linking failed:\nFragment shader active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)"
+	telemetry._software_renderer = false
+	assert_true(before_send.call(event) == event, "Un fallo real de shader en una GPU normal sigue reportándose")
+	telemetry._software_renderer = true
+	assert_true(before_send.call(event) == null, "El límite de uniforms de SwiftShader no crea una incidencia")
+	event = SentryEventStub.new()
+	event.message = "Method/function failed."
+	assert_true(before_send.call(event) == null, "El error secundario de SwiftShader no crea una incidencia")
+	telemetry._software_renderer = false
+	assert_true(before_send.call(event) == event, "Un Method/function failed. real no se confunde con SwiftShader")
+
+	event = SentryEventStub.new()
+	event.message = "Invalid call. Nonexistent function 'foo' in base 'Node'."
+	assert_true(before_send.call(event) == event, "Los errores de GDScript nunca se filtran")
+	event = SentryEventStub.new()
+	event.message = "CanvasShaderGLES3: Program linking failed: otro fallo"
+	assert_true(before_send.call(event) == event, "Los shaders que fallan por otra causa siguen reportándose")
+
+	event = SentryEventStub.new()
+	event.message = "CanvasShaderGLES3: Program linking failed:\nFragment shader active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)"
+	event.crash = true
+	telemetry._software_renderer = true
+	assert_true(before_send.call(event) == event, "Un crash fatal nunca se filtra, aunque coincida con el ruido")
+	telemetry.free()
+	GameManager._apply_save({})
 
 func test_candidate_telemetry_is_tagged() -> void:
 	print("\n-> Test: Telemetría de candidata marcada, no silenciada")

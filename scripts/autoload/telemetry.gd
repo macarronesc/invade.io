@@ -28,6 +28,9 @@ var _current_tab := ""
 var _battle: Dictionary = {}
 ## Intentos por nivel dentro de esta sesión; no se persiste ni identifica al jugador.
 var _attempts: Dictionary = {}
+## El emulador de Play (SwiftShader) rechaza el shader canvas por su límite de
+## uniforms. No es un fallo del juego; se marca para poder filtrarlo sin ocultar crashes.
+var _software_renderer := false
 
 func _ready() -> void:
 	if _is_test_runtime():
@@ -96,6 +99,7 @@ func _init_crashes() -> void:
 	var sdk := _sentry()
 	if sdk == null or not sdk.has_method("init"):
 		return
+	_software_renderer = _is_software_renderer()
 	sdk.call("init", func(options) -> void:
 		options.dsn = SENTRY_DSN
 		options.release = "invade.io@" + _app_version()
@@ -103,10 +107,32 @@ func _init_crashes() -> void:
 		options.send_default_pii = false
 		options.attach_log = false
 		options.attach_scene_tree = false
-		options.traces_sample_rate = 0.0)
+		options.traces_sample_rate = 0.0
+		options.before_send = _before_send)
 	_crash_ready = bool(sdk.call("is_enabled"))
 	if _crash_ready and sdk.has_method("set_tag"):
 		sdk.call("set_tag", "build_channel", _telemetry_channel())
+		sdk.call("set_tag", "software_renderer", "1" if _software_renderer else "0")
+
+## SwiftShader es el renderizador software que usa el dispositivo de pre-lanzamiento
+## de Google Play; su compilador GLES3 no soporta el shader canvas por defecto.
+static func _is_software_renderer() -> bool:
+	var adapter := RenderingServer.get_video_adapter_name() + " " + RenderingServer.get_video_adapter_vendor()
+	return adapter.to_lower().contains("swiftshader")
+
+## Descarta diagnósticos del motor que no son fallos del juego. Los crashes
+## fatales (incluido SIGSEGV) siempre pasan.
+func _before_send(event: Object) -> Object:
+	if event.is_crash():
+		return event
+	var message := str(event.message)
+	if message.contains("Mouse is not supported by this display server"):
+		return null
+	if _software_renderer and message.contains("GL_MAX_FRAGMENT_UNIFORM_VECTORS"):
+		return null
+	if _software_renderer and message.contains("Method/function failed."):
+		return null
+	return event
 
 ## El complemento nativo puede faltar en plataformas no exportadas. Resolverlo en
 ## tiempo de ejecución evita que el autoload dependa de una clase concreta.

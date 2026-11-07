@@ -2,7 +2,8 @@
 
 [Documentation](README.md) · [Android publishing](PLAY_STORE.md) · [Release process](RELEASES.md)
 
-**Prepared for the repository's 0.3.2 store refresh; graphics revalidated for the 0.4.0 release on 1 November 2026.**
+**Current source target: 0.4.0 release candidate. Store copy was prepared for
+the 0.3.2 refresh; graphics were recaptured and revalidated on 1 November 2026.**
 
 This document records the implemented marketing work, the files to upload, and the
 checks the owner must make in Play Console. Nothing in this workflow publishes an
@@ -14,7 +15,7 @@ app, changes the live listing, or changes the game's telemetry defaults.
    language contact sheets. These are review sheets, **not upload screenshots**.
 2. Read the English or Spanish listing in `docs/store_listing/`.
 3. Confirm that the production release matches this source version, particularly
-   its telemetry behavior. Do not copy the 0.3.2 privacy paragraph onto an older release.
+   its telemetry behavior. Do not copy the current privacy paragraph onto an older release.
 4. Have native speakers review translated copy, especially the 13 non-EN/ES full
    descriptions, which began as machine-translated drafts. Short graphic captions
    have been edited for game terminology and layout, but that is not native-speaker approval.
@@ -234,7 +235,7 @@ The live English/Spanish listing inspected on 28 October said two languages,
 advertised 15 languages and telemetry off by default. The public privacy page dated
 22 October also described opt-in telemetry. **Those statements were not changed remotely.**
 
-The checked-out **0.3.2** code has `share_analytics=true` and `share_crashes=true`
+The checked-out **0.4.0** code has `share_analytics=true` and `share_crashes=true`
 as defaults for new/missing settings; saved false choices are preserved. It includes
 Aptabase and Sentry and requests network permissions. The local privacy-policy
 source already describes this behavior. This marketing work does not change it.
@@ -247,7 +248,7 @@ Before submitting:
       mistake the recorded base commit for an already released build.
 - Match the full-description privacy paragraph to the shipped build. If the
       production app still has opt-in defaults, use accurate wording for that build,
-      not the supplied 0.3.2 defaults paragraph. Preserve honesty in every translation.
+      not the supplied defaults paragraph. Preserve honesty in every translation.
 - Review consent/disclosure requirements before shipping enabled-by-default
       analytics; a toggle or store description is not itself prior consent.
 - Publish the matching policy at
@@ -283,7 +284,7 @@ automatic form answers):
 | Encrypted requests and deletion/contact process | Security practices | Verify actual transport and what deletion requests can be fulfilled; deleting a local save is not deletion of provider data |
 
 A listing-only update need not invent an application release. If shipping the
-pending 0.3.2 build too, write accurate release notes from
+pending 0.4.0 build too, write accurate release notes from
 `docs/store_listing/release_notes.md`; do not describe captioned store screenshots
 as newly implemented in-game functionality.
 The ZIP includes that document as `release-notes-reference.md`; use only the
