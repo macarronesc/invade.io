@@ -6,7 +6,7 @@ interface Props {
   title: string;
   description: string;
   lang?: 'en' | 'es';
-  page?: '' | 'download/' | 'community/' | null;
+  page?: '' | 'download/' | 'community/' | 'play/' | null;
   noindex?: boolean;
 }
 const { title, description, lang = 'en', page = '', noindex = false } = Astro.props;
@@ -16,6 +16,7 @@ const localized = (path: string) => href(`${es ? 'es/' : ''}${path}`);
 const canonical = noindex ? `${SITE}${href('404.html')}` : new URL(Astro.url.pathname, SITE).href;
 const nav = [
   [home + '#game', es ? 'El juego' : 'The game'],
+  [localized('play/'), es ? 'Jugar' : 'Play'],
   [home + '#how-to-play', es ? 'Cómo jugar' : 'How to play'],
   [href('docs/'), es ? 'Documentación' : 'Documentation'],
   [localized('community/'), es ? 'Comunidad' : 'Community'],

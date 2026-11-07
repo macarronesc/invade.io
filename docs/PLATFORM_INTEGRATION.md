@@ -13,7 +13,8 @@ builds, not an App Store or TestFlight distribution workflow.
 | Android | Minimum SDK 24 (Android 7.0), target SDK 36; Debug APK and Release AAB export presets |
 | iOS | Minimum iOS 15, arm64, native backup picker, unsigned IPA produced on macOS CI |
 | Linux/macOS | Development and validation environments; no desktop release preset |
-| Windows/Web | Not included in the trimmed Sentry extension; not supported export targets without additional integration work |
+| Web | Single-threaded `Web` preset published at `/play/game/` by the Pages workflow; telemetry and crash reports are disabled, backups are hidden, progress lives in browser storage |
+| Windows | Not included in the trimmed Sentry extension; not a supported export target without additional integration work |
 
 Android declares `VIBRATE`, `INTERNET`, and `ACCESS_NETWORK_STATE`. Haptics use
 Godot's `Input.vibrate_handheld()` without a dedicated haptic plugin. Network

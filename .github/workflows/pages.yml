@@ -17,6 +17,12 @@ on:
       - 'assets/legal/notices.txt'
       - 'icon.svg'
       - 'project.godot'
+      - 'export_presets.cfg'
+      - 'addons/**'
+      - 'assets/**'
+      - 'locale/**'
+      - 'scenes/**'
+      - 'scripts/**'
       - '.github/workflows/pages.yml'
   pull_request:
     branches: [dev, main]
@@ -38,6 +44,7 @@ jobs:
         working-directory: website
     env:
       ASTRO_TELEMETRY_DISABLED: '1'
+      GODOT_VERSION: '4.7.2'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -57,6 +64,27 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           npm run test:browser
+      - name: Export the browser demo into the site
+        working-directory: .
+        run: |
+          cd "$RUNNER_TEMP"
+          release="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o godot.zip
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o templates.tpz
+          echo '9aa00f7a605200940bce3027a567b782f49bd8e940dd06ae9e987bd65aee1b1467edd56ed84fcdcbdd44354bf613bdbb4e5d2913e925850368e150c59ed54c65  godot.zip' | sha512sum --check -
+          echo 'ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1648d2e5f40980c9adc28d23e1b92e732ee7bf3461997aa804af74ec2fcd7a93ccb84079  templates.tpz' | sha512sum --check -
+          unzip -q godot.zip
+          templates="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$templates"
+          unzip -q -j templates.tpz templates/web_nothreads_release.zip templates/version.txt -d "$templates"
+          cd "$GITHUB_WORKSPACE"
+          godot="$RUNNER_TEMP/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          chmod +x "$godot"
+          "$godot" --headless --path . --editor --import
+          mkdir -p website/dist/play/game
+          "$godot" --headless --path . --export-release Web "$PWD/website/dist/play/game/index.html"
+          test -s website/dist/play/game/index.wasm && test -s website/dist/play/game/index.pck
+          rm -f "$RUNNER_TEMP/godot.zip" "$RUNNER_TEMP/templates.tpz"
       - name: Package only the checked static output
         env:
           EVENT: ${{ github.event_name }}

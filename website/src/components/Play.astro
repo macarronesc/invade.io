@@ -1,0 +1,32 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { href, PLAY, REPO } from '../../scripts/site.mjs';
+import type { Language } from '../data/media';
+
+interface Props { lang?: Language }
+const { lang = 'en' } = Astro.props;
+const es = lang === 'es';
+const t = es ? {
+  title: 'Juega ahora, sin instalar nada.', description: 'Prueba invade.io en tu navegador o instálalo desde Google Play. Estrategia territorial sin anuncios, sin compras y de código abierto.',
+  label: 'Jugar en el navegador', intro: 'La misma estrategia de territorio, sin cuentas ni descargas. Funciona en móvil, tablet y ordenador.',
+  cards: [
+    ['En el navegador', 'Empieza en segundos', 'Arrastra entre bases y conquista el primer mapa. Tu progreso se guarda en este navegador. La versión web no envía estadísticas ni informes de fallos.', 'Jugar ahora', href('play/game/'), 'Carga unos 10 MB la primera vez. Si no ves el juego, usa un navegador actualizado con WebGL 2.'],
+    ['En Android', 'Google Play', 'Instala la versión completa para jugar sin conexión, con vibración y el guardado del dispositivo.', 'Abrir Google Play', PLAY, 'Sin anuncios y sin compras dentro de la aplicación.'],
+    ['Código abierto', 'Apache-2.0 en GitHub', 'Lee el código, crea tu propia versión o ayuda a mejorarlo. Hecho con Godot.', 'Ver el código', REPO, 'Las guías explican cómo ejecutarlo y contribuir.'],
+  ],
+} : {
+  title: 'Play now. Nothing to install.', description: 'Try invade.io in your browser or install it from Google Play. Open-source territory strategy with no ads and no purchases.',
+  label: 'Play in your browser', intro: 'The same territory strategy, with no account and no download. It works on phones, tablets and computers.',
+  cards: [
+    ['In your browser', 'Start in seconds', 'Drag between bases and conquer the first map. Progress is saved in this browser. The web version sends no usage statistics or crash reports.', 'Play now', href('play/game/'), 'The first load is about 10 MB. If the game does not appear, use an up-to-date browser with WebGL 2.'],
+    ['On Android', 'Google Play', 'Install the full version for offline play, vibration and an on-device save.', 'Open Google Play', PLAY, 'No ads and no in-app purchases.'],
+    ['Open source', 'Apache-2.0 on GitHub', 'Read the code, make your own version, or help improve it. Built with Godot.', 'View source', REPO, 'The guides explain how to run it and contribute.'],
+  ],
+};
+---
+<SiteLayout title={t.title} description={t.description} lang={lang} page="play/">
+  <div class="container">
+    <header class="page-intro"><p class="eyebrow">{t.label}</p><h1>{t.title}</h1><p class="lead">{t.intro}</p></header>
+    <section class="platform-grid" aria-label={es ? 'Cómo jugar' : 'Ways to play'}>{t.cards.map(([tag, title, body, label, url, note], index) => <article class:list={['card', { 'primary-card': index === 0 }]}><span class="mode-tag">{tag}</span><h2 class="platform-title">{title}</h2><p>{body}</p><div class="button-row"><a class:list={['button', { secondary: index !== 0 }]} href={url}>{label} <span aria-hidden="true">↗</span></a></div><p class="fine-print">{note}</p></article>)}</section>
+  </div>
+</SiteLayout>

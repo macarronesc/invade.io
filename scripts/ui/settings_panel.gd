@@ -145,8 +145,9 @@ func _build(restore_focus: String = "") -> void:
 	_save_retry = _button("save_retry", func(): GameManager.save_game(), "retry")
 	_refresh_save_status()
 	if allow_backups:
-		_button("backup_export", _choose_file.bind(false), "share")
-		_button("backup_import", _choose_file.bind(true), "retry")
+		if not OS.has_feature("web"): # El navegador no ofrece diálogos de archivo del sistema.
+			_button("backup_export", _choose_file.bind(false), "share")
+			_button("backup_import", _choose_file.bind(true), "retry")
 		_button("reset", _confirm_reset, "close")
 		_status = UIThemeHelper.paragraph("")
 		_group.add_child(_status)

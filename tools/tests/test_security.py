@@ -45,7 +45,7 @@ class SecurityChecks(unittest.TestCase):
     def test_website_is_excluded_from_all_game_exports(self):
         self.assertTrue((ROOT / "website/.gdignore").is_file())
         filters = [line for line in (ROOT / "export_presets.cfg").read_text().splitlines() if line.startswith("exclude_filter=")]
-        self.assertEqual(len(filters), 4)
+        self.assertEqual(len(filters), 5)
         for line in filters:
             self.assertIn("website/*", line)
 

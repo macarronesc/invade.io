@@ -89,7 +89,7 @@ func _ready() -> void:
 		"La exportación iOS habilita ETC2/ASTC explícitamente, sin depender del equipo")
 	var presets := ConfigFile.new()
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets se pueden leer")
-	for preset in ["preset.0", "preset.1", "preset.2", "preset.3"]:
+	for preset in ["preset.0", "preset.1", "preset.2", "preset.3", "preset.4"]:
 		assert_true(not str(presets.get_value(preset, "custom_features", "")).split(",", false).has("aptabase_release"),
 			"La telemetría sigue el tipo de compilación, no el preset: " + preset)
 		var excluded := str(presets.get_value(preset, "exclude_filter", ""))
