@@ -2739,6 +2739,8 @@ func test_main_menu_hub_navigation() -> void:
 		assert_true(menu.current_tab == tab and menu._nav[tab].button_pressed, "La sección %s queda activa en la barra" % tab)
 		assert_equals(menu._content.get_child_count(), 1, "Sólo hay una sección montada a la vez (%s)" % tab)
 	assert_true(menu.btn_settings != null, "Ajustes accesibles desde la cabecera")
+	assert_true(menu.btn_support != null and menu.btn_support.accessibility_name != "", "El apoyo voluntario es visible y accesible en la cabecera")
+	assert_true(Telemetry.DONATE_URL.begins_with("https://ko-fi.com/"), "El enlace de apoyo apunta a Ko-fi por HTTPS")
 
 	# Avisos: un punto sólo cuando hay algo que recoger, sin ventanas emergentes
 	assert_true(menu._badges["challenges"].visible, "Retos avisa de la recompensa diaria pendiente")
@@ -3005,10 +3007,12 @@ func test_large_text_and_focus() -> void:
 	await get_tree().process_frame
 	assert_equals(menu._nav["play"].focus_mode, Control.FOCUS_NONE, "El fondo no recibe foco con Ajustes abierto")
 	assert_equals(menu.btn_settings.focus_mode, Control.FOCUS_NONE, "La cabecera tampoco recibe foco")
+	assert_equals(menu.btn_support.focus_mode, Control.FOCUS_NONE, "El botón de apoyo tampoco recibe foco bajo Ajustes")
 	menu._utility_panel._close()
 	await get_tree().process_frame
 	assert_equals(menu._nav["play"].focus_mode, Control.FOCUS_ALL, "El foco del fondo se restaura al cerrar")
 	assert_equals(menu.btn_settings.focus_mode, Control.FOCUS_ALL, "La cabecera recupera el foco")
+	assert_equals(menu.btn_support.focus_mode, Control.FOCUS_ALL, "El botón de apoyo recupera el foco")
 
 	# 5. Cambiar de pestaña desde un botón de contenido devuelve el foco a la barra.
 	var content_button := menu._content.find_children("*", "BaseButton", true, false)[0] as Control
@@ -5188,6 +5192,10 @@ func test_telemetry_schema_and_privacy() -> void:
 	LocaleStrings.set_locale("es")
 	assert_equals(LocaleStrings.text("share_analytics"), "Estadísticas de uso", "El ajuste de analítica está traducido")
 	assert_equals(LocaleStrings.text("privacy_policy"), "Política de privacidad", "El enlace de privacidad está traducido")
+	assert_equals(LocaleStrings.text("support_project"), "Apoyar en Ko-fi", "El enlace de apoyo está traducido")
+	LocaleStrings.set_locale("en")
+	assert_equals(LocaleStrings.text("support_project"), "Support on Ko-fi", "El enlace de apoyo existe en inglés")
+	LocaleStrings.set_locale("es")
 	LocaleStrings.set_locale(previous_language)
 	GameManager.set_setting("share_analytics", false)
 	GameManager.set_setting("share_crashes", false)
