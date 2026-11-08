@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/macarronesc/invade.io/discussions
+    about: Ask how something works, share what you built from the code, or pitch an idea.
+  - name: Report a vulnerability privately
+    url: https://github.com/macarronesc/invade.io/security/policy
+    about: Never open a public issue for a security problem.

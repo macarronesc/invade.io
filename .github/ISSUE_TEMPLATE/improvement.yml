@@ -1,0 +1,21 @@
+name: Improvement or translation fix
+description: A focused change to gameplay, UI, accessibility, a translation, or the docs
+labels: [enhancement]
+body:
+  - type: textarea
+    id: change
+    attributes:
+      label: What would you change and why?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Where in the code or docs?
+      description: The architecture guide's "where to make a change" map helps.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contribution
+      options:
+        - label: I would like to work on this myself

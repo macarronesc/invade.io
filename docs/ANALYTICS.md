@@ -50,9 +50,10 @@ configuration. Public ingestion endpoints can receive fabricated events; monitor
 quotas and abuse in the provider dashboards. Pricing/limits can change; consult
 the providers rather than relying on an old repository estimate.
 
-The Sentry distribution is trimmed to Android, iOS, Linux, and macOS. Windows/Web
-exports require restoring compatible upstream binaries and extension entries,
-followed by platform testing. See the [dependency inventory](RELEASES.md#dependency-inventory).
+The Sentry distribution is trimmed to Android, iOS, Linux, and macOS. The browser
+demo (`web` feature) never initializes usage statistics or crash reports, and its
+export preset excludes the extension. A Windows export requires restoring
+compatible upstream binaries and extension entries, followed by platform testing. See the [dependency inventory](RELEASES.md#dependency-inventory).
 
 ## Development and test runs
 

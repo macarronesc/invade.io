@@ -47,9 +47,10 @@ func _ready() -> void:
 		_start_session()
 	_set_screen("menu")
 
-## El juego desde el editor es Debug; el editor, los tests y headless no envían nada.
+## El juego desde el editor es Debug; el editor, los tests, headless y la demo web no envían nada.
 func _is_test_runtime() -> bool:
-	return DisplayServer.get_name() == "headless" \
+	return OS.has_feature("web") \
+		or DisplayServer.get_name() == "headless" \
 		or OS.has_feature("headless") \
 		or Engine.is_editor_hint() \
 		or "\n".join(OS.get_cmdline_args()).replace("\\", "/").contains("scenes/tests/") \

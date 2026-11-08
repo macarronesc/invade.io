@@ -4,7 +4,7 @@ import { guides } from '../../scripts/site.mjs';
 
 const guideRoutes = guides.filter(([, slug]) => slug).map(([, slug]) => `docs/${slug}/`);
 const routes = [
-  '', 'es/', 'download/', 'es/download/', 'community/', 'es/community/',
+  '', 'es/', 'play/', 'es/play/', 'download/', 'es/download/', 'community/', 'es/community/',
   'docs/', ...guideRoutes, 'licenses/', 'privacy-policy.html', '404.html',
 ];
 

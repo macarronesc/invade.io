@@ -95,7 +95,7 @@ func _ready() -> void:
 		"La exportación iOS habilita ETC2/ASTC explícitamente, sin depender del equipo")
 	var presets := ConfigFile.new()
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets se pueden leer")
-	for preset in ["preset.0", "preset.1", "preset.2", "preset.3"]:
+	for preset in ["preset.0", "preset.1", "preset.2", "preset.3", "preset.4"]:
 		assert_true(not str(presets.get_value(preset, "custom_features", "")).split(",", false).has("aptabase_release"),
 			"La telemetría sigue el tipo de compilación, no el preset: " + preset)
 		var excluded := str(presets.get_value(preset, "exclude_filter", ""))
@@ -762,6 +762,7 @@ func test_mobile_experience() -> void:
 	settings._notification(NOTIFICATION_WM_GO_BACK_REQUEST)
 	assert_true(not settings.is_queued_for_deletion(), "Volver desde las licencias conserva Ajustes")
 	assert_true(settings.find_child("BackupImport", true, false) == null, "Durante la batalla no se ofrece sustituir la partida")
+	assert_true(settings.find_child("Share", true, false) != null, "Ajustes ofrece copiar el enlace para jugar")
 	var vibration: CheckButton = settings.find_child("Vibration", true, false)
 	vibration.set_pressed(false)
 	assert_true(not settings._vibration_slider.editable and settings._vibration_test.disabled, "Desactivar vibración deshabilita intensidad y prueba")
@@ -4344,6 +4345,7 @@ func test_daily_missions_xp_and_share() -> void:
 	assert_equals(GameManager.daily_best["time"], 34.2, "Resultado peor no reemplaza récord")
 	var text := DailyShare.text(GameManager.daily_best)
 	assert_true(text.contains("35s") and text.contains("×1.5") and text.contains("⭐⭐⭐"), "Tarjeta con estrellas, tiempo y velocidad")
+	assert_true(text.ends_with(DailyShare.URL), "La tarjeta termina con el enlace para jugar")
 	GameManager.set_language("en")
 	assert_true(DailyShare.text(GameManager.daily_best).contains("Daily challenge"), "Tarjeta traducida")
 	GameManager.save_game()

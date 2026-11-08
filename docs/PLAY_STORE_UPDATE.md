@@ -96,8 +96,8 @@ Each `docs/store_listing/<game-locale>.md` has exactly three fenced blocks:
 Only paste the block contents, not Markdown headings or fences. The ZIP already
 separates them into `title.txt`, `short_description.txt` and `full_description.txt`.
 
-English title: **invade.io: Territory Strategy** (29 characters).
-Spanish title: **invade.io: Conquista el mapa** (28 characters).
+English title: **invade.io: Offline Strategy** (27 characters).
+Spanish title: **invade.io: Estrategia offline** (29 characters).
 
 Titles change only the listing; the installed game's name and permanent package
 identifier `macarronesc.invadeio` remain unchanged.
@@ -147,6 +147,21 @@ for both tablet sizes is appropriate only if the real layouts match.
 - `assets/brand/play-store-icon-512.png`: existing **512×512 RGBA** icon, packaged
   as `icon-512.png`. Do not replace Android launcher assets with the feature graphic.
 - Contact sheets and raw captures stay in `build/store_capture/`; do not upload them.
+
+## Trailer
+
+The promo video is rendered from the real game, like the screenshots: scripted
+battles driven by `PlayerBot`, the shared `StoreFixture` save, and captions from
+`docs/store_listing/graphics.json`.
+
+```sh
+scripts/render_trailer.sh en      # any game locale; needs godot, xvfb-run and ffmpeg
+```
+
+The output is `build/trailer/invadeio-trailer-<lang>.mp4` (1920×1080, about 35 s,
+the game's own audio). Upload it to YouTube (public or unlisted, **ads off**,
+captions on) and paste the URL in Play Console → Store listing → Video. It is not
+committed. The video opens on gameplay, never on a logo, and ends on the browser-demo URL.
 
 ## 5. Locale mapping
 
