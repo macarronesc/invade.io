@@ -97,5 +97,5 @@ func _process(_delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	# Bloquea también _unhandled_input del mapa; el toque que salta la intro no envía tropas.
 	get_viewport().set_input_as_handled()
-	if (event is InputEventScreenTouch or event is InputEventMouseButton or event is InputEventKey) and event.is_pressed():
+	if (event is InputEventScreenTouch or event is InputEventMouseButton or event is InputEventKey or event is InputEventJoypadButton) and event.is_pressed():
 		queue_free()

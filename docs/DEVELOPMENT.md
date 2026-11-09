@@ -15,9 +15,11 @@ the checked-in assets; rebuilding geography, fonts, or store graphics is optiona
 | A rendering display | Playing and visual checks; Linux CI uses `xvfb-run` for the latter |
 
 Linux and macOS are the current development environments. The vendored Sentry
-extension includes Android, iOS, Linux, and macOS binaries; Windows/Web binaries
-and library entries are not included. Do not assume those exports work without
-restoring compatible upstream components and testing them.
+extension includes Android, iOS, Linux, and macOS binaries; Windows binaries
+and library entries are not included; do not assume a Windows export works without
+restoring compatible upstream components and testing it. The `Web` preset runs
+without the extension (no telemetry); export it with the 4.7.2 `web_nothreads_*`
+templates, see [the browser demo](WEBSITE.md#browser-demo).
 
 Export templates are needed **only for exports**. Android SDK/JDK setup, macOS
 with Xcode for iOS, and production signing are separate from normal development.
@@ -130,7 +132,7 @@ virtual environment rather than changing the project's runtime dependencies:
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install fonttools==4.57.0
+.venv/bin/python -m pip install --require-hashes -r tools/requirements-ci.txt
 .venv/bin/python tools/build_locale_fonts.py /path/to/noto-source-fonts
 godot --headless --path . --editor --import
 ```

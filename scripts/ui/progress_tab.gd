@@ -224,6 +224,8 @@ func _achievement_card(a: Dictionary) -> PanelContainer:
 	elif unlocked:
 		trailing = UIThemeHelper.button("+%d" % a["reward"], "GoldButton", "coin")
 		trailing.name = "BtnClaim"
+		trailing.accessibility_name = LocaleStrings.text("mission_claim")
+		trailing.accessibility_description = "%s · +%d" % [AchievementDatabase.achievement_title(a), int(a["reward"])]
 		trailing.pressed.connect(_on_claim_pressed.bind(a["id"]))
 	else:
 		trailing = UIThemeHelper.chip("+%d" % a["reward"], "coin", UIThemeHelper.colors.muted)

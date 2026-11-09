@@ -4,11 +4,15 @@ updates:
     directory: /
     target-branch: dev
     schedule:
-      interval: weekly
+      interval: daily
     open-pull-requests-limit: 5
   - package-ecosystem: npm
     directory: /website
     target-branch: dev
     schedule:
-      interval: weekly
+      interval: daily
     open-pull-requests-limit: 5
+    ignore:
+      # @astrojs/check 0.9.x supports TypeScript 5 and 6; remove once it accepts 7.
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]

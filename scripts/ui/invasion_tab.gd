@@ -16,6 +16,11 @@ static var last_continent := ""
 static var last_region := ""
 static var _layout_cache: Dictionary = {}
 
+## La vista recordada pertenece a la partida anterior; al sustituirla se vuelve a la recomendada.
+static func reset_navigation() -> void:
+	last_continent = ""
+	last_region = ""
+
 var selected_continent := ""
 var selected_region := ""
 var continent_buttons: Dictionary = {}
@@ -131,10 +136,10 @@ func _build_locked_card(continent_id: String) -> void:
 	var completed := level_ids.filter(func(id): return GameManager.completed_levels.has(id)).size()
 	var card := UIThemeHelper.card(content)
 	card.name = "InvasionLockedCard"
-	card.add_child(UIThemeHelper.label(LocaleStrings.text("invasion_locked_title"), "Title"))
+	card.add_child(UIThemeHelper.paragraph(LocaleStrings.text("invasion_locked_title"), "Title"))
 	card.add_child(UIThemeHelper.paragraph(LocaleStrings.text("invasion_locked_desc") % [
 		LevelDatabase.continent_name(continent_id), regions.size()], ""))
-	card.add_child(UIThemeHelper.label(LocaleStrings.text("invasion_locked_progress") % [completed, level_ids.size()], "Caption"))
+	card.add_child(UIThemeHelper.paragraph(LocaleStrings.text("invasion_locked_progress") % [completed, level_ids.size()], "Caption"))
 	card.add_child(UIThemeHelper.progress(completed, level_ids.size()))
 	var go := UIThemeHelper.button(LocaleStrings.text("invasion_go_campaign"), "PrimaryButton", "play")
 	go.name = "BtnInvasionGoCampaign"
@@ -284,7 +289,9 @@ func _build_detail(continent_id: String) -> void:
 	card.add_child(chips)
 	chips.add_child(UIThemeHelper.chip(LocaleStrings.text("invasion_tier") % int(region["tier"]), "shield", UIThemeHelper.colors.muted))
 	chips.add_child(UIThemeHelper.chip(LocaleStrings.text("invasion_fronts_chip") % [completed, InvasionDatabase.FRONTS], "flag", UIThemeHelper.colors.primary))
-	chips.add_child(UIThemeHelper.chip(InvasionDatabase.rule_text(str(region["rule"])), "bolt", UIThemeHelper.colors.gold))
+	var rule := UIThemeHelper.paragraph(InvasionDatabase.rule_text(str(region["rule"])), "Caption")
+	rule.add_theme_color_override("font_color", UIThemeHelper.colors.gold)
+	card.add_child(rule)
 	if GameManager.is_region_mastered(selected_region):
 		chips.add_child(UIThemeHelper.chip(LocaleStrings.text("invasion_region_mastered"), "star", UIThemeHelper.colors.gold))
 	elif GameManager.is_region_complete(selected_region):

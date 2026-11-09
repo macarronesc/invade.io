@@ -110,12 +110,15 @@ func _upgrade_card(id: String) -> PanelContainer:
 	var buy := UIThemeHelper.button(LocaleStrings.text("max"), "GoldButton")
 	buy.custom_minimum_size.x = 240
 	buy.disabled = true
+	buy.accessibility_name = LocaleStrings.text("upgrade_named") % LocaleStrings.text("upg_" + id)
+	buy.accessibility_description = LocaleStrings.text("upgrade_maxed")
 	if level < max_level:
 		var cost := GameManager.get_upgrade_cost(id)
 		buy.text = str(cost)
 		UIThemeHelper.set_icon(buy, "coin")
 		buy.disabled = GameManager.coins < cost
 		hint.text = LocaleStrings.text("missing_gold") % (cost - GameManager.coins) if buy.disabled else ""
+		buy.accessibility_description = hint.text if hint.text != "" else LocaleStrings.text("accessibility_price") % cost
 		buy.pressed.connect(_buy_upgrade.bind(id))
 	bottom.add_child(buy)
 	column.add_child(bottom)
@@ -195,5 +198,5 @@ class CosmeticPreview extends Control:
 				Troop.draw_packet(self, c + Vector2(30, 0), 12, player, style, 1.3)
 
 	func _base(pos: Vector2, r: float, color: Color, shape: String) -> void:
-		BaseNode.draw_frame(self, pos, r, shape)
+		BaseNode.draw_frame(self, pos, r, shape, color)
 		draw_circle(pos, r, color)

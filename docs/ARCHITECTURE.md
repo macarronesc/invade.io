@@ -57,7 +57,7 @@ Autoload order is declared in `project.godot`:
 
 | Autoload | Role |
 |---|---|
-| `EventBus` | Shared battle, reward, economy, appearance, and settings signals |
+| `EventBus` | Shared battle, reward, economy, appearance, settings, and save-replacement signals |
 | `GameManager` | Current selection, player progress, economy, settings, validation, and persistence |
 | `AudioManager` | Synthesized sound/music playback, volume settings, and lifecycle suspension |
 | `AchievementManager` | Observes battle signals, updates statistics, XP/missions, and achievement unlocks |
@@ -121,6 +121,9 @@ alternate accessible controls, and results. The
 The five main-menu pages are registered in `MainMenuUI.TABS`. Scrolling pages
 inherit [ScrollPage](../scripts/ui/scroll_page.gd), implement `_build()`, and
 rebuild after economy changes. Play uses its own responsive map/briefing layout.
+A successful backup restore or progress reset emits `EventBus.save_replaced`;
+[MainMenuUI](../scripts/ui/main_menu.gd) rebuilds the header, badges, and mounted
+page from the new state without reloading the scene.
 
 [UIThemeHelper](../scripts/ui/ui_theme_helper.gd) centralizes palettes, typography,
 theme variations, reusable controls, safe areas, scaling, and scene transitions.
@@ -137,8 +140,10 @@ subset tools. See the [localization workflow](DEVELOPMENT.md#localization).
 `GameManager` saves a versioned JSON document (currently format 7), with field
 validation, temporary-file replacement, a `.previous` recovery copy, future-format
 protection, and confirmed manual import with a `.backup` copy. Import/reset
-preserve privacy choices. Keep city, level, cosmetic, and achievement identifiers
-stable where saves refer to them; test migrations before changing the schema.
+preserve privacy choices. Successful replacements emit `save_replaced` once
+memory and disk agree; failed operations emit no UI refresh. Keep city, level,
+cosmetic, and achievement identifiers stable where saves refer to them; test
+migrations before changing the schema.
 
 Unchanged, validated saves skip disk writes without replacing the recovery point.
 Battle results and achievement checks batch saves within one synchronous action;

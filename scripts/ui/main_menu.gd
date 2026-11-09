@@ -23,6 +23,7 @@ static var return_to_battle := false
 var current_tab := ""
 var coins_label: Label
 var btn_settings: Button
+var btn_support: Button
 var _content: Control
 var _header_margin: MarginContainer
 var _nav_margin: MarginContainer
@@ -34,7 +35,7 @@ var _logo_io: Label
 var _appearance := ""
 
 func _notification(what: int) -> void:
-	if what != NOTIFICATION_WM_GO_BACK_REQUEST or is_instance_valid(_utility_panel):
+	if what != NOTIFICATION_WM_GO_BACK_REQUEST or is_instance_valid(_utility_panel) or not is_instance_valid(_content):
 		return # Los paneles superpuestos gestionan su propio botón atrás.
 	if current_tab != "play":
 		show_tab("play")
@@ -61,6 +62,7 @@ func _ready() -> void:
 	# Reclamar cualquier recompensa mueve el oro, así que basta con escuchar estos avisos
 	EventBus.coins_updated.connect(_refresh_badges.unbind(1))
 	EventBus.achievement_unlocked.connect(_refresh_badges.unbind(1))
+	EventBus.save_replaced.connect(_on_save_replaced)
 	AudioManager.play_music("menu")
 	AchievementManager.check_all()
 	_update_coins(GameManager.coins)
@@ -97,6 +99,9 @@ func _build() -> void:
 	coins_label = coins.find_children("*", "Label", true, false)[0]
 	coins_label.theme_type_variation = "Heading"
 	bar.add_child(coins)
+	btn_support = UIThemeHelper.icon_button("heart", LocaleStrings.text("support_project"))
+	btn_support.pressed.connect(func(): OS.shell_open(Telemetry.DONATE_URL))
+	bar.add_child(btn_support)
 	btn_settings = UIThemeHelper.icon_button("gear", LocaleStrings.text("settings"))
 	btn_settings.pressed.connect(_open_settings)
 	bar.add_child(btn_settings)
@@ -148,11 +153,14 @@ func _apply_safe_area() -> void:
 	_nav_margin.add_theme_constant_override("margin_right", UIThemeHelper.get_safe_area_right(self))
 	_nav_margin.add_theme_constant_override("margin_bottom", UIThemeHelper.get_safe_area_bottom(self))
 
-func show_tab(id: String) -> void:
+func show_tab(id: String, track: bool = true) -> void:
 	if not TABS.has(id):
 		id = "play"
+	var focused := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	var focus_was_content := is_instance_valid(focused) and is_instance_valid(_content) and _content.is_ancestor_of(focused)
 	current_tab = id
-	Telemetry.tab_opened(id)
+	if track:
+		Telemetry.tab_opened(id)
 	for tab in _nav:
 		_nav[tab].set_pressed_no_signal(tab == id)
 	UIThemeHelper.clear(_content)
@@ -162,7 +170,20 @@ func show_tab(id: String) -> void:
 		return_to_battle = false
 	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_content.add_child(page)
+	if focus_was_content:
+		_nav[id].grab_focus.call_deferred()
 	_refresh_badges()
+
+## Restaurar o reiniciar sustituye todo el estado: la cabecera, los avisos y la sección
+## visible se reconstruyen desde el guardado nuevo, sin recargar la aplicación.
+func _on_save_replaced() -> void:
+	if not is_instance_valid(_content):
+		return
+	# La navegación y el retorno a una batalla anterior pertenecen al guardado sustituido.
+	return_to_battle = false
+	InvasionPage.reset_navigation()
+	_update_coins(GameManager.coins)
+	show_tab(current_tab, false)
 
 ## Punto dorado sólo cuando hay algo que recoger
 func _refresh_badges() -> void:
@@ -192,11 +213,23 @@ func _open_settings() -> void:
 	Telemetry.screen_opened("settings")
 	_utility_panel = SettingsPanel.new()
 	_content.process_mode = Node.PROCESS_MODE_DISABLED
+	_set_background_focus(false)
 	_utility_panel.closed.connect(func(): _content.process_mode = Node.PROCESS_MODE_INHERIT)
 	_utility_panel.closed.connect(_refresh_appearance)
 	_utility_panel.closed.connect(func(): Telemetry.screen_opened("menu"))
-	_utility_panel.closed.connect(func(): btn_settings.grab_focus.call_deferred())
+	_utility_panel.closed.connect(func():
+		_set_background_focus(true)
+		btn_settings.grab_focus.call_deferred())
 	add_child(_utility_panel)
+
+func _set_background_focus(enabled: bool) -> void:
+	var mode := Control.FOCUS_ALL if enabled else Control.FOCUS_NONE
+	for header_button in [btn_settings, btn_support]:
+		if is_instance_valid(header_button):
+			header_button.focus_mode = mode
+	for button in _nav.values():
+		if is_instance_valid(button):
+			button.focus_mode = mode
 
 func _appearance_key() -> String:
 	return "%s|%s" % [UIThemeHelper.palette_name, GameManager.language]
@@ -212,6 +245,8 @@ func _refresh_appearance() -> void:
 	coins_label.add_theme_color_override("font_color", UIThemeHelper.colors.text)
 	btn_settings.tooltip_text = LocaleStrings.text("settings")
 	btn_settings.accessibility_name = LocaleStrings.text("settings")
+	btn_support.tooltip_text = LocaleStrings.text("support_project")
+	btn_support.accessibility_name = LocaleStrings.text("support_project")
 	for id in TABS:
 		_nav[id].text = LocaleStrings.text(TABS[id]["title"])
 	if _content.get_child_count() > 0:

@@ -19,6 +19,8 @@ def versions(project, presets):
         if section.endswith(".options"):
             option = config[section]
             key = "version/name" if "version/name" in option else "application/short_version"
+            if key not in option:
+                continue  # the Web preset carries no store version
             if option.get(key, "").strip('"') != version:
                 raise ValueError("Version mismatch in " + section)
             if "version/code" in option:
@@ -39,6 +41,6 @@ if __name__ == "__main__":
             old_version, old_code = versions(*previous)
             if version <= old_version or code <= old_code:
                 raise ValueError("A main release must increase both semantic version and Android version code")
-    except (ValueError, configparser.Error) as error:
+    except (ValueError, configparser.Error, subprocess.CalledProcessError) as error:
         parser.exit(1, str(error) + "\n")
     print(".".join(map(str, version)))

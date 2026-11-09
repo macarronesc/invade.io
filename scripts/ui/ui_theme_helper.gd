@@ -437,7 +437,7 @@ static func item_row(leading: Control, title: String, subtitle: String, trailing
 	var texts := vbox(4)
 	texts.alignment = BoxContainer.ALIGNMENT_CENTER
 	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	texts.add_child(label(title, "Heading"))
+	texts.add_child(paragraph(title, "Heading"))
 	texts.add_child(paragraph(subtitle))
 	row.add_child(texts)
 	if trailing:
@@ -494,11 +494,19 @@ static func row_button(icon: String, title: String, subtitle: String, trailing: 
 	b.custom_minimum_size.y = 128
 	b.accessibility_name = title
 	b.accessibility_description = subtitle
-	var row := item_row(round_badge(Icons.rect(icon, 52, tint), tint, 80), title, subtitle, Icons.rect(trailing, 40, colors.muted))
+	var trailing_icon := Icons.rect(trailing, 40, colors.muted)
+	if LanguageCatalog.is_rtl(LocaleStrings.lang) and trailing in ["back", "next"]:
+		trailing_icon.texture = Icons.mirrored_texture(trailing, 40)
+	var row := item_row(round_badge(Icons.rect(icon, 52, tint), tint, 80), title, subtitle, trailing_icon)
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	row.offset_left = 24
 	row.offset_right = -28
 	b.add_child(row)
+	var fit_height := func():
+		if is_instance_valid(b) and is_instance_valid(row):
+			b.custom_minimum_size.y = maxf(128.0, row.get_combined_minimum_size().y + 32.0)
+	row.minimum_size_changed.connect(fit_height)
+	fit_height.call()
 	for c in b.find_children("*", "Control", true, false):
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return b
@@ -580,14 +588,26 @@ static func fit_canvas(window: Window) -> void:
 
 ## Márgenes laterales que centran `margin` con como mucho MAX_PAGE_WIDTH de contenido
 static func cap_page_width(margin: MarginContainer) -> void:
+	# Never derive the inset from the margin being resized: its content can feed
+	# back into that size and recurse until the stack overflows.
+	if margin.has_meta("_capping_page_width"):
+		return
+	var available := margin.get_parent_area_size().x if margin.is_inside_tree() else margin.size.x
+	if available <= 0.0:
+		available = margin.size.x
 	var left := get_safe_area_left(margin)
 	var right := get_safe_area_right(margin)
-	var side := maxi(PAGE_MARGIN, int((margin.size.x - left - right - MAX_PAGE_WIDTH) * 0.5))
+	var side := page_side_inset(available, left, right)
 	left += side
 	right += side
 	if margin.get_theme_constant("margin_left") != left or margin.get_theme_constant("margin_right") != right:
+		margin.set_meta("_capping_page_width", true)
 		margin.add_theme_constant_override("margin_left", left)
 		margin.add_theme_constant_override("margin_right", right)
+		margin.remove_meta("_capping_page_width")
+
+static func page_side_inset(available: float, safe_left: int, safe_right: int) -> int:
+	return maxi(PAGE_MARGIN, int((available - safe_left - safe_right - MAX_PAGE_WIDTH) * 0.5))
 
 ## Desplaza hacia abajo una cabecera anclada arriba para que no quede bajo el notch o la cámara
 static func apply_safe_area_top(control: Control) -> void:
@@ -658,7 +678,7 @@ static func overlay_page(root: Control, title: String, close: Callable) -> VBoxC
 	var apply_insets := func():
 		var left := get_safe_area_left(root)
 		var right := get_safe_area_right(root)
-		var extra := maxi(PAGE_MARGIN, int((margin.size.x - left - right - MAX_PAGE_WIDTH) * 0.5))
+		var extra := page_side_inset(root.size.x, left, right)
 		margin.add_theme_constant_override("margin_left", left + extra)
 		margin.add_theme_constant_override("margin_top", 36 + get_safe_area_top(root))
 		margin.add_theme_constant_override("margin_right", right + extra)
@@ -701,12 +721,20 @@ static func create_modal_card(title: String, body: String, button_text: String, 
 	var heading := label(title, "Title")
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(heading)
+	var body_scroll := ScrollContainer.new()
+	body_scroll.name = "BodyScroll"
+	body_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE
+	body_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var text := paragraph(body, "")
 	text.name = "Body"
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(text)
+	body_scroll.add_child(text)
+	column.add_child(body_scroll)
 	var confirm := button(button_text, "PrimaryButton")
 	confirm.name = "BtnConfirm"
+	confirm.focus_next = NodePath(".")
+	confirm.focus_previous = NodePath(".")
 	confirm.pressed.connect(on_press)
 	column.add_child(confirm)
 	# El CenterContainer centra la tarjeta una vez conocido el ancho con ajuste de línea
@@ -728,6 +756,19 @@ static func create_modal_card(title: String, body: String, button_text: String, 
 		# Diferido para conocer el tamaño final; la tarjeta puede cerrarse antes
 		var panel_ref = weakref(panel)
 		(func(): if panel_ref.get_ref(): animate_modal_pop_in(panel_ref.get_ref())).call_deferred()
+		var body_ref = weakref(body_scroll)
+		var text_ref = weakref(text)
+		var root_ref = weakref(root)
+		var fit_body := func():
+			var body_node = body_ref.get_ref()
+			var body_text = text_ref.get_ref()
+			var root_node = root_ref.get_ref()
+			if body_node and body_text and root_node:
+				var max_body := maxf(160.0, root_node.get_viewport_rect().size.y - 320.0)
+				body_node.custom_minimum_size.y = minf(body_text.get_combined_minimum_size().y, max_body)
+		fit_body.call_deferred()
+		if root.is_inside_tree():
+			root.get_tree().process_frame.connect(fit_body, CONNECT_ONE_SHOT)
 	, CONNECT_ONE_SHOT)
 	root.tree_exited.connect(func():
 		if is_instance_valid(previous_focus) and previous_focus.is_inside_tree():

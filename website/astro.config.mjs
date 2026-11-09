@@ -4,12 +4,26 @@ import { unified } from '@astrojs/markdown-remark';
 import { SITE, BASE, REPO, guides, href } from './scripts/site.mjs';
 import { repositoryMarkdown } from './scripts/content.mjs';
 
+// Starlight makes wide tables scrollable (display:block; overflow:auto), so give
+// each table keyboard access without relying on client-side JavaScript.
+function accessibleTables() {
+  return (tree) => {
+    const walk = (node) => {
+      if (node.type === 'table') {
+        node.data = { ...node.data, hProperties: { ...node.data?.hProperties, tabindex: '0' } };
+      }
+      for (const child of node.children ?? []) walk(child);
+    };
+    walk(tree);
+  };
+}
+
 export default defineConfig({
   site: SITE,
   base: BASE,
   trailingSlash: 'always',
   output: 'static',
-  markdown: { processor: unified({ remarkPlugins: [repositoryMarkdown] }) },
+  markdown: { processor: unified({ remarkPlugins: [repositoryMarkdown, accessibleTables] }) },
   integrations: [starlight({
     title: 'invade.io',
     disable404Route: true,
@@ -22,7 +36,7 @@ export default defineConfig({
       ...['Start here', 'Play', 'Develop', 'Maintain', 'Trust'].map((group) => ({
         label: group,
         items: guides.filter(([, , section]) => section === group).map(([, slug]) => ({
-          label: ({ '': 'Documentation', gameplay: 'Gameplay', development: 'Run locally', contributing: 'Contributing', architecture: 'Architecture', testing: 'Testing', platforms: 'Platforms', releases: 'Releases', publishing: 'Google Play', 'store-material': 'Store material', 'release-notes': 'Release-note reference', 'capture-validation': 'Capture validation record', brand: 'Brand assets', telemetry: 'Telemetry', security: 'Security', website: 'Website maintenance' })[slug],
+          label: ({ '': 'Documentation', gameplay: 'Gameplay', development: 'Run locally', contributing: 'Contributing', architecture: 'Architecture', testing: 'Testing', forking: 'Make your own version', platforms: 'Platforms', releases: 'Releases', publishing: 'Google Play', 'store-material': 'Store material', 'release-notes': 'Release-note reference', 'capture-validation': 'Capture validation record', brand: 'Brand assets', telemetry: 'Telemetry', security: 'Security', website: 'Website maintenance' })[slug],
           link: `/docs/${slug ? `${slug}/` : ''}`,
         })),
       })),

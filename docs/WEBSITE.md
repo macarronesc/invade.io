@@ -41,6 +41,16 @@ accessibility checks. It is not a substitute for human readability and screen-re
 review. Build-time checks validate internal links/anchors/assets, legal text
 preservation, and the absence of private/development files in the output.
 
+## Browser demo
+
+The `/play/` page links to a Godot web build at `/play/game/`. It is not part of
+the Astro output: [pages.yml](../.github/workflows/pages.yml) exports the `Web`
+preset with the pinned Godot 4.7.2 templates into `dist/play/game/` after the site
+checks pass, so Pages and `dev` PR previews both carry the playable game. To test
+it locally, export with the editor's Web preset (single-threaded, no special
+headers needed) and serve the folder with `python3 -m http.server`. The build has
+no telemetry (`OS.has_feature("web")`) and hides file-based backups.
+
 ## Sources and ownership
 
 - `website/src/components/` and `website/src/layouts/`: the player-facing pages.

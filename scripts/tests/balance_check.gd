@@ -121,7 +121,7 @@ func _simulate(id: String, delay: float, trial: int) -> Dictionary:
 		for ai in battle.ai_controllers: ai._process(0.1)
 		timer -= 0.1
 		if timer <= 0.0:
-			_player_order(battle)
+			PlayerBot.order(battle)
 			timer += delay
 		battle._process(0.1)
 		if battle.is_game_over: break
@@ -129,39 +129,6 @@ func _simulate(id: String, delay: float, trial: int) -> Dictionary:
 	battle.free()
 	return result
 
-## ponytail: política sencilla con información visible y hasta tres orígenes;
-## un estudio con personas valida intuición, errores y ergonomía reales.
-func _player_order(battle: BattleController) -> void:
-	var best_target: BaseNode
-	var best_sources: Array[BaseNode] = []
-	var best_score := -INF
-	for dst in battle.bases:
-		if dst.faction == GameManager.Faction.PLAYER: continue
-		var sources: Array[BaseNode] = []
-		sources.assign(battle.bases.filter(func(b):
-			return b.faction == GameManager.Faction.PLAYER and b.troops >= 8 and battle.can_dispatch(b, dst)))
-		sources.sort_custom(func(a, b): return a.position.distance_squared_to(dst.position) < b.position.distance_squared_to(dst.position))
-		var chosen: Array[BaseNode] = []
-		var available := 0
-		for src in sources:
-			chosen.append(src)
-			available += src.troops - 1
-			battle.selected_sources = chosen
-			var defense := battle.estimate_target_defense(dst)
-			if defense <= 0.0: break # Ya hay tropas suficientes en camino.
-			if available > defense + 4:
-				var distance := src.position.distance_to(dst.position)
-				var score := (200.0 if dst.faction == GameManager.Faction.NEUTRAL else 140.0) - distance * 0.08 - defense * 0.4
-				if dst.base_type == BaseNode.BaseType.FACTORY: score += 90.0
-				if score > best_score:
-					best_score = score
-					best_target = dst
-					best_sources = chosen.duplicate()
-				break
-			if chosen.size() == 3: break
-	battle.selected_sources.clear()
-	if best_target:
-		for src in best_sources: battle.dispatch_troops(src, best_target)
 
 ## Capturas de la pestaña de invasiones para comprobar mapa, ficha y tema en móvil.
 func _check_invasion_ui() -> void:
@@ -232,7 +199,16 @@ func _check_ui() -> void:
 			await _snapshot("menu_details_%s_%s" % [lang, str(light)])
 			play.btn_details.pressed.emit()
 			_require(not play.level_details.visible, "Detalles vuelve a plegarse")
-			_require(play.btn_daily.get_global_rect().end.y <= menu._nav["play"].get_global_rect().position.y, "Accesos secundarios no quedan bajo la navegación (%s): %s / %s" % [lang, play.btn_daily.get_global_rect(), menu._nav["play"].get_global_rect()])
+			var nav_top: float = (menu._nav["play"] as Control).get_global_rect().position.y
+			if play.btn_daily.get_global_rect().end.y > nav_top:
+				var side_bar: VScrollBar = play._side.get_v_scroll_bar()
+				_require(side_bar.max_value > side_bar.page, "La ficha puede desplazarse para alcanzar los accesos (%s)" % lang)
+				play._side.scroll_vertical = int(side_bar.max_value)
+				await get_tree().process_frame
+				_require(play.btn_daily.get_global_rect().end.y <= nav_top + 1.0,
+					"Al desplazar, los accesos quedan sobre la navegación (%s)" % lang)
+			else:
+				_require(true, "Accesos secundarios sobre la navegación (%s)" % lang)
 			for label in play.btn_daily.find_children("*", "Label", true, false):
 				_require(play.btn_daily.get_global_rect().grow(6).encloses(label.get_global_rect()), "El texto del desafío diario queda dentro de su tarjeta")
 			menu.show_tab("challenges")

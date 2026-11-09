@@ -17,7 +17,7 @@ static func apply(level: Dictionary) -> void:
 	elif mode == "conquest":
 		var continents := LevelDatabase.get_continents()
 		var index := LevelGenerator.conquest_index(id)
-		continent = continents[posmod(index + LevelGenerator.expedition_of(index) - 1, continents.size())]["id"]
+		continent = continents[posmod(LevelGenerator.expedition_step(index) - 1 + LevelGenerator.expedition_of(index) - 1, continents.size())]["id"]
 	elif LevelDatabase.get_level_ids().has(id) and id not in ["europe_1", "europe_2", "europe_3"]:
 		continent = LevelDatabase.get_continent_of(id)
 	if continent == "":

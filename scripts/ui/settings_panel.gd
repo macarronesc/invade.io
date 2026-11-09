@@ -12,6 +12,7 @@ var _save_status: Label
 var _save_retry: Button
 var _vibration_slider: HSlider
 var _vibration_test: Button
+var _help_card: Control
 var _ios_picker: Object
 var _ios_importing := false
 var _ios_path := ""
@@ -34,12 +35,20 @@ func _focus_control(control_name: String) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		if is_instance_valid(_help_card):
+			_help_card.queue_free()
+			_help_card = null
+			return
 		var licenses := get_node_or_null("LicenseDetails")
 		if licenses != null:
 			licenses.queue_free()
 			call_deferred("_focus_control", "OpenSourceLicenses")
 		else:
 			_close()
+
+func _show_help() -> void:
+	_help_card = UIThemeHelper.how_to_play_card()
+	add_child(_help_card)
 
 func _close() -> void:
 	if is_queued_for_deletion():
@@ -86,7 +95,7 @@ func _build(restore_focus: String = "") -> void:
 	var speed_changed := func(index): GameManager.set_setting("speed", GameManager.GAME_SPEEDS[index])
 	_group.add_child(_options(speeds, GameManager.GAME_SPEEDS.find(float(GameManager.settings["speed"])),
 		speed_changed, "Speed", LocaleStrings.text("speed")))
-	_button("how_to_play", func(): add_child(UIThemeHelper.how_to_play_card()), "help")
+	_button("how_to_play", _show_help, "help")
 
 	_section("section_sound")
 	_toggle("sound_enabled", not AudioManager.is_muted, func(value): AudioManager.set_muted(not value))
@@ -118,6 +127,10 @@ func _build(restore_focus: String = "") -> void:
 	if OS.has_feature("mobile") and not AccessibilityServer.is_supported():
 		_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("accessibility_mobile_reader_note")))
 
+	_section("section_support")
+	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("support_note")))
+	_button("support_project", func(): OS.shell_open(Telemetry.DONATE_URL), "heart")
+
 	_section("section_privacy")
 	_toggle("share_analytics", GameManager.settings["share_analytics"], func(value):
 		GameManager.set_setting("share_analytics", value))
@@ -126,6 +139,9 @@ func _build(restore_focus: String = "") -> void:
 	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("privacy_note")))
 	_button("privacy_policy", func(): OS.shell_open(Telemetry.PRIVACY_URL), "shield")
 	_button("open_source_licenses", _show_licenses, "help")
+	_button("share", func():
+		DisplayServer.clipboard_set(DailyShare.APP_URL)
+		Toasts.show_toast("✅", "invade.io", LocaleStrings.text("copied")), "share")
 
 	_section("section_data")
 	_group.add_child(UIThemeHelper.label(LocaleStrings.text("save_auto"), "Heading"))
@@ -136,8 +152,9 @@ func _build(restore_focus: String = "") -> void:
 	_save_retry = _button("save_retry", func(): GameManager.save_game(), "retry")
 	_refresh_save_status()
 	if allow_backups:
-		_button("backup_export", _choose_file.bind(false), "share")
-		_button("backup_import", _choose_file.bind(true), "retry")
+		if not OS.has_feature("web"): # El navegador no ofrece diálogos de archivo del sistema.
+			_button("backup_export", _choose_file.bind(false), "share")
+			_button("backup_import", _choose_file.bind(true), "retry")
 		_button("reset", _confirm_reset, "close")
 		_status = UIThemeHelper.paragraph("")
 		_group.add_child(_status)

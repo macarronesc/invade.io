@@ -1,12 +1,12 @@
 # invade.io — Google Play (English)
 
 Copy the three blocks into the matching Play Console fields. This copy targets the
-repository's **0.4.0** release candidate; confirm production behavior before publishing.
+repository's **0.5.0** release candidate; confirm production behavior before publishing.
 
 ## App name
 
 ```
-invade.io: Territory Strategy
+invade.io: Offline Strategy
 ```
 
 ## Short description
@@ -39,6 +39,9 @@ PLAY YOUR WAY
 • 15 languages: English, Spanish, Brazilian Portuguese, French, German, Italian, Russian, Turkish, Arabic, Hindi, Indonesian, Vietnamese, Simplified Chinese, Japanese, and Korean. Arabic includes a right-to-left interface.
 • Light and dark themes, adjustable text size, a color-blind palette, reduced motion, map contrast, game speed, and haptic feedback.
 • No account required. Progress stays on your device, with exportable and importable backups; there is no cloud save.
+
+OPEN SOURCE
+invade.io is free and open source under Apache-2.0. Try it in your browser at macarronesc.github.io/invade.io/play/, or read, fork and improve the code at github.com/macarronesc/invade.io.
 
 PRIVACY
 Usage statistics and crash reports are optional and enabled by default in this release. Turn either off separately in Settings → Privacy; saved choices are respected. Gameplay does not require an internet connection. See the privacy policy for details.

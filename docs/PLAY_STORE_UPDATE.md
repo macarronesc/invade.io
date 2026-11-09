@@ -2,7 +2,8 @@
 
 [Documentation](README.md) · [Android publishing](PLAY_STORE.md) · [Release process](RELEASES.md)
 
-**Prepared for the repository's 0.3.2 store refresh; graphics revalidated for the 0.4.0 release on 1 November 2026.**
+**Current source target: 0.5.0 release candidate. Store copy was prepared for
+the 0.3.2 refresh and updated for 0.5.0; graphics were recaptured and revalidated on 9 November 2026.**
 
 This document records the implemented marketing work, the files to upload, and the
 checks the owner must make in Play Console. Nothing in this workflow publishes an
@@ -14,7 +15,7 @@ app, changes the live listing, or changes the game's telemetry defaults.
    language contact sheets. These are review sheets, **not upload screenshots**.
 2. Read the English or Spanish listing in `docs/store_listing/`.
 3. Confirm that the production release matches this source version, particularly
-   its telemetry behavior. Do not copy the 0.3.2 privacy paragraph onto an older release.
+   its telemetry behavior. Do not copy the current privacy paragraph onto an older release.
 4. Have native speakers review translated copy, especially the 13 non-EN/ES full
    descriptions, which began as machine-translated drafts. Short graphic captions
    have been edited for game terminology and layout, but that is not native-speaker approval.
@@ -95,8 +96,8 @@ Each `docs/store_listing/<game-locale>.md` has exactly three fenced blocks:
 Only paste the block contents, not Markdown headings or fences. The ZIP already
 separates them into `title.txt`, `short_description.txt` and `full_description.txt`.
 
-English title: **invade.io: Territory Strategy** (29 characters).
-Spanish title: **invade.io: Conquista el mapa** (28 characters).
+English title: **invade.io: Offline Strategy** (27 characters).
+Spanish title: **invade.io: Estrategia offline** (29 characters).
 
 Titles change only the listing; the installed game's name and permanent package
 identifier `macarronesc.invadeio` remain unchanged.
@@ -146,6 +147,21 @@ for both tablet sizes is appropriate only if the real layouts match.
 - `assets/brand/play-store-icon-512.png`: existing **512×512 RGBA** icon, packaged
   as `icon-512.png`. Do not replace Android launcher assets with the feature graphic.
 - Contact sheets and raw captures stay in `build/store_capture/`; do not upload them.
+
+## Trailer
+
+The promo video is rendered from the real game, like the screenshots: scripted
+battles driven by `PlayerBot`, the shared `StoreFixture` save, and captions from
+`docs/store_listing/graphics.json`.
+
+```sh
+scripts/render_trailer.sh en      # any game locale; needs godot, xvfb-run and ffmpeg
+```
+
+The output is `build/trailer/invadeio-trailer-<lang>.mp4` (1920×1080, about 35 s,
+the game's own audio). Upload it to YouTube (public or unlisted, **ads off**,
+captions on) and paste the URL in Play Console → Store listing → Video. It is not
+committed. The video opens on gameplay, never on a logo, and ends on the browser-demo URL.
 
 ## 5. Locale mapping
 
@@ -219,40 +235,40 @@ The live English/Spanish listing inspected on 28 October said two languages,
 advertised 15 languages and telemetry off by default. The public privacy page dated
 22 October also described opt-in telemetry. **Those statements were not changed remotely.**
 
-The checked-out **0.3.2** code has `share_analytics=true` and `share_crashes=true`
+The checked-out **0.5.0** code has `share_analytics=true` and `share_crashes=true`
 as defaults for new/missing settings; saved false choices are preserved. It includes
 Aptabase and Sentry and requests network permissions. The local privacy-policy
 source already describes this behavior. This marketing work does not change it.
 
 Before submitting:
 
-- [ ] Confirm the actual production AAB/version and the commit used for captures.
+- Confirm the actual production AAB/version and the commit used for captures.
       The manifest records the base commit and whether the working tree was dirty.
       These prepared assets include local changes until you commit them; do not
       mistake the recorded base commit for an already released build.
-- [ ] Match the full-description privacy paragraph to the shipped build. If the
+- Match the full-description privacy paragraph to the shipped build. If the
       production app still has opt-in defaults, use accurate wording for that build,
-      not the supplied 0.3.2 defaults paragraph. Preserve honesty in every translation.
-- [ ] Review consent/disclosure requirements before shipping enabled-by-default
+      not the supplied defaults paragraph. Preserve honesty in every translation.
+- Review consent/disclosure requirements before shipping enabled-by-default
       analytics; a toggle or store description is not itself prior consent.
-- [ ] Publish the matching policy at
+- Publish the matching policy at
       `https://macarronesc.github.io/invade.io/privacy-policy.html` and verify the
       public contents. The existing Pages workflow deploys from `main`; merely
       editing a local HTML file does not update the public page.
-- [ ] Review Data safety for **all currently distributed versions/tracks** that
+- Review Data safety for **all currently distributed versions/tracks** that
       are in scope. Optional telemetry is still collection when data leaves the
       device. Check app activity, crash/diagnostic data, IP-derived location and
       session identifiers against the SDKs and provider configuration.
-- [ ] Determine whether the service-provider sharing exception applies; do not
+- Determine whether the service-provider sharing exception applies; do not
       mark all third-party processing as sharing or as no collection by assumption.
-- [ ] Keep the no-ads/no-purchases and no-account access declarations only while
+- Keep the no-ads/no-purchases and no-account access declarations only while
       they remain true. No credentials are needed to review this game.
-- [ ] Confirm target audience and Families settings. The public page displayed a
+- Confirm target audience and Families settings. The public page displayed a
       Families commitment, while the repository policy says the game is not directed
       at under-13s. Resolve this intentionally; **PEGI 3 is not a target-audience choice**.
-- [ ] Keep IARC/content-rating answers truthful. Do not manufacture a new rating
+- Keep IARC/content-rating answers truthful. Do not manufacture a new rating
       based on a marketing preference.
-- [ ] For an app release, use an unused increasing versionCode, follow
+- For an app release, use an unused increasing versionCode, follow
       `docs/RELEASES.md`, and run the existing Android bundle verification. No
       signing credentials or release codes were changed for this store refresh.
 
@@ -268,7 +284,7 @@ automatic form answers):
 | Encrypted requests and deletion/contact process | Security practices | Verify actual transport and what deletion requests can be fulfilled; deleting a local save is not deletion of provider data |
 
 A listing-only update need not invent an application release. If shipping the
-pending 0.3.2 build too, write accurate release notes from
+pending 0.5.0 build too, write accurate release notes from
 `docs/store_listing/release_notes.md`; do not describe captioned store screenshots
 as newly implemented in-game functionality.
 The ZIP includes that document as `release-notes-reference.md`; use only the

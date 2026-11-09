@@ -17,6 +17,12 @@ class SentryStub extends RefCounted:
 	func close() -> void:
 		enabled = false
 
+class SentryEventStub extends RefCounted:
+	var message := ""
+	var crash := false
+	func is_crash() -> bool:
+		return crash
+
 class TelemetryHarness extends "res://scripts/autoload/telemetry.gd":
 	var sdk := SentryStub.new()
 	func _is_test_runtime() -> bool:
@@ -79,6 +85,7 @@ func _ready() -> void:
 	assert_equals(GameManager.save_path, "user://automation_startup_save.json", "El autoload aísla el guardado antes de iniciar las pruebas")
 	# Los tests nunca deben tocar la partida real del jugador
 	GameManager.save_path = TEST_SAVE_PATH
+	DirAccess.remove_absolute(GameManager.privacy_path())
 	GameManager.load_game()
 	print("\n=======================================================")
 	print("  INICIANDO SUITE DE PRUEBAS AUTOMATIZADAS: INVADE.IO  ")
@@ -88,7 +95,7 @@ func _ready() -> void:
 		"La exportación iOS habilita ETC2/ASTC explícitamente, sin depender del equipo")
 	var presets := ConfigFile.new()
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets se pueden leer")
-	for preset in ["preset.0", "preset.1", "preset.2", "preset.3"]:
+	for preset in ["preset.0", "preset.1", "preset.2", "preset.3", "preset.4"]:
 		assert_true(not str(presets.get_value(preset, "custom_features", "")).split(",", false).has("aptabase_release"),
 			"La telemetría sigue el tipo de compilación, no el preset: " + preset)
 		var excluded := str(presets.get_value(preset, "exclude_filter", ""))
@@ -140,9 +147,11 @@ func _ready() -> void:
 		test_toast_notifications()
 		test_achievements_system()
 		test_telemetry_schema_and_privacy()
+		test_sentry_engine_noise_filtering()
 		test_candidate_telemetry_is_tagged()
 		test_play_tab_campaign_route_and_briefing()
 		test_large_screen_layouts()
+		await test_large_text_and_focus()
 		test_invasion_mode()
 		test_language_system()
 		await test_locale_ui_fit()
@@ -156,6 +165,7 @@ func _ready() -> void:
 	print("\n-------------------------------------------------------")
 	DirAccess.remove_absolute(TEST_SAVE_PATH)
 	DirAccess.remove_absolute(TEST_SAVE_PATH + ".previous")
+	DirAccess.remove_absolute(GameManager.privacy_path())
 	print("RESULTADOS: %d Pasadas, %d Falladas (Total: %d)" % [passed_tests, failed_tests, total_tests])
 	print("=======================================================\n")
 
@@ -335,6 +345,7 @@ func run_all_tests() -> void:
 	test_main_menu_hub_navigation()
 	test_play_tab_campaign_route_and_briefing()
 	test_large_screen_layouts()
+	await test_large_text_and_focus()
 	test_army_tab_upgrades_and_looks()
 	test_battle_hud_modals_and_sound_toggle()
 	test_theme_and_ui_helpers()
@@ -428,7 +439,7 @@ func test_save_optimizations() -> void:
 	add_child(manager)
 	var path := "user://test_batched_save.json"
 	manager.save_path = path
-	for suffix in ["", ".previous", ".tmp"]:
+	for suffix in ["", ".previous", ".tmp", ".privacy.json"]:
 		DirAccess.remove_absolute(path + suffix)
 	manager.coins = 321
 	assert_equals(manager.save_game(), OK, "Initial save is synchronous")
@@ -491,7 +502,7 @@ func test_save_optimizations() -> void:
 	assert_equals(manager.save_game(), ERR_UNAVAILABLE, "Even a no-op save validates the on-disk version")
 	assert_equals(manager.writes, 0, "Save optimization cannot overwrite a future version")
 	manager.free()
-	for suffix in ["", ".previous", ".tmp"]:
+	for suffix in ["", ".previous", ".tmp", ".privacy.json"]:
 		DirAccess.remove_absolute(path + suffix)
 	GameManager._apply_save(saved)
 
@@ -511,6 +522,16 @@ func test_performance_regressions() -> void:
 		expected.append(index + square.size())
 	assert_equals(merged[0].indices, expected, "Merged triangles keep their topology and receive the correct index offset")
 	assert_true(FilledPolygon.build_all([PackedVector2Array()]).is_empty(), "Empty geometry creates no draw commands")
+	var sliver := PackedVector2Array()
+	var asia_geo: Dictionary = LevelDatabase.get_level_data("asia_1", true).get("geo", {})
+	for piece in asia_geo.get("land", []):
+		if piece.size() == 3 and piece[0].x > 2000.0:
+			sliver = piece
+			break
+	assert_true(not sliver.is_empty(), "Large-coordinate sliver fixture is available")
+	var sliver_fills := FilledPolygon.build(sliver)
+	assert_equals(sliver_fills.size(), 1, "A large-coordinate sliver still produces a fill")
+	assert_equals(sliver_fills[0].points.size(), 3, "The sliver triangulates locally instead of using the Clipper fallback")
 	var geo := {"land": [square, shifted], "borders": []}
 	var silhouette := GeoSilhouette.new()
 	silhouette.set_geography(geo, Color.WHITE)
@@ -658,7 +679,7 @@ func test_mobile_experience() -> void:
 	var path := "user://test_mobile_save.json"
 	# Limpia restos de una ejecución interrumpida: un `.tmp` como directorio haría
 	# fallar la escritura atómica y dejaría el archivo anterior intacto.
-	for suffix in ["", ".previous", ".corrupt", ".backup", ".import", ".tmp"]:
+	for suffix in ["", ".previous", ".corrupt", ".backup", ".import", ".tmp", ".privacy.json"]:
 		DirAccess.remove_absolute(path + suffix)
 	manager.save_path = path
 	manager.coins = 321
@@ -723,7 +744,7 @@ func test_mobile_experience() -> void:
 	assert_equals(manager._haptic_parameters(60, 1600), Vector2.ZERO, "La intensidad cero no genera vibración")
 	assert_equals(manager._haptic_parameters(-5, 1700), Vector2.ZERO, "Una duración inválida no llega al dispositivo")
 	manager.free()
-	for suffix in ["", ".previous", ".corrupt", ".backup", ".import", ".tmp"]:
+	for suffix in ["", ".previous", ".corrupt", ".backup", ".import", ".tmp", ".privacy.json"]:
 		DirAccess.remove_absolute(path + suffix)
 
 	GameManager.reset_save()
@@ -741,6 +762,7 @@ func test_mobile_experience() -> void:
 	settings._notification(NOTIFICATION_WM_GO_BACK_REQUEST)
 	assert_true(not settings.is_queued_for_deletion(), "Volver desde las licencias conserva Ajustes")
 	assert_true(settings.find_child("BackupImport", true, false) == null, "Durante la batalla no se ofrece sustituir la partida")
+	assert_true(settings.find_child("Share", true, false) != null, "Ajustes ofrece copiar el enlace para jugar")
 	var vibration: CheckButton = settings.find_child("Vibration", true, false)
 	vibration.set_pressed(false)
 	assert_true(not settings._vibration_slider.editable and settings._vibration_test.disabled, "Desactivar vibración deshabilita intensidad y prueba")
@@ -857,13 +879,13 @@ func test_mobile_experience() -> void:
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets móviles se pueden leer")
 	assert_true(presets.get_value("preset.1.options", "permissions/vibrate", false), "Android exporta el permiso de vibración sin pedir permisos de usuario")
 	assert_true(presets.get_value("preset.0.options", "plugins/BackupFilePicker", false), "iOS habilita el selector nativo de copias")
-	var app_version := str(ProjectSettings.get_setting("application/config/version", "0.4.0"))
-	assert_equals(app_version, "0.4.0", "La versión del proyecto avanza a 0.4.0")
+	var app_version := str(ProjectSettings.get_setting("application/config/version", "0.5.0"))
+	assert_equals(app_version, "0.5.0", "La versión del proyecto avanza a 0.5.0")
 	assert_equals(presets.get_value("preset.0.options", "application/short_version", ""),
 		app_version, "La versión de iOS coincide con la versión reportada por analítica")
 	for preset in ["preset.1.options", "preset.2.options"]:
 		assert_equals(presets.get_value(preset, "version/name", ""), app_version, "El nombre de versión Android coincide: " + preset)
-		assert_equals(presets.get_value(preset, "version/code", 0), 7, "Android usa el siguiente versionCode: " + preset)
+		assert_equals(presets.get_value(preset, "version/code", 0), 8, "Android usa el siguiente versionCode: " + preset)
 	assert_equals(presets.get_value("preset.3", "name", ""), "iOS Diagnostics", "Existe un preset de diagnóstico iOS separado de Release")
 	assert_true(not presets.get_value("preset.3.options", "plugins/BackupFilePicker", true), "La IPA de diagnóstico evita enlazar el selector nativo de copias")
 	var picker_plugin := ConfigFile.new()
@@ -2171,6 +2193,19 @@ func test_slow_motion_and_time_scale_safety() -> void:
 	battle._exit_tree()
 	assert_equals(Engine.time_scale, 1.0, "BattleController._exit_tree restablece limpiamente Engine.time_scale a 1.0")
 
+	# 8. Reduced Motion no activa la cámara lenta de victoria
+	var reduced_battle = BattleControllerScript.new()
+	reduced_battle.level_id = "europe_1"
+	reduced_battle.target_time = 45.0
+	reduced_battle.battle_time = 0.0
+	GameManager.settings["reduced_motion"] = true
+	reduced_battle._trigger_victory()
+	assert_true(not reduced_battle.is_slow_motion_active, "Reduced Motion omite la cámara lenta de victoria")
+	assert_equals(Engine.time_scale, 1.0, "Reduced Motion mantiene Engine.time_scale a 1.0")
+	GameManager.settings["reduced_motion"] = false
+	reduced_battle.free()
+	GameManager.reset_save()
+
 	remove_child(hud)
 	hud.free()
 	b_player.free()
@@ -2704,6 +2739,8 @@ func test_main_menu_hub_navigation() -> void:
 		assert_true(menu.current_tab == tab and menu._nav[tab].button_pressed, "La sección %s queda activa en la barra" % tab)
 		assert_equals(menu._content.get_child_count(), 1, "Sólo hay una sección montada a la vez (%s)" % tab)
 	assert_true(menu.btn_settings != null, "Ajustes accesibles desde la cabecera")
+	assert_true(menu.btn_support != null and menu.btn_support.accessibility_name != "", "El apoyo voluntario es visible y accesible en la cabecera")
+	assert_true(Telemetry.DONATE_URL.begins_with("https://ko-fi.com/"), "El enlace de apoyo apunta a Ko-fi por HTTPS")
 
 	# Avisos: un punto sólo cuando hay algo que recoger, sin ventanas emergentes
 	assert_true(menu._badges["challenges"].visible, "Retos avisa de la recompensa diaria pendiente")
@@ -2729,6 +2766,13 @@ func test_main_menu_hub_navigation() -> void:
 
 	# Reinicio agrupado en ajustes, con confirmación nativa explícita
 	GameManager.coins = 999
+	var replacements := []
+	var on_save_replaced := func(): replacements.append(true)
+	EventBus.save_replaced.connect(on_save_replaced)
+	MainMenuUI.return_to_battle = true
+	InvasionPage.last_continent = "asia"
+	InvasionPage.last_region = "china"
+	var tabs_before_refresh: int = Telemetry._session_tabs
 	menu._open_settings()
 	menu._utility_panel._confirm_reset()
 	assert_equals(GameManager.coins, 999, "El primer toque en reiniciar sólo pide confirmación")
@@ -2738,6 +2782,40 @@ func test_main_menu_hub_navigation() -> void:
 	assert_equals(GameManager.coins, 150, "Reiniciar progreso restaura monedas iniciales a 150")
 	assert_equals(GameManager.get_total_stars(), 0, "Reiniciar progreso resetea estrellas completadas a 0")
 	assert_true(menu.coins_label.text.contains("150"), "Etiqueta de monedas se actualiza tras reseteo")
+	assert_equals(replacements.size(), 1, "Reiniciar anuncia un único reemplazo del guardado")
+	assert_equals(Telemetry._session_tabs, tabs_before_refresh, "Un refresco de datos no cuenta como abrir una pestaña")
+	var play_after_reset = menu._content.get_child(0)
+	assert_equals(play_after_reset.selected_level_id, "europe_1", "Reiniciar vuelve a proponer el primer nivel sin reabrir el menú")
+	assert_equals(play_after_reset.btn_start_level.text, LocaleStrings.text("continue"), "La ficha de Jugar refleja el progreso reiniciado")
+	assert_true(not MainMenuUI.return_to_battle, "Reiniciar descarta volver a una batalla anterior")
+	assert_equals(InvasionPage.last_continent, "", "Reiniciar descarta la navegación de invasión anterior")
+	menu.show_tab("army")
+	assert_true(menu._content.get_child(0).find_child("BtnReturnToBattle", true, false) == null, "Ejército no ofrece volver a la batalla anterior tras reiniciar")
+
+	# Restaurar una copia reconstruye la cabecera y la sección visible, no sólo el guardado
+	var import_path := "user://menu_restore_test.json"
+	var imported: Dictionary = GameManager.save_data().duplicate(true)
+	imported["coins"] = 777
+	imported["completed_levels"] = {"europe_1": 3}
+	imported["unlocked_levels"] = ["europe_1", "europe_2"]
+	GameManager.write_save(import_path, imported)
+	menu.show_tab("progress")
+	var tabs_before_import: int = Telemetry._session_tabs
+	var page_before_restore = menu._content.get_child(0)
+	assert_equals(GameManager.import_save(import_path), OK, "La copia se restaura con el menú abierto")
+	assert_equals(replacements.size(), 2, "Restaurar anuncia un único reemplazo del guardado")
+	assert_equals(Telemetry._session_tabs, tabs_before_import, "Restaurar tampoco cuenta como abrir una pestaña")
+	assert_true(menu.coins_label.text.contains("777"), "La cabecera refleja el oro restaurado")
+	assert_true(menu._content.get_child(0) != page_before_restore, "La sección visible se reconstruye tras restaurar")
+	var stars := (menu._content.get_child(0) as Control).find_child("Stat_stat_stars", true, false) as Label
+	assert_true(stars != null and stars.text == "3/%d" % GameManager.get_max_possible_stars(), "El progreso restaurado aparece en la sección abierta")
+	var page_after_restore = menu._content.get_child(0)
+	assert_equals(GameManager.import_save("user://missing_menu_restore.json"), ERR_INVALID_DATA, "Una copia inexistente se rechaza")
+	assert_true(menu._content.get_child(0) == page_after_restore, "Una restauración fallida no reconstruye la interfaz")
+	assert_equals(replacements.size(), 2, "Una restauración fallida no anuncia un reemplazo")
+	EventBus.save_replaced.disconnect(on_save_replaced)
+	DirAccess.remove_absolute(import_path)
+	DirAccess.remove_absolute(GameManager.save_path + ".backup")
 
 	remove_child(menu)
 	menu.free()
@@ -2821,7 +2899,7 @@ func test_large_screen_layouts() -> void:
 	assert_equals(play._side.vertical_scroll_mode, ScrollContainer.SCROLL_MODE_AUTO, "La columna lateral se desplaza")
 	play.size = Vector2(1080, 1700)
 	play._apply_layout()
-	assert_true(play._split.vertical and play._side.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED, "En vertical se apilan como siempre")
+	assert_true(play._split.vertical and play._side.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_AUTO, "En vertical la ficha también se desplaza")
 	remove_child(play)
 	play.free()
 
@@ -2855,6 +2933,119 @@ func test_large_screen_layouts() -> void:
 	remove_child(hud)
 	hud.free()
 	GameManager.set_setting("text_scale", 0.0)
+
+func test_large_text_and_focus() -> void:
+	print("\n-> Test: Texto Grande, Modales Desplazables y Foco")
+	var original_language := GameManager.language
+	var original_scale: float = GameManager.settings["text_scale"]
+	GameManager.set_language("de")
+	GameManager.set_setting("text_scale", 1.0)
+
+	# 1. Una página con contenido ancho no recursiona al limitar sus márgenes.
+	var page := ScrollPage.new()
+	page.size = Vector2(1080, 1920)
+	add_child(page)
+	var wide := Label.new()
+	wide.text = "Straßenkarte mit außergewöhnlich langen Ortsnamen und vielen zusätzlichen Wörtern"
+	wide.autowrap_mode = TextServer.AUTOWRAP_OFF
+	wide.custom_minimum_size.x = 2000
+	page.content.add_child(wide)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var margin := page.get_child(0) as MarginContainer
+	assert_true(margin != null and margin.get_theme_constant("margin_left") >= UIThemeHelper.PAGE_MARGIN,
+		"El ancho máximo se aplica sin recursión")
+	remove_child(page)
+	page.free()
+
+	# 2. Las filas crecen con el título y el subtítulo en varias líneas.
+	var holder := Control.new()
+	holder.size = Vector2(1080, 800)
+	add_child(holder)
+	var row := UIThemeHelper.row_button("flag", "Sehr lange Überschrift für eine Militärkampagne",
+		"Eine ausführliche Beschreibung, die auf schmalen Bildschirmen mehrere Zeilen benötigt.", "next")
+	holder.add_child(row)
+	row.size = Vector2(1080, row.custom_minimum_size.y)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_true(row.custom_minimum_size.y > 128.0, "La fila crece para que el texto no se recorte")
+	for label in row.find_children("*", "Label", true, false):
+		assert_true((label as Label).autowrap_mode != TextServer.AUTOWRAP_OFF, "El texto de la fila puede saltar de línea")
+	remove_child(holder)
+	holder.free()
+
+	# 3. Una tarjeta modal larga cabe en pantalla y deja visible el botón de confirmar.
+	var long_body := ("Eine sehr lange Erklärung mit mehreren Absätzen. ".repeat(80)).strip_edges()
+	var card := UIThemeHelper.create_modal_card("Hilfe", long_body, "Verstanden", func(): pass, true)
+	add_child(card)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var body_scroll := card.find_child("BodyScroll", true, false) as ScrollContainer
+	var confirm := card.find_child("BtnConfirm", true, false) as Button
+	assert_true(body_scroll != null, "La tarjeta modal tiene una zona desplazable")
+	assert_true(confirm != null and confirm.is_visible_in_tree(), "El botón de confirmar sigue visible")
+	if body_scroll != null:
+		assert_true(body_scroll.custom_minimum_size.y <= card.get_viewport_rect().size.y - 320.0 + 1.0,
+			"La tarjeta no supera el alto de la pantalla")
+	if confirm != null:
+		confirm.grab_focus()
+		var tab_event := InputEventAction.new()
+		tab_event.action = "ui_focus_next"
+		tab_event.pressed = true
+		card.get_viewport().push_input(tab_event)
+		await get_tree().process_frame
+		assert_equals(card.get_viewport().gui_get_focus_owner(), confirm,
+			"El foco del modal no escapa al contenido del fondo")
+	card.queue_free()
+	await get_tree().process_frame
+
+	# 4. Ajustes bloquea el foco del fondo y lo devuelve al cerrar.
+	var menu: MainMenuUI = load("res://scenes/ui/main_menu.tscn").instantiate()
+	add_child(menu)
+	await get_tree().process_frame
+	menu._open_settings()
+	await get_tree().process_frame
+	assert_equals(menu._nav["play"].focus_mode, Control.FOCUS_NONE, "El fondo no recibe foco con Ajustes abierto")
+	assert_equals(menu.btn_settings.focus_mode, Control.FOCUS_NONE, "La cabecera tampoco recibe foco")
+	assert_equals(menu.btn_support.focus_mode, Control.FOCUS_NONE, "El botón de apoyo tampoco recibe foco bajo Ajustes")
+	menu._utility_panel._close()
+	await get_tree().process_frame
+	assert_equals(menu._nav["play"].focus_mode, Control.FOCUS_ALL, "El foco del fondo se restaura al cerrar")
+	assert_equals(menu.btn_settings.focus_mode, Control.FOCUS_ALL, "La cabecera recupera el foco")
+	assert_equals(menu.btn_support.focus_mode, Control.FOCUS_ALL, "El botón de apoyo recupera el foco")
+
+	# 5. Cambiar de pestaña desde un botón de contenido devuelve el foco a la barra.
+	var content_button := menu._content.find_children("*", "BaseButton", true, false)[0] as Control
+	content_button.grab_focus()
+	menu.show_tab("army")
+	await get_tree().process_frame
+	assert_equals(menu.get_viewport().gui_get_focus_owner(), menu._nav["army"],
+		"El foco vuelve a la pestaña activa tras reconstruir el contenido")
+	remove_child(menu)
+	menu.free()
+
+	# 6. Reproducción del caso más estrecho: 1080×1920, ruso y 150% en todas las pestañas.
+	var old_window_size := get_window().size
+	get_window().size = Vector2i(1080, 1920)
+	UIThemeHelper.fit_canvas(get_window())
+	GameManager.set_language("ru")
+	var narrow: MainMenuUI = load("res://scenes/ui/main_menu.tscn").instantiate()
+	add_child(narrow)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for tab in ["play", "invasion", "challenges", "army", "progress"]:
+		narrow.show_tab(tab)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var tab_page: Control = narrow._content.get_child(0)
+		assert_true(tab_page.size.x <= 1080.0 + 1.0, "La pestaña %s cabe a 1080 px con texto al 150%%" % tab)
+	remove_child(narrow)
+	narrow.free()
+	get_window().size = old_window_size
+	UIThemeHelper.fit_canvas(get_window())
+
+	GameManager.set_setting("text_scale", original_scale)
+	GameManager.set_language(original_language)
 
 func test_play_tab_campaign_route_and_briefing() -> void:
 	print("\n-> Test: Jugar (Mapa del Continente, Ficha del Nivel y Accesos Directos)")
@@ -3334,6 +3525,35 @@ func test_save_robustness_and_replay_rewards() -> void:
 	AudioManager.set_muted(was_muted)
 	GameManager.reset_save()
 
+	# 5. Recuperar una copia vieja no resucita la telemetría que el jugador desactivó
+	GameManager.reset_save()
+	GameManager.set_setting("share_analytics", false)
+	GameManager.set_setting("share_crashes", false)
+	assert_true(FileAccess.file_exists(GameManager.privacy_path()), "El consentimiento tiene su propia copia")
+	f = FileAccess.open(TEST_SAVE_PATH, FileAccess.WRITE)
+	f.store_string("{roto")
+	f.close()
+	GameManager.load_game()
+	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"],
+		"La recuperación conserva la privacidad elegida")
+	DirAccess.remove_absolute(TEST_SAVE_PATH + ".corrupt")
+
+	# 6. Reiniciar el progreso conserva accesibilidad, audio y tema
+	var original_settings: Dictionary = GameManager.settings.duplicate(true)
+	GameManager.reset_save()
+	GameManager.set_setting("text_scale", 1.0)
+	GameManager.set_setting("reduced_motion", true)
+	GameManager.set_setting("light_mode", false)
+	GameManager.set_setting("volume", 0.25)
+	GameManager.reset_save()
+	assert_equals(GameManager.settings["text_scale"], 1.0, "Reiniciar conserva el tamaño de texto")
+	assert_true(GameManager.settings["reduced_motion"], "Reiniciar conserva Reduced Motion")
+	assert_true(not GameManager.settings["light_mode"], "Reiniciar conserva el tema")
+	assert_equals(GameManager.settings["volume"], 0.25, "Reiniciar conserva el volumen")
+	GameManager._apply_save({})
+	GameManager.settings = original_settings
+	GameManager.reset_save()
+
 func test_ai_projected_defense_and_difficulty() -> void:
 	print("\n-> Test: IA con Tropas en Camino, Producción Durante el Viaje y Curva de Dificultad")
 	assert_equals(LevelDatabase.get_difficulty("europe_1"), 0.0, "europe_1 es el nivel más fácil")
@@ -3451,6 +3671,7 @@ func test_real_geography_and_bigger_levels() -> void:
 	# 1. Datos geográficos
 	assert_true(GeoDatabase.get_land().size() > 100, "Se cargan las costas reales")
 	assert_true(GeoDatabase.get_borders().size() > 100, "Se cargan las fronteras entre países")
+	assert_equals(GeoDatabase.bounds_of(PackedVector2Array()), Rect2(), "Una geometría vacía no rompe los límites")
 	var madrid = GeoDatabase.get_city("madrid")
 	assert_equals(madrid.get("name_es", ""), "Madrid", "Las ciudades traen su nombre en español")
 	assert_true(madrid["lonlat"].distance_to(Vector2(-3.7, 40.4)) < 0.3, "Madrid está en su posición real")
@@ -3759,6 +3980,15 @@ func test_daily_challenge_levels() -> void:
 	assert_true(GameManager.is_daily_challenge_done(), "El desafío de hoy queda superado")
 	assert_true(GameManager.complete_daily_challenge(id) < full, "Repetirlo el mismo día da menos oro")
 	assert_equals(GameManager.get_stat("daily_challenges"), 1, "Sólo cuenta un desafío por día para los logros")
+	# Un reloj atrasado no puede rebobinar el marcador ni volver a pagar el día completo.
+	GameManager.daily["challenge_day"] = today + 1
+	var old_day := DailyRewards.challenge_id(today)
+	assert_equals(GameManager.complete_daily_challenge(old_day),
+		int(round(DailyRewards.DAILY_CHALLENGE_GOLD * GameManager.REPLAY_GOLD_FACTOR * GameManager.get_gold_multiplier())),
+		"Un desafío de un día anterior paga la tarifa reducida")
+	assert_equals(int(GameManager.daily["challenge_day"]), today + 1,
+		"Un reloj atrasado no mueve el marcador hacia atrás")
+	assert_equals(GameManager.get_stat("daily_challenges"), 1, "Un día anterior no suma otro desafío")
 	assert_equals(GameManager.get_total_stars(), 0, "Los desafíos no suman estrellas de campaña")
 	assert_true(not GameManager.completed_levels.has(id), "Los desafíos no se guardan como niveles de campaña")
 	GameManager.reset_save()
@@ -4119,6 +4349,7 @@ func test_daily_missions_xp_and_share() -> void:
 	assert_equals(GameManager.daily_best["time"], 34.2, "Resultado peor no reemplaza récord")
 	var text := DailyShare.text(GameManager.daily_best)
 	assert_true(text.contains("35s") and text.contains("×1.5") and text.contains("⭐⭐⭐"), "Tarjeta con estrellas, tiempo y velocidad")
+	assert_true(text.ends_with(DailyShare.URL), "La tarjeta termina con el enlace para jugar")
 	GameManager.set_language("en")
 	assert_true(DailyShare.text(GameManager.daily_best).contains("Daily challenge"), "Tarjeta traducida")
 	GameManager.save_game()
@@ -4181,6 +4412,7 @@ func test_settings_and_backups() -> void:
 	GameManager.save_game()
 	assert_equals(GameManager.import_save(export_path), OK, "Restaurar copia")
 	assert_equals(GameManager.coins, 456, "Restauración conserva economía")
+	assert_true(EventBus.save_replaced.get_connections().any(func(c): return c["callable"].get_object() == AudioManager and c["callable"].get_method() == "_refresh_music"), "Restaurar la partida refresca también el silencio de la música")
 	var backup = JSON.parse_string(FileAccess.get_file_as_string(original_path + ".backup"))
 	assert_equals(int(backup["coins"]), 12, "Se conserva copia de la partida reemplazada")
 	GameManager.write_save(import_path, {"version": GameManager.SAVE_VERSION + 1, "upgrades": {}, "completed_levels": {}})
@@ -4294,12 +4526,22 @@ func test_invasion_mode() -> void:
 	assert_true(not GameManager.is_invasion_level_unlocked("inv_iberia_2"), "El segundo frente requiere el primero")
 	assert_equals(GameManager.get_total_stars(), 15, "Las estrellas de campaña no cambian")
 
+	var first_expected := GameManager.calculate_invasion_gold("inv_iberia_1", 3)
 	var first := GameManager.complete_invasion_level("inv_iberia_1", 3)
 	assert_true(int(first["gold"]) > 0, "El frente paga oro")
+	assert_equals(int(first["gold"]), first_expected, "El primer frente paga la tarifa completa")
 	assert_equals(GameManager.invasion_level_stars("inv_iberia_1"), 3, "El frente guarda sus estrellas")
 	assert_true(not GameManager.completed_levels.has("inv_iberia_1"), "Las invasiones no contaminan la campaña")
 	assert_true(GameManager.is_invasion_level_unlocked("inv_iberia_2"), "Ganar el primero abre el segundo")
 	assert_true(not GameManager.is_invasion_level_unlocked("inv_iberia_3"), "El tercero sigue cerrado")
+	GameManager.invasion_stars["inv_iberia_1"] = 1
+	var improve_expected := GameManager.calculate_invasion_gold("inv_iberia_1", 3)
+	var improve := GameManager.complete_invasion_level("inv_iberia_1", 3)
+	assert_equals(int(improve["gold"]), improve_expected, "Mejorar estrellas paga la tarifa de mejora")
+	GameManager.invasion_stars["inv_iberia_1"] = 3
+	var replay_expected := GameManager.calculate_invasion_gold("inv_iberia_1", 3)
+	var replay := GameManager.complete_invasion_level("inv_iberia_1", 3)
+	assert_equals(int(replay["gold"]), replay_expected, "Repetir sin mejorar paga la tarifa reducida")
 	GameManager.complete_invasion_level("inv_iberia_2", 2)
 	var third := GameManager.complete_invasion_level("inv_iberia_3", 1)
 	assert_true(third["region_complete"], "Los tres frentes completan la región")
@@ -4311,9 +4553,10 @@ func test_invasion_mode() -> void:
 	assert_equals(GameManager.total_invasion_fronts(), 3, "Tres frentes completados")
 	assert_equals(GameManager.total_invasion_stars(), 6, "Seis estrellas de invasión")
 	assert_equals(GameManager.get_total_stars(), 15, "La campaña conserva sus 15 estrellas")
+	assert_equals(GameManager.recommended_invasion_region("iberia"), "", "Una región completa no se propone como siguiente")
 
-	var replay := GameManager.complete_invasion_level("inv_iberia_1", 3)
-	assert_true(not replay["region_complete"] or int(replay["region_bonus"]) == 0, "Repetir no vuelve a pagar la región")
+	var replay_after_complete := GameManager.complete_invasion_level("inv_iberia_1", 3)
+	assert_true(not replay_after_complete["region_complete"] or int(replay_after_complete["region_bonus"]) == 0, "Repetir no vuelve a pagar la región")
 	GameManager.complete_invasion_level("inv_iberia_2", 3)
 	var mastery := GameManager.complete_invasion_level("inv_iberia_3", 3)
 	assert_true(mastery["region_mastered"], "Tres estrellas en los tres frentes dan dominio")
@@ -4500,6 +4743,8 @@ func test_review_regressions() -> void:
 	assert_true(GameManager.is_cosmetic_owned("color_blue"), "Los cosméticos gratuitos siempre están disponibles")
 	assert_equals(LocaleStrings.lang, LanguageCatalog.preferred_from_system(), "Un idioma guardado inválido sigue el idioma del dispositivo")
 	assert_equals(GameManager.conquest_next, 0, "La progresión corrupta vuelve a cero")
+	assert_true(LevelDatabase.collection_cities("no_existe").is_empty(), "Una colección desconocida no devuelve ciudades")
+	assert_true(not LevelDatabase._collections.has("no_existe"), "Una colección desconocida no contamina la caché")
 	assert_true(not GameManager.conquer_city("no_existe"), "El atlas sólo admite ciudades reales")
 	var battle := BattleController.new()
 	var hud: BattleHUD = load("res://scenes/ui/battle_hud.tscn").instantiate()
@@ -4631,6 +4876,21 @@ func test_progression_overhaul() -> void:
 	assert_true(GameManager.medals.has("europe_1"), "Las medallas persisten")
 	assert_equals(GameManager.victory_xp({"stars": 3, "new_medal": true}), 80, "La medalla nueva da XP extra")
 
+	# 3b. Repetir un nivel antiguo no retrocede el marcador de campaña
+	GameManager.current_level_id = "europe_3"
+	GameManager.current_continent = "europe"
+	GameManager.play_level("europe_1")
+	assert_equals(GameManager.get_battle_level_id(), "europe_1", "La batalla carga el nivel repetido")
+	assert_equals(GameManager.current_level_id, "europe_3", "Repetir no mueve el marcador")
+	GameManager.complete_level("europe_1", 3)
+	assert_equals(GameManager.current_level_id, "europe_3", "Completar una repetición tampoco mueve el marcador")
+	GameManager.play_level("asia_1")
+	assert_equals(GameManager.current_level_id, "asia_1", "Un nivel nuevo sí actualiza el marcador")
+	assert_equals(GameManager.current_continent, "asia", "El continente sigue al nivel elegido")
+	GameManager.current_level_id = "europe_3"
+	GameManager.current_continent = "europe"
+	GameManager.play_level("europe_3")
+
 	# 4. Colecciones: ciudades de campaña alcanzables y premio único
 	var cities := LevelDatabase.collection_cities("europe")
 	assert_true(cities.size() >= 10 and cities.has("madrid"), "La colección de Europa reúne sus ciudades de campaña")
@@ -4652,6 +4912,10 @@ func test_progression_overhaul() -> void:
 	for d in 6:
 		twists[LevelDatabase.get_level_data(DailyRewards.challenge_id(20000 + d)).get("rule_key", "")] = true
 	assert_equals(twists.size(), 6, "El desafío rota las seis reglas de continente")
+	var expedition_rules := {}
+	for i in range(12):
+		expedition_rules[LevelDatabase.get_level_data(LevelGenerator.conquest_id(i)).get("rule_key", "")] = true
+	assert_equals(expedition_rules.size(), 6, "Las expediciones rotan las seis reglas de continente")
 	assert_true(LevelDatabase.get_level_data("conquest_1").has("rule_key"), "Las expediciones varían sus reglas")
 
 	# 6. Expediciones: la quinta región es un jefe y paga el doble
@@ -4884,6 +5148,7 @@ func test_telemetry_schema_and_privacy() -> void:
 	assert_true(telemetry._crash_ready, "Los informes de fallos se inicializan con el ajuste predeterminado")
 	assert_equals(telemetry.sdk.options.get("environment"), "debug" if OS.is_debug_build() else "production", "Sentry usa la misma variante que Aptabase")
 	assert_true(not telemetry.sdk.options["send_default_pii"] and not telemetry.sdk.options["attach_log"] and not telemetry.sdk.options["attach_scene_tree"], "Sentry mantiene las restricciones de privacidad")
+	assert_equals(telemetry.sdk.tags.get("software_renderer"), "1" if telemetry._software_renderer else "0", "Sentry marca si el renderizador es software")
 	GameManager.settings["share_crashes"] = false
 	GameManager.settings["share_analytics"] = false
 	telemetry._on_settings_changed()
@@ -4927,6 +5192,10 @@ func test_telemetry_schema_and_privacy() -> void:
 	LocaleStrings.set_locale("es")
 	assert_equals(LocaleStrings.text("share_analytics"), "Estadísticas de uso", "El ajuste de analítica está traducido")
 	assert_equals(LocaleStrings.text("privacy_policy"), "Política de privacidad", "El enlace de privacidad está traducido")
+	assert_equals(LocaleStrings.text("support_project"), "Apoyar en Ko-fi", "El enlace de apoyo está traducido")
+	LocaleStrings.set_locale("en")
+	assert_equals(LocaleStrings.text("support_project"), "Support on Ko-fi", "El enlace de apoyo existe en inglés")
+	LocaleStrings.set_locale("es")
 	LocaleStrings.set_locale(previous_language)
 	GameManager.set_setting("share_analytics", false)
 	GameManager.set_setting("share_crashes", false)
@@ -4985,6 +5254,46 @@ func test_telemetry_schema_and_privacy() -> void:
 	DirAccess.remove_absolute(GameManager.save_path + ".backup")
 	GameManager.reset_save()
 	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Reiniciar progreso conserva las opciones de privacidad")
+
+func test_sentry_engine_noise_filtering() -> void:
+	print("\n-> Test: Sentry descarta ruido del motor sin ocultar fallos reales")
+	GameManager._apply_save({})
+	var telemetry := TelemetryHarness.new()
+	telemetry._init_crashes()
+	assert_true(telemetry._crash_ready, "El filtro de Sentry se instala al inicializar los fallos")
+	var before_send: Callable = telemetry.sdk.options.get("before_send", Callable())
+	assert_true(before_send.is_valid(), "Sentry recibe el callback before_send")
+
+	var event := SentryEventStub.new()
+	event.message = "Mouse is not supported by this display server."
+	assert_true(before_send.call(event) == null, "El aviso de ratón de iOS no crea una incidencia")
+
+	event = SentryEventStub.new()
+	event.message = "CanvasShaderGLES3: Program linking failed:\nFragment shader active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)"
+	telemetry._software_renderer = false
+	assert_true(before_send.call(event) == event, "Un fallo real de shader en una GPU normal sigue reportándose")
+	telemetry._software_renderer = true
+	assert_true(before_send.call(event) == null, "El límite de uniforms de SwiftShader no crea una incidencia")
+	event = SentryEventStub.new()
+	event.message = "Method/function failed."
+	assert_true(before_send.call(event) == null, "El error secundario de SwiftShader no crea una incidencia")
+	telemetry._software_renderer = false
+	assert_true(before_send.call(event) == event, "Un Method/function failed. real no se confunde con SwiftShader")
+
+	event = SentryEventStub.new()
+	event.message = "Invalid call. Nonexistent function 'foo' in base 'Node'."
+	assert_true(before_send.call(event) == event, "Los errores de GDScript nunca se filtran")
+	event = SentryEventStub.new()
+	event.message = "CanvasShaderGLES3: Program linking failed: otro fallo"
+	assert_true(before_send.call(event) == event, "Los shaders que fallan por otra causa siguen reportándose")
+
+	event = SentryEventStub.new()
+	event.message = "CanvasShaderGLES3: Program linking failed:\nFragment shader active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)"
+	event.crash = true
+	telemetry._software_renderer = true
+	assert_true(before_send.call(event) == event, "Un crash fatal nunca se filtra, aunque coincida con el ruido")
+	telemetry.free()
+	GameManager._apply_save({})
 
 func test_candidate_telemetry_is_tagged() -> void:
 	print("\n-> Test: Telemetría de candidata marcada, no silenciada")

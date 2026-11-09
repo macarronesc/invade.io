@@ -21,6 +21,32 @@ def run_block(name, workflow=WORKFLOW):
 
 
 class WorkflowChecks(unittest.TestCase):
+    def test_dev_dependency_updates_and_audit_are_enforced(self):
+        dependabot = (ROOT / ".github/dependabot.yml").read_text()
+        self.assertEqual(dependabot.count("target-branch: dev"), 2)
+        self.assertEqual(dependabot.count("interval: daily"), 2)
+        self.assertIn('dependency-name: "typescript"', dependabot)
+        self.assertIn('versions: [">=7.0.0"]', dependabot)
+        checks = WORKFLOW.split("\n  checks:\n", 1)[1].split("\n  build-android:\n", 1)[0]
+        for check in ("actions/setup-node@", "node-version: '24'", "npm ci --dry-run",
+                      "npm audit --package-lock-only --audit-level=high",
+                      "python3 -m pip install --require-hashes -r tools/requirements-ci.txt"):
+            self.assertIn(check, checks)
+        pages = (ROOT / ".github/workflows/pages.yml").read_text()
+        push = pages.split("  push:\n", 1)[1].split("  pull_request:", 1)[0]
+        self.assertIn("branches: [dev, main]", push)
+
+    def test_android_handoff_uses_a_dependent_job(self):
+        build = WORKFLOW.split("\n  build-android:\n", 1)[1].split("\n  verify-android-handoff:\n", 1)[0]
+        self.assertNotIn("actions/download-artifact@", build, "Do not download an artifact in the job that uploaded it")
+        self.assertIn("id: upload_unsigned_aab", build)
+        self.assertIn("unsigned_artifact_id: ${{ steps.upload_unsigned_aab.outputs.artifact-id }}", build)
+        handoff = WORKFLOW.split("\n  verify-android-handoff:\n", 1)[1].split("\n  build-ios:\n", 1)[0]
+        self.assertIn("needs: build-android", handoff)
+        self.assertIn("artifact-ids: ${{ needs.build-android.outputs.unsigned_artifact_id }}", handoff)
+        self.assertIn("EXPECTED_SHA256: ${{ needs.build-android.outputs.unsigned_sha256 }}", handoff)
+        self.assertIn("sha256sum", handoff)
+
     def test_pages_builds_untrusted_prs_without_deployment_privileges(self):
         pages = (ROOT / ".github/workflows/pages.yml").read_text()
         build, deploy = pages.split("\n  pages-deploy:\n")
