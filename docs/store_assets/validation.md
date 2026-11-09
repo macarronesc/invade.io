@@ -41,7 +41,7 @@ Date: 1 November 2026. Target source version: **0.4.0**.
   1,029 passed. Launch, UI, wide-UI, rotation, and gesture checks passed. Existing
   Godot shutdown resource-leak warnings remain.
 
-## Previous release-candidate revalidation
+## Earlier release-candidate revalidation (0.3.2)
 
 Date: 29 October 2026. Target source version: **0.3.2**.
 
