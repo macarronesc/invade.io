@@ -2,6 +2,30 @@
 
 ## Release-candidate revalidation
 
+Date: 9 November 2026. Target source version: **0.5.0**.
+
+- Full Godot capture completed for 15 locales: 120 phone images, 60 tablet images,
+  and one feature graphic. The manifest records version 0.5.0, commit `d2c36a2`,
+  and a clean working tree at capture time.
+- 105 of the 181 PNGs changed: the four menu screenshots per locale and three
+  tablet menu screenshots per locale. The battle screenshots (conquer, tactics,
+  invasions, daily) and the feature graphic are byte-identical to 0.4.0. The menu
+  changes are the new header heart (Ko-fi support) button, visible square/diamond
+  base shapes in the Army tab, and a larger campaign map because the level card is
+  now a scrollable area in portrait. English/Arabic phone and English tablet
+  captures were reviewed; no clipping, missing-text, or blank-image regression.
+- `python3 tools/build_store_listings.py --check` and the Python tools suite
+  (38 tests) passed.
+- Full regression suite: 6,128 passed, 0 failed. Quick: 4,644 passed. Mobile:
+  1,039 passed. Balance, invasions, flow, UI (en/ar), invasion-UI, wide-UI,
+  rotation, gestures, and launch (capture/slow-startup) checks passed. Existing
+  Godot shutdown resource-leak warnings remain.
+- `refactor_check` against `v0.4.0`: formations and all other signatures match;
+  level and reward signatures differ only because of the documented 0.5.0 fixes
+  (conquest rule rotation, invasion/daily payout correction, replay bookmark).
+
+## Previous release-candidate revalidation (0.4.0)
+
 Date: 1 November 2026. Target source version: **0.4.0**.
 
 - Full Godot capture completed for 15 locales: 120 phone images, 60 tablet images,
