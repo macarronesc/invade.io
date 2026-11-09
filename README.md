@@ -12,6 +12,7 @@ gameplay, no ads, and no in-app purchases.
 · [Documentation](https://macarronesc.github.io/invade.io/docs/)
 · [Run locally](#run-locally)
 · [Contribute](CONTRIBUTING.md)
+· [Support on Ko-fi](https://ko-fi.com/macarronesc)
 · [Make your own version](docs/FORKING.md)
 
 [![License: Apache-2.0](https://img.shields.io/github/license/macarronesc/invade.io)](LICENSE)

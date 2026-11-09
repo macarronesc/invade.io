@@ -11,6 +11,7 @@ extends Node
 
 const APTABASE_KEY := "A-EU-0808905150" # A-EU-... desde eu.aptabase.com
 const SENTRY_DSN := "https://551161fb05ed88e939113d6b2ca03176@o4512300980436992.ingest.de.sentry.io/4512300983582800" # https://...@o....ingest.sentry.io/... desde sentry.io
+const DONATE_URL := "https://ko-fi.com/macarronesc"
 const PRIVACY_URL := "https://macarronesc.github.io/invade.io/privacy-policy.html"
 
 ## Cortes de duración para poder agrupar en el panel sin consultas complejas

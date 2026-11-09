@@ -190,5 +190,11 @@ countries, and large-screen/PC availability in the existing application. Do not
 copy historical account-registration instructions or predict an IARC rating.
 No-ads/no-purchases/no-account statements must remain true of the shipped game;
 optional telemetry still needs accurate collection disclosures when data leaves
-the device. Online services and notifications are not required for this release
+the device. The optional "Support on Ko-fi" heart button (all builds, including Play) opens
+`Telemetry.DONATE_URL` in the browser, unlocks nothing and has no in-app payment.
+Google Play's Payments policy restricts links to non-Play-Billing payments inside
+apps and has rejected similar donation links; if Play objects, remove only the
+`btn_support` and `support_project` button entries and keep the Ko-fi link on the
+website, README and `.github/FUNDING.yml`.
+Online services and notifications are not required for this release
 and are not integrated; see [Platform scope](PLATFORM_INTEGRATION.md#features-not-integrated).

@@ -127,6 +127,10 @@ func _build(restore_focus: String = "") -> void:
 	if OS.has_feature("mobile") and not AccessibilityServer.is_supported():
 		_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("accessibility_mobile_reader_note")))
 
+	_section("section_support")
+	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("support_note")))
+	_button("support_project", func(): OS.shell_open(Telemetry.DONATE_URL), "heart")
+
 	_section("section_privacy")
 	_toggle("share_analytics", GameManager.settings["share_analytics"], func(value):
 		GameManager.set_setting("share_analytics", value))

@@ -23,6 +23,7 @@ static var return_to_battle := false
 var current_tab := ""
 var coins_label: Label
 var btn_settings: Button
+var btn_support: Button
 var _content: Control
 var _header_margin: MarginContainer
 var _nav_margin: MarginContainer
@@ -98,6 +99,9 @@ func _build() -> void:
 	coins_label = coins.find_children("*", "Label", true, false)[0]
 	coins_label.theme_type_variation = "Heading"
 	bar.add_child(coins)
+	btn_support = UIThemeHelper.icon_button("heart", LocaleStrings.text("support_project"))
+	btn_support.pressed.connect(func(): OS.shell_open(Telemetry.DONATE_URL))
+	bar.add_child(btn_support)
 	btn_settings = UIThemeHelper.icon_button("gear", LocaleStrings.text("settings"))
 	btn_settings.pressed.connect(_open_settings)
 	bar.add_child(btn_settings)
@@ -220,8 +224,9 @@ func _open_settings() -> void:
 
 func _set_background_focus(enabled: bool) -> void:
 	var mode := Control.FOCUS_ALL if enabled else Control.FOCUS_NONE
-	if is_instance_valid(btn_settings):
-		btn_settings.focus_mode = mode
+	for header_button in [btn_settings, btn_support]:
+		if is_instance_valid(header_button):
+			header_button.focus_mode = mode
 	for button in _nav.values():
 		if is_instance_valid(button):
 			button.focus_mode = mode
@@ -240,6 +245,8 @@ func _refresh_appearance() -> void:
 	coins_label.add_theme_color_override("font_color", UIThemeHelper.colors.text)
 	btn_settings.tooltip_text = LocaleStrings.text("settings")
 	btn_settings.accessibility_name = LocaleStrings.text("settings")
+	btn_support.tooltip_text = LocaleStrings.text("support_project")
+	btn_support.accessibility_name = LocaleStrings.text("support_project")
 	for id in TABS:
 		_nav[id].text = LocaleStrings.text(TABS[id]["title"])
 	if _content.get_child_count() > 0:
