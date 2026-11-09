@@ -2,8 +2,8 @@
 
 [Documentation](README.md) · [Android publishing](PLAY_STORE.md) · [Release process](RELEASES.md)
 
-**Current source target: 0.4.0 release candidate. Store copy was prepared for
-the 0.3.2 refresh; graphics were recaptured and revalidated on 1 November 2026.**
+**Current source target: 0.5.0 release candidate. Store copy was prepared for
+the 0.3.2 refresh and updated for 0.5.0; graphics were recaptured and revalidated on 9 November 2026.**
 
 This document records the implemented marketing work, the files to upload, and the
 checks the owner must make in Play Console. Nothing in this workflow publishes an
@@ -235,7 +235,7 @@ The live English/Spanish listing inspected on 28 October said two languages,
 advertised 15 languages and telemetry off by default. The public privacy page dated
 22 October also described opt-in telemetry. **Those statements were not changed remotely.**
 
-The checked-out **0.4.0** code has `share_analytics=true` and `share_crashes=true`
+The checked-out **0.5.0** code has `share_analytics=true` and `share_crashes=true`
 as defaults for new/missing settings; saved false choices are preserved. It includes
 Aptabase and Sentry and requests network permissions. The local privacy-policy
 source already describes this behavior. This marketing work does not change it.
@@ -284,7 +284,7 @@ automatic form answers):
 | Encrypted requests and deletion/contact process | Security practices | Verify actual transport and what deletion requests can be fulfilled; deleting a local save is not deletion of provider data |
 
 A listing-only update need not invent an application release. If shipping the
-pending 0.4.0 build too, write accurate release notes from
+pending 0.5.0 build too, write accurate release notes from
 `docs/store_listing/release_notes.md`; do not describe captioned store screenshots
 as newly implemented in-game functionality.
 The ZIP includes that document as `release-notes-reference.md`; use only the
