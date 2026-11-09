@@ -62,8 +62,8 @@ for published build artifacts. A GitHub release is not automatic store submissio
 | Online competition | No multiplayer, live PvP, or online leaderboard |
 | Accessibility | Configurable presentation and alternate battle controls; mobile screen-reader support is not established |
 
-The store material was fully recaptured on November 1 for source version
-**0.4.0**; earlier captures were prepared against **0.3.1** and carried into
+The store material was fully recaptured on November 9 for source version
+**0.5.0**; earlier captures were prepared against **0.3.1** and carried into
 **0.3.2**. On October 30 the
 public policy described enabled telemetry defaults, while the Google Play listing
 still contained older descriptions and opt-in/no-collection wording. This source
