@@ -807,11 +807,15 @@ func _refresh_result_title() -> void:
 			title = ["invasion_front_done", UIThemeHelper.colors.primary]
 	elif _result.get("expedition_finale", false):
 		title = ["expedition_done", UIThemeHelper.colors.gold]
+	elif _result.get("is_ascension", false) and _result.get("ascension_unlocked", 0) > 0:
+		title = ["asc_tier_done", UIThemeHelper.colors.gold]
 	elif _result.get("is_conquest", false):
 		title = ["conquest_done", UIThemeHelper.colors.primary]
 	elif _result.get("is_continent_conquest", false):
 		title = ["continent_conquest", UIThemeHelper.colors.gold]
 	victory_title.text = LocaleStrings.text(title[0])
+	if title[0] == "asc_tier_done":
+		victory_title.text %= int(_result.get("ascension_tier", Ascension.MIN_TIER))
 	victory_title.add_theme_color_override("font_color", title[1])
 
 ## Progreso de la partida: XP ganada sobre la barra de rango, lo desbloqueado y un siguiente
@@ -852,6 +856,11 @@ func _show_progress(stats: Dictionary) -> void:
 		unlocks.append(LocaleStrings.text("invasions_unlocked") % LevelDatabase.continent_name(str(stats["invasions_unlocked"])))
 		InvasionPage.last_continent = str(stats["invasions_unlocked"])
 		InvasionPage.last_region = ""
+	if int(stats.get("ascension_unlocked", 0)) > 0:
+		unlocks.append(LocaleStrings.text("asc_unlocked") % int(stats["ascension_unlocked"]))
+		for id in GameManager.UPGRADES:
+			if GameManager.UPGRADES[id]["tier"] == int(stats["ascension_unlocked"]):
+				unlocks.append(LocaleStrings.text("upgrade_new") % LocaleStrings.text("upg_" + id))
 	if str(stats.get("continent_reward", "")) != "":
 		var invasion_reward := CosmeticsDatabase.get_by_id(str(stats["continent_reward"]))
 		if not invasion_reward.is_empty():
@@ -889,6 +898,10 @@ func _on_result_action() -> void:
 				var next_invasion := GameManager.next_invasion_level(battle_controller.level_id)
 				if next_invasion != "":
 					GameManager.play_level(next_invasion)
+			elif _result.get("is_ascension", false):
+				var next_ascension := GameManager.next_ascension_level(battle_controller.level_id)
+				if next_ascension != "":
+					GameManager.play_level(next_ascension)
 			else:
 				var next := GameManager.get_next_level(battle_controller.level_id)
 				if next != "":
@@ -1091,6 +1104,14 @@ func _on_next_level_pressed() -> void:
 		return
 	if LevelDatabase.mode_of(battle_controller.level_id) == "conquest":
 		GameManager.play_conquest(LevelGenerator.conquest_index(battle_controller.level_id) + 1)
+		_leave_battle()
+		return
+	if LevelDatabase.mode_of(battle_controller.level_id) == "ascension":
+		var next_ascension := GameManager.next_ascension_level(battle_controller.level_id)
+		if next_ascension == "":
+			_on_map_pressed()
+			return
+		GameManager.play_level(next_ascension)
 		_leave_battle()
 		return
 	var next_id = GameManager.get_next_level(battle_controller.level_id)

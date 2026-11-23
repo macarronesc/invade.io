@@ -39,7 +39,7 @@ func _ready() -> void:
 func _signatures() -> Dictionary:
 	var out := {}
 	var ids: Array = LevelDatabase.get_level_ids().duplicate()
-	for region in InvasionDatabase.get_regions():
+	for region in InvasionDatabase.SEASON_ONE:
 		ids.append_array(InvasionDatabase.get_region_level_ids(region["id"]))
 	for day in range(20750, 20756):
 		ids.append(DailyRewards.challenge_id(day))
@@ -52,6 +52,11 @@ func _signatures() -> Dictionary:
 			for id in ids:
 				levels.append(JSON.stringify(LevelDatabase.get_level_data(id, landscape)).sha256_text())
 			out["levels/%s/%s" % [lang, landscape]] = "".join(levels).sha256_text()
+	var balance := []
+	for id in ids:
+		var b := LevelDatabase.get_balance(id)
+		balance.append([id, LevelDatabase.get_difficulty(id)] + ["cadence", "grace", "production", "actions", "joint_sources", "boss_interval", "boss_reinforcement"].map(func(k): return b[k]))
+	out["balance"] = JSON.stringify(balance).sha256_text()
 	var formation := PackedVector2Array()
 	for packet in Troop.MAX_PACKETS:
 		for dots in range(1, Troop.MAX_DOTS + 1):
@@ -80,7 +85,16 @@ func _signatures() -> Dictionary:
 			EventBus.battle_won.connect(receive)
 			battle._trigger_victory()
 			EventBus.battle_won.disconnect(receive)
-			rewards.append([result, GameManager.save_data()])
+			# Fields added after the baseline are additive; every other field must stay identical.
+			var saved := GameManager.save_data()
+			for key in ["ascension_stars", "version"]:
+				saved.erase(key)
+			saved["upgrades"] = saved["upgrades"].duplicate()
+			for key in GameManager.EXTRA_COMBAT_UPGRADES:
+				saved["upgrades"].erase(key)
+			for key in ["is_ascension", "ascension_tier", "ascension_unlocked"]:
+				result.erase(key)
+			rewards.append([result, saved])
 			battle.free()
 	out["rewards"] = JSON.stringify(rewards).sha256_text()
 	return out

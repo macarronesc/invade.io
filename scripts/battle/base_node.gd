@@ -100,13 +100,17 @@ func get_type_production_multiplier() -> float:
 			return 1.0
 
 func get_defense_multiplier() -> float:
+	var multiplier := 1.0
 	match base_type:
 		BaseType.FORTRESS:
-			return 2.0
+			multiplier = 2.0
+			if faction != GameManager.Faction.PLAYER:
+				multiplier *= 1.0 - GameManager.get_breach_reduction()
 		BaseType.FACTORY:
-			return 0.5
-		_:
-			return 1.0
+			multiplier = 0.5
+	if faction == GameManager.Faction.PLAYER:
+		multiplier *= 1.0 + GameManager.get_defense_bonus()
+	return multiplier
 
 ## Tropas generadas por segundo con los modificadores de nivel, tipo y facción
 func get_production_rate() -> float:
@@ -202,10 +206,15 @@ func setup(data: Dictionary) -> void:
 	_update_tier_parameters()
 	_update_label()
 
+## The Barracks upgrade only enlarges the player's own bases, so it follows ownership changes
+func _refresh_capacity() -> void:
+	var capacity: int = TIER_PARAMS.get(tier, DEFAULT_TIER_PARAMS)["capacity"]
+	max_capacity = roundi(capacity * GameManager.get_capacity_multiplier()) if faction == GameManager.Faction.PLAYER else capacity
+
 func _update_tier_parameters() -> void:
 	var params: Dictionary = TIER_PARAMS.get(tier, DEFAULT_TIER_PARAMS)
 	radius = params["radius"]
-	max_capacity = params["capacity"]
+	_refresh_capacity()
 	if label_name:
 		label_name.position.y = radius + 20.0
 	_dirty = true
@@ -357,6 +366,9 @@ func receive_troops(incoming_faction: int, count: int) -> void:
 			# Conquista
 			troops = maxi(1, count - ceili(power))
 			fortress_absorbed_damage = 0
+			if incoming_faction == GameManager.Faction.PLAYER and GameManager.get_capture_garrison() > 0:
+				troops += GameManager.get_capture_garrison()
+				float_text("+%d" % GameManager.get_capture_garrison(), Color.WHITE)
 			_change_faction(incoming_faction)
 	_update_label()
 	_dirty = true
@@ -369,6 +381,7 @@ func _bump(squash: Vector2, velocity: Vector2, shake: float) -> void:
 func _change_faction(new_faction: int) -> void:
 	var prev_faction = faction
 	faction = new_faction
+	_refresh_capacity()
 	_trigger_conquest_shockwave(new_faction)
 	refresh_accessible_labels()
 	AudioManager.play_capture()

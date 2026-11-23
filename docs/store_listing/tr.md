@@ -23,12 +23,12 @@ Her hamle savaşı değiştirir
 Daha hızlı asker toplamak için fabrikaları ele geçir, önemli başkentleri tut ve kalelerin savunmasını aş. Ormanlar, vahalar, deniz yolları ve takviye alan güçlü düşmanlar her kıtada farklı taktikler gerektirir. Tek harekette birkaç dost üssü birleştir veya birliklerini geri çağırmak için rotayı kes.
 
 Bir seferden çok daha fazlası
-Altı kıtada 30 ana sefer bölümü oyna. Her kıtanın ana seferini tamamlayarak bölgesel istilalarını aç: toplam 36 bölge ve 108 cephe. Yıldızları topla, bölgeleri tamamlayarak altın kazan ve kıtaları bitirerek görünüm ödüllerini aç.
+Altı kıtada 30 ana sefer bölümü oyna. Her kıtanın ana seferini tamamlayarak bölgesel istilalarını aç: toplam 59 bölge ve 177 cephe. Yıldızları topla, bölgeleri tamamlayarak altın kazan ve kıtaları bitirerek görünüm ödüllerini aç.
 
 Serbest fetihte her keşif seferi beş bölgeden geçer ve bir bölüm sonu savaşıyla biter. Günlük mücadelede kurallar değişir; başlangıç kuvvetleri eşittir ve savaş yükseltmeleri uygulanmaz. Rekorunu geliştir ve sonuç kartını kopyalayıp arkadaşlarınla paylaş. Mücadeleler cihazında oynanır, diğer oyuncularla gerçek zamanlı karşılaşma değildir.
 
 Oynayarak gelişen ordu
-Garnizonu, asker toplamayı, yürüyüş hızını ve altın ödüllerini geliştir. Rütbe atla, atlasta sefer şehirlerini biriktir ve 20 başarıyı tamamla. Ordu renkleri, üs şekilleri, birlik stilleri ve harita temaları yalnızca görünümü değiştirir; savaş gücünü etkilemez.
+Garnizonu, asker toplamayı, yürüyüş hızını ve altın ödüllerini geliştir. Rütbe atla, atlasta sefer şehirlerini biriktir ve 23 başarıyı tamamla. Ordu renkleri, üs şekilleri, birlik stilleri ve harita temaları yalnızca görünümü değiştirir; savaş gücünü etkilemez.
 
 Kendi tarzında oyna
 • Çevrimdışı, reklamsız ve uygulama içi satın alma olmadan oyna. Altın oynayarak kazanılır.

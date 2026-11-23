@@ -153,6 +153,9 @@ func _ready() -> void:
 		test_large_screen_layouts()
 		await test_large_text_and_focus()
 		test_invasion_mode()
+		test_ascension()
+		test_ascension_upgrades()
+		test_threat_curve()
 		test_language_system()
 		await test_locale_ui_fit()
 	else:
@@ -370,6 +373,8 @@ func run_all_tests() -> void:
 	await test_settings_and_backups()
 	test_continent_mechanics()
 	test_invasion_mode()
+	test_ascension()
+	test_ascension_upgrades()
 	test_cleanup_regressions()
 	test_packets_and_battle_feedback()
 	test_progression_overhaul()
@@ -4168,7 +4173,8 @@ func test_conquest_mode() -> void:
 	assert_true(LevelGenerator.is_conquest("conquest_7") and not LevelGenerator.is_conquest("europe_1"), "Se reconocen los ids de conquista")
 	assert_equals(LevelGenerator.conquest_index("conquest_12"), 12, "El id guarda la región")
 	assert_true(LevelGenerator.conquest_difficulty(1) > LevelGenerator.conquest_difficulty(0), "La dificultad crece con la región")
-	assert_equals(LevelGenerator.conquest_difficulty(99), 1.0, "La dificultad tiene techo en 1.0")
+	assert_true(LevelGenerator.conquest_difficulty(99) > 1.0, "La conquista ya no tiene techo de dificultad")
+	test_threat_curve()
 	assert_equals(str(LevelGenerator.conquest_definition(3)), str(LevelGenerator.conquest_definition(3)), "La región es la misma para todos")
 	var problems := 0
 	for i in [0, 1, 2, 5, 6, 11]:
@@ -4226,6 +4232,469 @@ func test_conquest_mode() -> void:
 	remove_child(hud)
 	hud.free()
 	GameManager.reset_save()
+
+## Threat <= 1 is the original curve; above it difficulty rises monotonically within hard caps.
+func test_threat_curve() -> void:
+	var base := LevelDatabase.get_balance("conquest_28")
+	assert_true(LevelDatabase.get_difficulty("conquest_28") <= 1.0 and Threat.over(1.0) == 0.0, "Hasta 1.0 no se aplica amenaza extra")
+	assert_equals(Threat.troops(1.0), 1.0, "La curva original no cambia las guarniciones")
+	assert_equals(Threat.target_scale(0.5), 1.0, "La curva original no cambia el tiempo de estrellas")
+	var previous := base
+	for index in [29, 39, 59, 99, 399]: # same expedition step, so no breather offsets
+		var now := LevelDatabase.get_balance("conquest_%d" % index)
+		assert_true(now["cadence"] <= previous["cadence"] and now["production"] >= previous["production"] and now["grace"] <= previous["grace"], "La amenaza no afloja: región %d" % index)
+		assert_true(now["cadence"] >= 1.5 and now["production"] <= 2.0 and now["grace"] >= 4.0 and now["boss_reinforcement"] <= 20, "Techos de amenaza: región %d" % index)
+		previous = now
+	assert_equals(Threat.troops(99.0), 2.0, "Guarnición enemiga con techo x2")
+	assert_equals(Threat.target_scale(99.0), 0.6, "Tiempo de estrellas con suelo x0.6")
+	var def_low := LevelGenerator.conquest_definition(10)
+	var def_high := LevelGenerator.conquest_definition(100)
+	assert_true(def_high["bases"][1]["troops"] > def_low["bases"][1]["troops"] and def_high["target_time"] < def_low["target_time"] + 1, "Las regiones profundas tienen más tropas y menos tiempo")
+	assert_true(LevelDatabase.get_level_data("conquest_100")["bases"].size() <= 14, "La amenaza no añade neutrales sin límite")
+	assert_true(GameManager.complete_conquest(40) > GameManager.complete_conquest(20), "El oro sigue creciendo en regiones profundas")
+	assert_equals(GameManager.complete_conquest(200), GameManager.complete_conquest(GameManager.CONQUEST_GOLD_CAP_INDEX), "El oro tiene techo")
+
+## Ascension: ids, derived levels, unlocks, rewards, persistence and the Play tab selector.
+func test_ascension() -> void:
+	print("\n-> Test: Ascensión (ids, niveles derivados, desbloqueo, recompensas y guardado)")
+	GameManager.reset_save()
+	for bad in ["asc1_europe_1", "asc11_europe_1", "asc02_europe_1", "asc2_nowhere_1", "asc2", "asc_europe_1", "ascx_europe_1", "asia_1", "europe_1", ""]:
+		assert_true(not Ascension.is_ascension(bad), "No es un id de ascensión: '%s'" % bad)
+	assert_equals(LevelDatabase.mode_of("asia_1"), "campaign", "Los ids de campaña que empiezan por «as» no cambian de modo")
+	assert_equals(LevelDatabase.mode_of("asc2_north_america_3"), "ascension", "Modo de un id de ascensión")
+	assert_equals(Ascension.base_of("asc7_north_america_3"), "north_america_3", "El id base conserva los guiones bajos del continente")
+	assert_equals(Ascension.tier_of("europe_1"), 1, "La campaña es el nivel 1")
+	assert_equals(LevelDatabase.get_continent_of("asc3_south_america_2"), "south_america", "Continente de un nivel de ascensión")
+	assert_equals(LevelDatabase.get_level_number("asc3_south_america_5"), 5, "Número de nivel de un nivel de ascensión")
+	assert_equals(Ascension.tier_level_ids(2).size(), LevelDatabase.get_level_ids().size(), "Un nivel de ascensión por nivel de campaña")
+
+	# Mapa derivado: mismas ciudades y geografía, amenaza mayor, sin duplicar la geografía en caché
+	var problems := 0
+	var cache_before := LevelDatabase._built.size()
+	for tier in [2, 3, 6, 10]:
+		for base_id in LevelDatabase.get_level_ids():
+			var id := Ascension.level_id(tier, base_id)
+			var base := LevelDatabase.get_level_data(base_id)
+			var level := LevelDatabase.get_level_data(id)
+			var rivals_base: int = base["bases"].filter(func(b): return b["faction"] > GameManager.Faction.PLAYER).size()
+			var rivals: int = level["bases"].filter(func(b): return b["faction"] > GameManager.Faction.PLAYER).size()
+			var factions := {}
+			for b in level["bases"]:
+				factions[b["faction"]] = true
+			if level["bases"].size() != base["bases"].size() or not is_same(level["geo"], base["geo"]) or level["id"] != id or level["tier"] != tier:
+				problems += 1
+			elif level["bases"].map(func(b): return b["city"]) != base["bases"].map(func(b): return b["city"]):
+				problems += 1
+			elif rivals < rivals_base or rivals > 3 + 0 or factions.size() > 5 or not level["bases"].any(func(b): return b["faction"] == GameManager.Faction.NEUTRAL) and base["bases"].any(func(b): return b["faction"] == GameManager.Faction.NEUTRAL):
+				problems += 1
+			elif level["target_time"] > base["target_time"]:
+				problems += 1
+			for i in level["bases"].size():
+				var b: Dictionary = level["bases"][i]
+				var capacity: int = BaseNode.TIER_PARAMS[b.get("tier", 1)]["capacity"]
+				if b["faction"] > GameManager.Faction.PLAYER and b["troops"] > maxi(capacity, base["bases"][i]["troops"]):
+					problems += 1
+				if b["faction"] == GameManager.Faction.PLAYER and b["troops"] != base["bases"][i]["troops"]:
+					problems += 1
+	assert_equals(problems, 0, "Los niveles de ascensión conservan mapa y ciudades, suben la amenaza y respetan capacidades")
+	assert_true(is_same(LevelDatabase.get_level_data("asc2_europe_1"), LevelDatabase.get_level_data("asc2_europe_1")), "El nivel derivado se cachea")
+	assert_true(LevelDatabase._built.size() <= LevelDatabase.MAX_CACHED_LEVELS and cache_before <= LevelDatabase.MAX_CACHED_LEVELS, "La ascensión respeta el límite de la caché")
+	var base_l := LevelDatabase.get_level_data("north_america_3")
+	var tier2 := LevelDatabase.get_level_data("asc2_north_america_3")
+	var enemy_factions := func(l: Dictionary) -> int:
+		var set := {}
+		for b in l["bases"]:
+			if b["faction"] > GameManager.Faction.PLAYER:
+				set[b["faction"]] = true
+		return set.size()
+	assert_equals(enemy_factions.call(base_l), 2, "Campaña de partida: dos facciones rivales")
+	assert_equals(enemy_factions.call(LevelDatabase.get_level_data("asc2_europe_1")), enemy_factions.call(LevelDatabase.get_level_data("europe_1")) + 1, "El nivel 2 recluta un rival extra")
+	assert_equals(enemy_factions.call(LevelDatabase.get_level_data("asc3_europe_1")), 2, "Un mapa con dos neutrales sólo recluta un rival: siempre queda un neutral")
+	assert_equals(enemy_factions.call(LevelDatabase.get_level_data("asc3_europe_5")), 3, "El nivel 3 llega a tres facciones rivales en un mapa grande")
+	assert_true(not tier2.has("rule_key_2") and LevelDatabase.get_level_data("asc3_europe_2").has("rule_key_2"), "La segunda regla empieza en el nivel 3")
+	assert_true(CampaignRules.description(LevelDatabase.get_level_data("asc3_europe_2")).contains(LocaleStrings.text(LevelDatabase.get_level_data("asc3_europe_2")["rule_key_2"])), "La ficha explica la segunda regla")
+	assert_true(not LevelDatabase.get_level_data("asc10_oceania_2").has("rule_key_2") or LevelDatabase.get_level_data("asc10_oceania_2")["rule_key_2"] != "rule_oceania", "Las rutas marítimas nunca se apilan")
+	assert_true(LevelDatabase.get_level_data("asc2_europe_5")["bases"].any(func(b): return b.get("boss", false)) and LevelDatabase.get_level_data("asc2_europe_5").has("boss_interval"), "El jefe conserva sus refuerzos en ascensión")
+
+	# Orientación: mismo reparto, sólo cambian las coordenadas
+	for id in ["asc2_europe_1", "asc3_oceania_4", "asc10_asia_5"]:
+		var portrait: Array = LevelDatabase.get_level_data(id, false)["bases"].map(func(b): return [b["city"], b["faction"], b["troops"], b["tier"], b.get("type", ""), b.get("capital", false)])
+		var landscape: Array = LevelDatabase.get_level_data(id, true)["bases"].map(func(b): return [b["city"], b["faction"], b["troops"], b["tier"], b.get("type", ""), b.get("capital", false)])
+		assert_equals(portrait, landscape, "Mismo contenido en ambas orientaciones: " + id)
+
+	# Dificultad: sube con el nivel y con la posición, y nunca depende de las compras
+	var previous := {}
+	for tier in range(2, Ascension.MAX_TIER + 1):
+		var balance := LevelDatabase.get_balance(Ascension.level_id(tier, "europe_5"))
+		var threat := LevelDatabase.get_difficulty(Ascension.level_id(tier, "europe_5"))
+		assert_true(threat > LevelDatabase.get_difficulty(Ascension.level_id(tier, "europe_1")) and threat > 1.0, "La amenaza crece dentro del nivel %d" % tier)
+		if not previous.is_empty():
+			assert_true(balance["cadence"] <= previous["cadence"] and balance["production"] >= previous["production"] and balance["cadence"] >= 1.5 and balance["production"] <= 2.0, "La dificultad no afloja entre niveles: %d" % tier)
+		previous = balance
+		GameManager.upgrades["production_rate"] = 10
+		assert_equals(LevelDatabase.get_balance(Ascension.level_id(tier, "europe_5")), balance, "Comprar no endurece al enemigo en el nivel %d" % tier)
+		GameManager.upgrades["production_rate"] = 0
+	assert_true(LevelDatabase.get_balance("asc2_europe_1")["cadence"] < LevelDatabase.get_balance("europe_1")["cadence"], "La ascensión no hereda el respiro del tutorial")
+	assert_true(LevelDatabase.get_difficulty("asc2_europe_1") > 1.0 and LevelDatabase.get_difficulty("asc10_asia_5") < 7.0, "Rango de amenaza razonable")
+
+	# Desbloqueo: toda la campaña abre el nivel 2; cada nivel exige completar el anterior
+	assert_true(not GameManager.is_ascension_unlocked(2) and not GameManager.is_level_unlocked("asc2_europe_1"), "Ascensión cerrada al empezar")
+	assert_equals(GameManager.recommended_ascension_tier(), 1, "Sin campaña completa se recomienda la campaña")
+	for id in LevelDatabase.get_level_ids().slice(0, 29):
+		GameManager.completed_levels[id] = 1
+	assert_true(not GameManager.is_ascension_unlocked(2), "Un nivel pendiente mantiene la ascensión cerrada")
+	var finisher := BattleController.new()
+	finisher.level_id = "oceania_5"
+	finisher.battle_time = 10.0
+	finisher.target_time = 45.0
+	var won: Array[Dictionary] = []
+	var on_won := func(s): won.append(s)
+	EventBus.battle_won.connect(on_won)
+	finisher._trigger_victory()
+	EventBus.battle_won.disconnect(on_won)
+	finisher.free()
+	assert_equals(won[0]["ascension_unlocked"], 2, "Terminar la campaña anuncia la Ascensión 2")
+	assert_true(GameManager.is_ascension_unlocked(2) and not GameManager.is_ascension_unlocked(3) and not GameManager.is_ascension_unlocked(1) and not GameManager.is_ascension_unlocked(11), "Sólo el nivel 2 se abre")
+	assert_equals(GameManager.recommended_ascension_tier(), 2, "Tras la campaña se recomienda la Ascensión 2")
+	assert_true(GameManager.is_level_unlocked("asc2_asia_3") and not GameManager.is_level_unlocked("asc3_asia_3"), "Los niveles de ascensión siguen el desbloqueo del nivel")
+
+	# Recompensas: primer clear completo, mejora a la mitad, repetición reducida, bonus por nivel
+	GameManager.upgrades["gold_bonus"] = 0
+	var campaign_gold := GameManager.calculate_victory_gold("europe_3", 1, 100)
+	var first := GameManager.calculate_victory_gold("asc2_europe_3", 1, 100)
+	assert_equals(first, roundi(campaign_gold * 1.0 * Ascension.gold_scale(2) / 0.25), "El primer clear de ascensión paga el bonus de nivel sobre el oro de campaña")
+	var expected_first := GameManager.calculate_victory_gold("asc2_europe_3", 1, 60 + 2 * 15)
+	var rewards := GameManager.victory_rewards("asc2_europe_3", 1, 2, true)
+	assert_equals(rewards["gold_earned"], expected_first, "La recompensa es la calculada")
+	assert_true(rewards["is_ascension"] and rewards["ascension_tier"] == 2 and not rewards["is_replay"], "Resultado marcado como ascensión")
+	assert_equals(GameManager.ascension_stars["asc2_europe_3"], 1, "Se guardan las estrellas")
+	assert_equals(GameManager.completed_levels.get("europe_3", 0), 1, "La campaña no se toca")
+	var replay := GameManager.victory_rewards("asc2_europe_3", 1, 2, true)
+	assert_true(replay["is_replay"] and replay["gold_earned"] < expected_first, "Repetir paga menos")
+	var improve := GameManager.victory_rewards("asc2_europe_3", 3, 2, true)
+	assert_true(not improve["is_replay"] and improve["gold_earned"] > replay["gold_earned"] and GameManager.ascension_stars["asc2_europe_3"] == 3, "Mejorar estrellas paga más y las guarda")
+	GameManager.victory_rewards("asc2_europe_3", 2, 2, true)
+	assert_equals(GameManager.ascension_stars["asc2_europe_3"], 3, "Las estrellas nunca bajan")
+	var boss_first := GameManager.victory_rewards("asc2_europe_5", 3, 1, true)
+	assert_true(boss_first["boss_gold"] > 0 and boss_first["gold_earned"] >= boss_first["boss_gold"], "El primer jefe de un nivel de ascensión da su bonus")
+	assert_equals(GameManager.next_ascension_level("asc2_europe_3"), "asc2_europe_4", "Siguiente nivel de ascensión")
+	assert_equals(GameManager.next_ascension_level("asc2_oceania_5"), "", "El último nivel no tiene siguiente")
+	assert_equals(GameManager.next_ascension_level("europe_1"), "", "La campaña no tiene siguiente de ascensión")
+
+	# Completar el nivel 2 abre el 3 una sola vez y cuenta para los logros
+	var last_unlock := 0
+	for id in Ascension.tier_level_ids(2):
+		last_unlock = maxi(last_unlock, GameManager.complete_ascension_level(id, 1))
+	assert_equals(last_unlock, 3, "Completar el nivel 2 abre el 3")
+	assert_equals(GameManager.complete_ascension_level("asc2_europe_1", 3), 0, "No se anuncia dos veces")
+	assert_true(GameManager.is_ascension_complete(2) and GameManager.is_ascension_unlocked(3), "Nivel 2 completo")
+	assert_equals(GameManager.ascension_tiers_completed(), 1, "Un nivel de ascensión completado")
+	assert_equals(AchievementManager.get_stat("ascension_tiers"), 1, "El logro cuenta niveles completos")
+	assert_true(AchievementManager.check_all("ascension_tiers").has("ascended"), "Se desbloquea «Ascendido»")
+	assert_equals(GameManager.recommended_ascension_tier(), 3, "Se recomienda el siguiente nivel")
+	assert_equals(NextGoal._ascension(), LocaleStrings.text("goal_ascension") % [3, 0, 30], "El siguiente objetivo menciona la Ascensión en curso")
+
+	# Guardado: ida y vuelta, saneado de entradas ajenas y compatibilidad con versión 7
+	var saved := GameManager.save_data()
+	assert_equals(saved["version"], 8, "Versión de guardado 8")
+	var restored := saved.duplicate(true)
+	restored["ascension_stars"]["asc2_nowhere_1"] = 3
+	restored["ascension_stars"]["asc1_europe_1"] = 3
+	restored["ascension_stars"]["asc3_europe_1"] = 99
+	restored["ascension_stars"]["asc3_europe_2"] = -4
+	restored["ascension_stars"]["asc3_europe_3"] = "x"
+	GameManager._apply_save(restored)
+	assert_equals(GameManager.ascension_stars.get("asc2_europe_3"), 3, "Las estrellas de ascensión sobreviven al guardado")
+	assert_true(not GameManager.ascension_stars.has("asc2_nowhere_1") and not GameManager.ascension_stars.has("asc1_europe_1"), "Ids inválidos descartados")
+	assert_true(GameManager.ascension_stars["asc3_europe_1"] == 3 and not GameManager.ascension_stars.has("asc3_europe_2") and not GameManager.ascension_stars.has("asc3_europe_3"), "Estrellas saneadas")
+	var legacy := saved.duplicate(true)
+	legacy.erase("ascension_stars")
+	legacy["version"] = 7
+	GameManager._apply_save(legacy)
+	assert_true(GameManager.ascension_stars.is_empty() and GameManager.is_campaign_complete(), "Un guardado v7 carga sin ascensión y conserva la campaña")
+	GameManager.reset_save()
+	assert_true(GameManager.ascension_stars.is_empty(), "Reiniciar borra la ascensión")
+
+	# Interfaz: el selector sólo aparece con la ascensión abierta, cicla niveles y la ficha cambia
+	var play = load("res://scripts/ui/play_tab.gd").new()
+	add_child(play)
+	assert_true(not play.tier_row.visible, "Sin progreso no hay selector (la interfaz inicial no cambia)")
+	remove_child(play)
+	play.free()
+	for id in LevelDatabase.get_level_ids().slice(0, 5):
+		GameManager.completed_levels[id] = 1
+	play = load("res://scripts/ui/play_tab.gd").new()
+	add_child(play)
+	assert_true(play.tier_row.visible and not play.btn_tier.visible and play.tier_caption.text.contains("5"), "Con un continente completo se anuncia el requisito")
+	remove_child(play)
+	play.free()
+	for id in LevelDatabase.get_level_ids():
+		GameManager.completed_levels[id] = 3
+	GameManager.ascension_stars["asc2_europe_1"] = 2
+	play = load("res://scripts/ui/play_tab.gd").new()
+	add_child(play)
+	assert_equals(play.current_tier, 2, "Abre en la Ascensión 2 con la campaña completa")
+	assert_true(play.btn_tier.visible and play.btn_tier.text == LocaleStrings.text("ascension") % 2, "El selector muestra el nivel actual")
+	assert_equals(play.selected_level_id, "asc2_europe_2", "Propone el primer nivel pendiente")
+	assert_true(not play.btn_start_level.disabled and play.level_title.text.contains("2"), "El nivel de ascensión se puede jugar")
+	assert_true(play.level_rule.text.contains(LocaleStrings.text("asc_briefing") % [2, 35]), "La ficha explica el bonus de oro")
+	assert_true(not play.level_medal.visible, "Sin medallas en ascensión")
+	assert_true(play.find_child("BtnLevel_1", true, false).text == "1" and play.find_child("NodeHolder_1", true, false).get_child_count() > 1, "El nodo con estrellas se muestra")
+	play._on_tier_pressed()
+	assert_equals(play.current_tier, 1, "Pulsar vuelve a la campaña cuando no hay más niveles abiertos")
+	assert_true(not Ascension.is_ascension(play.selected_level_id) and play.level_medal.visible, "La campaña recupera su ficha y su medalla")
+	remove_child(play)
+	play.free()
+
+	# Batalla real en ascensión: carga el nivel, guarda el resultado y ofrece el siguiente
+	GameManager.reset_save()
+	GameManager.play_level("asc2_europe_2")
+	assert_equals(GameManager.get_battle_level_id(), "asc2_europe_2", "La batalla carga el nivel de ascensión")
+	var battle := BattleController.new()
+	battle.load_level("asc2_europe_2")
+	assert_equals(battle.level_id, "asc2_europe_2", "Controlador con id de ascensión")
+	assert_equals(battle.ai_controllers.size(), battle.bases.filter(func(b): return b.faction > GameManager.Faction.PLAYER).map(func(b): return b.faction).reduce(func(a, f): return a if a.has(f) else a + [f], []).size(), "Una IA por facción rival, incluida la reclutada")
+	assert_equals(battle.target_time, LevelDatabase.get_level_data("asc2_europe_2")["target_time"], "El tiempo de estrellas es el de la ascensión")
+	battle.free()
+
+	# Pantalla de victoria: avisa del nivel conquistado y de la Ascensión recién abierta
+	var hud = load("res://scenes/ui/battle_hud.tscn").instantiate()
+	add_child(hud)
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 120, "is_ascension": true, "ascension_tier": 2, "ascension_unlocked": 3, "level_id": "asc2_oceania_5"})
+	assert_equals(hud.victory_title.text, LocaleStrings.text("asc_tier_done") % 2, "Título de nivel de ascensión conquistado")
+	assert_true(hud.unlock_label.text.contains(LocaleStrings.text("asc_unlocked") % 3), "Se anuncia la Ascensión desbloqueada")
+	assert_true(hud.btn_next_level.visible and hud.btn_next_level.text == LocaleStrings.text("next_level"), "La ascensión ofrece el siguiente nivel")
+	hud.deploy_victory_modal({"stars": 1, "gold_earned": 10, "is_ascension": true, "ascension_tier": 2, "ascension_unlocked": 0, "level_id": "asc2_europe_1"})
+	assert_equals(hud.victory_title.text, LocaleStrings.text("victory"), "Un nivel normal de ascensión usa el título de victoria")
+	remove_child(hud)
+	hud.free()
+	GameManager.reset_save()
+
+## Ascension upgrades: gating, the four combat hooks, the daily-challenge exemption and the Army page.
+func test_ascension_upgrades() -> void:
+	print("\n-> Test: Mejoras de Ascensión (desbloqueo, defensa, capacidad, reclutamiento y asedio)")
+	GameManager.reset_save()
+	var Base = load("res://scripts/battle/base_node.gd")
+	assert_equals(GameManager.available_upgrades(), ["starting_troops", "production_rate", "troop_speed", "gold_bonus"] as Array[String], "Al empezar sólo existen las cuatro mejoras originales")
+	for id in GameManager.EXTRA_COMBAT_UPGRADES:
+		assert_true(not GameManager.is_upgrade_unlocked(id) and GameManager.get_upgrade_cost(id) == -1, "Cerrada hasta su Ascensión: " + id)
+	GameManager.coins = 1_000_000
+	assert_true(not GameManager.buy_upgrade("fortification") and GameManager.upgrades["fortification"] == 0, "No se puede comprar una mejora cerrada")
+	assert_equals(GameManager.UPGRADES.keys().size(), GameManager.upgrades.size(), "El guardado reserva una entrada por mejora")
+	# Los costes originales no cambian
+	for pair in [["starting_troops", 50], ["production_rate", 75], ["troop_speed", 60], ["gold_bonus", 100]]:
+		assert_equals(GameManager.get_upgrade_cost(pair[0]), pair[1], "Coste inicial intacto: " + pair[0])
+	assert_equals(GameManager.recommended_combat_upgrade(), "production_rate", "Reclutar sigue siendo la primera recomendación")
+
+	# Abrir la Ascensión 2..5 abre una mejora por nivel
+	for id in LevelDatabase.get_level_ids():
+		GameManager.completed_levels[id] = 1
+	assert_true(GameManager.is_upgrade_unlocked("fortification") and not GameManager.is_upgrade_unlocked("capacity"), "La Ascensión 2 abre Fortificación")
+	for tier in range(2, 5):
+		for id in Ascension.tier_level_ids(tier):
+			GameManager.ascension_stars[id] = 1
+	for id in GameManager.EXTRA_COMBAT_UPGRADES:
+		assert_true(GameManager.is_upgrade_unlocked(id), "Abierta: " + id)
+	assert_equals(GameManager.available_upgrades().size(), 8, "Ocho mejoras visibles con la Ascensión 5 abierta")
+	for id in GameManager.UPGRADES:
+		var previous_cost := 0
+		for level in GameManager.MAX_UPGRADE_LEVEL:
+			var cost := GameManager.get_upgrade_cost(id)
+			assert_true(cost > previous_cost, "El coste crece cada nivel: %s %d" % [id, level]) if level < 2 else null
+			previous_cost = cost
+			GameManager.upgrades[id] += 1
+		assert_equals(GameManager.get_upgrade_cost(id), -1, "Nivel máximo: " + id)
+		GameManager.upgrades[id] = 0
+	GameManager.upgrades["production_rate"] = 10
+	GameManager.upgrades["starting_troops"] = 10
+	GameManager.upgrades["troop_speed"] = 10
+	assert_equals(GameManager.recommended_combat_upgrade(), "fortification", "Con lo básico al máximo se recomienda lo nuevo")
+	for id in GameManager.UPGRADES:
+		GameManager.upgrades[id] = 0
+
+	# Fortificación: sólo las bases del jugador; Asedio: sólo las fortalezas que no son suyas
+	var mine = Base.new()
+	mine.faction = GameManager.Faction.PLAYER
+	mine.troops = 20
+	var foe = Base.new()
+	foe.faction = GameManager.Faction.ENEMY_1
+	foe.troops = 20
+	var foe_fort = Base.new()
+	foe_fort._set_type_from_variant("fortress")
+	foe_fort.faction = GameManager.Faction.ENEMY_1
+	foe_fort.troops = 20
+	var my_fort = Base.new()
+	my_fort._set_type_from_variant("fortress")
+	my_fort.faction = GameManager.Faction.PLAYER
+	var neutral_fort = Base.new()
+	neutral_fort._set_type_from_variant("fortress")
+	assert_equals([mine.get_defense_multiplier(), foe_fort.get_defense_multiplier()], [1.0, 2.0], "Sin mejoras la defensa no cambia")
+	GameManager.upgrades["fortification"] = 5
+	GameManager.upgrades["breaching"] = 10
+	var fort := 1.0 + 5 * GameManager.UPGRADES["fortification"]["step"] / 100.0
+	assert_equals(mine.get_defense_multiplier(), fort, "Fortificación 5: bonus de defensa en tus bases")
+	assert_equals(foe.get_defense_multiplier(), 1.0, "Las bases enemigas no mejoran")
+	assert_equals(my_fort.get_defense_multiplier(), 2.0 * fort, "Fortificación se suma a tu fortaleza (el asedio no la toca)")
+	assert_equals(foe_fort.get_defense_multiplier(), 1.0, "Asedio 10: la fortaleza enemiga defiende como una base normal")
+	assert_equals(neutral_fort.get_defense_multiplier(), 1.0, "Asedio también rebaja las fortalezas neutrales")
+	var defense := ceili(20 * fort)
+	assert_equals(mine.get_effective_defense(), defense, "La defensa efectiva usa el multiplicador (20 × fortificación)")
+	mine.receive_troops(GameManager.Faction.ENEMY_1, 10)
+	assert_equals(mine.troops, ceili((20 * fort - 10) / fort), "Los atacantes cuestan menos tropas a un defensor fortificado")
+	mine.troops = 20
+	mine.receive_troops(GameManager.Faction.ENEMY_1, defense)
+	assert_true(mine.faction == GameManager.Faction.NEUTRAL or mine.faction == GameManager.Faction.ENEMY_1, "Igualar la defensa fortificada la derriba")
+	mine.faction = GameManager.Faction.PLAYER
+	mine.troops = 20
+	mine.receive_troops(GameManager.Faction.ENEMY_1, defense + 1)
+	assert_true(mine.faction == GameManager.Faction.ENEMY_1 and mine.troops == 1, "Un atacante más la conquista con 1 superviviente")
+	GameManager.normalized_battle = true
+	assert_true(mine.get_defense_multiplier() == 1.0 and foe_fort.get_defense_multiplier() == 2.0, "El desafío diario ignora las mejoras de Ascensión")
+	GameManager.normalized_battle = false
+	# La IA y la vista previa estiman con el mismo multiplicador
+	var ai := AIController.new()
+	var fake := BattleController.new()
+	ai.battle_controller = fake
+	ai.faction = GameManager.Faction.ENEMY_1
+	var attacker = Base.new()
+	attacker.faction = GameManager.Faction.ENEMY_1
+	attacker.troops = 30
+	var target = Base.new()
+	target.faction = GameManager.Faction.PLAYER
+	target.troops = 10
+	target.is_active = true
+	assert_true(ai.get_projected_defense(attacker, target) >= 14.0, "La IA cuenta la defensa fortificada de tus bases")
+	for n in [mine, foe, foe_fort, my_fort, neutral_fort, attacker, target, ai, fake]:
+		n.free()
+
+	# Cuarteles: sólo tus bases, y siguen a su dueño al conquistarlas
+	GameManager.upgrades["fortification"] = 0
+	GameManager.upgrades["breaching"] = 0
+	GameManager.upgrades["capacity"] = 4
+	var cap_base = Base.new()
+	cap_base.setup({"faction": GameManager.Faction.ENEMY_1, "troops": 10, "tier": 1})
+	assert_equals(cap_base.max_capacity, 45, "Una base enemiga mantiene su capacidad")
+	var mine_cap = Base.new()
+	mine_cap.setup({"faction": GameManager.Faction.PLAYER, "troops": 10, "tier": 1})
+	assert_equals(mine_cap.max_capacity, 63, "Cuarteles 4: +40% de capacidad (45 → 63)")
+	cap_base.receive_troops(GameManager.Faction.PLAYER, 30)
+	assert_true(cap_base.faction == GameManager.Faction.PLAYER and cap_base.max_capacity == 63, "Capturar una base le da tu capacidad")
+	cap_base.receive_troops(GameManager.Faction.ENEMY_2, 100)
+	assert_true(cap_base.faction == GameManager.Faction.ENEMY_2 and cap_base.max_capacity == 45, "Perderla devuelve la capacidad normal")
+	mine_cap.troops = 60
+	var tier3 = Base.new()
+	tier3.setup({"faction": GameManager.Faction.PLAYER, "troops": 10, "tier": 3})
+	assert_equals(tier3.max_capacity, 196, "El bonus escala con el nivel de la base (140 × 1.4)")
+	for n in [cap_base, mine_cap, tier3]:
+		n.free()
+	GameManager.upgrades["capacity"] = 0
+
+	# Reclutamiento: tropas extra sólo al conquistar a un enemigo o neutral
+	GameManager.upgrades["conscription"] = 5
+	var prize = Base.new()
+	prize.setup({"faction": GameManager.Faction.ENEMY_1, "troops": 10, "tier": 1})
+	prize.receive_troops(GameManager.Faction.PLAYER, 15)
+	var garrison: int = 5 * GameManager.UPGRADES["conscription"]["step"]
+	assert_true(prize.faction == GameManager.Faction.PLAYER and prize.troops == 5 + garrison, "Capturar añade las tropas de Reclutamiento a los supervivientes")
+	var rival_prize = Base.new()
+	rival_prize.setup({"faction": GameManager.Faction.NEUTRAL, "troops": 10, "tier": 1})
+	rival_prize.receive_troops(GameManager.Faction.ENEMY_1, 15)
+	assert_equals(rival_prize.troops, 5, "Los enemigos no reciben el bonus")
+	var drained = Base.new()
+	drained.setup({"faction": GameManager.Faction.ENEMY_1, "troops": 10, "tier": 1})
+	drained.receive_troops(GameManager.Faction.PLAYER, 10)
+	assert_true(drained.faction == GameManager.Faction.NEUTRAL and drained.troops == 0, "Dejar una base neutral no da bonus")
+	var ally_reinforce = Base.new()
+	ally_reinforce.setup({"faction": GameManager.Faction.PLAYER, "troops": 10, "tier": 1})
+	ally_reinforce.receive_troops(GameManager.Faction.PLAYER, 10)
+	assert_equals(ally_reinforce.troops, 20, "Reforzar una base propia no da bonus")
+	for n in [prize, rival_prize, drained, ally_reinforce]:
+		n.free()
+	GameManager.upgrades["conscription"] = 0
+
+	# Guardado: los niveles se recortan al máximo y las mejoras desconocidas se ignoran
+	var data := GameManager.save_data()
+	data["upgrades"] = {"fortification": 99, "breaching": -3, "mystery": 5, "capacity": 4}
+	GameManager._apply_save(data)
+	assert_true(GameManager.upgrades["fortification"] == GameManager.MAX_UPGRADE_LEVEL and GameManager.upgrades["breaching"] == 0 and GameManager.upgrades["capacity"] == 4 and not GameManager.upgrades.has("mystery"), "Niveles saneados al cargar")
+
+	# Pantalla Ejército: una tarjeta más por nivel de Ascensión abierto
+	GameManager.reset_save()
+	var army = load("res://scripts/ui/army_tab.gd").new()
+	add_child(army)
+	assert_equals(army.find_children("UpgradeCard_*", "", true, false).size(), 4, "Ejército inicial sin cambios: 4 tarjetas")
+	remove_child(army)
+	army.free()
+	for id in LevelDatabase.get_level_ids():
+		GameManager.completed_levels[id] = 1
+	army = load("res://scripts/ui/army_tab.gd").new()
+	add_child(army)
+	assert_true(army.find_child("UpgradeCard_fortification", true, false) != null and army.find_child("UpgradeCard_capacity", true, false) == null, "La Ascensión 2 añade Fortificación")
+	var card = army.find_child("UpgradeCard_fortification", true, false)
+	assert_true(card.find_children("*", "Label", true, false).any(func(l): return l.text.contains("+%d%%" % GameManager.UPGRADES["fortification"]["step"])), "La tarjeta muestra el efecto del primer nivel")
+	remove_child(army)
+	army.free()
+
+	# La victoria que abre una Ascensión anuncia su mejora
+	var hud = load("res://scenes/ui/battle_hud.tscn").instantiate()
+	add_child(hud)
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 10, "ascension_unlocked": 2, "level_id": "oceania_5"})
+	assert_true(hud.unlock_label.text.contains(LocaleStrings.text("upgrade_new") % LocaleStrings.text("upg_fortification")), "Se anuncia la mejora nueva")
+	remove_child(hud)
+	hud.free()
+	GameManager.reset_save()
+
+## Season two: country fronts with their own names, tiers above the original scale and playable maps.
+func test_season_two_regions() -> void:
+	var cities := {}
+	for region in InvasionDatabase.SEASON_ONE:
+		for key in region["cities"]:
+			cities[key] = true
+	var overlap := 0
+	var bad := 0
+	for region in InvasionDatabase.SEASON_TWO:
+		var keys: Array = region["cities"]
+		for key in keys:
+			overlap += 1 if cities.has(key) else 0
+		if keys.size() != 8 or keys.size() != keys.duplicate().size() or not keys.has(region["capital"]) or region.get("season") != 2 or int(region["tier"]) < 6 or int(region["tier"]) > 9:
+			bad += 1
+		if not keys.all(func(k): return GeoDatabase.has_city(k)) or LevelDatabase.get_continents().filter(func(c): return c["id"] == region["continent"]).is_empty():
+			bad += 1
+		if InvasionDatabase.rule_key(region["rule"]) == "":
+			bad += 1
+		var name := InvasionDatabase.region_name(region)
+		if name == "" or name.contains("invregion") or not name.contains(GeoDatabase.city_name(GeoDatabase.get_city(region["capital"]))) or InvasionDatabase.region_subtitle(region).contains("invregion"):
+			bad += 1
+	assert_equals(overlap, 0, "La segunda temporada usa ciudades nuevas")
+	assert_equals(bad, 0, "Las regiones de la segunda temporada son válidas y se nombran sin claves nuevas")
+	assert_equals(InvasionDatabase.get_region("kazan_region_x"), {}, "Una región inexistente sigue vacía")
+	var ids := {}
+	for region in InvasionDatabase.get_regions():
+		assert_true(not ids.has(region["id"]), "Id de región único: " + str(region["id"]))
+		ids[region["id"]] = true
+	# Dificultad: la escala original no cambia y la nueva sigue creciendo
+	assert_equals(LevelDatabase.get_difficulty("inv_pacific_3"), 1.0, "Las regiones originales conservan su techo de dificultad")
+	for region in InvasionDatabase.SEASON_TWO:
+		var front1 := LevelDatabase.get_difficulty(InvasionDatabase.level_id(region["id"], 1))
+		var front3 := LevelDatabase.get_difficulty(InvasionDatabase.level_id(region["id"], 3))
+		assert_true(front1 > 1.0 and front3 > front1, "Amenaza creciente en " + str(region["id"]))
+	var strong: int = InvasionDatabase.get_level_definition("inv_canada_north_1")["bases"].filter(func(b): return b["faction"] == GameManager.Faction.ENEMY_1)[0]["troops"]
+	var weak := 18 + 8 * 3 + 3
+	assert_true(strong > weak, "Las guarniciones de la segunda temporada superan la fórmula original")
+	# Cada frente se construye en ambas orientaciones con jugador, rival y ciudades reales
+	var broken := 0
+	for region in InvasionDatabase.SEASON_TWO:
+		for step in InvasionDatabase.FRONTS:
+			var id := InvasionDatabase.level_id(region["id"], step + 1)
+			for landscape in [false, true]:
+				var level := LevelDatabase.get_level_data(id, landscape)
+				var factions: Array = level["bases"].map(func(b): return b["faction"])
+				if level["bases"].size() < 4 or not factions.has(GameManager.Faction.PLAYER) or not factions.has(GameManager.Faction.ENEMY_1) or not level.has("rule_key"):
+					broken += 1
+				if landscape == false and not level["bases"].all(func(b): return LevelGenerator.PLAY_RECT.grow(1.0).has_point(b["pos"])):
+					broken += 1
+	assert_equals(broken, 0, "Los 69 frentes de la segunda temporada son jugables")
+	assert_true(GameManager.is_invasion_level_unlocked("inv_canada_north_1") == false, "Una región nueva se abre con la campaña de su continente")
 
 func test_atlas_and_first_levels() -> void:
 	print("\n-> Test: Atlas de Ciudades, Primer Arranque y Niveles Suaves")
@@ -4452,8 +4921,10 @@ func test_invasion_mode() -> void:
 	GameManager.reset_save()
 	InvasionPage.last_continent = "europe"
 	InvasionPage.last_region = "iberia"
-	assert_equals(InvasionDatabase.get_regions().size(), 36, "Hay 36 regiones de invasión")
-	assert_equals(InvasionDatabase.get_total_fronts(), 108, "Cada región tiene tres frentes")
+	assert_equals(InvasionDatabase.SEASON_ONE.size(), 36, "La primera temporada conserva sus 36 regiones")
+	assert_equals(InvasionDatabase.get_regions().size(), InvasionDatabase.SEASON_ONE.size() + InvasionDatabase.SEASON_TWO.size(), "Las regiones son las de las dos temporadas")
+	assert_equals(InvasionDatabase.get_total_fronts(), InvasionDatabase.get_regions().size() * 3, "Cada región tiene tres frentes")
+	test_season_two_regions()
 	assert_equals(GeoDatabase.get_city("madrid").get("country", ""), "ESP", "Las ciudades llevan su código de país")
 
 	# 1. Datos: ids únicos, ciudades reales, capital y jefe sólo en el frente final.
@@ -4586,10 +5057,10 @@ func test_invasion_mode() -> void:
 	add_child(page)
 	assert_true(page.find_child("InvasionMap", true, false) != null, "La pestaña muestra el mapa")
 	assert_equals(page.continent_buttons.size(), 6, "Hay un selector por continente")
-	assert_equals(page.region_buttons.size(), 8, "Europa muestra sus ocho regiones")
+	assert_equals(page.region_buttons.size(), InvasionDatabase.get_regions_by_continent("europe").size(), "Europa muestra todas sus regiones")
 	assert_true(page.detail_card != null, "La ficha de región está presente")
 	assert_equals(page.front_buttons.size(), 3, "La ficha muestra los tres frentes")
-	assert_true(page.progress_label.text.contains("1/36"), "El progreso de regiones se muestra")
+	assert_true(page.progress_label.text.contains("1/%d" % InvasionDatabase.get_region_count()), "El progreso de regiones se muestra")
 	var front2 = page.find_child("BtnInvasionFront_2", true, false) as Button
 	assert_true(front2 != null and not front2.disabled, "El segundo frente se puede jugar")
 	var front3 = page.find_child("BtnInvasionFront_3", true, false) as Button
@@ -4710,13 +5181,18 @@ func test_review_regressions() -> void:
 	# Huellas capturadas antes del refactor: no cambiar mapas ni consumir otro RNG.
 	for sample in [
 		["daily", 365, "dd937f4c32a66da37e1f7bc2ea7a1588cbdcd0a6064f12db554606f44f3634ab"],
-		["conquest", 50, "a49fd247020ee60e1b88238b5c88d305f2448109ec689e3a979a6be1a347e928"],
+		# Regions below threat 1.0 keep their exact garrisons; deeper ones only scale troops (checked below).
+		["conquest", 29, "c3e94c4a61855cba07f923f72caabaeb831d64f970c58593b3394d5bb2cbd1ad"],
 	]:
 		var bases := []
 		for i in sample[1]:
 			var def := LevelGenerator.daily_challenge_definition(20000 + i) if sample[0] == "daily" else LevelGenerator.conquest_definition(i)
 			bases.append(def["bases"])
 		assert_equals(JSON.stringify(bases).sha256_text(), sample[2], "Mapas %s idénticos antes y después" % sample[0])
+	var unscaled := []
+	for i in 50:
+		unscaled.append(LevelGenerator.conquest_definition(i)["bases"].map(func(b): var copy: Dictionary = b.duplicate(); copy.erase("troops"); return copy))
+	assert_equals(JSON.stringify(unscaled).sha256_text(), "7234246441e53ed07565283a5cdc7b4c69d16ff6ecbb61335ef8570c26d5e39f", "La amenaza sólo cambia tropas, no ciudades ni RNG")
 	for i in range(LevelDatabase.MAX_CACHED_LEVELS + 1):
 		LevelDatabase.get_level_data(LevelGenerator.conquest_id(i))
 	assert_equals(LevelDatabase._built.size(), LevelDatabase.MAX_CACHED_LEVELS, "La conquista infinita no hace crecer la caché")

@@ -246,7 +246,7 @@
 			{
 				"alt": "The final invasion front in Iberia, with troops advancing toward the region's capital.",
 				"file": "3_invasions.png",
-				"headline": "36 regions. 108 fronts.",
+				"headline": "59 regions. 177 fronts.",
 				"raw": "build/store_capture/raw/en/invasions.png",
 				"raw_size": [
 					1080,
@@ -319,7 +319,7 @@
 				],
 				"scenario": "atlas",
 				"sha256": "2f2165635aececcf013627c2e4b1881f5cafd9116f8d70138d7359c604accd34",
-				"subtitle": "Cities, ranks and 20 achievements."
+				"subtitle": "Cities, ranks and 23 achievements."
 			}
 		],
 		"es": [
@@ -352,7 +352,7 @@
 			{
 				"alt": "El frente final de la invasión de Iberia, con tropas avanzando hacia la capital de la región.",
 				"file": "3_invasions.png",
-				"headline": "36 regiones. 108 frentes.",
+				"headline": "59 regiones. 177 frentes.",
 				"raw": "build/store_capture/raw/es/invasions.png",
 				"raw_size": [
 					1080,
@@ -425,7 +425,7 @@
 				],
 				"scenario": "atlas",
 				"sha256": "5459733f557f31850379af58482dcbe780c27e373a63c62f292c245b91e725f3",
-				"subtitle": "Ciudades, rangos y 20 logros."
+				"subtitle": "Ciudades, rangos y 23 logros."
 			}
 		],
 		"fr": [
@@ -458,7 +458,7 @@
 			{
 				"alt": "Le dernier front d'invasion en Ibérie, avec des troupes avançant vers la capitale de la région.",
 				"file": "3_invasions.png",
-				"headline": "36 régions. 108 fronts.",
+				"headline": "36 régions. 177 fronts.",
 				"raw": "build/store_capture/raw/fr/invasions.png",
 				"raw_size": [
 					1080,
@@ -531,7 +531,7 @@
 				],
 				"scenario": "atlas",
 				"sha256": "3bc6cf4ab9cce57bd1171384a122d4866eea8bf52d103f79c9dea9665df965b6",
-				"subtitle": "Villes, rangs et 20 succès."
+				"subtitle": "Villes, rangs et 23 succès."
 			}
 		],
 		"hi": [
@@ -1094,7 +1094,7 @@
 			{
 				"alt": "A última frente de invasão na Península Ibérica, com tropas avançando em direção à capital da região.",
 				"file": "3_invasions.png",
-				"headline": "36 regiões. 108 frentes.",
+				"headline": "36 regiões. 177 frentes.",
 				"raw": "build/store_capture/raw/pt_BR/invasions.png",
 				"raw_size": [
 					1080,
@@ -1167,7 +1167,7 @@
 				],
 				"scenario": "atlas",
 				"sha256": "46fd28d88259c24ceeb88857a05529ea959a191a5e38c4fdeeb7802094a3e9ce",
-				"subtitle": "Cidades, patentes e 20 conquistas."
+				"subtitle": "Cidades, patentes e 23 conquistas."
 			}
 		],
 		"ru": [

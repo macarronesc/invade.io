@@ -92,6 +92,11 @@ player's upgrade purchases. Orientation changes preserve content and rules;
 daily challenges keep a canonical board for comparable records. A seeded
 scenario is not a guarantee of identical rendered pixels across GPUs/fonts.
 
+`scripts/data/threat.gd` holds the open-ended difficulty curve (threat above 1.0) and
+`scripts/data/ascension.gd` derives `asc<tier>_<campaign id>` levels from cached campaign
+levels; only `ascension_stars` is saved (save v8). `GameManager.UPGRADES` is the single
+upgrade table. Invasion season two lives in `InvasionDatabase.SEASON_TWO`.
+
 ### Battle simulation
 
 [BattleController](../scripts/battle/battle_controller.gd) loads the level,
