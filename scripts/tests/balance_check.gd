@@ -29,6 +29,10 @@ func _ready() -> void:
 		await _check_flow()
 	elif "--invasions" in OS.get_cmdline_user_args():
 		_check_invasions()
+	elif "--threat" in OS.get_cmdline_user_args():
+		_check_threat()
+	elif "--ascension" in OS.get_cmdline_user_args():
+		_check_ascension()
 	elif "--invasion-ui" in OS.get_cmdline_user_args():
 		GameManager.save_path = "user://balance_invasion_ui_test_save.json"
 		OS.low_processor_usage_mode = false
@@ -105,6 +109,51 @@ func _check_invasions() -> void:
 			seconds += result["seconds"]
 		print("INVASION %s: %d/3 · %.0fs" % [id, wins, seconds / 3])
 		_require(wins >= 2, "Invasión alcanzable con ejército medio: " + id)
+	_completed = true
+
+## Win rate of the bot against threat above 1.0 with an average and a fully upgraded army.
+## Prints a table; fails only if the deepest region is unwinnable even when maxed.
+func _check_threat() -> void:
+	var maxed_wins := {}
+	for loadout in [5, 10]:
+		for index in [28, 39, 59, 99, 199]:
+			GameManager._apply_save({})
+			for id in GameManager.UPGRADES:
+				GameManager.upgrades[id] = loadout
+			var wins := 0
+			var seconds := 0.0
+			for trial in 4:
+				var result := _simulate(LevelGenerator.conquest_id(index), 1.5 + trial * 0.5, trial)
+				wins += int(result["won"])
+				seconds += result["seconds"]
+			print("THREAT upgrades=%d conquest_%d: %d/4 · %.0fs" % [loadout, index, wins, seconds / 4.0])
+			if loadout == 10:
+				maxed_wins[index] = wins
+	_require(maxed_wins[199] >= 1, "La región más profunda es ganable con el ejército máximo")
+	_completed = true
+
+## Bot win rates on ascension tiers for growing armies: {core upgrades level, Ascension upgrades level}.
+## The deepest tier must be winnable with everything maxed and must demand the Ascension upgrades.
+func _check_ascension() -> void:
+	var levels := ["europe_1", "europe_5", "north_america_3", "africa_4", "asia_5", "oceania_5"]
+	var rates := {}
+	for loadout in [[5, 0], [10, 0], [10, 5], [10, 10]]:
+		for tier in [2, 5, 8, 10]:
+			GameManager._apply_save({})
+			for id in GameManager.UPGRADES:
+				GameManager.upgrades[id] = loadout[1] if id in GameManager.EXTRA_COMBAT_UPGRADES else loadout[0]
+			var wins := 0
+			var seconds := 0.0
+			for level in levels:
+				for trial in 2:
+					var result := _simulate(Ascension.level_id(tier, level), 1.5 + trial * 0.5, trial)
+					wins += int(result["won"])
+					seconds += result["seconds"]
+			rates[[loadout[0], loadout[1], tier]] = wins
+			print("ASCENSION core=%d extra=%d tier=%d: %d/%d · %.0fs" % [loadout[0], loadout[1], tier, wins, levels.size() * 2, seconds / (levels.size() * 2)])
+	_require(rates[[10, 10, 10]] >= 6, "El nivel máximo es ganable con todas las mejoras")
+	_require(rates[[10, 10, 10]] > rates[[10, 0, 10]], "Las mejoras de Ascensión importan en el nivel máximo")
+	_require(rates[[5, 0, 10]] <= rates[[5, 0, 2]], "La dificultad no baja con el nivel")
 	_completed = true
 
 func _simulate(id: String, delay: float, trial: int) -> Dictionary:

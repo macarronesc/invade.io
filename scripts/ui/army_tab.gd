@@ -8,6 +8,10 @@ const UPGRADES := {
 	"production_rate": {"icon": "bolt", "color": "gold", "percent": true},
 	"troop_speed": {"icon": "speed", "color": "success", "percent": true},
 	"gold_bonus": {"icon": "coin", "color": "gold", "percent": true},
+	"fortification": {"icon": "shield", "color": "primary", "percent": true},
+	"capacity": {"icon": "flag", "color": "success", "percent": true},
+	"conscription": {"icon": "play", "color": "gold", "percent": false},
+	"breaching": {"icon": "bolt", "color": "success", "percent": true},
 }
 
 var return_to_battle := false
@@ -34,7 +38,7 @@ func _build() -> void:
 			first.add_child(UIThemeHelper.paragraph(LocaleStrings.text("first_upgrade_sub")))
 		else:
 			content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("upgrades_sub")))
-		for id in UPGRADES:
+		for id in GameManager.available_upgrades():
 			content.add_child(_upgrade_card(id))
 	else:
 		content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("looks_sub")))
@@ -74,7 +78,7 @@ func _upgrade_card(id: String) -> PanelContainer:
 	var tint: Color = UIThemeHelper.colors[cfg["color"]]
 	var level: int = GameManager.upgrades.get(id, 0)
 	var max_level := GameManager.MAX_UPGRADE_LEVEL
-	var step: int = GameManager.UPGRADE_STEPS[id]
+	var step: int = GameManager.UPGRADES[id]["step"]
 	var fmt := "+%d%%" if cfg["percent"] else "+%d"
 	var card := PanelContainer.new()
 	card.name = "UpgradeCard_" + id

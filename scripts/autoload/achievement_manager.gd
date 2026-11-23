@@ -35,6 +35,8 @@ func get_stat(stat: String) -> int:
 			return GameManager.completed_invasion_regions()
 		"invasion_mastery":
 			return GameManager.mastered_invasion_regions()
+		"ascension_tiers":
+			return GameManager.ascension_tiers_completed()
 		"max_upgrade_level":
 			return GameManager.upgrades.values().max()
 	return GameManager.get_stat(stat)

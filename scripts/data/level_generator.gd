@@ -154,7 +154,7 @@ static func conquest_index(level_id: String) -> int:
 	return maxi(0, int(level_id.substr(CONQUEST_PREFIX.length())))
 
 static func conquest_difficulty(index: int) -> float:
-	return minf(0.15 + 0.03 * index, 1.0)
+	return 0.15 + 0.03 * index
 
 ## Expediciones: bloques de GameManager.EXPEDITION_SIZE regiones; la última de cada una es un jefe
 static func expedition_of(index: int) -> int:
@@ -174,7 +174,8 @@ static func conquest_definition(index: int) -> Dictionary:
 	var region := _pick_region(rng, CONQUEST_CENTER_POOL)
 	var center: Dictionary = region["center"]
 	var near: Array[Dictionary] = region["neighbors"]
-	var enemy_troops := mini(24 + index, 55)
+	var threat := conquest_difficulty(index)
+	var enemy_troops := roundi(mini(24 + index, 55) * Threat.troops(threat))
 	var bases: Array[Dictionary] = [
 		{"id": "b1", "city": center["key"], "faction": GameManager.Faction.PLAYER, "troops": 36, "tier": 2 if index < 4 else 3},
 		{"id": "b2", "city": near[0]["key"], "faction": GameManager.Faction.ENEMY_1, "troops": enemy_troops, "tier": 2 if index < 5 else 3},
@@ -194,7 +195,7 @@ static func conquest_definition(index: int) -> Dictionary:
 		"id": conquest_id(index),
 		"name": LocaleStrings.text("conquest_title") % [expedition_of(index), expedition_step(index), GameManager.EXPEDITION_SIZE, GeoDatabase.city_name(center)],
 		"description": LocaleStrings.text("conquest_desc") % [GeoDatabase.city_name(center), index + 1],
-		"target_time": DAILY_TARGET_TIME + (25 if is_expedition_finale(index) else 0),
+		"target_time": roundi((DAILY_TARGET_TIME + (25 if is_expedition_finale(index) else 0)) * Threat.target_scale(threat)),
 		"bases": bases,
 	}
 

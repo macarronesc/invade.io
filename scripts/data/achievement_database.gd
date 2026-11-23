@@ -28,6 +28,9 @@ const ACHIEVEMENTS: Array[Dictionary] = [
 	{"id": "cartographer", "icon": "🗺️", "stat": "invasion_regions", "goal": 15, "reward": 350},
 	{"id": "world_invader", "icon": "🌍", "stat": "invasion_regions", "goal": 36, "reward": 750},
 	{"id": "regional_master", "icon": "💎", "stat": "invasion_mastery", "goal": 1, "reward": 150},
+	{"id": "ascended", "icon": "💎", "stat": "ascension_tiers", "goal": 1, "reward": 300},
+	{"id": "ascended_4", "icon": "🔥", "stat": "ascension_tiers", "goal": 4, "reward": 600},
+	{"id": "ascended_max", "icon": "👑", "stat": "ascension_tiers", "goal": 9, "reward": 1000},
 ]
 
 static func achievement_title(a: Dictionary) -> String:

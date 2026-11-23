@@ -52,8 +52,8 @@ func _ready() -> void:
                 return
             langs = [_lang]
             preview = true
-    if not _require(LevelDatabase.get_level_ids().size() == 30 and InvasionDatabase.get_region_count() == 36
-            and InvasionDatabase.get_total_fronts() == 108 and AchievementDatabase.get_all().size() == 20,
+    if not _require(LevelDatabase.get_level_ids().size() == 30 and InvasionDatabase.get_region_count() == 59
+            and InvasionDatabase.get_total_fronts() == 177 and AchievementDatabase.get_all().size() == 23,
             "Update store counts when game content changes"):
         return
     for lang in langs:

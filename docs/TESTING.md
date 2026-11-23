@@ -100,6 +100,8 @@ print cold/warm timings without a hardware-dependent timing assertion.
 godot --headless --path . res://scenes/tests/balance_check.tscn
 
 # Representative invasion fronts across regions and difficulty tiers.
+godot --headless --path . res://scenes/tests/balance_check.tscn -- --threat      # conquest depth
+godot --headless --path . res://scenes/tests/balance_check.tscn -- --ascension   # tiers vs upgrades
 godot --headless --path . res://scenes/tests/balance_check.tscn -- --invasions
 
 # Victory → upgrade → next level, and defeat → upgrade → retry through real buttons.

@@ -17,6 +17,8 @@ static var _layout_cache: Dictionary = {}
 
 var continents: Array[Dictionary] = LevelDatabase.get_continents()
 var current_continent_index := 0
+## 1 = campaña; 2.. = niveles de Ascensión (los mismos mapas con enemigos más duros)
+var current_tier := GameManager.recommended_ascension_tier()
 var selected_level_id := ""
 var marching_phase := 0.0
 var pulse_time := 0.0
@@ -27,6 +29,9 @@ var continent_title: Label
 var continent_progress: Label
 var btn_prev_continent: Button
 var btn_next_continent: Button
+var btn_tier: Button
+var tier_caption: Label
+var tier_row: Control ## margen que envuelve el selector: se oculta entero para no ocupar sitio
 var route_container: Control
 var levels_container: Control
 var level_title: Label
@@ -100,6 +105,21 @@ func _build() -> void:
 	btn_next_continent = UIThemeHelper.icon_button("next", LocaleStrings.text("next"))
 	btn_next_continent.pressed.connect(_on_next_continent)
 	header.add_child(btn_next_continent)
+
+	# Nivel de dificultad: sólo aparece cuando hay algo que mostrar (Ascensión abierta o cerca)
+	var tier_hbox := UIThemeHelper.hbox(16)
+	tier_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	tier_row = UIThemeHelper.page_margin(tier_hbox, 0, 8)
+	main.add_child(tier_row)
+	btn_tier = UIThemeHelper.button("", "GhostButton", "trophy")
+	btn_tier.name = "BtnTier"
+	btn_tier.accessibility_description = LocaleStrings.text("asc_tier_hint")
+	btn_tier.pressed.connect(_on_tier_pressed)
+	tier_hbox.add_child(btn_tier)
+	tier_caption = UIThemeHelper.label("", "Caption")
+	tier_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tier_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tier_hbox.add_child(tier_caption)
 
 	# Mapa con la ruta de niveles
 	var map_area := Control.new()
@@ -268,21 +288,61 @@ func _wake_animation() -> void:
 	_animation_left = 5.0
 	set_process(not GameManager.settings["reduced_motion"])
 
+## Ids jugables del continente en el nivel de dificultad actual
+func _display_ids(continent_id: String) -> Array[String]:
+	var ids := LevelDatabase.get_continent_level_ids(continent_id)
+	if current_tier == 1:
+		return ids
+	var tier_ids: Array[String] = []
+	for id in ids:
+		tier_ids.append(Ascension.level_id(current_tier, id))
+	return tier_ids
+
+func _refresh_tier_row() -> void:
+	var open := GameManager.is_ascension_unlocked(Ascension.MIN_TIER)
+	var teaser := not open and GameManager.completed_continents_count() > 0
+	tier_row.visible = open or teaser
+	btn_tier.visible = open
+	if open:
+		btn_tier.text = LocaleStrings.text("asc_campaign") if current_tier == 1 else LocaleStrings.text("ascension") % current_tier
+		var all: Array = Ascension.tier_level_ids(current_tier) if current_tier > 1 else LevelDatabase.get_level_ids()
+		var done := all.filter(func(id): return GameManager.level_stars(id) > 0).size()
+		var stars := 0
+		for id in all:
+			stars += GameManager.level_stars(id)
+		tier_caption.text = LocaleStrings.text("continent_progress") % [done, all.size(), stars, all.size() * 3] if current_tier > 1 else ""
+	else:
+		tier_caption.text = LocaleStrings.text("asc_locked") % [GameManager.completed_levels.size(), LevelDatabase.get_level_ids().size()]
+
+func _on_tier_pressed() -> void:
+	AudioManager.play_click()
+	var next := current_tier + 1
+	while next <= Ascension.MAX_TIER and not GameManager.is_ascension_unlocked(next):
+		next += 1
+	current_tier = next if next <= Ascension.MAX_TIER else 1
+	_refresh_display()
+
 func _refresh_display() -> void:
 	var cont := continents[current_continent_index]
-	var level_ids := LevelDatabase.get_continent_level_ids(cont["id"])
+	var level_ids := _display_ids(cont["id"])
+	_refresh_tier_row()
 	var earned := 0
 	var completed := 0
 	for lid in level_ids:
-		earned += GameManager.completed_levels.get(lid, 0)
-		completed += 1 if GameManager.completed_levels.has(lid) else 0
+		earned += GameManager.level_stars(lid)
+		completed += 1 if GameManager.level_stars(lid) > 0 else 0
 	continent_title.text = LevelDatabase.continent_name(cont["id"])
 	continent_progress.text = LocaleStrings.text("continent_progress") % [completed, level_ids.size(), earned, level_ids.size() * 3]
 	_apply_continent_layout(cont["id"], cont["color"])
 
 	# Nivel propuesto: el de la campaña si está aquí; si no, el primero pendiente
 	selected_level_id = level_ids[0]
-	if level_ids.has(GameManager.current_level_id):
+	if current_tier > 1:
+		for lid in level_ids:
+			if GameManager.level_stars(lid) == 0:
+				selected_level_id = lid
+				break
+	elif level_ids.has(GameManager.current_level_id):
 		selected_level_id = GameManager.current_level_id
 	else:
 		for lid in level_ids:
@@ -309,7 +369,7 @@ func _build_level_node(level_id: String, index: int) -> Control:
 	btn.add_theme_font_override("font", UIThemeHelper.bold_font())
 	btn.add_theme_font_size_override("font_size", 40)
 	holder.add_child(btn)
-	var stars: int = GameManager.completed_levels.get(level_id, 0)
+	var stars: int = GameManager.level_stars(level_id)
 	btn.accessibility_name = LocaleStrings.text("accessible_level_name") % [index + 1, LevelDatabase.level_name(level_id)]
 	btn.accessibility_description = LocaleStrings.text("level_locked") if not GameManager.is_level_unlocked(level_id) else LocaleStrings.text("accessible_level_stars") % stars
 	if not GameManager.is_level_unlocked(level_id):
@@ -380,13 +440,16 @@ func _refresh_details_button() -> void:
 func _update_briefing_card() -> void:
 	var data := LevelDatabase.get_level_data(selected_level_id)
 	var unlocked := GameManager.is_level_unlocked(selected_level_id)
-	var stars: int = GameManager.completed_levels.get(selected_level_id, 0)
+	var stars: int = GameManager.level_stars(selected_level_id)
+	var ascension := Ascension.is_ascension(selected_level_id)
 	level_title.text = data["name"]
 	level_desc.text = data["description"]
 	if selected_level_id == "europe_4":
 		level_desc.text = LocaleStrings.text("hint_factory")
 	level_rule.text = CampaignRules.description(data).strip_edges()
-	if LevelDatabase.get_level_number(selected_level_id) == LevelDatabase.LEVELS_PER_CONTINENT:
+	if ascension:
+		level_rule.text = (LocaleStrings.text("asc_briefing") % [current_tier, roundi((Ascension.gold_scale(current_tier) - 1.0) * 100.0)] + "\n" + level_rule.text).strip_edges()
+	if LevelDatabase.get_level_number(selected_level_id) == LevelDatabase.LEVELS_PER_CONTINENT and not ascension:
 		var reward := CosmeticsDatabase.continent_reward(LevelDatabase.get_continent_of(selected_level_id))
 		level_rule.text += "\n" + LocaleStrings.text("boss_reward") % CosmeticsDatabase.item_name(reward)
 		if stars == 0:
@@ -415,6 +478,7 @@ func _update_briefing_card() -> void:
 	if new_cities > 0:
 		level_extra_chips.add_child(UIThemeHelper.chip(LocaleStrings.text("new_cities_chip") % new_cities, "globe", UIThemeHelper.colors.primary))
 	level_details.visible = details_open
+	level_medal.visible = not ascension
 	level_medal.text = LocaleStrings.text("medal_won") if GameManager.medals.has(selected_level_id) else LocaleStrings.text("medal_todo")
 	level_medal.add_theme_color_override("font_color", UIThemeHelper.colors.gold if GameManager.medals.has(selected_level_id) else UIThemeHelper.colors.muted)
 
@@ -431,7 +495,7 @@ func _update_briefing_card() -> void:
 
 func _draw_route() -> void:
 	var cont := continents[current_continent_index]
-	var level_ids := LevelDatabase.get_continent_level_ids(cont["id"])
+	var level_ids := _display_ids(cont["id"])
 	for i in level_ids.size() - 1:
 		var p1 := _node_positions[i]
 		var p2 := _node_positions[i + 1]

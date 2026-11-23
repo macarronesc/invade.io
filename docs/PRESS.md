@@ -13,7 +13,7 @@ It has no ads, no in-app purchases and no account. Made by one developer
 |---|---|
 | Play | [In the browser](https://macarronesc.github.io/invade.io/play/) · [Google Play](https://play.google.com/store/apps/details?id=macarronesc.invadeio) |
 | Source | [github.com/macarronesc/invade.io](https://github.com/macarronesc/invade.io) (Apache-2.0) |
-| Content | 30 campaign levels, 6 continents, 36 invasion regions with 108 fronts, expeditions, a daily challenge, 20 achievements |
+| Content | 30 campaign levels, 6 continents, 59 invasion regions with 177 fronts, expeditions, a daily challenge, 23 achievements |
 | Languages | 15, including right-to-left Arabic |
 | Accessibility | Text size, color-blind palette, reduced motion, map contrast, game speed, haptics |
 | Business model | None: no ads, no purchases, gold is earned by playing |

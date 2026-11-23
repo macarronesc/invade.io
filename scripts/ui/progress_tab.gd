@@ -57,6 +57,8 @@ func _build_summary() -> void:
 			c.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		row.add_child(panel)
 	content.add_child(row)
+	if GameManager.is_ascension_unlocked(Ascension.MIN_TIER):
+		content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("asc_summary") % [GameManager.ascension_tiers_completed(), Ascension.MAX_TIER - 1]))
 	@warning_ignore("integer_division")
 	var expeditions := GameManager.conquest_next / GameManager.EXPEDITION_SIZE
 	content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("expedition_progress") % [expeditions,

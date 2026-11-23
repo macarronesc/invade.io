@@ -10,7 +10,7 @@ const NEAR_UPGRADE := 0.6
 static func text() -> String:
 	if GameManager.should_suggest_first_upgrade():
 		return _upgrade()
-	for goal in [_boss, _mission, _invasion, _upgrade, _collection, _rank]:
+	for goal in [_boss, _mission, _ascension, _invasion, _upgrade, _collection, _rank]:
 		var candidate: String = goal.call()
 		if candidate != "":
 			return candidate
@@ -47,6 +47,16 @@ static func _mission() -> String:
 		return ""
 	var progress := int(GameManager.missions["progress"].get(best["id"], 0))
 	return LocaleStrings.text("goal_mission") % [LocaleStrings.text(best["key"]) % best["goal"], progress, best["goal"]]
+
+## La Ascensión en curso, una vez abierta: el siguiente nivel de dificultad a conquistar
+static func _ascension() -> String:
+	if not GameManager.is_ascension_unlocked(Ascension.MIN_TIER):
+		return ""
+	var tier := GameManager.recommended_ascension_tier()
+	if GameManager.is_ascension_complete(tier):
+		return ""
+	var done := Ascension.tier_level_ids(tier).filter(func(id): return GameManager.ascension_stars.has(id)).size()
+	return LocaleStrings.text("goal_ascension") % [tier, done, LevelDatabase.get_level_ids().size()]
 
 ## Una región empezada manda; si no, la primera pendiente de un continente ya abierto.
 ## No distraer al jugador que aún no ha terminado la campaña ni ha probado invasiones.

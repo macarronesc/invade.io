@@ -48,7 +48,7 @@ It does not upload anything to Play Console or modify signing/release permission
 | Before | Implemented improvement | Purpose |
 |---|---|---|
 | Brand-only titles | Localized brand + genre/territory-conquest titles, within 30 characters | Explain the game to unfamiliar visitors |
-| Outdated two-language/15-achievement description | Consistent copy for 15 languages, 20 achievements, 36 regions and 108 fronts | Match the current game and show its depth |
+| Outdated two-language/15-achievement description | Consistent copy for 15 languages, 23 achievements, 59 regions and 177 fronts | Match the current game and show its depth |
 | A menu opens the gallery | The first three images show real attacks on distinct maps | Make the core interaction understandable before asking visitors to read |
 | Uncaptioned UI-test screenshots | Eight images per language with one benefit-led headline and short supporting line | Explain the experience at thumbnail size |
 | Mostly empty progress | A representative mid-game fixture with 51 cities, earned upgrades and achievements | Show what continuing to play can unlock |
@@ -111,7 +111,7 @@ ZIP: `<play-locale>/phone/`. Upload **only the eight PNGs**, in numeric order.
 |---|---|---|
 | `1_conquer.png` | Drag. Send. Conquer. | Athens → Istanbul troop dispatch, `europe_4` |
 | `2_tactics.png` | Every base changes the battle | European factory/fortress/boss map, `europe_5` |
-| `3_invasions.png` | 36 regions. 108 fronts. | Iberia's capital front, `inv_iberia_3` |
+| `3_invasions.png` | 59 regions. 177 fronts. | Iberia's capital front, `inv_iberia_3` |
 | `4_campaign.png` | Six continents. More to conquer. | Campaign map, stars and expedition entry |
 | `5_daily.png` | A different challenge every day | Fixed real daily-challenge seed, with its rule/objective |
 | `6_upgrades.png` | Build a stronger army | Real upgrade cards and next upgrade effects |

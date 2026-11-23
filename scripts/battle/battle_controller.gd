@@ -834,6 +834,7 @@ func _battle_result(outcome: String) -> Dictionary:
 		"is_daily_challenge": LevelDatabase.mode_of(level_id) == "daily",
 		"is_conquest": LevelDatabase.mode_of(level_id) == "conquest",
 		"is_invasion": LevelDatabase.mode_of(level_id) == "invasion",
+		"is_ascension": LevelDatabase.mode_of(level_id) == "ascension",
 	}
 
 func _trigger_defeat() -> void:
