@@ -32,7 +32,7 @@ Garnizonu, asker toplamayı, yürüyüş hızını ve altın ödüllerini geliş
 
 Kendi tarzında oyna
 • Çevrimdışı, reklamsız ve uygulama içi satın alma olmadan oyna. Altın oynayarak kazanılır.
-• Türkçe dahil 15 dil. Arapça arayüz sağdan sola düzeni destekler.
+• Türkçe dahil {count} dil. Arapça arayüz sağdan sola düzeni destekler.
 • Açık ve koyu tema, yazı boyutu, renk körlüğü paleti, azaltılmış hareket, harita kontrastı, oyun hızı ve titreşim ayarları.
 • Hesap gerekmez. İlerlemen cihazında saklanır; yedeklerini dışa ve içe aktarabilirsin. Bulut kaydı yoktur.
 

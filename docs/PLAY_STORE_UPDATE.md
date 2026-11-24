@@ -16,8 +16,8 @@ app, changes the live listing, or changes the game's telemetry defaults.
 2. Read the English or Spanish listing in `docs/store_listing/`.
 3. Confirm that the production release matches this source version, particularly
    its telemetry behavior. Do not copy the current privacy paragraph onto an older release.
-4. Have native speakers review translated copy, especially the 13 non-EN/ES full
-   descriptions, which began as machine-translated drafts. Short graphic captions
+4. Have native speakers review translated copy, especially the full
+   descriptions of every language except EN/ES, which began as machine-translated drafts. Short graphic captions
    have been edited for game terminology and layout, but that is not native-speaker approval.
 5. Build the upload ZIP with the commands below. Extract it locally; paste the text
    and upload the individual PNG files in Play Console. The ZIP is not a Console import format.
@@ -29,6 +29,9 @@ python3 tools/build_store_listings.py --check
 # Fresh real-scene captures and final graphics. Requires Godot 4.7.2 and a display.
 # On a desktop, omit xvfb-run. Do not use Godot --headless for image generation.
 xvfb-run -a godot --audio-driver Dummy --path . res://scenes/tests/store_assets.tscn -- --no-telemetry
+
+# Validate the staged capture and publish it into docs/store_assets/.
+python3 tools/build_store_listings.py --publish
 
 # Validate all graphics, caption provenance and hashes, then package the material.
 python3 tools/build_store_listings.py --package
@@ -73,7 +76,7 @@ decisions, progression, offline play and no advertising interruptions.
 2. Why decisions matter: factories, fortresses, capitals, bosses and continent rules.
 3. Why there is more to discover: campaign, invasions, expeditions and daily challenges.
 4. Why keep playing: upgrades, cosmetic rewards, atlas, ranks and achievements.
-5. Why it fits the player: offline, no ads or purchases, 15 languages and accessibility options.
+5. Why it fits the player: offline, no ads or purchases, a growing list of interface languages and accessibility options.
 
 Returning players get a clearer view of content and goals already present. New
 players see the interaction before the menus. These are marketing hypotheses, not
@@ -166,7 +169,7 @@ committed. The video opens on gameplay, never on a logo, and ends on the browser
 ## 5. Locale mapping
 
 Game locales are not always the same identifiers as Console locales. Packaging
-uses the following mapping; select the matching language, not a guessed country.
+uses the following mapping (the source of truth is the `play` field in `assets/data/languages.json`); select the matching language, not a guessed country.
 
 | Game/source | Play Console/ZIP | Language |
 |---|---|---|
@@ -185,11 +188,15 @@ uses the following mapping; select the matching language, not a guessed country.
 | `zh_CN` | `zh-CN` | Simplified Chinese |
 | `ja` | `ja-JP` | Japanese |
 | `ko` | `ko-KR` | Korean |
+| `pl` | `pl-PL` | Polish |
+| `uk` | `uk` | Ukrainian |
+| `zh_TW` | `zh-TW` | Traditional Chinese |
+| `th` | `th` | Thai |
 
 Arabic captions and the game's interface use RTL; geographic maps and the brand
 are not mirrored. Per-script Noto subsets include the new caption characters.
 Language support does not mean the app is distributed in every country; review
-country availability separately. No Traditional Chinese or other unsupported translation is promised.
+country availability separately. No translation outside the manifest is promised.
 
 ## 6. Update the published listing in Play Console
 
@@ -297,7 +304,10 @@ matching release section, not the historical notes for another version.
 - Titles/short/full descriptions: `docs/store_listing/*.md` (three blocks per locale).
 - Headlines/subtitles/alt text: `docs/store_listing/graphics.json` (one entry per locale).
 - Scenarios, fixture, artwork layout and capture order: `scripts/tests/store_assets.gd`.
-- Locale mapping, upload validation and ZIP creation: `tools/build_store_listings.py`.
+- Languages and their Play locale mapping: `assets/data/languages.json`.
+- Publishing a capture, upload validation and ZIP creation: `tools/build_store_listings.py`.
+- A listing may use `{count}` and `{languages}`; they are expanded from the manifest
+  when it is read, so adding a language does not require editing the others.
 - Fonts: `tools/build_locale_fonts.py` now also reads the marketing captions.
 
 For new caption characters, regenerate the existing per-script font subsets from
@@ -308,23 +318,33 @@ python3 tools/build_locale_fonts.py /path/to/noto-source-fonts
 godot --headless --path . --editor --import
 ```
 
-`--translate` is an explicit authoring operation: it replaces non-EN/ES full
-description drafts and fills missing graphics locales through the existing online
-translator. It preserves titles/short descriptions and existing graphics edits.
+`--translate` is an explicit authoring operation. By default it drafts only the
+languages that have no listing yet (title, short and full description, plus their
+captions) through the existing online translator; machine titles and captions need
+rewriting by hand. `--translate --lang xx` also redrafts the full description of an
+existing listing, preserving its title, short description and graphics edits.
 **Do not run it over native-reviewed full descriptions without backing up those edits.**
 Normal checking, capture and packaging do not call a translation service.
 
-### Review one locale without replacing the final set
+### Capture and publish a subset of languages
+
+The generator only renders. It writes images and a `manifest.json` into
+`build/store_capture/`; nothing tracked changes until you publish:
 
 ```sh
-xvfb-run -a godot --audio-driver Dummy --path . res://scenes/tests/store_assets.tscn -- --lang=ar --no-telemetry
+xvfb-run -a godot --audio-driver Dummy --path . res://scenes/tests/store_assets.tscn -- --lang=pl,th --no-telemetry
+python3 tools/build_store_listings.py --publish --lang pl th
 ```
 
-This writes only `build/store_capture/` preview material. It does not publish a
-partial locale set into `docs/store_assets/` or replace its manifest. Run without
-`--lang` after approval to publish the complete generated set locally.
-Run only one capture process per checkout; staging filenames and the synthetic
-save are shared. Use separate workspaces if captures need to run concurrently.
+`--publish` first validates every staged image (dimensions, color type, hashes).
+Publishing every language replaces the committed set; publishing a subset merges
+only those languages into the existing manifest and records the capture in its
+`partial_updates`, so the other languages' images and hashes stay untouched. A
+subset is refused when the published capture is for another version: after a
+version bump, capture and publish every language. Capture takes roughly 40 seconds
+per language on a software renderer. Run only one capture process per checkout;
+staging filenames and the synthetic save are shared. Use separate workspaces if
+captures need to run concurrently.
 
 The generator resets a separate fixture for every image/language, uses fixed seeds,
 checks real dispatches and scroll positions, validates font coverage and caption
@@ -333,11 +353,12 @@ not change. Telemetry is suppressed by the test-scene guard and `--no-telemetry`
 The synthetic save path is selected before fixture interactions; production tests
 and capture scripts remain excluded by `export_presets.cfg`.
 
-All renders must finish successfully before final files are replaced. Each file
-is staged and renamed; the manifest is written last. This is **not** a transactional
-filesystem-wide rollback if a disk error interrupts publication. Packaging fails
-closed on mismatched hashes/missing files; regenerate after repairing the error.
-Only the explicitly named old gallery PNGs are retired; unrelated files are not deleted.
+All renders and validation must finish successfully before final files are replaced.
+Each file is copied to a temporary name and renamed; the manifest is written last.
+This is **not** a transactional filesystem-wide rollback if a disk error interrupts
+publication. Packaging fails closed on mismatched hashes/missing files; publish again
+after repairing the error. Publishing a language also removes any other PNG left in
+that language's two image folders.
 
 `docs/store_assets/manifest.json` records version, Godot version, commit/dirty flag,
 fixed seed/day, scenario, raw-source path, localized copy and SHA-256 for each output.

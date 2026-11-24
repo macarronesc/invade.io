@@ -28,7 +28,9 @@ func _ready() -> void:
 				get_tree().quit(2)
 				return
 			for key in signatures:
-				if signatures[key] != baseline.get(key):
+				if not baseline.has(key):
+					print("REFACTOR new (not in baseline): ", key) # e.g. a language added since the recording
+				elif signatures[key] != baseline[key]:
 					push_error("REFACTOR mismatch: " + key)
 					failed = true
 	for suffix in ["", ".previous"]:

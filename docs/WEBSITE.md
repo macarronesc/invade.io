@@ -65,7 +65,7 @@ no telemetry (`OS.has_feature("web")`) and hides file-based backups.
   Git commit. Edit links target the original guide on `dev`.
 
 Keep technical prose in English. Player-page translations are manually maintained
-in English and Spanish; the game's 15 languages do not imply translated technical
+in English and Spanish; the game's 19 languages do not imply translated technical
 guides. Store-listing translations and historical notes remain in their intended
 languages. Review new marketing claims against the actual store build.
 

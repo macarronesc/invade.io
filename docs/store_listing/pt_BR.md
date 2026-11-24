@@ -32,7 +32,7 @@ Melhore a guarnição, o recrutamento, a velocidade de marcha e as recompensas d
 
 Jogue do seu jeito
 • Offline, sem anúncios e sem compras no aplicativo. O ouro é ganho jogando.
-• 15 idiomas, incluindo português do Brasil. O árabe tem interface da direita para a esquerda.
+• {count} idiomas, incluindo português do Brasil. O árabe tem interface da direita para a esquerda.
 • Temas claro e escuro, tamanho do texto, paleta para daltonismo, movimento reduzido, contraste do mapa, velocidade e vibração ajustáveis.
 • Sem conta. Seu progresso fica no dispositivo, com backups exportáveis e importáveis. Não há salvamento na nuvem.
 

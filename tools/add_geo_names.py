@@ -4,6 +4,11 @@
 Usage:
     python3 tools/add_geo_names.py /tmp/ne_10m_populated_places.dbf
 
+A language's `geo` manifest field is either a Natural Earth DBF column ("NAME_PL") or
+"wikidata:<code>", which reads that language's label for each city's WIKIDATAID from
+Wikidata (the same source Natural Earth uses), cached in tools/.wikidata_cache.json.
+An empty `geo` means English city names. Reviewed corrections live in geo_name_fixes.json.
+
 The script is idempotent: existing rows and the country column are preserved, only
 the trailing `names` object is replaced. It exists because the original build tool
 folded non-Latin names to ASCII for the old Latin-only font.
@@ -15,17 +20,26 @@ import os
 import re
 import struct
 import sys
+import time
 import unicodedata
+import urllib.parse
+import urllib.request
+
+import languages
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GEO = os.path.join(ROOT, "assets", "data", "geo.json")
 
-FIELDS = {
-    "es": "NAME_ES", "en": "NAME_EN", "pt_BR": "NAME_PT", "fr": "NAME_FR",
-    "de": "NAME_DE", "it": "NAME_IT", "ru": "NAME_RU", "tr": "NAME_TR",
-    "ar": "NAME_AR", "hi": "NAME_HI", "id": "NAME_ID", "vi": "NAME_VI",
-    "zh_CN": "NAME_ZH", "ja": "NAME_JA", "ko": "NAME_KO",
-}
+FIELDS = {lang["code"]: lang["geo"] for lang in languages.LANGUAGES
+          if lang["geo"] and not lang["geo"].startswith("wikidata:")}
+WIKIDATA = {lang["code"]: lang["geo"].split(":", 1)[1] for lang in languages.LANGUAGES
+            if lang["geo"].startswith("wikidata:")}
+WIKIDATA_CACHE = os.path.join(ROOT, "tools", ".wikidata_cache.json")
+WIKIDATA_API = "https://www.wikidata.org/w/api.php"
+# Source names that are wrong for their language (for example Simplified text in the Traditional
+# column); reviewed replacements live in tools/geo_name_fixes.json as {language: {city_key: name}}.
+with open(os.path.join(ROOT, "tools", "geo_name_fixes.json"), encoding="utf-8") as _f:
+    FIXES = json.load(_f)
 
 
 def slug(text: str) -> str:
@@ -57,6 +71,30 @@ def read_dbf(path: str) -> list[dict]:
     return rows
 
 
+def wikidata_labels(ids: list[str], language: str) -> dict[str, str]:
+    """Labels in `language` for Wikidata ids, 50 per request, cached between runs."""
+    cache: dict[str, dict[str, str]] = {}
+    if os.path.exists(WIKIDATA_CACHE):
+        with open(WIKIDATA_CACHE, encoding="utf-8") as f:
+            cache = json.load(f)
+    labels = cache.setdefault(language, {})
+    missing = [item for item in ids if item not in labels]
+    for start in range(0, len(missing), 50):
+        chunk = missing[start:start + 50]
+        query = urllib.parse.urlencode({"action": "wbgetentities", "ids": "|".join(chunk),
+                                        "props": "labels", "languages": language, "format": "json"})
+        request = urllib.request.Request(WIKIDATA_API + "?" + query, headers={
+            "User-Agent": "invade.io-localization/1.0 (https://github.com/macarronesc/invade.io)"})
+        with urllib.request.urlopen(request, timeout=60) as response:
+            entities = json.load(response)["entities"]
+        for item in chunk:
+            labels[item] = entities.get(item, {}).get("labels", {}).get(language, {}).get("value", "")
+        time.sleep(0.2)
+    with open(WIKIDATA_CACHE, "w", encoding="utf-8") as f:
+        json.dump(cache, f, ensure_ascii=False)
+    return {item: labels.get(item, "") for item in ids}
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         raise SystemExit("usage: add_geo_names.py <ne_10m_populated_places.dbf>")
@@ -75,6 +113,11 @@ def main() -> int:
 
     geo = json.load(open(GEO, encoding="utf-8"))
     matched = 0
+    wikidata: dict[str, dict[str, str]] = {}
+    for lang, code in WIKIDATA.items():
+        ids = sorted({by_key[city[0]]["WIKIDATAID"] for city in geo["cities"]
+                      if city[0] in by_key and by_key[city[0]].get("WIKIDATAID")})
+        wikidata[lang] = wikidata_labels(ids, code)
     for city in geo["cities"]:
         key = city[0]
         row = by_key.get(key)
@@ -85,6 +128,13 @@ def main() -> int:
                 value = row.get(field, "")
                 if value:
                     names[lang] = value
+            for lang, labels in wikidata.items():
+                value = labels.get(row.get("WIKIDATAID", ""), "")
+                if value:
+                    names[lang] = value
+        for lang, fixes in FIXES.items():
+            if key in fixes:
+                names[lang] = fixes[key]
         city[:] = city[:7] + [names]
     with open(GEO, "w", encoding="utf-8") as f:
         json.dump(geo, f, ensure_ascii=False, separators=(",", ":"))

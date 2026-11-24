@@ -124,9 +124,10 @@ starting state of a new installation.*
 
 ## Language and accessibility settings
 
-Settings includes 15 interface languages: English, Spanish, Brazilian Portuguese,
+Settings includes 19 interface languages: English, Spanish, Brazilian Portuguese,
 French, German, Italian, Russian, Turkish, Arabic, Hindi, Indonesian, Vietnamese,
-Simplified Chinese, Japanese, and Korean. New games follow the device language
+Simplified Chinese, Japanese, Korean, Polish, Ukrainian, Traditional Chinese, and
+Thai. New games follow the device language
 where supported; a saved language choice takes precedence. Arabic uses RTL
 interface layout, but geographic maps and the brand are not mirrored.
 

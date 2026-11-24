@@ -32,7 +32,7 @@ Nâng cấp quân đồn trú, tuyển quân, tốc độ hành quân và thư�
 
 Chơi theo cách của bạn
 • Ngoại tuyến, không quảng cáo, không mua hàng trong ứng dụng. Vàng kiếm được bằng cách chơi.
-• 15 ngôn ngữ, có tiếng Việt. Tiếng Ả Rập hỗ trợ giao diện từ phải sang trái.
+• {count} ngôn ngữ, có tiếng Việt. Tiếng Ả Rập hỗ trợ giao diện từ phải sang trái.
 • Điều chỉnh chủ đề sáng hoặc tối, cỡ chữ, bảng màu hỗ trợ mù màu, giảm chuyển động, độ tương phản bản đồ, tốc độ game và rung.
 • Không cần tài khoản. Tiến trình lưu trên thiết bị, có thể xuất và nhập bản sao lưu. Không có lưu đám mây.
 

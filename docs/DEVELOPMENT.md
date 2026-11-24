@@ -98,32 +98,79 @@ contents. Debug mobile app identifiers also differ from production; see
 
 ## Localization
 
-The runtime reads stable keys from [locale/strings.csv](../locale/strings.csv).
-[LanguageCatalog](../scripts/data/language_catalog.gd) defines supported codes,
-system-locale aliases, font scripts, and RTL direction. City names come from
+[assets/data/languages.json](../assets/data/languages.json) is the single source of
+truth for supported languages: code, native name, font script, text direction, Play
+Console locale, translator code, city-name source, locale aliases, and review
+`status`. [LanguageCatalog](../scripts/data/language_catalog.gd) and every tool in
+`tools/` read it (the tools through [tools/languages.py](../tools/languages.py)), so
+no language is listed anywhere else. The picker order follows the manifest.
+
+The runtime reads stable keys from [locale/strings.csv](../locale/strings.csv),
+which is the only place copy is edited. City names come from
 [geo.json](../assets/data/geo.json), with English fallback.
 
 ### Change existing text or add a key
 
-1. Edit the CSV while preserving its header, unique keys, quoting, formatting
-   tokens such as `%s`/`%d`, and token order. Add English/Spanish source text and
-   have translations reviewed for meaning and layout.
-2. Reviewed overrides live in
-   [tools/locale_overrides.py](../tools/locale_overrides.py). Update the override
-   as well when changing a value it owns; otherwise regeneration can restore the
-   previous text.
-3. If you want machine-generated drafts for empty cells, explicitly run:
+1. Edit the CSV directly while preserving its header, unique keys, quoting,
+   formatting tokens such as `%s`/`%d`, and **token order**. Add English and
+   Spanish source text and have translations reviewed for meaning and layout.
+2. To draft empty cells with the public translation service (an authoring step,
+   not a validator or a substitute for native-speaker review):
 
    ```sh
-   python3 tools/build_locale_csv.py --translate --overrides
+   python3 tools/build_locale_csv.py --translate              # every empty cell
+   python3 tools/build_locale_csv.py --translate --lang pl th  # only these columns
    ```
 
-   This contacts a public translation service, writes the CSV and an ignored
-   cache, and reapplies overrides. It is an authoring step, not a read-only
-   validator or a substitute for native-speaker review.
-4. Rebuild font subsets if the text introduces glyphs not already covered, then
-   reimport with Godot and run glyph/layout checks from [Testing](TESTING.md).
+   Machine drafts often pick the wrong sense of short game terms ("Capital",
+   "Base", "Back", "Resume"); read every short label in context before committing.
+3. Rebuild font subsets if the text introduces glyphs not already covered
+   (see below), reimport with Godot, and run the checks in [Testing](TESTING.md).
    Review the generated `.translation` files in your diff.
+
+### Add a language
+
+1. **Manifest.** Append an entry to `assets/data/languages.json`. Choose its
+   `script` from the `scripts` table (add a script entry with its Noto source file
+   if the writing system is new). If the base font Fredoka lacks letters the
+   language uses, as for Polish, Turkish, and Vietnamese, pick a script with
+   `"primary": true`; the test suite checks this. `geo` is a Natural Earth column
+   such as `NAME_PL`, `"wikidata:<code>"`, or empty for English city names.
+2. **Register and translate.**
+
+   ```sh
+   python3 tools/languages.py --sync                          # project.godot translation list
+   python3 tools/build_locale_csv.py --translate --lang xx     # new CSV column (draft)
+   python3 tools/add_geo_names.py /path/to/ne_10m_populated_places.dbf
+   python3 tools/build_store_listings.py --translate --lang xx # listing and caption drafts
+   ```
+
+   Natural Earth names that are wrong for their language can be corrected in
+   [tools/geo_name_fixes.json](../tools/geo_name_fixes.json). Replace the store
+   drafts with reviewed titles, short and full descriptions, and captions. Listings
+   may use `{count}` and `{languages}`, which are expanded when the upload ZIP is built.
+3. **Fonts and import.**
+
+   ```sh
+   python3 tools/build_locale_fonts.py /path/to/noto-source-fonts
+   godot --headless --path . --editor --import
+   ```
+
+4. **Screenshots.** Capture and publish only the new language; existing languages'
+   images and hashes stay untouched (see [Play Store guide](PLAY_STORE_UPDATE.md)):
+
+   ```sh
+   xvfb-run -a godot --path . res://scenes/tests/store_assets.tscn -- --lang=xx
+   python3 tools/build_store_listings.py --publish --lang xx
+   ```
+
+5. **Verify.** `python3 -m unittest discover -s tools/tests` reports anything the
+   manifest implies but is still missing (registration, columns, placeholders,
+   fonts, city names, prose counts), then run the Godot suites. Update the language
+   count in the README, Gameplay guide, press kit, and website copy.
+
+Keep `status` as `draft` until a native speaker has reviewed the UI copy, store
+listing, and captions. Do not advertise support before that review.
 
 ### Rebuild font subsets when needed
 
@@ -137,20 +184,18 @@ python3 -m venv .venv
 godot --headless --path . --editor --import
 ```
 
-The directory must contain `notosans.ttf`, `notosansarabic.ttf`,
-`notosansdevanagari.ttf`, `notosanssc.ttf`, `notosansjp.ttf`, and `notosanskr.ttf`
-from the [Google Fonts Noto families](https://fonts.google.com/noto). Rename local
-copies of downloaded source fonts to the expected filenames as needed. The tool
-includes UI text, city names, store captions, and native language-picker labels.
+The directory must contain the `source` file of every script in the manifest, for
+example `notosans.ttf`, `notosansarabic.ttf`, `notosansdevanagari.ttf`,
+`notosanssc.ttf`, `notosansjp.ttf`, `notosanskr.ttf`, `notosanstc.ttf`, and
+`notosansthai.ttf`, from the [Google Fonts Noto families](https://fonts.google.com/noto).
+Rename local copies of downloaded source fonts to the expected filenames as needed.
+The tool includes UI text, city names, store captions, and native language-picker
+labels, and keeps a committed subset untouched when its glyph set is unchanged.
 It also pins the unused width axis at its existing default while retaining variable
 weights; do not generate static-weight replacements or drop shaping tables.
 Preserve [OFL notices](../assets/fonts/LICENSE-OFL.txt). Inspect Arabic shaping,
-Hindi marks, CJK glyphs, long labels, and RTL behavior—not just missing glyphs.
-Maps and the brand stay unmirrored in Arabic.
-
-Adding a language also reaches the catalog, project translation registration,
-font mapping, tools, store locale mapping, and tests. Do not advertise support
-until those paths and native-language review are complete.
+Hindi and Thai marks, CJK glyphs, long labels, and RTL behavior, not just missing
+glyphs. Maps and the brand stay unmirrored in Arabic.
 
 ## Geography and brand assets
 

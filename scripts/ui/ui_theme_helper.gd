@@ -36,16 +36,6 @@ const FONT_BODY := 30
 const TOUCH_SCROLL_DEADZONE := 20
 const FONT_WEIGHT_TAG := 2003265652 # 'wght'
 
-const FONT_DIR := "res://assets/fonts/locale/"
-const SCRIPT_FONTS := {
-	"latin": "noto_latin_ext.ttf", "latin_ext": "noto_latin_ext.ttf",
-	"cyrillic": "noto_cyrillic.ttf", "arabic": "noto_arabic.ttf",
-	"devanagari": "noto_devanagari.ttf", "cjk_sc": "noto_sc.ttf",
-	"cjk_jp": "noto_jp.ttf", "cjk_kr": "noto_kr.ttf",
-}
-const NAME_FONTS := ["names_latin.ttf", "names_cyrillic.ttf", "names_arabic.ttf",
-	"names_devanagari.ttf", "names_cjk_sc.ttf", "names_cjk_jp.ttf", "names_cjk_kr.ttf"]
-
 static var _bold: FontVariation
 static var _regular: FontVariation
 
@@ -67,16 +57,16 @@ static func _weighted_font(weight: int) -> FontVariation:
 	var font := FontVariation.new()
 	font.base_font = base.base_font
 	var script: FontVariation = _script_font(LocaleStrings.lang, weight)
-	# Vietnamese and Turkish have letters Fredoka does not cover. Using Noto as the
-	# primary face for those locales avoids mixed glyphs inside a single word.
-	if LocaleStrings.lang in ["vi", "tr"] and script != null:
+	# Some scripts (Vietnamese, Turkish) have letters Fredoka does not cover. Using Noto as
+	# the primary face for those locales avoids mixed glyphs inside a single word.
+	if LanguageCatalog.uses_primary_font(LocaleStrings.lang) and script != null:
 		font.base_font = script
 	font.variation_opentype = {FONT_WEIGHT_TAG: weight}
 	var fallbacks: Array[Font] = []
 	for f in base.fallbacks:
 		fallbacks.append(f)
-	for name in NAME_FONTS:
-		var path: String = FONT_DIR + str(name)
+	for name in LanguageCatalog.name_fonts():
+		var path: String = LanguageCatalog.FONT_DIR + name
 		if ResourceLoader.exists(path):
 			fallbacks.append(load(path))
 	if script != null:
@@ -85,11 +75,11 @@ static func _weighted_font(weight: int) -> FontVariation:
 	return font
 
 static func _script_font(code: String, weight: int) -> FontVariation:
-	var file: String = str(SCRIPT_FONTS.get(LanguageCatalog.script_of(code), ""))
-	if file == "" or not ResourceLoader.exists(FONT_DIR + file):
+	var file := LanguageCatalog.font_file(code)
+	if file == "" or not ResourceLoader.exists(LanguageCatalog.FONT_DIR + file):
 		return null
 	var font := FontVariation.new()
-	font.base_font = load(FONT_DIR + file)
+	font.base_font = load(LanguageCatalog.FONT_DIR + file)
 	font.variation_opentype = {FONT_WEIGHT_TAG: weight}
 	return font
 

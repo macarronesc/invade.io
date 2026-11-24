@@ -33,7 +33,7 @@ Migliora la guarnigione, il reclutamento, la velocità di marcia e le ricompense
 
 GIOCA A MODO TUO
 • Gameplay offline, senza pubblicità e senza acquisti in-app. L'oro si guadagna giocando.
-• 15 lingue: inglese, spagnolo, portoghese brasiliano, francese, tedesco, italiano, russo, turco, arabo, hindi, indonesiano, vietnamita, cinese semplificato, giapponese e coreano. L'arabo include un'interfaccia da destra a sinistra.
+• {count} lingue: {languages}. L'arabo include un'interfaccia da destra a sinistra.
 • Temi chiari e scuri, dimensione del testo regolabile, tavolozza per daltonici, movimento ridotto, contrasto della mappa, velocità di gioco e feedback tattile.
 • Nessun account richiesto. I progressi rimangono sul tuo dispositivo, con backup esportabili e importabili; non è disponibile alcun salvataggio nel cloud.
 

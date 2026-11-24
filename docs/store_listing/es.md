@@ -36,7 +36,7 @@ Mejora guarnición, reclutamiento, velocidad de marcha y botín. Sube de rango, 
 
 JUEGA A TU MANERA
 • Se juega sin conexión, sin anuncios y sin compras integradas. El oro se gana jugando.
-• 15 idiomas: español, inglés, portugués de Brasil, francés, alemán, italiano, ruso, turco, árabe, hindi, indonesio, vietnamita, chino simplificado, japonés y coreano. El árabe incluye una interfaz de derecha a izquierda.
+• {count} idiomas: {languages}. El árabe incluye una interfaz de derecha a izquierda.
 • Temas claro y oscuro, tamaño de texto, paleta para daltonismo, movimiento reducido, contraste del mapa, velocidad y respuesta táctil ajustables.
 • Sin cuenta. El progreso se guarda en tu dispositivo, con copias exportables e importables; no hay guardado en la nube.
 
