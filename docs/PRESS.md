@@ -22,7 +22,7 @@ It has no ads, no in-app purchases and no account. Made by one developer
 
 ## Assets
 
-- Screenshots (phone 1080×1920, tablet 1920×1080) in 15 languages: [`docs/store_assets/`](store_assets/)
+- Screenshots (phone 1080×1920, tablet 1920×1080) in 19 languages: [`docs/store_assets/`](store_assets/)
 - Feature graphic: [`feature-graphic-1024x500.png`](store_assets/feature-graphic-1024x500.png)
 - Icon: [`assets/brand/play-store-icon-512.png`](../assets/brand/play-store-icon-512.png) and [`icon-1024.png`](../assets/brand/icon-1024.png)
 - Trailer: render it from the source with `scripts/render_trailer.sh` ([how](PLAY_STORE_UPDATE.md#trailer))

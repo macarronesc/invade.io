@@ -1,0 +1,35 @@
+{
+	"scripts": {
+		"latin": {"font": "noto_latin_ext.ttf", "source": "notosans.ttf", "names": "names_latin.ttf", "primary": false},
+		"latin_ext": {"font": "noto_latin_ext.ttf", "source": "notosans.ttf", "names": "names_latin.ttf", "primary": true},
+		"cyrillic": {"font": "noto_cyrillic.ttf", "source": "notosans.ttf", "names": "names_cyrillic.ttf", "primary": false},
+		"arabic": {"font": "noto_arabic.ttf", "source": "notosansarabic.ttf", "names": "names_arabic.ttf", "primary": false},
+		"devanagari": {"font": "noto_devanagari.ttf", "source": "notosansdevanagari.ttf", "names": "names_devanagari.ttf", "primary": false},
+		"cjk_sc": {"font": "noto_sc.ttf", "source": "notosanssc.ttf", "names": "names_cjk_sc.ttf", "primary": false},
+		"cjk_jp": {"font": "noto_jp.ttf", "source": "notosansjp.ttf", "names": "names_cjk_jp.ttf", "primary": false},
+		"cjk_kr": {"font": "noto_kr.ttf", "source": "notosanskr.ttf", "names": "names_cjk_kr.ttf", "primary": false},
+		"cjk_tc": {"font": "noto_tc.ttf", "source": "notosanstc.ttf", "names": "names_cjk_tc.ttf", "primary": false},
+		"thai": {"font": "noto_thai.ttf", "source": "notosansthai.ttf", "names": "names_thai.ttf", "primary": false}
+	},
+	"languages": [
+		{"code": "en", "native": "English", "script": "latin", "dir": "ltr", "play": "en-US", "translate": "en", "geo": "NAME_EN", "aliases": [], "status": "reviewed"},
+		{"code": "es", "native": "Español", "script": "latin", "dir": "ltr", "play": "es-ES", "translate": "es", "geo": "NAME_ES", "aliases": [], "status": "reviewed"},
+		{"code": "pt_BR", "native": "Português (Brasil)", "script": "latin", "dir": "ltr", "play": "pt-BR", "translate": "pt", "geo": "NAME_PT", "aliases": ["pt", "pt_PT"], "status": "draft"},
+		{"code": "fr", "native": "Français", "script": "latin", "dir": "ltr", "play": "fr-FR", "translate": "fr", "geo": "NAME_FR", "aliases": [], "status": "draft"},
+		{"code": "de", "native": "Deutsch", "script": "latin", "dir": "ltr", "play": "de-DE", "translate": "de", "geo": "NAME_DE", "aliases": [], "status": "draft"},
+		{"code": "it", "native": "Italiano", "script": "latin", "dir": "ltr", "play": "it-IT", "translate": "it", "geo": "NAME_IT", "aliases": [], "status": "draft"},
+		{"code": "ru", "native": "Русский", "script": "cyrillic", "dir": "ltr", "play": "ru-RU", "translate": "ru", "geo": "NAME_RU", "aliases": [], "status": "draft"},
+		{"code": "tr", "native": "Türkçe", "script": "latin_ext", "dir": "ltr", "play": "tr-TR", "translate": "tr", "geo": "NAME_TR", "aliases": [], "status": "draft"},
+		{"code": "ar", "native": "العربية", "script": "arabic", "dir": "rtl", "play": "ar", "translate": "ar", "geo": "NAME_AR", "aliases": [], "status": "draft"},
+		{"code": "hi", "native": "हिन्दी", "script": "devanagari", "dir": "ltr", "play": "hi-IN", "translate": "hi", "geo": "NAME_HI", "aliases": [], "status": "draft"},
+		{"code": "id", "native": "Bahasa Indonesia", "script": "latin", "dir": "ltr", "play": "id", "translate": "id", "geo": "NAME_ID", "aliases": [], "status": "draft"},
+		{"code": "vi", "native": "Tiếng Việt", "script": "latin_ext", "dir": "ltr", "play": "vi", "translate": "vi", "geo": "NAME_VI", "aliases": [], "status": "draft"},
+		{"code": "zh_CN", "native": "简体中文", "script": "cjk_sc", "dir": "ltr", "play": "zh-CN", "translate": "zh-CN", "geo": "NAME_ZH", "aliases": ["zh", "zh_Hans", "zh_SG"], "status": "draft"},
+		{"code": "ja", "native": "日本語", "script": "cjk_jp", "dir": "ltr", "play": "ja-JP", "translate": "ja", "geo": "NAME_JA", "aliases": [], "status": "draft"},
+		{"code": "ko", "native": "한국어", "script": "cjk_kr", "dir": "ltr", "play": "ko-KR", "translate": "ko", "geo": "NAME_KO", "aliases": [], "status": "draft"},
+		{"code": "pl", "native": "Polski", "script": "latin_ext", "dir": "ltr", "play": "pl-PL", "translate": "pl", "geo": "NAME_PL", "aliases": [], "status": "draft"},
+		{"code": "uk", "native": "Українська", "script": "cyrillic", "dir": "ltr", "play": "uk", "translate": "uk", "geo": "NAME_UK", "aliases": [], "status": "draft"},
+		{"code": "zh_TW", "native": "繁體中文", "script": "cjk_tc", "dir": "ltr", "play": "zh-TW", "translate": "zh-TW", "geo": "NAME_ZHT", "aliases": ["zh_Hant", "zh_HK", "zh_MO"], "status": "draft"},
+		{"code": "th", "native": "ไทย", "script": "thai", "dir": "ltr", "play": "th", "translate": "th", "geo": "wikidata:th", "aliases": [], "status": "draft"}
+	]
+}

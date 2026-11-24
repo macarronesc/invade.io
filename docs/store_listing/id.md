@@ -32,7 +32,7 @@ Tingkatkan garnisun, perekrutan, kecepatan mars, dan hadiah emas. Naikkan pangka
 
 Mainkan dengan caramu
 • Offline, tanpa iklan dan tanpa pembelian dalam aplikasi. Emas didapat dengan bermain.
-• 15 bahasa, termasuk Bahasa Indonesia. Bahasa Arab mendukung antarmuka kanan ke kiri.
+• {count} bahasa, termasuk Bahasa Indonesia. Bahasa Arab mendukung antarmuka kanan ke kiri.
 • Tema terang dan gelap, ukuran teks, palet ramah buta warna, pengurangan gerakan, kontras peta, kecepatan game, dan getaran dapat disesuaikan.
 • Tanpa akun. Progres tersimpan di perangkat, dengan cadangan yang bisa diekspor dan diimpor. Tidak ada penyimpanan cloud.
 

@@ -4,9 +4,8 @@
 Usage:
     python3 tools/build_locale_fonts.py /tmp/opencode/fonts-src
 
-Source fonts are the Google Fonts variable Noto files:
-    notosans.ttf, notosansarabic.ttf, notosansdevanagari.ttf,
-    notosanssc.ttf, notosansjp.ttf, notosanskr.ttf
+Source fonts are the Google Fonts variable Noto files named by the `source` field of
+each script in assets/data/languages.json (for example notosans.ttf, notosansarabic.ttf).
 
 The subset keeps every glyph used by locale/strings.csv, the store captions and
 the localized city names, so screenshots never depend on system fonts either.
@@ -23,49 +22,16 @@ from fontTools import subset
 from fontTools.ttLib import TTFont
 from fontTools.varLib.instancer import instantiateVariableFont
 
+import languages
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "assets", "fonts", "locale")
 CSV = os.path.join(ROOT, "locale", "strings.csv")
 GEO = os.path.join(ROOT, "assets", "data", "geo.json")
 
-# locale -> script resource
-SCRIPT = {
-    "latin": "noto_latin_ext.ttf",
-    "cyrillic": "noto_cyrillic.ttf",
-    "arabic": "noto_arabic.ttf",
-    "devanagari": "noto_devanagari.ttf",
-    "cjk_sc": "noto_sc.ttf",
-    "cjk_jp": "noto_jp.ttf",
-    "cjk_kr": "noto_kr.ttf",
-}
-# Latin locales also need the Latin-extended fallback; Vietnamese and Turkish use it
-# as the primary face because Fredoka lacks several of their letters.
-LATIN_LOCALES = ["en", "es", "pt_BR", "fr", "de", "it", "id", "tr", "vi"]
-SOURCE = {
-    "latin": "notosans.ttf", "cyrillic": "notosans.ttf",
-    "arabic": "notosansarabic.ttf", "devanagari": "notosansdevanagari.ttf",
-    "cjk_sc": "notosanssc.ttf", "cjk_jp": "notosansjp.ttf", "cjk_kr": "notosanskr.ttf",
-}
-NATIVE = {
-    "en": "English", "es": "Español", "pt_BR": "Português (Brasil)", "fr": "Français",
-    "de": "Deutsch", "it": "Italiano", "ru": "Русский", "tr": "Türkçe", "ar": "العربية",
-    "hi": "हिन्दी", "id": "Bahasa Indonesia", "vi": "Tiếng Việt", "zh_CN": "简体中文",
-    "ja": "日本語", "ko": "한국어",
-}
 # Printable ASCII plus the punctuation and game symbols the UI already uses.
 BASE = set(chr(c) for c in range(32, 127))
 BASE.update("★☆·—…«»“”‘’€£¥₩،؛؟।、。！？：；（）【】「」『』・ー×")
-# The native names always need to be renderable, even in another language's picker.
-NAME_SETS = {
-    "latin": "en es pt_BR fr de it id tr vi",
-    "cyrillic": "ru",
-    "arabic": "ar",
-    "devanagari": "hi",
-    "cjk_sc": "zh_CN",
-    "cjk_jp": "ja",
-    "cjk_kr": "ko",
-}
-
 
 def read_text() -> tuple[dict[str, str], dict[str, set[str]]]:
     columns: dict[str, list[str]] = {}
@@ -109,10 +75,12 @@ def pin_unused_width(font: TTFont) -> None:
                 break
 
 
-def subset_font(source: str, chars: set[str], out: str) -> None:
+def subset_font(source: str, chars: set[str], out: str) -> bool:
+    """Writes the subset; returns False and keeps the committed file when its glyph set is unchanged."""
+    temp = out + ".tmp"
     args = [
         source,
-        "--output-file=" + out,
+        "--output-file=" + temp,
         "--text=" + "".join(sorted(chars)),
         "--layout-features=*",
         "--glyph-names",
@@ -126,9 +94,16 @@ def subset_font(source: str, chars: set[str], out: str) -> None:
         "--drop-tables+=DSIG",
     ]
     subset.main(args)
-    with TTFont(out, recalcTimestamp=False) as font:
+    with TTFont(temp, recalcTimestamp=False) as font:
         pin_unused_width(font)
-        font.save(out)
+        font.save(temp)
+    if os.path.exists(out):
+        with TTFont(out) as old, TTFont(temp) as new:
+            if set(old.getBestCmap()) == set(new.getBestCmap()):
+                os.remove(temp)
+                return False
+    os.replace(temp, out)
+    return True
 
 
 def main() -> int:
@@ -138,48 +113,22 @@ def main() -> int:
     os.makedirs(OUT, exist_ok=True)
     text, names = read_text()
 
-    latin_chars: set[str] = set(BASE)
-    for lang in LATIN_LOCALES:
-        latin_chars.update(chars_for(lang, text, names))
-    for lang in LATIN_LOCALES:
-        latin_chars.update(NATIVE[lang])
-    subset_font(os.path.join(src_dir, "notosans.ttf"), latin_chars, os.path.join(OUT, "noto_latin_ext.ttf"))
-    print("noto_latin_ext.ttf")
-
-    for script in ["cyrillic", "arabic", "devanagari", "cjk_sc", "cjk_jp", "cjk_kr"]:
-        langs = [lang for lang in NATIVE if script_of(lang) == script]
-        chars: set[str] = set(BASE)
-        for lang in langs:
-            chars.update(chars_for(lang, text, names))
-            chars.update(NATIVE[lang])
-        subset_font(os.path.join(src_dir, SOURCE[script]), chars, os.path.join(OUT, SCRIPT[script]))
-        print(SCRIPT[script])
-
-    # Tiny always-loaded fallbacks so the language picker can render every native
-    # name even when the active UI language uses a different script.
-    for script, langs in NAME_SETS.items():
-        chars: set[str] = set(BASE)
-        for lang in langs.split():
-            chars.update(NATIVE[lang])
-        subset_font(os.path.join(src_dir, SOURCE[script]), chars, os.path.join(OUT, "names_%s.ttf" % script))
-        print("names_%s.ttf" % script)
+    # One subset per script font, covering every language that uses it, plus a tiny
+    # "names" font so the language picker can render every native name even when the
+    # active UI language uses a different script.
+    fonts: dict[str, tuple[str, set[str]]] = {}
+    name_fonts: dict[str, tuple[str, set[str]]] = {}
+    for lang in languages.LANGUAGES:
+        script = languages.SCRIPTS[lang["script"]]
+        _, chars = fonts.setdefault(script["font"], (script["source"], set(BASE)))
+        chars.update(chars_for(lang["code"], text, names))
+        chars.update(lang["native"])
+        _, name_chars = name_fonts.setdefault(script["names"], (script["source"], set(BASE)))
+        name_chars.update(lang["native"])
+    for out, (source, chars) in {**fonts, **name_fonts}.items():
+        changed = subset_font(os.path.join(src_dir, source), chars, os.path.join(OUT, out))
+        print(out if changed else out + " (unchanged)")
     return 0
-
-
-def script_of(lang: str) -> str:
-    if lang in ("ru",):
-        return "cyrillic"
-    if lang == "ar":
-        return "arabic"
-    if lang == "hi":
-        return "devanagari"
-    if lang == "zh_CN":
-        return "cjk_sc"
-    if lang == "ja":
-        return "cjk_jp"
-    if lang == "ko":
-        return "cjk_kr"
-    return "latin"
 
 
 if __name__ == "__main__":

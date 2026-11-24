@@ -16,6 +16,7 @@ tools/.ne_cache/
 
 # Caché de la traducción automática (se regenera con tools/build_locale_csv.py)
 tools/.translation_cache.json
+tools/.wikidata_cache.json
 tools/__pycache__/
 
 # Temporales locales y credenciales de firma (nunca publicar)

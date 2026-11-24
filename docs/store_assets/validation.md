@@ -1,5 +1,26 @@
 # Store material — validation record
 
+## Language expansion: Polish, Ukrainian, Traditional Chinese, Thai
+
+Date: 24 November 2026. Source version: **0.5.0** (no version change).
+
+- The four languages were captured on their own (`--lang=pl,th,uk,zh_TW`) and merged
+  with `build_store_listings.py --publish --lang ...`. The manifest records the clean
+  commit in `partial_updates`; the other 15 languages' entries and files were not touched.
+- Before/after check for the original languages: English, Arabic and Japanese phone
+  and tablet captures (36 images) are byte-identical to captures taken before any
+  change on the same machine and renderer.
+- Contact sheets and rendered UI flows for the new languages were reviewed (headlines
+  fit, Thai tone marks and Traditional Chinese glyphs render, no clipping). This is not
+  native-speaker approval: every new language is marked `draft` in
+  `assets/data/languages.json` and its UI copy, store text and captions began as
+  machine drafts that were corrected by hand for game terminology.
+- Full regression suite: 6,375 passed, 0 failed (all 19 languages for glyph coverage,
+  placeholders and UI fit). Python tools suite: 50 tests. `--ui`, `--wide-ui`, both launch
+  checks and `refactor_check` passed; all 32 pre-existing refactor signatures match the
+  pre-change baseline (the 8 new language/orientation signatures are new).
+- Capture time is about 40 seconds per language on a software renderer.
+
 ## Release-candidate revalidation
 
 Date: 9 November 2026. Target source version: **0.5.0**.

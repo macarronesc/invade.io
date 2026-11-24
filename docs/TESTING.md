@@ -120,7 +120,7 @@ them with `xvfb-run -a` on Linux without a display. Do not substitute `--headles
 when you need images.
 
 ```sh
-# Real UI flows in all 15 languages; English/Spanish cover both appearance themes.
+# Real UI flows in every supported language; English/Spanish cover both appearance themes.
 xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --ui
 
 # Preview one language's UI flows.

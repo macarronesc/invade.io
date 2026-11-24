@@ -20,8 +20,10 @@ feedback, device testing, and documentation are all welcome.
    and report commands, results, warnings, skips, and device limitations in the PR.
 
 For UI changes, include representative before/after images and check long text,
-RTL, themes, and orientation. For translation changes, preserve formatting tokens
-and reviewed overrides; see [localization](docs/DEVELOPMENT.md#localization).
+RTL, themes, and orientation. For translation changes, preserve formatting tokens and their order, and edit
+`locale/strings.csv` directly; native-speaker review of any language is very
+welcome (see [localization](docs/DEVELOPMENT.md#localization) for adding or
+reviewing a language).
 For guide-only changes, check links, alt text, English prose, and rendered layout.
 Guides are also rendered on the website; run the affected
 [website checks](docs/WEBSITE.md#run-and-validate) to catch broken routes/anchors.

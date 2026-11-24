@@ -61,7 +61,7 @@ pointing/emulate_touch_from_mouse=true
 
 [internationalization]
 
-locale/translations=PackedStringArray("res://locale/strings.en.translation", "res://locale/strings.es.translation", "res://locale/strings.pt_BR.translation", "res://locale/strings.fr.translation", "res://locale/strings.de.translation", "res://locale/strings.it.translation", "res://locale/strings.ru.translation", "res://locale/strings.tr.translation", "res://locale/strings.ar.translation", "res://locale/strings.hi.translation", "res://locale/strings.id.translation", "res://locale/strings.vi.translation", "res://locale/strings.zh_CN.translation", "res://locale/strings.ja.translation", "res://locale/strings.ko.translation")
+locale/translations=PackedStringArray("res://locale/strings.en.translation", "res://locale/strings.es.translation", "res://locale/strings.pt_BR.translation", "res://locale/strings.fr.translation", "res://locale/strings.de.translation", "res://locale/strings.it.translation", "res://locale/strings.ru.translation", "res://locale/strings.tr.translation", "res://locale/strings.ar.translation", "res://locale/strings.hi.translation", "res://locale/strings.id.translation", "res://locale/strings.vi.translation", "res://locale/strings.zh_CN.translation", "res://locale/strings.ja.translation", "res://locale/strings.ko.translation", "res://locale/strings.pl.translation", "res://locale/strings.uk.translation", "res://locale/strings.zh_TW.translation", "res://locale/strings.th.translation")
 locale/include_text_server_data=true
 
 [rendering]

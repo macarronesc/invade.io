@@ -33,7 +33,7 @@ Améliorez votre garnison, le recrutement, la vitesse de marche et les récompen
 
 JOUEZ À VOTRE MANIÈRE
 • Jeu hors ligne, sans publicité et sans achats intégrés. L'or se gagne en jouant.
-• 15 langues : anglais, espagnol, portugais brésilien, français, allemand, italien, russe, turc, arabe, hindi, indonésien, vietnamien, chinois simplifié, japonais et coréen. L'arabe comprend une interface de droite à gauche.
+• {count} langues : {languages}. L'arabe comprend une interface de droite à gauche.
 • Thèmes clairs et sombres, taille de texte réglable, palette daltonienne, mouvement réduit, contraste de la carte, vitesse de jeu et retour haptique.
 • Aucun compte requis. La progression reste sur votre appareil, avec des sauvegardes exportables et importables ; il n'y a pas de sauvegarde dans le cloud.
 

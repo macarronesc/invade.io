@@ -32,7 +32,7 @@ Verbessere Garnison, Rekrutierung, Marschtempo und Goldbelohnungen. Steige im Ra
 
 Spiele auf deine Weise
 • Offline, ohne Werbung und ohne In-App-Käufe. Gold verdienst du beim Spielen.
-• 15 Sprachen, darunter Deutsch. Arabisch unterstützt eine Oberfläche von rechts nach links.
+• {count} Sprachen, darunter Deutsch. Arabisch unterstützt eine Oberfläche von rechts nach links.
 • Helle und dunkle Designs, Textgröße, Farbsehschwächen-Palette, reduzierte Bewegung, Kartenkontrast, Spieltempo und Vibration sind einstellbar.
 • Kein Konto nötig. Dein Fortschritt bleibt auf dem Gerät; Backups lassen sich exportieren und importieren. Es gibt keinen Cloud-Spielstand.
 

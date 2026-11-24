@@ -36,7 +36,7 @@ Upgrade your garrison, recruitment, march speed, and gold rewards. Climb the ran
 
 PLAY YOUR WAY
 • Offline gameplay, no ads, and no in-app purchases. Gold is earned by playing.
-• 15 languages: English, Spanish, Brazilian Portuguese, French, German, Italian, Russian, Turkish, Arabic, Hindi, Indonesian, Vietnamese, Simplified Chinese, Japanese, and Korean. Arabic includes a right-to-left interface.
+• {count} languages: {languages}. Arabic includes a right-to-left interface.
 • Light and dark themes, adjustable text size, a color-blind palette, reduced motion, map contrast, game speed, and haptic feedback.
 • No account required. Progress stays on your device, with exportable and importable backups; there is no cloud save.
 
