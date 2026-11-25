@@ -204,7 +204,12 @@ jobs:
           "$ANDROID_HOME/emulator/emulator" -avd r8-smoke -port 5554 -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
           emulator_pid=$!
           trap 'status=$?; kill "$emulator_pid" 2>/dev/null || true; if (( status != 0 )); then tail -80 "$RUNNER_TEMP/emulator.log"; fi' EXIT
-          timeout 240 bash -c 'adb wait-for-device; until [[ "$(adb shell getprop sys.boot_completed | tr -d "\r")" == 1 ]]; do sleep 2; done'
+          timeout 90 adb wait-for-device
+          for ((attempt = 0; attempt < 90; attempt++)); do
+            [[ "$(adb shell getprop sys.boot_completed | tr -d '\r')" == 1 ]] && break
+            sleep 2
+          done
+          test "$attempt" -lt 90
           adb shell input keyevent KEYCODE_WAKEUP
           adb shell wm dismiss-keyguard
           bash scripts/smoke_android_bundle.sh build/android/invadeio-unsigned.aab
