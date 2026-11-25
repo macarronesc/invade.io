@@ -191,17 +191,23 @@ jobs:
           godot --headless --path . --export-release 'Android AAB' build/android/invadeio-unsigned.aab
           bash scripts/verify_play_bundle.sh build/android/invadeio-unsigned.aab build/android/invadeio-debug.apk
           python3 tools/verify_artifact.py build/android/invadeio-unsigned.aab
-      - name: Enable emulator acceleration
-        run: sudo chmod a+rw /dev/kvm
       - name: Smoke-test the minified arm64 bundle
-        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
-        with:
+        timeout-minutes: 12
+        env:
+          ANDROID_SERIAL: emulator-5554
+        run: |
+          sudo chmod a+rw /dev/kvm
           # The API 30 Google APIs image supports arm64 apps through its native bridge.
-          api-level: 30
-          arch: x86_64
-          target: google_apis
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
-          script: bash scripts/smoke_android_bundle.sh build/android/invadeio-unsigned.aab
+          image='system-images;android-30;google_apis;x86_64'
+          sdkmanager --sdk_root="$ANDROID_HOME" emulator "$image"
+          avdmanager create avd --name r8-smoke --package "$image" --device pixel_2 <<< 'no'
+          "$ANDROID_HOME/emulator/emulator" -avd r8-smoke -port 5554 -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          emulator_pid=$!
+          trap 'status=$?; kill "$emulator_pid" 2>/dev/null || true; if (( status != 0 )); then tail -80 "$RUNNER_TEMP/emulator.log"; fi' EXIT
+          timeout 240 bash -c 'adb wait-for-device; until [[ "$(adb shell getprop sys.boot_completed | tr -d "\r")" == 1 ]]; do sleep 2; done'
+          adb shell input keyevent KEYCODE_WAKEUP
+          adb shell wm dismiss-keyguard
+          bash scripts/smoke_android_bundle.sh build/android/invadeio-unsigned.aab
       - name: Verify custom engine in release AAB
         if: env.CUSTOM_ENGINE == 'true'
         run: |

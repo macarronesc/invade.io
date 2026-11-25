@@ -95,7 +95,7 @@ class WorkflowChecks(unittest.TestCase):
 
     def test_android_smoke_gates_unsigned_artifact_upload(self):
         build = WORKFLOW.split("\n  build-android:\n", 1)[1].split("\n  verify-android-handoff:\n", 1)[0]
-        smoke = build.index("script: bash scripts/smoke_android_bundle.sh build/android/invadeio-unsigned.aab")
+        smoke = build.index("bash scripts/smoke_android_bundle.sh build/android/invadeio-unsigned.aab")
         self.assertLess(build.index("python3 tools/verify_artifact.py build/android/invadeio-unsigned.aab"), smoke)
         self.assertLess(smoke, build.index("id: upload_unsigned_aab"))
 
