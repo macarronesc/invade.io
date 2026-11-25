@@ -20,6 +20,8 @@ unzip -p "$work/app.apks" universal.apk > "$work/app.apk"
 adb install --abi arm64-v8a "$work/app.apk"
 adb shell svc wifi disable
 adb shell svc data disable
+adb logcat -c
+trap 'status=$?; if (( status != 0 )); then adb logcat -d -t 300 || true; adb logcat -d -b crash || true; fi; rm -rf "$work"' EXIT
 adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n "$launcher" | tee "$work/start"
 grep -qx 'Status: ok' "$work/start"
 pid="$(adb shell pidof -s "$package" | tr -d '\r')"
