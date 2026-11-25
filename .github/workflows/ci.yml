@@ -182,6 +182,8 @@ jobs:
           bash scripts/enable_android_r8.sh "$test_root/build"
           test "$(grep -Fc '// invadeio: R8 release' "$test_root/build/build.gradle")" -eq 1
           grep -Fq 'minifyEnabled true' "$test_root/build/build.gradle"
+          grep -Fq 'shrinkResources true' "$test_root/build/build.gradle"
+          cmp tools/android/macarronesc.invadeio.keep.xml "$test_root/build/res/raw/macarronesc.invadeio.keep.xml"
           test -s "$test_root/build/invadeio-proguard-rules.pro"
       - name: Build and verify unsigned production candidate (no production secrets)
         env:

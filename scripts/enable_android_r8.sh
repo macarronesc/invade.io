@@ -21,8 +21,14 @@ if [[ ! -f "$GRADLE" ]]; then
 fi
 
 cp "$(dirname "$0")/../tools/android/proguard-rules.pro" "$BUILD_DIR/invadeio-proguard-rules.pro"
+mkdir -p "$BUILD_DIR/res/raw"
+cp "$(dirname "$0")/../tools/android/macarronesc.invadeio.keep.xml" "$BUILD_DIR/res/raw/"
 
 if grep -qF "$MARKER" "$GRADLE"; then
+	if ! grep -Fq 'shrinkResources true' "$GRADLE"; then
+		echo 'Reinstala la plantilla Android para actualizar el bloque R8 y vuelve a ejecutar el script.' >&2
+		exit 1
+	fi
 	echo "R8 ya estaba activado en $GRADLE"
 	exit 0
 fi
@@ -34,7 +40,7 @@ android {
     buildTypes {
         release {
             minifyEnabled true
-            shrinkResources false
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'invadeio-proguard-rules.pro'
         }
     }

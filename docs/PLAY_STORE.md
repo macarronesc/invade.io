@@ -94,9 +94,10 @@ environment; never commit them or `.godot/export_credentials.cfg`. Contributors
 should not request the owner's upload key to run tests.
 
 The [R8 script](../scripts/enable_android_r8.sh) reproducibly patches the generated
-`android/build/` template. It enables release minification without resource
-shrinking and retains required Godot Java/JNI access. Reinstalling the template
-can replace those changes; rerun the patch afterward. R8 does not optimize
+`android/build/` template. It enables release minification and Android resource
+shrinking, retains required Godot Java/JNI access, and explicitly keeps the
+splash, launcher, and file-provider resources. Reinstall the template if it
+has an older R8 block, and rerun the patch after reinstalling. R8 does not optimize
 GDScript, geography, fonts, or native Godot/Sentry libraries, and is not evidence
 of a measured RAM improvement.
 
