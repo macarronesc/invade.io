@@ -22,7 +22,7 @@ fi
 
 cp "$(dirname "$0")/../tools/android/proguard-rules.pro" "$BUILD_DIR/invadeio-proguard-rules.pro"
 mkdir -p "$BUILD_DIR/res/raw"
-cp "$(dirname "$0")/../tools/android/macarronesc.invadeio.keep.xml" "$BUILD_DIR/res/raw/"
+cp "$(dirname "$0")/../tools/android/macarronesc_invadeio_keep.xml" "$BUILD_DIR/res/raw/"
 
 if grep -qF "$MARKER" "$GRADLE"; then
 	if ! grep -Fq 'shrinkResources true' "$GRADLE"; then
