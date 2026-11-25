@@ -4,7 +4,7 @@ set -euo pipefail
 
 bundle="${1:?usage: smoke_android_bundle.sh unsigned.aab}"
 package=macarronesc.invadeio
-activity="$package/com.godot.game.GodotApp"
+launcher="$package/com.godot.game.GodotAppLauncher"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
@@ -20,7 +20,7 @@ unzip -p "$work/app.apks" universal.apk > "$work/app.apk"
 adb install --abi arm64-v8a "$work/app.apk"
 adb shell svc wifi disable
 adb shell svc data disable
-adb shell am start -W -n "$activity" | tee "$work/start"
+adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n "$launcher" | tee "$work/start"
 grep -qx 'Status: ok' "$work/start"
 pid="$(adb shell pidof -s "$package" | tr -d '\r')"
 [[ "$pid" =~ ^[0-9]+$ ]]
@@ -30,7 +30,7 @@ adb logcat -d --pid="$pid" > "$work/logcat"
 cat "$work/logcat"
 test "$(adb shell pidof -s "$package" | tr -d '\r')" = "$pid"
 adb shell dumpsys activity activities > "$work/activities"
-grep -E 'mResumedActivity|topResumedActivity' "$work/activities" | grep -F "$activity"
+grep -E 'mResumedActivity|topResumedActivity' "$work/activities" | grep -F "$package/com.godot.game.GodotApp"
 if grep -Ei 'FATAL EXCEPTION|Fatal signal|NoSuchMethodError|NoSuchFieldError|UnsatisfiedLinkError|NoClassDefFoundError|ClassNotFoundException|JNI DETECTED ERROR' "$work/logcat"; then
 	exit 1
 fi
