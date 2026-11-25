@@ -18,6 +18,7 @@ does not certify mobile ergonomics, performance, native SDKs, or store complianc
 |---|---|
 | Guide prose, navigation, or README images | Review links/anchors, English prose, alt text, GitHub rendering, `git diff --check`; check store assets if referenced |
 | Website or guides published on Pages | [Website checks](WEBSITE.md#run-and-validate): unit tests, production build/link checks, and browser/accessibility checks |
+| Browser demo (shell, music, web export) | [Browser demo checks](WEBSITE.md#browser-demo): render the music, export the Web preset, then `npm run test:demo`; test on a real phone |
 | Gameplay, economy, or data | Python/repository checks, full Godot suite, relevant balance simulations |
 | UI, language, fonts, or accessibility | Quick suite plus `--ui`; add wide/rotation/gesture checks and physical-device review as applicable |
 | Save, settings, or lifecycle | `--mobile` plus full suite and the [device checklist](PLATFORM_INTEGRATION.md#physical-device-checklist) |

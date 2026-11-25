@@ -81,10 +81,15 @@ jobs:
           godot="$RUNNER_TEMP/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
           chmod +x "$godot"
           "$godot" --headless --path . --editor --import
+          "$godot" --headless --path . --script tools/render_web_music.gd
           mkdir -p website/dist/play/game
           "$godot" --headless --path . --export-release Web "$PWD/website/dist/play/game/index.html"
           test -s website/dist/play/game/index.wasm && test -s website/dist/play/game/index.pck
+          grep -q 'assets/audio/music/menu-' website/dist/play/game/index.pck # pre-rendered music loop shipped
+          if grep -q 'sentry-bundle' website/dist/play/game/index.html; then echo 'third-party script in the demo shell'; exit 1; fi
           rm -f "$RUNNER_TEMP/godot.zip" "$RUNNER_TEMP/templates.tpz"
+      - name: Check the exported browser demo on desktop and phone viewports
+        run: npm run test:demo
       - name: Package only the checked static output
         env:
           EVENT: ${{ github.event_name }}
