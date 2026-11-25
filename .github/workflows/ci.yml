@@ -197,8 +197,8 @@ jobs:
           ANDROID_SERIAL: emulator-5554
         run: |
           sudo chmod a+rw /dev/kvm
-          # The API 30 Google APIs image supports arm64 apps through its native bridge.
-          image='system-images;android-30;google_apis;x86_64'
+          # API 30's native bridge traps on newer SIMD instructions in the stock arm64 engine.
+          image='system-images;android-36;google_apis;x86_64'
           sdkmanager --sdk_root="$ANDROID_HOME" emulator "$image"
           export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
           mkdir -p "$ANDROID_AVD_HOME"
