@@ -125,6 +125,7 @@ func _ready() -> void:
 	await test_save_optimizations()
 	await test_performance_regressions()
 	test_music_disk_cache()
+	test_bundled_music()
 	if "--mobile" in OS.get_cmdline_user_args():
 		await test_settings_and_backups()
 	elif "--quick" in OS.get_cmdline_user_args():
@@ -630,6 +631,7 @@ func test_performance_regressions() -> void:
 
 func test_music_disk_cache() -> void:
 	var directory := "user://test_music_cache"
+	var none := "user://test_no_bundled_music" # a packaged loop must not hide the disk-cache behaviour
 	DirAccess.make_dir_recursive_absolute(directory)
 	for track in MusicSynth.TRACKS:
 		var path := MusicSynth._cache_path(track, directory)
@@ -639,12 +641,12 @@ func test_music_disk_cache() -> void:
 		old_file.store_string("old synthesis version")
 		old_file.close()
 		var start := Time.get_ticks_usec()
-		var cold := MusicSynth.load_or_render_track(track, directory)
+		var cold := MusicSynth.load_or_render_track(track, directory, none)
 		var cold_ms := (Time.get_ticks_usec() - start) / 1000.0
 		assert_true(FileAccess.file_exists(path), "A generated music track is cached on disk: " + track)
 		assert_true(not FileAccess.file_exists(obsolete), "Replacing a track removes obsolete versions: " + track)
 		start = Time.get_ticks_usec()
-		var warm := MusicSynth.load_or_render_track(track, directory)
+		var warm := MusicSynth.load_or_render_track(track, directory, none)
 		var warm_ms := (Time.get_ticks_usec() - start) / 1000.0
 		assert_equals(warm.data, cold.data, "Cached music preserves every PCM byte: " + track)
 		assert_equals([warm.format, warm.mix_rate, warm.stereo, warm.loop_mode, warm.loop_begin, warm.loop_end],
@@ -653,18 +655,18 @@ func test_music_disk_cache() -> void:
 		var broken := FileAccess.open(path, FileAccess.WRITE)
 		broken.store_string("interrupted cache")
 		broken.close()
-		assert_equals(MusicSynth.load_or_render_track(track, directory).data, cold.data, "A damaged cache regenerates identical audio: " + track)
+		assert_equals(MusicSynth.load_or_render_track(track, directory, none).data, cold.data, "A damaged cache regenerates identical audio: " + track)
 		var wrong_rate := MusicSynth.to_wav(MusicSynth.render_track(track), true)
 		wrong_rate.mix_rate = 44100
 		wrong_rate.save_to_wav(path)
-		assert_equals(MusicSynth.load_or_render_track(track, directory).data, cold.data, "A cache with the wrong sample rate is replaced: " + track)
+		assert_equals(MusicSynth.load_or_render_track(track, directory, none).data, cold.data, "A cache with the wrong sample rate is replaced: " + track)
 		assert_true(not FileAccess.file_exists(path.trim_suffix(".wav") + ".tmp.wav"), "Music cache leaves no temporary file: " + track)
 		DirAccess.remove_absolute(path)
 	DirAccess.remove_absolute(directory)
 	var blocked := FileAccess.open(directory, FileAccess.WRITE)
 	blocked.store_string("not a directory")
 	blocked.close()
-	assert_true(not MusicSynth.load_or_render_track("battle", directory).data.is_empty(), "Unavailable cache storage does not prevent music playback")
+	assert_true(not MusicSynth.load_or_render_track("battle", directory, none).data.is_empty(), "Unavailable cache storage does not prevent music playback")
 	DirAccess.remove_absolute(directory)
 	if DisplayServer.get_name() != "headless":
 		var muted := [GameManager.sound_muted, GameManager.music_muted]
@@ -677,6 +679,34 @@ func test_music_disk_cache() -> void:
 			audio.free()
 		GameManager.sound_muted = muted[0]
 		GameManager.music_muted = muted[1]
+
+func test_bundled_music() -> void:
+	var directory := "user://test_bundled_music"
+	var cache := "user://test_bundled_music_cache" # only a synthesized track is ever written here
+	for folder in [directory, cache]:
+		for old in DirAccess.get_files_at(folder):
+			DirAccess.remove_absolute(folder.path_join(old))
+	DirAccess.make_dir_recursive_absolute(directory)
+	for track in MusicSynth.TRACKS:
+		var path := MusicSynth.bundled_path(track, directory)
+		assert_true(MusicSynth._read_bundled_track(track, directory) == null, "Without a packaged loop the track is synthesized: " + track)
+		assert_equals(MusicSynth.save_bundled_track(track, directory), OK, "A web music loop can be rendered: " + track)
+		var packaged := MusicSynth.load_or_render_track(track, cache, directory)
+		var rendered := MusicSynth.to_wav(MusicSynth.render_track(track), true)
+		assert_equals(packaged.data, rendered.data, "A packaged loop holds every synthesized PCM byte: " + track)
+		assert_equals([packaged.format, packaged.mix_rate, packaged.stereo, packaged.loop_mode, packaged.loop_begin, packaged.loop_end],
+			[rendered.format, rendered.mix_rate, rendered.stereo, rendered.loop_mode, rendered.loop_begin, rendered.loop_end], "A packaged loop keeps format and loop boundaries: " + track)
+		assert_true(not DirAccess.dir_exists_absolute(cache), "A packaged loop needs no disk cache: " + track)
+		var broken := FileAccess.open(path, FileAccess.WRITE)
+		broken.store_buffer(PackedByteArray([1, 2, 3]))
+		broken.close()
+		assert_true(MusicSynth._read_bundled_track(track, directory) == null, "A truncated packaged loop is ignored: " + track)
+		assert_equals(MusicSynth.load_or_render_track(track, cache, directory).data, rendered.data, "A truncated packaged loop falls back to synthesis: " + track)
+		DirAccess.remove_absolute(path)
+		for old in DirAccess.get_files_at(cache):
+			DirAccess.remove_absolute(cache.path_join(old))
+		DirAccess.remove_absolute(cache)
+	DirAccess.remove_absolute(directory)
 
 func test_mobile_experience() -> void:
 	print("\n-> Test: Guardado Local, Hápticos y Ciclo de Vida Móvil")
@@ -773,7 +803,7 @@ func test_mobile_experience() -> void:
 	assert_true(not settings._vibration_slider.editable and settings._vibration_test.disabled, "Desactivar vibración deshabilita intensidad y prueba")
 	vibration.set_pressed(true)
 	assert_true(settings._vibration_slider.editable, "Activar vibración vuelve a habilitar la intensidad")
-	assert_true(settings._vibration_test.disabled == not OS.has_feature("mobile"), "La prueba no promete vibración en escritorio")
+	assert_true(settings._vibration_test.disabled == not GameManager.can_vibrate(), "La prueba no promete vibración en escritorio")
 	assert_true(settings.find_children("*", "BaseButton", true, false).filter(func(b): return b is CheckButton or b is OptionButton).all(func(b): return b.custom_minimum_size.y >= 128), "Los controles de ajustes tienen una zona táctil amplia")
 	var language_picker: OptionButton = settings.find_children("*", "OptionButton", true, false).filter(func(o): return o.item_count == LanguageCatalog.codes().size())[0]
 	assert_equals(language_picker.item_count, LanguageCatalog.codes().size(), "El selector ofrece todos los idiomas")

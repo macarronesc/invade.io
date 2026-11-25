@@ -849,9 +849,13 @@ func equip_cosmetic(id: String) -> bool:
 	EventBus.cosmetics_changed.emit()
 	return true
 
+## Android/iOS nativos y Android Chrome en la demo web (Safari en iOS no tiene API de vibración).
+static func can_vibrate() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("web_android")
+
 ## Vibración háptica breve en dispositivos móviles (no hace nada en escritorio)
 func haptic(duration_ms: int) -> void:
-	if OS.has_feature("mobile"):
+	if can_vibrate():
 		var effect := _haptic_parameters(duration_ms, Time.get_ticks_msec())
 		if effect != Vector2.ZERO:
 			Input.vibrate_handheld(int(effect.x), effect.y)

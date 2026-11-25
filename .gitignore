@@ -44,3 +44,6 @@ export_credentials.cfg
 /website/public/
 /website/playwright-report/
 /website/test-results/
+
+# Pre-rendered browser-demo music (tools/render_web_music.gd); rebuilt by the Pages workflow.
+/assets/audio/music/

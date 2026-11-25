@@ -110,7 +110,7 @@ func _build(restore_focus: String = "") -> void:
 	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("vibration_note")))
 	_vibration_slider = _slider("vibration_intensity")
 	_vibration_test = _button("vibration_test", func(): GameManager.haptic(60))
-	if not OS.has_feature("mobile"):
+	if not GameManager.can_vibrate():
 		_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("vibration_mobile_only")))
 	_refresh_vibration_controls()
 
@@ -203,7 +203,7 @@ func _refresh_save_status() -> void:
 
 func _refresh_vibration_controls() -> void:
 	_vibration_slider.editable = GameManager.settings["vibration"]
-	_vibration_test.disabled = not OS.has_feature("mobile") or not GameManager.settings["vibration"] or GameManager.settings["vibration_intensity"] <= 0.0
+	_vibration_test.disabled = not GameManager.can_vibrate() or not GameManager.settings["vibration"] or GameManager.settings["vibration_intensity"] <= 0.0
 
 func _section(key: String) -> void:
 	_content.add_child(UIThemeHelper.label(LocaleStrings.text(key), "Caption"))

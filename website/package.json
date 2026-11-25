@@ -11,7 +11,8 @@
     "build": "npm run prepare:content && astro sync --force && astro check && astro build && python3 scripts/check_site.py",
     "preview": "astro preview --host 127.0.0.1",
     "test": "node --test tests/*.test.mjs && python3 -m unittest discover -s tests -p 'test_*.py' -v",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "test:demo": "playwright test -c playwright.demo.config.ts"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "7.3.5",

@@ -46,16 +46,47 @@ preservation, and the absence of private/development files in the output.
 The `/play/` page links to a Godot web build at `/play/game/`. It is not part of
 the Astro output: [pages.yml](../.github/workflows/pages.yml) exports the `Web`
 preset with the pinned Godot 4.7.2 templates into `dist/play/game/` after the site
-checks pass, so Pages and `dev` PR previews both carry the playable game. To test
-it locally, export with the editor's Web preset (single-threaded, no special
-headers needed) and serve the folder with `python3 -m http.server`. The build has
-no telemetry (`OS.has_feature("web")`) and hides file-based backups.
+checks pass, so Pages and `dev` PR previews both carry the playable game. The build
+has no telemetry (`OS.has_feature("web")`) and hides file-based backups.
+
+Three pieces make it work on phones:
+
+- **HTML shell:** [website/game/shell.html](../website/game/shell.html) replaces Godot's
+  default page (`html/custom_html_shell`). It matches the game's background, blocks
+  iOS callouts/selection and overscroll, shows a loading percentage, and on phones
+  with the Fullscreen API (Android) adds a *Tap to play* step that enters full screen.
+  It deliberately omits Godot's head-include placeholder: the Sentry export plugin
+  injects a `sentry-bundle.js` script there, which does not exist in the web build.
+- **Pre-rendered music:** the single-threaded engine cannot synthesize the procedural
+  music off the main thread, which froze the page for seconds (far longer on a phone).
+  `tools/render_web_music.gd` renders both loops into `assets/audio/music/*.pcm`
+  (Git-ignored, included only by the Web preset) and `MusicSynth.load_or_render_track`
+  prefers them. File names embed the synthesis cache key, so a stale loop is never
+  used; without the files the game still synthesizes the music as before.
+- **Device features:** `GameManager.can_vibrate()` is true on native phones and on
+  Android browsers, so the vibration settings and haptics work in the demo.
+
+To test locally, render the music, export with the editor's Web preset
+(single-threaded, no special headers needed) and serve the folder:
+
+```sh
+godot --headless --path . --script tools/render_web_music.gd
+godot --headless --path . --export-release Web /tmp/opencode/web/index.html
+cd /tmp/opencode/web && python3 -m http.server 8000
+```
+
+After a site build and an export into `website/dist/play/game/`, `npm run test:demo`
+opens the demo on desktop, phone portrait and phone landscape viewports (headless
+Chromium with software WebGL) and checks that it starts, fills the viewport, draws a
+detailed first frame, and makes no failed or third-party requests. Pages runs it in CI.
+It is not a substitute for a real iOS Safari or Android device.
 
 ## Sources and ownership
 
 - `website/src/components/` and `website/src/layouts/`: the player-facing pages.
 - `website/src/data/`: English/Spanish website copy and selected real screenshots.
 - `website/src/styles/`: shared brand tokens, player layouts, and documentation styles.
+- `website/game/shell.html`: the browser demo's HTML page; `website/tests/demo/`: its browser check.
 - `website/scripts/site.mjs`: the site base, public links, and explicit guide list.
 - `website/scripts/prepare.mjs`: copies selected public assets and generates Starlight
   entries from the canonical Markdown. It never writes to the original guides,
