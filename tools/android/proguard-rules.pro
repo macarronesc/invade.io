@@ -1,8 +1,12 @@
 # Reglas R8 de compatibilidad para la build de Play; la plantilla Godot 4.7.2 no las incluye.
 # El motor llama a Java por JNI. Sentry en este proyecto es una GDExtension nativa, fuera del alcance de R8.
 
+# Play debe poder reconocer la llamada de GodotApp incluso después de R8.
+-keep class androidx.activity.EdgeToEdge { public static void enable(...); }
+-keepnames class androidx.activity.ComponentActivity
+-keepnames class androidx.activity.SystemBarStyle
+
 # Protect Godot Engine Core
--keep class com.godot.** { *; }
 -keep class org.godotengine.** { *; }
 -keep class ** extends org.godotengine.godot.plugin.GodotPlugin { *; }
 # Protect methods exposed to Godot via @UsedByGodot

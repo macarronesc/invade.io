@@ -263,8 +263,20 @@ PY
 			fi
 		fi
 		# AGP guarda el mapa de R8 dentro del AAB: Play lo usa para desofuscar fallos y ANR
-		if grep -qF "BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map" <<<"$LIST"; then
+		MAP="BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map"
+		if unzip -p "$BUNDLE" "$MAP" >"$TMP/proguard.map" 2>/dev/null && [ -s "$TMP/proguard.map" ]; then
 			ok "optimizado con R8 (incluye el mapa de desofuscación)"
+			# Sin grep -q: unzip debe terminar de leer todos los DEX con pipefail activo.
+			if awk '
+				/^[^[:space:]#]/ { edge = ($0 == "androidx.activity.EdgeToEdge -> androidx.activity.EdgeToEdge:") }
+				edge && /^[[:space:]]+([0-9]+:[0-9]+:)?void enable\(androidx\.activity\.ComponentActivity\)(:[0-9:]+)? -> enable$/ { found = 1 }
+				END { exit !found }
+			' "$TMP/proguard.map" && unzip -p "$BUNDLE" 'base/dex/classes*.dex' 2>/dev/null \
+				| grep -aF 'Landroidx/activity/EdgeToEdge;' >/dev/null; then
+				ok "R8 conserva EdgeToEdge.enable en el DEX"
+			else
+				bad "R8 eliminó o renombró EdgeToEdge.enable (revisa las reglas R8 y vuelve a exportar)"
+			fi
 		else
 			bad "sin R8: falta el mapa de desofuscación (ejecuta scripts/enable_android_r8.sh antes de exportar)"
 		fi
