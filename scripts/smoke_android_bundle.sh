@@ -30,6 +30,8 @@ pid="$(adb shell pidof -s "$package" | tr -d '\r')"
 sleep 15
 adb logcat -d --pid="$pid" > "$work/logcat"
 cat "$work/logcat"
+grep -Fq 'Completed initialization for Godot plugin SentryAndroidGodotPlugin' "$work/logcat"
+grep -Fq 'OpenGL API OpenGL ES' "$work/logcat"
 test "$(adb shell pidof -s "$package" | tr -d '\r')" = "$pid"
 adb shell dumpsys activity activities > "$work/activities"
 grep -E 'mResumedActivity|topResumedActivity' "$work/activities" | grep -F "$package/com.godot.game.GodotApp"
