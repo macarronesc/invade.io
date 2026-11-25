@@ -9,6 +9,11 @@ fonts. GitHub Pages serves the files and has its own hosting/privacy practices.
 The theme preference is stored in the browser. The game's telemetry is separate;
 see [Telemetry](ANALYTICS.md) and the [privacy policy](privacy-policy.html).
 
+The light/dark switch is one component, `website/src/components/ThemeToggle.astro`
+(a sun/moon button). Player pages include it directly and Starlight uses it through
+the `ThemeSelect` override in `astro.config.mjs`, so both share the `starlight-theme`
+storage key (`light` or `dark`; unset follows the system theme).
+
 ## Run and validate
 
 Use Node.js **24 LTS**, its bundled npm, and Python 3.10+ for the static-output

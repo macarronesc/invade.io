@@ -31,6 +31,7 @@ export default defineConfig({
     logo: { src: '../icon.svg' },
     social: [{ icon: 'github', label: 'GitHub', href: REPO }],
     customCss: ['./src/styles/docs.css'],
+    components: { ThemeSelect: './src/components/ThemeToggle.astro' },
     sidebar: [
       { label: 'Game website', link: '/' },
       ...['Start here', 'Play', 'Develop', 'Maintain', 'Trust'].map((group) => ({
