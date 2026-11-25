@@ -266,6 +266,27 @@ PY
 		MAP="BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map"
 		if unzip -p "$BUNDLE" "$MAP" >"$TMP/proguard.map" 2>/dev/null && [ -s "$TMP/proguard.map" ]; then
 			ok "optimizado con R8 (incluye el mapa de desofuscación)"
+			SENTRY_PLUGIN="io.sentry.godotplugin.SentryAndroidGodotPlugin"
+			if grep -Fxq "$SENTRY_PLUGIN -> $SENTRY_PLUGIN:" "$TMP/proguard.map"; then
+				ok "R8 conserva el nombre del plugin Android de Sentry"
+			else
+				bad "R8 no conserva el nombre del plugin Android de Sentry (Godot lo busca por nombre)"
+			fi
+			if RENAMED="$(awk '
+				/^[^#[:space:]]+ -> [^[:space:]]+:$/ {
+					total++
+					if ($1 != substr($3, 1, length($3) - 1)) renamed++
+				}
+				END {
+					if (!total) exit 1
+					printf "%d/%d", renamed, total
+					exit (100 * renamed < 60 * total)
+				}
+			' "$TMP/proguard.map")"; then
+				ok "clases renombradas por R8: $RENAMED (mínimo 60%)"
+			else
+				bad "R8 no alcanza el mínimo de clases renombradas: ${RENAMED:-sin entradas} (mínimo 60%)"
+			fi
 			# Sin grep -q: unzip debe terminar de leer todos los DEX con pipefail activo.
 			if awk '
 				/^[^[:space:]#]/ { edge = ($0 == "androidx.activity.EdgeToEdge -> androidx.activity.EdgeToEdge:") }

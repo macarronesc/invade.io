@@ -105,14 +105,18 @@ of a measured RAM improvement.
 [verify_play_bundle.sh](../scripts/verify_play_bundle.sh) checks archive integrity,
 identifiers, SDK values, exact permissions, architectures, native alignment,
 orientation/aspect restrictions, and required resources. Release AAB checks also
-require a valid signature and the R8 mapping, and check that the named
+require a valid signature and the R8 mapping, keep the Sentry Android plugin's
+name for reflection, and check that at least 60% of mapped classes are renamed.
+This is a regression floor, not Play Console's optimization score. They also check that the named
 `EdgeToEdge.enable(ComponentActivity)` entry and DEX class descriptor survive
 minification. This does not test the layout on a device. The combined APK check uses
 `zipalign -c -P 16` for actual native-library packaging. The AAB preset exports
 arm64 only, with minimum SDK 24 and target SDK 36.
 
-Before changing more keep rules, install APKs generated from the **minified AAB**
-on an arm64 Android device. Compare first launch, the menu, and a battle against
+CI launches an APK generated from the **minified AAB** on an emulator before
+uploading the unsigned bundle. This catches startup errors, not layout or input
+regressions. For keep-rule or engine changes, also exercise the APK on an arm64
+Android device. Compare first launch, the menu, and a battle against
 the previous build in portrait and landscape, including both landscape rotations
 on a device with a cutout. Check that immersive bars still behave the same and
 that troop dispatch and pause work. The debug APK does not exercise R8.

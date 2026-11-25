@@ -90,6 +90,9 @@ class SecurityChecks(unittest.TestCase):
         edge = "androidx.activity.EdgeToEdge"
         header = f"{edge} -> {edge}:\n"
         member = "    1:3:void enable(androidx.activity.ComponentActivity):72:74 -> enable\n"
+        sentry = "io.sentry.godotplugin.SentryAndroidGodotPlugin"
+        kept_plugin = f"{sentry} -> {sentry}:\n"
+        renamed = "other.A -> a:\nother.B -> b:\nother.C -> c:\n"
         dex = b"dex\0Landroidx/activity/EdgeToEdge;\0"
         manifest = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="macarronesc.invadeio">
   <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="36"/>
@@ -114,10 +117,12 @@ class SecurityChecks(unittest.TestCase):
             env = dict(os.environ, PATH=tmp + os.pathsep + os.environ["PATH"], BUNDLETOOL_JAR=str(jar),
                        EXPECTED_PACKAGE="macarronesc.invadeio", ALLOW_UNSIGNED_AAB="false")
             for mapping, bytecode, error in (
-                (header + member, dex, None),
-                (f"{edge} -> androidx.activity.a:\n" + member, dex, "R8 eliminó"),
-                (header + "other.Class -> other.Class:\n" + member, dex, "R8 eliminó"),
-                (header + member, b"dex\0", "R8 eliminó"),
+                (header + member + kept_plugin + renamed, dex, None),
+                (f"{edge} -> androidx.activity.a:\n" + member + kept_plugin + renamed, dex, "R8 eliminó"),
+                (header + "other.Class -> other.Class:\n" + member + kept_plugin + renamed, dex, "R8 eliminó"),
+                (header + member + kept_plugin + renamed, b"dex\0", "R8 eliminó"),
+                (header + member + f"{sentry} -> d:\n" + renamed, dex, "R8 no conserva el nombre"),
+                (header + member + kept_plugin + "other.A -> a:\nother.B -> b:\n", dex, "R8 no alcanza"),
                 ("", dex, "sin R8"),
             ):
                 with self.subTest(mapping=mapping, bytecode=bytecode):
