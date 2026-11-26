@@ -53,7 +53,7 @@ it at full size. More about the [gameplay](docs/GAMEPLAY.md) and
   a locally generated daily challenge without combat upgrades. Share a result
   card—not a live multiplayer match.
 - **Progress earned by playing.** Upgrade your army, climb the ranks, collect
-  cities in the atlas, complete 23 achievements, and unlock cosmetic styles.
+  cities in the atlas, complete 28 achievements (some of them secret), and unlock cosmetic styles.
 - **Play your way.** Choose from 19 languages, including an Arabic right-to-left
   interface, light/dark themes, text sizes, a color-blind palette, reduced motion,
   map contrast, game speeds, and adjustable haptics.

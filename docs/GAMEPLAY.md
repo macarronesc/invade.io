@@ -111,11 +111,15 @@ upgrade; rewards are claimed explicitly rather than through entry pop-ups.
 - **Challenges** contains the daily reward, a streak that forgives one missed
   day, the daily challenge, and three daily missions with gold/XP rewards.
 - **Progress** contains ranks, medals, invasion progress, the city atlas,
-  continent collections, and 23 achievements. Player rank itself does not change
+  continent collections, and 28 achievements. Player rank itself does not change
   combat strength.
 - **The atlas** records cities you control when winning, in any mode. Continent
   collection rewards cover campaign cities, not every city in the geographic
   database. Replaying a cleared campaign level pays less unless you improve stars.
+- **Secret achievements** are listed as a gold "Secret achievement" card with only a
+  cryptic hint. They reward feats rather than grinding, mostly in Ascension and the
+  campaign, and reveal their name and description when unlocked. Their definitions are in
+  [AchievementDatabase](../scripts/data/achievement_database.gd).
 
 ![The landscape Progress screen displays an atlas with conquered cities marked across the world.](store_assets/tablet_en/4_atlas.png)
 

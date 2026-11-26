@@ -69,6 +69,9 @@ var _info_timer: float = 0.0
 var _info_box := UIThemeHelper.box(Color(0.06, 0.09, 0.14, 0.92), 20, 0)
 ## Medalla de dominio: ganar sin perder ninguna base
 var lost_a_base: bool = false
+## Logro «Última resistencia»: el jugador llegó a tener 3+ bases y quedó reducido a una
+var _peak_bases: int = 0
+var _last_stand: bool = false
 var _captures: int = 0
 var _captured_bases: Array[BaseNode] = []
 var defeat_gold: int = 0
@@ -716,6 +719,9 @@ func _on_base_captured(base: BaseNode, prev_faction: int, new_faction: int) -> v
 		GameManager.haptic(60 if prev_faction == GameManager.Faction.PLAYER else 25)
 		if base.tier >= 3 or base.perk_text() != "":
 			shake_camera(9.0)
+		var owned := bases.filter(func(b): return b.faction == GameManager.Faction.PLAYER).size()
+		_peak_bases = maxi(_peak_bases, owned + (1 if prev_faction == GameManager.Faction.PLAYER else 0))
+		_last_stand = _last_stand or (owned == 1 and _peak_bases >= 3)
 	if new_faction == GameManager.Faction.PLAYER:
 		_captures += 1
 		if not _captured_bases.has(base):
@@ -799,6 +805,7 @@ func _trigger_victory() -> void:
 	result["xp"] = GameManager.victory_xp(result)
 	result["outcome"] = "win"
 	result["captures"] = _captured_bases.size()
+	result["last_stand"] = _last_stand
 	EventBus.battle_won.emit(result)
 	EventBus.battle_finished.emit(result)
 	GameManager.end_save_batch()

@@ -47,7 +47,8 @@ func _on_save_status_changed() -> void:
 
 func _on_achievement_unlocked(id: String) -> void:
 	var a := AchievementDatabase.get_by_id(id)
-	show_toast("trophy", LocaleStrings.text("toast_achievement"), AchievementDatabase.achievement_title(a))
+	var secret := AchievementDatabase.is_hidden(a)
+	show_toast("✨" if secret else "trophy", LocaleStrings.text("toast_secret_achievement" if secret else "toast_achievement"), AchievementDatabase.achievement_title(a))
 
 func show_toast(icon: String, title: String, body: String, during_battle: bool = false) -> void:
 	_queue.append({"icon": icon, "title": title, "body": body})

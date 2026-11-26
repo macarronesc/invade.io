@@ -212,6 +212,11 @@ static func build_theme() -> Theme:
 	compact.set_border_width_all(1)
 	compact.border_color = colors.line
 	t.set_stylebox("panel", "CompactCard", compact)
+	t.set_type_variation("SecretCard", "PanelContainer")
+	var secret := box(colors.surface.lerp(colors.gold_bright, 0.16), RADIUS, 32)
+	secret.set_border_width_all(2)
+	secret.border_color = Color(colors.gold_bright, 0.7)
+	t.set_stylebox("panel", "SecretCard", secret)
 	t.set_type_variation("Chip", "PanelContainer")
 	var chip := box(colors.surface_2, 999, 10)
 	chip.content_margin_left = 22

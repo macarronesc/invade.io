@@ -37,6 +37,10 @@ func get_stat(stat: String) -> int:
 			return GameManager.mastered_invasion_regions()
 		"ascension_tiers":
 			return GameManager.ascension_tiers_completed()
+		"perfect_ascension_tiers":
+			return GameManager.perfect_ascension_tiers()
+		"medals":
+			return GameManager.medals.size()
 		"max_upgrade_level":
 			return GameManager.upgrades.values().max()
 	return GameManager.get_stat(stat)
@@ -86,6 +90,10 @@ func _on_battle_won(battle_stats: Dictionary) -> void:
 		GameManager.add_stat("fast_victories")
 	if not _lost_base_this_battle:
 		GameManager.add_stat("flawless_victories")
+		if LevelDatabase.mode_of(battle_stats.get("level_id", "")) == "ascension":
+			GameManager.add_stat("flawless_ascensions")
+	if battle_stats.get("last_stand", false):
+		GameManager.add_stat("last_stand_wins")
 	check_all()
 	GameManager.save_game()
 	GameManager.end_save_batch()
