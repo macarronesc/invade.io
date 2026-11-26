@@ -263,8 +263,41 @@ PY
 			fi
 		fi
 		# AGP guarda el mapa de R8 dentro del AAB: Play lo usa para desofuscar fallos y ANR
-		if grep -qF "BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map" <<<"$LIST"; then
+		MAP="BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map"
+		if unzip -p "$BUNDLE" "$MAP" >"$TMP/proguard.map" 2>/dev/null && [ -s "$TMP/proguard.map" ]; then
 			ok "optimizado con R8 (incluye el mapa de desofuscación)"
+			SENTRY_PLUGIN="io.sentry.godotplugin.SentryAndroidGodotPlugin"
+			if grep -Fxq "$SENTRY_PLUGIN -> $SENTRY_PLUGIN:" "$TMP/proguard.map"; then
+				ok "R8 conserva el nombre del plugin Android de Sentry"
+			else
+				bad "R8 no conserva el nombre del plugin Android de Sentry (Godot lo busca por nombre)"
+			fi
+			if RENAMED="$(awk '
+				/^[^#[:space:]]+ -> [^[:space:]]+:$/ {
+					total++
+					if ($1 != substr($3, 1, length($3) - 1)) renamed++
+				}
+				END {
+					if (!total) exit 1
+					printf "%d/%d", renamed, total
+					exit (100 * renamed < 60 * total)
+				}
+			' "$TMP/proguard.map")"; then
+				ok "clases renombradas por R8: $RENAMED (mínimo 60%)"
+			else
+				bad "R8 no alcanza el mínimo de clases renombradas: ${RENAMED:-sin entradas} (mínimo 60%)"
+			fi
+			# Sin grep -q: unzip debe terminar de leer todos los DEX con pipefail activo.
+			if awk '
+				/^[^[:space:]#]/ { edge = ($0 == "androidx.activity.EdgeToEdge -> androidx.activity.EdgeToEdge:") }
+				edge && /^[[:space:]]+([0-9]+:[0-9]+:)?void enable\(androidx\.activity\.ComponentActivity\)(:[0-9:]+)? -> enable$/ { found = 1 }
+				END { exit !found }
+			' "$TMP/proguard.map" && unzip -p "$BUNDLE" 'base/dex/classes*.dex' 2>/dev/null \
+				| grep -aF 'Landroidx/activity/EdgeToEdge;' >/dev/null; then
+				ok "R8 conserva EdgeToEdge.enable en el DEX"
+			else
+				bad "R8 eliminó o renombró EdgeToEdge.enable (revisa las reglas R8 y vuelve a exportar)"
+			fi
 		else
 			bad "sin R8: falta el mapa de desofuscación (ejecuta scripts/enable_android_r8.sh antes de exportar)"
 		fi

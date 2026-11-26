@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@layout/godot_app_layout,@xml/godot_provider_paths,@drawable/splash_branding_image,@drawable/splash_icon,@mipmap/icon,@mipmap/themed_icon" />
