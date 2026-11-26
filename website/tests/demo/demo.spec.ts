@@ -21,3 +21,10 @@ test('the browser demo starts and fills the screen without third-party requests'
   await expect.poll(async () => (await page.screenshot()).length, { timeout: 60_000 }).toBeGreaterThan(40_000);
   expect(problems).toEqual([]);
 });
+
+test('a blocked engine script shows the error and a way back', async ({ page }) => {
+  await page.route('**/play/game/index.js', (route) => route.abort());
+  await page.goto('play/game/');
+  await expect(page.locator('#status-message')).toHaveClass('error');
+  await expect(page.locator('#status-back')).toBeVisible();
+});
