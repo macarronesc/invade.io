@@ -152,7 +152,7 @@ which is the only place copy is edited. City names come from
 3. **Fonts and import.**
 
    ```sh
-   python3 tools/build_locale_fonts.py /path/to/noto-source-fonts
+   python3 tools/build_locale_fonts.py /path/to/noto-source-fonts   # add --force to also refresh fonts whose characters did not change
    godot --headless --path . --editor --import
    ```
 
