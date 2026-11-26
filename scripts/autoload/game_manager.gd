@@ -747,14 +747,13 @@ func claim_daily_reward(day: int = DailyRewards.today()) -> int:
 	return state["reward"]
 
 func is_daily_challenge_done(day: int = DailyRewards.today()) -> bool:
-	return int(daily["challenge_day"]) == day
+	return int(daily["challenge_day"]) >= day
 
 ## Registra la victoria en un desafío diario; devuelve el oro (completo sólo la primera vez del día)
 func complete_daily_challenge(level_id: String) -> int:
 	var day := DailyRewards.challenge_day(level_id)
-	var marker := int(daily["challenge_day"])
 	# A clock rollback must not make an older challenge count as today's first clear.
-	var is_replay := day <= marker
+	var is_replay := is_daily_challenge_done(day)
 	if not is_replay:
 		daily["challenge_day"] = day
 		add_stat("daily_challenges")

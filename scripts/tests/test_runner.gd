@@ -4031,6 +4031,7 @@ func test_daily_challenge_levels() -> void:
 		"Un desafío de un día anterior paga la tarifa reducida")
 	assert_equals(int(GameManager.daily["challenge_day"]), today + 1,
 		"Un reloj atrasado no mueve el marcador hacia atrás")
+	assert_true(GameManager.is_daily_challenge_done(today), "El estado diario coincide con el pago tras atrasar el reloj")
 	assert_equals(GameManager.get_stat("daily_challenges"), 1, "Un día anterior no suma otro desafío")
 	assert_equals(GameManager.get_total_stars(), 0, "Los desafíos no suman estrellas de campaña")
 	assert_true(not GameManager.completed_levels.has(id), "Los desafíos no se guardan como niveles de campaña")
