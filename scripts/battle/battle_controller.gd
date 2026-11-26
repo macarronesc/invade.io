@@ -383,8 +383,14 @@ func can_dispatch(from_base: BaseNode, to_base: BaseNode) -> bool:
 	return level_data["sea_lanes"].has(Vector2i(a, b)) or level_data["sea_lanes"].has(Vector2i(b, a))
 
 func _update_siege_alerts() -> void:
+	var by_target := {}
+	for t in active_troops:
+		if _is_alive(t) and is_instance_valid(t.target_base):
+			if not by_target.has(t.target_base):
+				by_target[t.target_base] = []
+			by_target[t.target_base].append(t)
 	for b in bases:
-		b.update_siege_status(active_troops)
+		b.update_siege_status(by_target.get(b, []))
 
 ## Tropa en juego: no liberada, no pendiente de borrar y con unidades
 static func _is_alive(t) -> bool:
