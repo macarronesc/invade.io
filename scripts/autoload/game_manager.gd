@@ -1219,8 +1219,13 @@ func reset_save() -> Error:
 	normalized_battle = false
 	save_recovered = false
 	# Tras reiniciar, la recuperación tampoco debe resucitar el progreso borrado.
-	if FileAccess.file_exists(save_path + ".previous"):
-		DirAccess.remove_absolute(save_path + ".previous")
+	var stale := save_path + ".previous"
+	if FileAccess.file_exists(stale) and DirAccess.remove_absolute(stale) != OK:
+		# Si no se puede borrar, se sobrescribe con el estado nuevo; si tampoco, se avisa.
+		var cleanup_error := _write_save_text(stale, JSON.stringify(save_data()))
+		if cleanup_error != OK:
+			_set_save_status(cleanup_error)
+			return cleanup_error
 	EventBus.settings_changed.emit()
 	EventBus.save_replaced.emit()
 	return OK
