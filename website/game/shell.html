@@ -166,6 +166,11 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 		}).then(() => overlay.remove(), fail);
 	}
 
+	if (typeof Engine === 'undefined') {
+		fail(new Error(text.failed));
+		return;
+	}
+
 	const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
 	if (missing.length !== 0) {
 		fail(new Error(text.failed + '\n' + missing.join('\n')));

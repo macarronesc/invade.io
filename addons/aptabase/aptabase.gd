@@ -119,7 +119,9 @@ func disable() -> void:
 	if is_instance_valid(_flush_timer):
 		_flush_timer.stop()
 	if is_instance_valid(_active_http):
-		_active_http.cancel_request()
+		_active_http.cancel_request() # No emite request_completed: hay que liberar el nodo aquí.
+		_active_http.queue_free()
+	_active_http = null
 
 
 ## Track an analytics event. Non-blocking: the event is appended to the queue

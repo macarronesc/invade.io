@@ -3573,6 +3573,14 @@ func test_save_robustness_and_replay_rewards() -> void:
 		"La recuperación conserva la privacidad elegida")
 	DirAccess.remove_absolute(TEST_SAVE_PATH + ".corrupt")
 
+	# 5b. Una copia de privacidad antigua (escritura fallida) no revierte la baja
+	f = FileAccess.open(GameManager.privacy_path(), FileAccess.WRITE)
+	f.store_string(JSON.stringify({"share_analytics": true, "share_crashes": true}))
+	f.close()
+	GameManager.load_game()
+	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"],
+		"Una copia de consentimiento obsoleta no reactiva la telemetría")
+
 	# 6. Reiniciar el progreso conserva accesibilidad, audio y tema
 	var original_settings: Dictionary = GameManager.settings.duplicate(true)
 	GameManager.reset_save()
@@ -4023,6 +4031,7 @@ func test_daily_challenge_levels() -> void:
 		"Un desafío de un día anterior paga la tarifa reducida")
 	assert_equals(int(GameManager.daily["challenge_day"]), today + 1,
 		"Un reloj atrasado no mueve el marcador hacia atrás")
+	assert_true(GameManager.is_daily_challenge_done(today), "El estado diario coincide con el pago tras atrasar el reloj")
 	assert_equals(GameManager.get_stat("daily_challenges"), 1, "Un día anterior no suma otro desafío")
 	assert_equals(GameManager.get_total_stars(), 0, "Los desafíos no suman estrellas de campaña")
 	assert_true(not GameManager.completed_levels.has(id), "Los desafíos no se guardan como niveles de campaña")
@@ -5934,6 +5943,14 @@ func test_aptabase_http_delivery() -> void:
 		await get_tree().process_frame
 	assert_true(not Aptabase._request_in_flight and Aptabase._event_queue.is_empty(), "Aptabase confirma la sesión antes de desactivar el cliente")
 	GameManager.settings["share_analytics"] = previous_share_analytics
+
+	Aptabase.track("opt_out_inflight")
+	Aptabase.flush()
+	var inflight: HTTPRequest = Aptabase._active_http
+	assert_true(is_instance_valid(inflight), "Hay una petición activa antes de retirar el consentimiento")
+	Aptabase.disable()
+	await get_tree().process_frame
+	assert_true(Aptabase._active_http == null and not is_instance_valid(inflight), "Retirar el consentimiento libera la petición cancelada")
 	telemetry.free()
 	Aptabase.disable()
 	server.stop()

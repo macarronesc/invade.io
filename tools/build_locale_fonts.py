@@ -75,8 +75,8 @@ def pin_unused_width(font: TTFont) -> None:
                 break
 
 
-def subset_font(source: str, chars: set[str], out: str) -> bool:
-    """Writes the subset; returns False and keeps the committed file when its glyph set is unchanged."""
+def subset_font(source: str, chars: set[str], out: str, force: bool = False) -> bool:
+    """Writes the subset; returns False and keeps the committed file when its glyph set is unchanged (unless forced)."""
     temp = out + ".tmp"
     args = [
         source,
@@ -97,7 +97,7 @@ def subset_font(source: str, chars: set[str], out: str) -> bool:
     with TTFont(temp, recalcTimestamp=False) as font:
         pin_unused_width(font)
         font.save(temp)
-    if os.path.exists(out):
+    if os.path.exists(out) and not force:
         with TTFont(out) as old, TTFont(temp) as new:
             if set(old.getBestCmap()) == set(new.getBestCmap()):
                 os.remove(temp)
@@ -107,9 +107,11 @@ def subset_font(source: str, chars: set[str], out: str) -> bool:
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
-        raise SystemExit("usage: build_locale_fonts.py <font-source-dir>")
-    src_dir = sys.argv[1]
+    args = [a for a in sys.argv[1:] if a != "--force"]
+    if len(args) != 1:
+        raise SystemExit("usage: build_locale_fonts.py [--force] <font-source-dir>  (--force also rewrites fonts whose glyph set is unchanged)")
+    src_dir = args[0]
+    force = "--force" in sys.argv
     os.makedirs(OUT, exist_ok=True)
     text, names = read_text()
 
@@ -126,7 +128,7 @@ def main() -> int:
         _, name_chars = name_fonts.setdefault(script["names"], (script["source"], set(BASE)))
         name_chars.update(lang["native"])
     for out, (source, chars) in {**fonts, **name_fonts}.items():
-        changed = subset_font(os.path.join(src_dir, source), chars, os.path.join(OUT, out))
+        changed = subset_font(os.path.join(src_dir, source), chars, os.path.join(OUT, out), force)
         print(out if changed else out + " (unchanged)")
     return 0
 
