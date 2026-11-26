@@ -29,6 +29,10 @@ func _ready() -> void:
 		await _check_flow()
 	elif "--invasions" in OS.get_cmdline_user_args():
 		_check_invasions()
+	elif "--threat" in OS.get_cmdline_user_args():
+		_check_threat()
+	elif "--ascension" in OS.get_cmdline_user_args():
+		_check_ascension()
 	elif "--invasion-ui" in OS.get_cmdline_user_args():
 		GameManager.save_path = "user://balance_invasion_ui_test_save.json"
 		OS.low_processor_usage_mode = false
@@ -107,6 +111,51 @@ func _check_invasions() -> void:
 		_require(wins >= 2, "Invasión alcanzable con ejército medio: " + id)
 	_completed = true
 
+## Win rate of the bot against threat above 1.0 with an average and a fully upgraded army.
+## Prints a table; fails only if the deepest region is unwinnable even when maxed.
+func _check_threat() -> void:
+	var maxed_wins := {}
+	for loadout in [5, 10]:
+		for index in [28, 39, 59, 99, 199]:
+			GameManager._apply_save({})
+			for id in GameManager.UPGRADES:
+				GameManager.upgrades[id] = loadout
+			var wins := 0
+			var seconds := 0.0
+			for trial in 4:
+				var result := _simulate(LevelGenerator.conquest_id(index), 1.5 + trial * 0.5, trial)
+				wins += int(result["won"])
+				seconds += result["seconds"]
+			print("THREAT upgrades=%d conquest_%d: %d/4 · %.0fs" % [loadout, index, wins, seconds / 4.0])
+			if loadout == 10:
+				maxed_wins[index] = wins
+	_require(maxed_wins[199] >= 1, "La región más profunda es ganable con el ejército máximo")
+	_completed = true
+
+## Bot win rates on ascension tiers for growing armies: {core upgrades level, Ascension upgrades level}.
+## The deepest tier must be winnable with everything maxed and must demand the Ascension upgrades.
+func _check_ascension() -> void:
+	var levels := ["europe_1", "europe_5", "north_america_3", "africa_4", "asia_5", "oceania_5"]
+	var rates := {}
+	for loadout in [[5, 0], [10, 0], [10, 5], [10, 10]]:
+		for tier in [2, 5, 8, 10]:
+			GameManager._apply_save({})
+			for id in GameManager.UPGRADES:
+				GameManager.upgrades[id] = loadout[1] if id in GameManager.EXTRA_COMBAT_UPGRADES else loadout[0]
+			var wins := 0
+			var seconds := 0.0
+			for level in levels:
+				for trial in 2:
+					var result := _simulate(Ascension.level_id(tier, level), 1.5 + trial * 0.5, trial)
+					wins += int(result["won"])
+					seconds += result["seconds"]
+			rates[[loadout[0], loadout[1], tier]] = wins
+			print("ASCENSION core=%d extra=%d tier=%d: %d/%d · %.0fs" % [loadout[0], loadout[1], tier, wins, levels.size() * 2, seconds / (levels.size() * 2)])
+	_require(rates[[10, 10, 10]] >= 6, "El nivel máximo es ganable con todas las mejoras")
+	_require(rates[[10, 10, 10]] > rates[[10, 0, 10]], "Las mejoras de Ascensión importan en el nivel máximo")
+	_require(rates[[5, 0, 10]] <= rates[[5, 0, 2]], "La dificultad no baja con el nivel")
+	_completed = true
+
 func _simulate(id: String, delay: float, trial: int) -> Dictionary:
 	var battle := Simulation.new()
 	add_child(battle)
@@ -121,7 +170,7 @@ func _simulate(id: String, delay: float, trial: int) -> Dictionary:
 		for ai in battle.ai_controllers: ai._process(0.1)
 		timer -= 0.1
 		if timer <= 0.0:
-			_player_order(battle)
+			PlayerBot.order(battle)
 			timer += delay
 		battle._process(0.1)
 		if battle.is_game_over: break
@@ -129,39 +178,6 @@ func _simulate(id: String, delay: float, trial: int) -> Dictionary:
 	battle.free()
 	return result
 
-## ponytail: política sencilla con información visible y hasta tres orígenes;
-## un estudio con personas valida intuición, errores y ergonomía reales.
-func _player_order(battle: BattleController) -> void:
-	var best_target: BaseNode
-	var best_sources: Array[BaseNode] = []
-	var best_score := -INF
-	for dst in battle.bases:
-		if dst.faction == GameManager.Faction.PLAYER: continue
-		var sources: Array[BaseNode] = []
-		sources.assign(battle.bases.filter(func(b):
-			return b.faction == GameManager.Faction.PLAYER and b.troops >= 8 and battle.can_dispatch(b, dst)))
-		sources.sort_custom(func(a, b): return a.position.distance_squared_to(dst.position) < b.position.distance_squared_to(dst.position))
-		var chosen: Array[BaseNode] = []
-		var available := 0
-		for src in sources:
-			chosen.append(src)
-			available += src.troops - 1
-			battle.selected_sources = chosen
-			var defense := battle.estimate_target_defense(dst)
-			if defense <= 0.0: break # Ya hay tropas suficientes en camino.
-			if available > defense + 4:
-				var distance := src.position.distance_to(dst.position)
-				var score := (200.0 if dst.faction == GameManager.Faction.NEUTRAL else 140.0) - distance * 0.08 - defense * 0.4
-				if dst.base_type == BaseNode.BaseType.FACTORY: score += 90.0
-				if score > best_score:
-					best_score = score
-					best_target = dst
-					best_sources = chosen.duplicate()
-				break
-			if chosen.size() == 3: break
-	battle.selected_sources.clear()
-	if best_target:
-		for src in best_sources: battle.dispatch_troops(src, best_target)
 
 ## Capturas de la pestaña de invasiones para comprobar mapa, ficha y tema en móvil.
 func _check_invasion_ui() -> void:

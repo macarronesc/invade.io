@@ -25,6 +25,8 @@ static func mode_of(level_id: String) -> String:
 		return "conquest"
 	if InvasionDatabase.is_invasion(level_id):
 		return "invasion"
+	if Ascension.is_ascension(level_id):
+		return "ascension"
 	return "campaign"
 
 ## Nombre del continente en el idioma actual
@@ -42,12 +44,14 @@ static func get_continent_level_ids(continent_id: String) -> Array[String]:
 static func get_continent_of(level_id: String) -> String:
 	if mode_of(level_id) == "invasion":
 		return str(InvasionDatabase.get_region(InvasionDatabase.get_region_of_level(level_id)).get("continent", ""))
+	level_id = Ascension.base_of(level_id)
 	return level_id.substr(0, level_id.rfind("_"))
 
 ## Posición del nivel dentro de su continente (campaña) o de su región (invasión)
 static func get_level_number(level_id: String) -> int:
 	if mode_of(level_id) == "invasion":
 		return InvasionDatabase.get_front_of_level(level_id)
+	level_id = Ascension.base_of(level_id)
 	return int(level_id.substr(level_id.rfind("_") + 1))
 
 static var _definitions: Dictionary = {}
@@ -63,13 +67,17 @@ const MAX_CACHED_LEVELS := 64
 static func get_level_data(level_id: String, landscape: bool = false) -> Dictionary:
 	var cache_key := "%s|%s|%s" % [level_id, LocaleStrings.lang, "l" if landscape else "p"]
 	if not _built.has(cache_key):
-		var def := get_level_definition(level_id)
-		if def.is_empty():
-			return get_level_data(GameManager.FIRST_LEVEL_ID, landscape)
-		var built: Dictionary = LevelGenerator.build(def, get_difficulty(level_id), landscape)
-		_localize(built, def)
-		CampaignRules.apply(built)
-		built.erase("_route_positions")
+		var built: Dictionary
+		if mode_of(level_id) == "ascension":
+			built = Ascension.build(level_id, landscape)
+		else:
+			var def := get_level_definition(level_id)
+			if def.is_empty():
+				return get_level_data(GameManager.FIRST_LEVEL_ID, landscape)
+			built = LevelGenerator.build(def, minf(get_difficulty(level_id), 1.0), landscape)
+			_localize(built, def)
+			CampaignRules.apply(built)
+			built.erase("_route_positions")
 		if _built.size() >= MAX_CACHED_LEVELS:
 			_built.erase(_built.keys()[0])
 		_built[cache_key] = built
@@ -92,6 +100,7 @@ static func _localize(built: Dictionary, def: Dictionary) -> void:
 
 ## Campaign labels do not need projected coastlines or a playable board.
 static func level_name(level_id: String) -> String:
+	level_id = Ascension.base_of(level_id)
 	var n := get_level_ids().find(level_id) + 1
 	var fallback := "Level %d: %s" % [n, continent_name(get_continent_of(level_id))]
 	return LocaleStrings.text_or("level_%s_name" % level_id, fallback)
@@ -105,7 +114,7 @@ static func get_level_definition(level_id: String) -> Dictionary:
 		return LevelGenerator.conquest_definition(LevelGenerator.conquest_index(level_id))
 	if mode == "invasion":
 		return InvasionDatabase.get_level_definition(level_id)
-	return _get_definitions().get(level_id, {})
+	return _get_definitions().get(Ascension.base_of(level_id), {})
 
 ## Ids de la campaña en orden de juego
 static func get_level_ids() -> Array:
@@ -129,14 +138,18 @@ static func get_difficulty(level_id: String) -> float:
 	if mode == "invasion":
 		var region := InvasionDatabase.get_region(InvasionDatabase.get_region_of_level(level_id))
 		var front := InvasionDatabase.get_front_of_level(level_id)
-		return clampf((float(region.get("tier", 1)) - 1.0) / 4.0 + (front - 1) * 0.05, 0.0, 1.0)
+		return InvasionDatabase.threat(region, front)
+	if mode == "ascension":
+		var parsed := Ascension.parse(level_id)
+		return Ascension.threat(parsed["tier"], parsed["base"])
 	var ids := get_level_ids()
 	return maxf(0.0, ids.find(level_id)) / float(ids.size() - 1)
 
 ## Ritmo fijo del mapa, nunca del ejército comprado. La primera región de cada
 ## continente/expedición da un respiro; la dificultad geográfica sigue separada.
 static func get_balance(level_id: String) -> Dictionary:
-	var difficulty := get_difficulty(level_id)
+	var threat := get_difficulty(level_id)
+	var difficulty := minf(threat, 1.0)
 	var mode := mode_of(level_id)
 	var cadence := lerpf(4.0, 2.8, difficulty)
 	var grace := lerpf(22.0, 14.0, difficulty)
@@ -161,7 +174,7 @@ static func get_balance(level_id: String) -> Dictionary:
 			joint = 0
 		elif front == 2:
 			joint = mini(joint, 2)
-	else:
+	elif mode == "campaign":
 		var index := get_level_ids().find(level_id)
 		if index < 3:
 			cadence = 4.5
@@ -177,10 +190,12 @@ static func get_balance(level_id: String) -> Dictionary:
 			production -= 0.05
 		if index < 10:
 			actions = 1
-	return {"cadence": cadence, "grace": grace, "production": production,
+	var balance := {"cadence": cadence, "grace": grace, "production": production,
 		"actions": actions, "joint_sources": joint,
 		"boss_interval": lerpf(28.0, 22.0, difficulty),
 		"boss_reinforcement": roundi(lerpf(6.0, 10.0, difficulty))}
+	Threat.apply(balance, threat)
+	return balance
 
 ## Coordenadas de las ciudades de un nivel (sin construirlo), para situarlo en el mapa del mundo
 static func get_level_lonlats(level_id: String) -> Array[Vector2]:

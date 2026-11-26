@@ -17,6 +17,12 @@ class SentryStub extends RefCounted:
 	func close() -> void:
 		enabled = false
 
+class SentryEventStub extends RefCounted:
+	var message := ""
+	var crash := false
+	func is_crash() -> bool:
+		return crash
+
 class TelemetryHarness extends "res://scripts/autoload/telemetry.gd":
 	var sdk := SentryStub.new()
 	func _is_test_runtime() -> bool:
@@ -89,7 +95,7 @@ func _ready() -> void:
 		"La exportación iOS habilita ETC2/ASTC explícitamente, sin depender del equipo")
 	var presets := ConfigFile.new()
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets se pueden leer")
-	for preset in ["preset.0", "preset.1", "preset.2", "preset.3"]:
+	for preset in ["preset.0", "preset.1", "preset.2", "preset.3", "preset.4"]:
 		assert_true(not str(presets.get_value(preset, "custom_features", "")).split(",", false).has("aptabase_release"),
 			"La telemetría sigue el tipo de compilación, no el preset: " + preset)
 		var excluded := str(presets.get_value(preset, "exclude_filter", ""))
@@ -119,6 +125,7 @@ func _ready() -> void:
 	await test_save_optimizations()
 	await test_performance_regressions()
 	test_music_disk_cache()
+	test_bundled_music()
 	if "--mobile" in OS.get_cmdline_user_args():
 		await test_settings_and_backups()
 	elif "--quick" in OS.get_cmdline_user_args():
@@ -141,11 +148,15 @@ func _ready() -> void:
 		test_toast_notifications()
 		test_achievements_system()
 		test_telemetry_schema_and_privacy()
+		test_sentry_engine_noise_filtering()
 		test_candidate_telemetry_is_tagged()
 		test_play_tab_campaign_route_and_briefing()
 		test_large_screen_layouts()
 		await test_large_text_and_focus()
 		test_invasion_mode()
+		test_ascension()
+		test_ascension_upgrades()
+		test_threat_curve()
 		test_language_system()
 		await test_locale_ui_fit()
 	else:
@@ -227,7 +238,7 @@ func test_ui_glyph_coverage() -> void:
 		for city in GeoDatabase.get_cities():
 			var names: Dictionary = city.get("names", {})
 			check.call(font, str(names.get(code, city.get("name_en", ""))), "city:%s" % city["key"], seen)
-		for native in LanguageCatalog.LANGUAGES:
+		for native in LanguageCatalog.codes():
 			check.call(font, LanguageCatalog.native_name(native), "native:%s" % native, seen)
 		check.call(font, DailyShare.text({"day": 20000, "stars": 3, "time": 42.0, "speed": 1.0}), "share:%s" % code, seen)
 	GameManager.set_language("es")
@@ -363,6 +374,8 @@ func run_all_tests() -> void:
 	await test_settings_and_backups()
 	test_continent_mechanics()
 	test_invasion_mode()
+	test_ascension()
+	test_ascension_upgrades()
 	test_cleanup_regressions()
 	test_packets_and_battle_feedback()
 	test_progression_overhaul()
@@ -515,6 +528,16 @@ func test_performance_regressions() -> void:
 		expected.append(index + square.size())
 	assert_equals(merged[0].indices, expected, "Merged triangles keep their topology and receive the correct index offset")
 	assert_true(FilledPolygon.build_all([PackedVector2Array()]).is_empty(), "Empty geometry creates no draw commands")
+	var sliver := PackedVector2Array()
+	var asia_geo: Dictionary = LevelDatabase.get_level_data("asia_1", true).get("geo", {})
+	for piece in asia_geo.get("land", []):
+		if piece.size() == 3 and piece[0].x > 2000.0:
+			sliver = piece
+			break
+	assert_true(not sliver.is_empty(), "Large-coordinate sliver fixture is available")
+	var sliver_fills := FilledPolygon.build(sliver)
+	assert_equals(sliver_fills.size(), 1, "A large-coordinate sliver still produces a fill")
+	assert_equals(sliver_fills[0].points.size(), 3, "The sliver triangulates locally instead of using the Clipper fallback")
 	var geo := {"land": [square, shifted], "borders": []}
 	var silhouette := GeoSilhouette.new()
 	silhouette.set_geography(geo, Color.WHITE)
@@ -608,6 +631,7 @@ func test_performance_regressions() -> void:
 
 func test_music_disk_cache() -> void:
 	var directory := "user://test_music_cache"
+	var none := "user://test_no_bundled_music" # a packaged loop must not hide the disk-cache behaviour
 	DirAccess.make_dir_recursive_absolute(directory)
 	for track in MusicSynth.TRACKS:
 		var path := MusicSynth._cache_path(track, directory)
@@ -617,12 +641,12 @@ func test_music_disk_cache() -> void:
 		old_file.store_string("old synthesis version")
 		old_file.close()
 		var start := Time.get_ticks_usec()
-		var cold := MusicSynth.load_or_render_track(track, directory)
+		var cold := MusicSynth.load_or_render_track(track, directory, none)
 		var cold_ms := (Time.get_ticks_usec() - start) / 1000.0
 		assert_true(FileAccess.file_exists(path), "A generated music track is cached on disk: " + track)
 		assert_true(not FileAccess.file_exists(obsolete), "Replacing a track removes obsolete versions: " + track)
 		start = Time.get_ticks_usec()
-		var warm := MusicSynth.load_or_render_track(track, directory)
+		var warm := MusicSynth.load_or_render_track(track, directory, none)
 		var warm_ms := (Time.get_ticks_usec() - start) / 1000.0
 		assert_equals(warm.data, cold.data, "Cached music preserves every PCM byte: " + track)
 		assert_equals([warm.format, warm.mix_rate, warm.stereo, warm.loop_mode, warm.loop_begin, warm.loop_end],
@@ -631,18 +655,18 @@ func test_music_disk_cache() -> void:
 		var broken := FileAccess.open(path, FileAccess.WRITE)
 		broken.store_string("interrupted cache")
 		broken.close()
-		assert_equals(MusicSynth.load_or_render_track(track, directory).data, cold.data, "A damaged cache regenerates identical audio: " + track)
+		assert_equals(MusicSynth.load_or_render_track(track, directory, none).data, cold.data, "A damaged cache regenerates identical audio: " + track)
 		var wrong_rate := MusicSynth.to_wav(MusicSynth.render_track(track), true)
 		wrong_rate.mix_rate = 44100
 		wrong_rate.save_to_wav(path)
-		assert_equals(MusicSynth.load_or_render_track(track, directory).data, cold.data, "A cache with the wrong sample rate is replaced: " + track)
+		assert_equals(MusicSynth.load_or_render_track(track, directory, none).data, cold.data, "A cache with the wrong sample rate is replaced: " + track)
 		assert_true(not FileAccess.file_exists(path.trim_suffix(".wav") + ".tmp.wav"), "Music cache leaves no temporary file: " + track)
 		DirAccess.remove_absolute(path)
 	DirAccess.remove_absolute(directory)
 	var blocked := FileAccess.open(directory, FileAccess.WRITE)
 	blocked.store_string("not a directory")
 	blocked.close()
-	assert_true(not MusicSynth.load_or_render_track("battle", directory).data.is_empty(), "Unavailable cache storage does not prevent music playback")
+	assert_true(not MusicSynth.load_or_render_track("battle", directory, none).data.is_empty(), "Unavailable cache storage does not prevent music playback")
 	DirAccess.remove_absolute(directory)
 	if DisplayServer.get_name() != "headless":
 		var muted := [GameManager.sound_muted, GameManager.music_muted]
@@ -655,6 +679,34 @@ func test_music_disk_cache() -> void:
 			audio.free()
 		GameManager.sound_muted = muted[0]
 		GameManager.music_muted = muted[1]
+
+func test_bundled_music() -> void:
+	var directory := "user://test_bundled_music"
+	var cache := "user://test_bundled_music_cache" # only a synthesized track is ever written here
+	for folder in [directory, cache]:
+		for old in DirAccess.get_files_at(folder):
+			DirAccess.remove_absolute(folder.path_join(old))
+	DirAccess.make_dir_recursive_absolute(directory)
+	for track in MusicSynth.TRACKS:
+		var path := MusicSynth.bundled_path(track, directory)
+		assert_true(MusicSynth._read_bundled_track(track, directory) == null, "Without a packaged loop the track is synthesized: " + track)
+		assert_equals(MusicSynth.save_bundled_track(track, directory), OK, "A web music loop can be rendered: " + track)
+		var packaged := MusicSynth.load_or_render_track(track, cache, directory)
+		var rendered := MusicSynth.to_wav(MusicSynth.render_track(track), true)
+		assert_equals(packaged.data, rendered.data, "A packaged loop holds every synthesized PCM byte: " + track)
+		assert_equals([packaged.format, packaged.mix_rate, packaged.stereo, packaged.loop_mode, packaged.loop_begin, packaged.loop_end],
+			[rendered.format, rendered.mix_rate, rendered.stereo, rendered.loop_mode, rendered.loop_begin, rendered.loop_end], "A packaged loop keeps format and loop boundaries: " + track)
+		assert_true(not DirAccess.dir_exists_absolute(cache), "A packaged loop needs no disk cache: " + track)
+		var broken := FileAccess.open(path, FileAccess.WRITE)
+		broken.store_buffer(PackedByteArray([1, 2, 3]))
+		broken.close()
+		assert_true(MusicSynth._read_bundled_track(track, directory) == null, "A truncated packaged loop is ignored: " + track)
+		assert_equals(MusicSynth.load_or_render_track(track, cache, directory).data, rendered.data, "A truncated packaged loop falls back to synthesis: " + track)
+		DirAccess.remove_absolute(path)
+		for old in DirAccess.get_files_at(cache):
+			DirAccess.remove_absolute(cache.path_join(old))
+		DirAccess.remove_absolute(cache)
+	DirAccess.remove_absolute(directory)
 
 func test_mobile_experience() -> void:
 	print("\n-> Test: Guardado Local, Hápticos y Ciclo de Vida Móvil")
@@ -745,12 +797,13 @@ func test_mobile_experience() -> void:
 	settings._notification(NOTIFICATION_WM_GO_BACK_REQUEST)
 	assert_true(not settings.is_queued_for_deletion(), "Volver desde las licencias conserva Ajustes")
 	assert_true(settings.find_child("BackupImport", true, false) == null, "Durante la batalla no se ofrece sustituir la partida")
+	assert_true(settings.find_child("Share", true, false) != null, "Ajustes ofrece copiar el enlace para jugar")
 	var vibration: CheckButton = settings.find_child("Vibration", true, false)
 	vibration.set_pressed(false)
 	assert_true(not settings._vibration_slider.editable and settings._vibration_test.disabled, "Desactivar vibración deshabilita intensidad y prueba")
 	vibration.set_pressed(true)
 	assert_true(settings._vibration_slider.editable, "Activar vibración vuelve a habilitar la intensidad")
-	assert_true(settings._vibration_test.disabled == not OS.has_feature("mobile"), "La prueba no promete vibración en escritorio")
+	assert_true(settings._vibration_test.disabled == not GameManager.can_vibrate(), "La prueba no promete vibración en escritorio")
 	assert_true(settings.find_children("*", "BaseButton", true, false).filter(func(b): return b is CheckButton or b is OptionButton).all(func(b): return b.custom_minimum_size.y >= 128), "Los controles de ajustes tienen una zona táctil amplia")
 	var language_picker: OptionButton = settings.find_children("*", "OptionButton", true, false).filter(func(o): return o.item_count == LanguageCatalog.codes().size())[0]
 	assert_equals(language_picker.item_count, LanguageCatalog.codes().size(), "El selector ofrece todos los idiomas")
@@ -861,13 +914,13 @@ func test_mobile_experience() -> void:
 	assert_equals(presets.load("res://export_presets.cfg"), OK, "Los presets móviles se pueden leer")
 	assert_true(presets.get_value("preset.1.options", "permissions/vibrate", false), "Android exporta el permiso de vibración sin pedir permisos de usuario")
 	assert_true(presets.get_value("preset.0.options", "plugins/BackupFilePicker", false), "iOS habilita el selector nativo de copias")
-	var app_version := str(ProjectSettings.get_setting("application/config/version", "0.4.0"))
-	assert_equals(app_version, "0.4.0", "La versión del proyecto avanza a 0.4.0")
+	var app_version := str(ProjectSettings.get_setting("application/config/version", "0.5.0"))
+	assert_equals(app_version, "0.5.0", "La versión del proyecto avanza a 0.5.0")
 	assert_equals(presets.get_value("preset.0.options", "application/short_version", ""),
 		app_version, "La versión de iOS coincide con la versión reportada por analítica")
 	for preset in ["preset.1.options", "preset.2.options"]:
 		assert_equals(presets.get_value(preset, "version/name", ""), app_version, "El nombre de versión Android coincide: " + preset)
-		assert_equals(presets.get_value(preset, "version/code", 0), 7, "Android usa el siguiente versionCode: " + preset)
+		assert_equals(presets.get_value(preset, "version/code", 0), 8, "Android usa el siguiente versionCode: " + preset)
 	assert_equals(presets.get_value("preset.3", "name", ""), "iOS Diagnostics", "Existe un preset de diagnóstico iOS separado de Release")
 	assert_true(not presets.get_value("preset.3.options", "plugins/BackupFilePicker", true), "La IPA de diagnóstico evita enlazar el selector nativo de copias")
 	var picker_plugin := ConfigFile.new()
@@ -2721,6 +2774,8 @@ func test_main_menu_hub_navigation() -> void:
 		assert_true(menu.current_tab == tab and menu._nav[tab].button_pressed, "La sección %s queda activa en la barra" % tab)
 		assert_equals(menu._content.get_child_count(), 1, "Sólo hay una sección montada a la vez (%s)" % tab)
 	assert_true(menu.btn_settings != null, "Ajustes accesibles desde la cabecera")
+	assert_true(menu.btn_support != null and menu.btn_support.accessibility_name != "", "El apoyo voluntario es visible y accesible en la cabecera")
+	assert_true(Telemetry.DONATE_URL.begins_with("https://ko-fi.com/"), "El enlace de apoyo apunta a Ko-fi por HTTPS")
 
 	# Avisos: un punto sólo cuando hay algo que recoger, sin ventanas emergentes
 	assert_true(menu._badges["challenges"].visible, "Retos avisa de la recompensa diaria pendiente")
@@ -2746,6 +2801,13 @@ func test_main_menu_hub_navigation() -> void:
 
 	# Reinicio agrupado en ajustes, con confirmación nativa explícita
 	GameManager.coins = 999
+	var replacements := []
+	var on_save_replaced := func(): replacements.append(true)
+	EventBus.save_replaced.connect(on_save_replaced)
+	MainMenuUI.return_to_battle = true
+	InvasionPage.last_continent = "asia"
+	InvasionPage.last_region = "china"
+	var tabs_before_refresh: int = Telemetry._session_tabs
 	menu._open_settings()
 	menu._utility_panel._confirm_reset()
 	assert_equals(GameManager.coins, 999, "El primer toque en reiniciar sólo pide confirmación")
@@ -2755,6 +2817,40 @@ func test_main_menu_hub_navigation() -> void:
 	assert_equals(GameManager.coins, 150, "Reiniciar progreso restaura monedas iniciales a 150")
 	assert_equals(GameManager.get_total_stars(), 0, "Reiniciar progreso resetea estrellas completadas a 0")
 	assert_true(menu.coins_label.text.contains("150"), "Etiqueta de monedas se actualiza tras reseteo")
+	assert_equals(replacements.size(), 1, "Reiniciar anuncia un único reemplazo del guardado")
+	assert_equals(Telemetry._session_tabs, tabs_before_refresh, "Un refresco de datos no cuenta como abrir una pestaña")
+	var play_after_reset = menu._content.get_child(0)
+	assert_equals(play_after_reset.selected_level_id, "europe_1", "Reiniciar vuelve a proponer el primer nivel sin reabrir el menú")
+	assert_equals(play_after_reset.btn_start_level.text, LocaleStrings.text("continue"), "La ficha de Jugar refleja el progreso reiniciado")
+	assert_true(not MainMenuUI.return_to_battle, "Reiniciar descarta volver a una batalla anterior")
+	assert_equals(InvasionPage.last_continent, "", "Reiniciar descarta la navegación de invasión anterior")
+	menu.show_tab("army")
+	assert_true(menu._content.get_child(0).find_child("BtnReturnToBattle", true, false) == null, "Ejército no ofrece volver a la batalla anterior tras reiniciar")
+
+	# Restaurar una copia reconstruye la cabecera y la sección visible, no sólo el guardado
+	var import_path := "user://menu_restore_test.json"
+	var imported: Dictionary = GameManager.save_data().duplicate(true)
+	imported["coins"] = 777
+	imported["completed_levels"] = {"europe_1": 3}
+	imported["unlocked_levels"] = ["europe_1", "europe_2"]
+	GameManager.write_save(import_path, imported)
+	menu.show_tab("progress")
+	var tabs_before_import: int = Telemetry._session_tabs
+	var page_before_restore = menu._content.get_child(0)
+	assert_equals(GameManager.import_save(import_path), OK, "La copia se restaura con el menú abierto")
+	assert_equals(replacements.size(), 2, "Restaurar anuncia un único reemplazo del guardado")
+	assert_equals(Telemetry._session_tabs, tabs_before_import, "Restaurar tampoco cuenta como abrir una pestaña")
+	assert_true(menu.coins_label.text.contains("777"), "La cabecera refleja el oro restaurado")
+	assert_true(menu._content.get_child(0) != page_before_restore, "La sección visible se reconstruye tras restaurar")
+	var stars := (menu._content.get_child(0) as Control).find_child("Stat_stat_stars", true, false) as Label
+	assert_true(stars != null and stars.text == "3/%d" % GameManager.get_max_possible_stars(), "El progreso restaurado aparece en la sección abierta")
+	var page_after_restore = menu._content.get_child(0)
+	assert_equals(GameManager.import_save("user://missing_menu_restore.json"), ERR_INVALID_DATA, "Una copia inexistente se rechaza")
+	assert_true(menu._content.get_child(0) == page_after_restore, "Una restauración fallida no reconstruye la interfaz")
+	assert_equals(replacements.size(), 2, "Una restauración fallida no anuncia un reemplazo")
+	EventBus.save_replaced.disconnect(on_save_replaced)
+	DirAccess.remove_absolute(import_path)
+	DirAccess.remove_absolute(GameManager.save_path + ".backup")
 
 	remove_child(menu)
 	menu.free()
@@ -2946,10 +3042,12 @@ func test_large_text_and_focus() -> void:
 	await get_tree().process_frame
 	assert_equals(menu._nav["play"].focus_mode, Control.FOCUS_NONE, "El fondo no recibe foco con Ajustes abierto")
 	assert_equals(menu.btn_settings.focus_mode, Control.FOCUS_NONE, "La cabecera tampoco recibe foco")
+	assert_equals(menu.btn_support.focus_mode, Control.FOCUS_NONE, "El botón de apoyo tampoco recibe foco bajo Ajustes")
 	menu._utility_panel._close()
 	await get_tree().process_frame
 	assert_equals(menu._nav["play"].focus_mode, Control.FOCUS_ALL, "El foco del fondo se restaura al cerrar")
 	assert_equals(menu.btn_settings.focus_mode, Control.FOCUS_ALL, "La cabecera recupera el foco")
+	assert_equals(menu.btn_support.focus_mode, Control.FOCUS_ALL, "El botón de apoyo recupera el foco")
 
 	# 5. Cambiar de pestaña desde un botón de contenido devuelve el foco a la barra.
 	var content_button := menu._content.find_children("*", "BaseButton", true, false)[0] as Control
@@ -4026,11 +4124,37 @@ func test_language_system() -> void:
 	assert_equals(GeoDatabase.city_name(GeoDatabase.get_city("tokyo")), "東京都", "Nombre de ciudad en japonés")
 	GameManager.set_language("zh_CN")
 	assert_equals(GeoDatabase.city_name(GeoDatabase.get_city("tokyo")), "东京", "Nombre de ciudad en chino simplificado")
+	GameManager.set_language("pl")
+	assert_equals(LocaleStrings.text("play"), "Graj", "Clave del menú en polaco")
+	assert_equals(GeoDatabase.city_name(GeoDatabase.get_city("tokyo")), "Tokio", "Nombre de ciudad en polaco")
+	GameManager.set_language("uk")
+	assert_equals(LocaleStrings.text("play"), "Грати", "Clave del menú en ucraniano")
+	assert_equals(GeoDatabase.city_name(GeoDatabase.get_city("tokyo")), "Токіо", "Nombre de ciudad en ucraniano")
+	GameManager.set_language("zh_TW")
+	assert_equals(LocaleStrings.text("play"), "開始", "Clave del menú en chino tradicional")
+	assert_equals(GeoDatabase.city_name(GeoDatabase.get_city("tokyo")), "東京", "Nombre de ciudad en chino tradicional")
+	assert_true(not LanguageCatalog.is_rtl("zh_TW"), "El chino tradicional es LTR")
+	GameManager.set_language("th")
+	assert_equals(LocaleStrings.text("play"), "เล่น", "Clave del menú en tailandés")
+	assert_equals(GeoDatabase.city_name(GeoDatabase.get_city("tokyo")), "โตเกียว", "Nombre de ciudad en tailandés")
+	assert_equals(GeoDatabase.city_name(GeoDatabase.get_city("jinxi")), "Lianshan", "Una ciudad sin nombre tailandés usa el inglés")
 	GameManager.set_language("xx")
-	assert_equals(GameManager.language, "zh_CN", "Idioma no soportado se ignora")
+	assert_equals(GameManager.language, "th", "Idioma no soportado se ignora")
 	assert_equals(LanguageCatalog.normalize("pt_PT"), "pt_BR", "Portugués de Portugal usa la variante brasileña")
-	assert_equals(LanguageCatalog.normalize("zh_Hant_TW"), "zh_CN", "Chino tradicional cae en la variante disponible")
+	assert_equals(LanguageCatalog.normalize("zh_Hant_TW"), "zh_TW", "Chino tradicional usa su propia variante")
+	assert_equals(LanguageCatalog.normalize("zh_HK"), "zh_TW", "Hong Kong usa el chino tradicional")
+	assert_equals(LanguageCatalog.normalize("zh_Hans_CN"), "zh_CN", "Chino simplificado conserva su variante")
+	assert_equals(LanguageCatalog.normalize("pl_PL"), "pl", "Polaco")
+	assert_equals(LanguageCatalog.normalize("uk-UA"), "uk", "Ucraniano")
+	assert_equals(LanguageCatalog.normalize("th_TH"), "th", "Tailandés")
 	assert_equals(LanguageCatalog.normalize("xx_YY"), "", "Un idioma desconocido no se inventa")
+	assert_equals(LanguageCatalog.normalize("in_ID"), "id", "El código heredado de Android para indonesio se reconoce")
+	assert_equals(LanguageCatalog.normalize("es-MX"), "es", "Una variante regional usa su idioma base")
+	assert_equals(LanguageCatalog.normalize("en_US.UTF-8"), "en", "El sufijo de codificación del sistema se ignora")
+	assert_equals(LanguageCatalog.normalize(""), "", "Un idioma vacío no se inventa")
+	assert_true(LanguageCatalog.uses_primary_font("vi") and LanguageCatalog.uses_primary_font("tr") and not LanguageCatalog.uses_primary_font("fr"), "Sólo vietnamita y turco anteponen la fuente Noto")
+	for code in LanguageCatalog.codes():
+		assert_true(ResourceLoader.exists(LanguageCatalog.FONT_DIR + LanguageCatalog.font_file(code)), "El manifiesto apunta a una fuente existente (%s)" % code)
 	GameManager.set_language("es")
 	assert_equals(LevelDatabase.get_level_data("europe_1")["name"], "Nivel 1: Península Ibérica y Galia", "Vuelve al español")
 	GameManager.set_language("en")
@@ -4105,7 +4229,8 @@ func test_conquest_mode() -> void:
 	assert_true(LevelGenerator.is_conquest("conquest_7") and not LevelGenerator.is_conquest("europe_1"), "Se reconocen los ids de conquista")
 	assert_equals(LevelGenerator.conquest_index("conquest_12"), 12, "El id guarda la región")
 	assert_true(LevelGenerator.conquest_difficulty(1) > LevelGenerator.conquest_difficulty(0), "La dificultad crece con la región")
-	assert_equals(LevelGenerator.conquest_difficulty(99), 1.0, "La dificultad tiene techo en 1.0")
+	assert_true(LevelGenerator.conquest_difficulty(99) > 1.0, "La conquista ya no tiene techo de dificultad")
+	test_threat_curve()
 	assert_equals(str(LevelGenerator.conquest_definition(3)), str(LevelGenerator.conquest_definition(3)), "La región es la misma para todos")
 	var problems := 0
 	for i in [0, 1, 2, 5, 6, 11]:
@@ -4163,6 +4288,469 @@ func test_conquest_mode() -> void:
 	remove_child(hud)
 	hud.free()
 	GameManager.reset_save()
+
+## Threat <= 1 is the original curve; above it difficulty rises monotonically within hard caps.
+func test_threat_curve() -> void:
+	var base := LevelDatabase.get_balance("conquest_28")
+	assert_true(LevelDatabase.get_difficulty("conquest_28") <= 1.0 and Threat.over(1.0) == 0.0, "Hasta 1.0 no se aplica amenaza extra")
+	assert_equals(Threat.troops(1.0), 1.0, "La curva original no cambia las guarniciones")
+	assert_equals(Threat.target_scale(0.5), 1.0, "La curva original no cambia el tiempo de estrellas")
+	var previous := base
+	for index in [29, 39, 59, 99, 399]: # same expedition step, so no breather offsets
+		var now := LevelDatabase.get_balance("conquest_%d" % index)
+		assert_true(now["cadence"] <= previous["cadence"] and now["production"] >= previous["production"] and now["grace"] <= previous["grace"], "La amenaza no afloja: región %d" % index)
+		assert_true(now["cadence"] >= 1.5 and now["production"] <= 2.0 and now["grace"] >= 4.0 and now["boss_reinforcement"] <= 20, "Techos de amenaza: región %d" % index)
+		previous = now
+	assert_equals(Threat.troops(99.0), 2.0, "Guarnición enemiga con techo x2")
+	assert_equals(Threat.target_scale(99.0), 0.6, "Tiempo de estrellas con suelo x0.6")
+	var def_low := LevelGenerator.conquest_definition(10)
+	var def_high := LevelGenerator.conquest_definition(100)
+	assert_true(def_high["bases"][1]["troops"] > def_low["bases"][1]["troops"] and def_high["target_time"] < def_low["target_time"] + 1, "Las regiones profundas tienen más tropas y menos tiempo")
+	assert_true(LevelDatabase.get_level_data("conquest_100")["bases"].size() <= 14, "La amenaza no añade neutrales sin límite")
+	assert_true(GameManager.complete_conquest(40) > GameManager.complete_conquest(20), "El oro sigue creciendo en regiones profundas")
+	assert_equals(GameManager.complete_conquest(200), GameManager.complete_conquest(GameManager.CONQUEST_GOLD_CAP_INDEX), "El oro tiene techo")
+
+## Ascension: ids, derived levels, unlocks, rewards, persistence and the Play tab selector.
+func test_ascension() -> void:
+	print("\n-> Test: Ascensión (ids, niveles derivados, desbloqueo, recompensas y guardado)")
+	GameManager.reset_save()
+	for bad in ["asc1_europe_1", "asc11_europe_1", "asc02_europe_1", "asc2_nowhere_1", "asc2", "asc_europe_1", "ascx_europe_1", "asia_1", "europe_1", ""]:
+		assert_true(not Ascension.is_ascension(bad), "No es un id de ascensión: '%s'" % bad)
+	assert_equals(LevelDatabase.mode_of("asia_1"), "campaign", "Los ids de campaña que empiezan por «as» no cambian de modo")
+	assert_equals(LevelDatabase.mode_of("asc2_north_america_3"), "ascension", "Modo de un id de ascensión")
+	assert_equals(Ascension.base_of("asc7_north_america_3"), "north_america_3", "El id base conserva los guiones bajos del continente")
+	assert_equals(Ascension.tier_of("europe_1"), 1, "La campaña es el nivel 1")
+	assert_equals(LevelDatabase.get_continent_of("asc3_south_america_2"), "south_america", "Continente de un nivel de ascensión")
+	assert_equals(LevelDatabase.get_level_number("asc3_south_america_5"), 5, "Número de nivel de un nivel de ascensión")
+	assert_equals(Ascension.tier_level_ids(2).size(), LevelDatabase.get_level_ids().size(), "Un nivel de ascensión por nivel de campaña")
+
+	# Mapa derivado: mismas ciudades y geografía, amenaza mayor, sin duplicar la geografía en caché
+	var problems := 0
+	var cache_before := LevelDatabase._built.size()
+	for tier in [2, 3, 6, 10]:
+		for base_id in LevelDatabase.get_level_ids():
+			var id := Ascension.level_id(tier, base_id)
+			var base := LevelDatabase.get_level_data(base_id)
+			var level := LevelDatabase.get_level_data(id)
+			var rivals_base: int = base["bases"].filter(func(b): return b["faction"] > GameManager.Faction.PLAYER).size()
+			var rivals: int = level["bases"].filter(func(b): return b["faction"] > GameManager.Faction.PLAYER).size()
+			var factions := {}
+			for b in level["bases"]:
+				factions[b["faction"]] = true
+			if level["bases"].size() != base["bases"].size() or not is_same(level["geo"], base["geo"]) or level["id"] != id or level["tier"] != tier:
+				problems += 1
+			elif level["bases"].map(func(b): return b["city"]) != base["bases"].map(func(b): return b["city"]):
+				problems += 1
+			elif rivals < rivals_base or rivals > 3 + 0 or factions.size() > 5 or not level["bases"].any(func(b): return b["faction"] == GameManager.Faction.NEUTRAL) and base["bases"].any(func(b): return b["faction"] == GameManager.Faction.NEUTRAL):
+				problems += 1
+			elif level["target_time"] > base["target_time"]:
+				problems += 1
+			for i in level["bases"].size():
+				var b: Dictionary = level["bases"][i]
+				var capacity: int = BaseNode.TIER_PARAMS[b.get("tier", 1)]["capacity"]
+				if b["faction"] > GameManager.Faction.PLAYER and b["troops"] > maxi(capacity, base["bases"][i]["troops"]):
+					problems += 1
+				if b["faction"] == GameManager.Faction.PLAYER and b["troops"] != base["bases"][i]["troops"]:
+					problems += 1
+	assert_equals(problems, 0, "Los niveles de ascensión conservan mapa y ciudades, suben la amenaza y respetan capacidades")
+	assert_true(is_same(LevelDatabase.get_level_data("asc2_europe_1"), LevelDatabase.get_level_data("asc2_europe_1")), "El nivel derivado se cachea")
+	assert_true(LevelDatabase._built.size() <= LevelDatabase.MAX_CACHED_LEVELS and cache_before <= LevelDatabase.MAX_CACHED_LEVELS, "La ascensión respeta el límite de la caché")
+	var base_l := LevelDatabase.get_level_data("north_america_3")
+	var tier2 := LevelDatabase.get_level_data("asc2_north_america_3")
+	var enemy_factions := func(l: Dictionary) -> int:
+		var set := {}
+		for b in l["bases"]:
+			if b["faction"] > GameManager.Faction.PLAYER:
+				set[b["faction"]] = true
+		return set.size()
+	assert_equals(enemy_factions.call(base_l), 2, "Campaña de partida: dos facciones rivales")
+	assert_equals(enemy_factions.call(LevelDatabase.get_level_data("asc2_europe_1")), enemy_factions.call(LevelDatabase.get_level_data("europe_1")) + 1, "El nivel 2 recluta un rival extra")
+	assert_equals(enemy_factions.call(LevelDatabase.get_level_data("asc3_europe_1")), 2, "Un mapa con dos neutrales sólo recluta un rival: siempre queda un neutral")
+	assert_equals(enemy_factions.call(LevelDatabase.get_level_data("asc3_europe_5")), 3, "El nivel 3 llega a tres facciones rivales en un mapa grande")
+	assert_true(not tier2.has("rule_key_2") and LevelDatabase.get_level_data("asc3_europe_2").has("rule_key_2"), "La segunda regla empieza en el nivel 3")
+	assert_true(CampaignRules.description(LevelDatabase.get_level_data("asc3_europe_2")).contains(LocaleStrings.text(LevelDatabase.get_level_data("asc3_europe_2")["rule_key_2"])), "La ficha explica la segunda regla")
+	assert_true(not LevelDatabase.get_level_data("asc10_oceania_2").has("rule_key_2") or LevelDatabase.get_level_data("asc10_oceania_2")["rule_key_2"] != "rule_oceania", "Las rutas marítimas nunca se apilan")
+	assert_true(LevelDatabase.get_level_data("asc2_europe_5")["bases"].any(func(b): return b.get("boss", false)) and LevelDatabase.get_level_data("asc2_europe_5").has("boss_interval"), "El jefe conserva sus refuerzos en ascensión")
+
+	# Orientación: mismo reparto, sólo cambian las coordenadas
+	for id in ["asc2_europe_1", "asc3_oceania_4", "asc10_asia_5"]:
+		var portrait: Array = LevelDatabase.get_level_data(id, false)["bases"].map(func(b): return [b["city"], b["faction"], b["troops"], b["tier"], b.get("type", ""), b.get("capital", false)])
+		var landscape: Array = LevelDatabase.get_level_data(id, true)["bases"].map(func(b): return [b["city"], b["faction"], b["troops"], b["tier"], b.get("type", ""), b.get("capital", false)])
+		assert_equals(portrait, landscape, "Mismo contenido en ambas orientaciones: " + id)
+
+	# Dificultad: sube con el nivel y con la posición, y nunca depende de las compras
+	var previous := {}
+	for tier in range(2, Ascension.MAX_TIER + 1):
+		var balance := LevelDatabase.get_balance(Ascension.level_id(tier, "europe_5"))
+		var threat := LevelDatabase.get_difficulty(Ascension.level_id(tier, "europe_5"))
+		assert_true(threat > LevelDatabase.get_difficulty(Ascension.level_id(tier, "europe_1")) and threat > 1.0, "La amenaza crece dentro del nivel %d" % tier)
+		if not previous.is_empty():
+			assert_true(balance["cadence"] <= previous["cadence"] and balance["production"] >= previous["production"] and balance["cadence"] >= 1.5 and balance["production"] <= 2.0, "La dificultad no afloja entre niveles: %d" % tier)
+		previous = balance
+		GameManager.upgrades["production_rate"] = 10
+		assert_equals(LevelDatabase.get_balance(Ascension.level_id(tier, "europe_5")), balance, "Comprar no endurece al enemigo en el nivel %d" % tier)
+		GameManager.upgrades["production_rate"] = 0
+	assert_true(LevelDatabase.get_balance("asc2_europe_1")["cadence"] < LevelDatabase.get_balance("europe_1")["cadence"], "La ascensión no hereda el respiro del tutorial")
+	assert_true(LevelDatabase.get_difficulty("asc2_europe_1") > 1.0 and LevelDatabase.get_difficulty("asc10_asia_5") < 7.0, "Rango de amenaza razonable")
+
+	# Desbloqueo: toda la campaña abre el nivel 2; cada nivel exige completar el anterior
+	assert_true(not GameManager.is_ascension_unlocked(2) and not GameManager.is_level_unlocked("asc2_europe_1"), "Ascensión cerrada al empezar")
+	assert_equals(GameManager.recommended_ascension_tier(), 1, "Sin campaña completa se recomienda la campaña")
+	for id in LevelDatabase.get_level_ids().slice(0, 29):
+		GameManager.completed_levels[id] = 1
+	assert_true(not GameManager.is_ascension_unlocked(2), "Un nivel pendiente mantiene la ascensión cerrada")
+	var finisher := BattleController.new()
+	finisher.level_id = "oceania_5"
+	finisher.battle_time = 10.0
+	finisher.target_time = 45.0
+	var won: Array[Dictionary] = []
+	var on_won := func(s): won.append(s)
+	EventBus.battle_won.connect(on_won)
+	finisher._trigger_victory()
+	EventBus.battle_won.disconnect(on_won)
+	finisher.free()
+	assert_equals(won[0]["ascension_unlocked"], 2, "Terminar la campaña anuncia la Ascensión 2")
+	assert_true(GameManager.is_ascension_unlocked(2) and not GameManager.is_ascension_unlocked(3) and not GameManager.is_ascension_unlocked(1) and not GameManager.is_ascension_unlocked(11), "Sólo el nivel 2 se abre")
+	assert_equals(GameManager.recommended_ascension_tier(), 2, "Tras la campaña se recomienda la Ascensión 2")
+	assert_true(GameManager.is_level_unlocked("asc2_asia_3") and not GameManager.is_level_unlocked("asc3_asia_3"), "Los niveles de ascensión siguen el desbloqueo del nivel")
+
+	# Recompensas: primer clear completo, mejora a la mitad, repetición reducida, bonus por nivel
+	GameManager.upgrades["gold_bonus"] = 0
+	var campaign_gold := GameManager.calculate_victory_gold("europe_3", 1, 100)
+	var first := GameManager.calculate_victory_gold("asc2_europe_3", 1, 100)
+	assert_equals(first, roundi(campaign_gold * 1.0 * Ascension.gold_scale(2) / 0.25), "El primer clear de ascensión paga el bonus de nivel sobre el oro de campaña")
+	var expected_first := GameManager.calculate_victory_gold("asc2_europe_3", 1, 60 + 2 * 15)
+	var rewards := GameManager.victory_rewards("asc2_europe_3", 1, 2, true)
+	assert_equals(rewards["gold_earned"], expected_first, "La recompensa es la calculada")
+	assert_true(rewards["is_ascension"] and rewards["ascension_tier"] == 2 and not rewards["is_replay"], "Resultado marcado como ascensión")
+	assert_equals(GameManager.ascension_stars["asc2_europe_3"], 1, "Se guardan las estrellas")
+	assert_equals(GameManager.completed_levels.get("europe_3", 0), 1, "La campaña no se toca")
+	var replay := GameManager.victory_rewards("asc2_europe_3", 1, 2, true)
+	assert_true(replay["is_replay"] and replay["gold_earned"] < expected_first, "Repetir paga menos")
+	var improve := GameManager.victory_rewards("asc2_europe_3", 3, 2, true)
+	assert_true(not improve["is_replay"] and improve["gold_earned"] > replay["gold_earned"] and GameManager.ascension_stars["asc2_europe_3"] == 3, "Mejorar estrellas paga más y las guarda")
+	GameManager.victory_rewards("asc2_europe_3", 2, 2, true)
+	assert_equals(GameManager.ascension_stars["asc2_europe_3"], 3, "Las estrellas nunca bajan")
+	var boss_first := GameManager.victory_rewards("asc2_europe_5", 3, 1, true)
+	assert_true(boss_first["boss_gold"] > 0 and boss_first["gold_earned"] >= boss_first["boss_gold"], "El primer jefe de un nivel de ascensión da su bonus")
+	assert_equals(GameManager.next_ascension_level("asc2_europe_3"), "asc2_europe_4", "Siguiente nivel de ascensión")
+	assert_equals(GameManager.next_ascension_level("asc2_oceania_5"), "", "El último nivel no tiene siguiente")
+	assert_equals(GameManager.next_ascension_level("europe_1"), "", "La campaña no tiene siguiente de ascensión")
+
+	# Completar el nivel 2 abre el 3 una sola vez y cuenta para los logros
+	var last_unlock := 0
+	for id in Ascension.tier_level_ids(2):
+		last_unlock = maxi(last_unlock, GameManager.complete_ascension_level(id, 1))
+	assert_equals(last_unlock, 3, "Completar el nivel 2 abre el 3")
+	assert_equals(GameManager.complete_ascension_level("asc2_europe_1", 3), 0, "No se anuncia dos veces")
+	assert_true(GameManager.is_ascension_complete(2) and GameManager.is_ascension_unlocked(3), "Nivel 2 completo")
+	assert_equals(GameManager.ascension_tiers_completed(), 1, "Un nivel de ascensión completado")
+	assert_equals(AchievementManager.get_stat("ascension_tiers"), 1, "El logro cuenta niveles completos")
+	assert_true(AchievementManager.check_all("ascension_tiers").has("ascended"), "Se desbloquea «Ascendido»")
+	assert_equals(GameManager.recommended_ascension_tier(), 3, "Se recomienda el siguiente nivel")
+	assert_equals(NextGoal._ascension(), LocaleStrings.text("goal_ascension") % [3, 0, 30], "El siguiente objetivo menciona la Ascensión en curso")
+
+	# Guardado: ida y vuelta, saneado de entradas ajenas y compatibilidad con versión 7
+	var saved := GameManager.save_data()
+	assert_equals(saved["version"], 8, "Versión de guardado 8")
+	var restored := saved.duplicate(true)
+	restored["ascension_stars"]["asc2_nowhere_1"] = 3
+	restored["ascension_stars"]["asc1_europe_1"] = 3
+	restored["ascension_stars"]["asc3_europe_1"] = 99
+	restored["ascension_stars"]["asc3_europe_2"] = -4
+	restored["ascension_stars"]["asc3_europe_3"] = "x"
+	GameManager._apply_save(restored)
+	assert_equals(GameManager.ascension_stars.get("asc2_europe_3"), 3, "Las estrellas de ascensión sobreviven al guardado")
+	assert_true(not GameManager.ascension_stars.has("asc2_nowhere_1") and not GameManager.ascension_stars.has("asc1_europe_1"), "Ids inválidos descartados")
+	assert_true(GameManager.ascension_stars["asc3_europe_1"] == 3 and not GameManager.ascension_stars.has("asc3_europe_2") and not GameManager.ascension_stars.has("asc3_europe_3"), "Estrellas saneadas")
+	var legacy := saved.duplicate(true)
+	legacy.erase("ascension_stars")
+	legacy["version"] = 7
+	GameManager._apply_save(legacy)
+	assert_true(GameManager.ascension_stars.is_empty() and GameManager.is_campaign_complete(), "Un guardado v7 carga sin ascensión y conserva la campaña")
+	GameManager.reset_save()
+	assert_true(GameManager.ascension_stars.is_empty(), "Reiniciar borra la ascensión")
+
+	# Interfaz: el selector sólo aparece con la ascensión abierta, cicla niveles y la ficha cambia
+	var play = load("res://scripts/ui/play_tab.gd").new()
+	add_child(play)
+	assert_true(not play.tier_row.visible, "Sin progreso no hay selector (la interfaz inicial no cambia)")
+	remove_child(play)
+	play.free()
+	for id in LevelDatabase.get_level_ids().slice(0, 5):
+		GameManager.completed_levels[id] = 1
+	play = load("res://scripts/ui/play_tab.gd").new()
+	add_child(play)
+	assert_true(play.tier_row.visible and not play.btn_tier.visible and play.tier_caption.text.contains("5"), "Con un continente completo se anuncia el requisito")
+	remove_child(play)
+	play.free()
+	for id in LevelDatabase.get_level_ids():
+		GameManager.completed_levels[id] = 3
+	GameManager.ascension_stars["asc2_europe_1"] = 2
+	play = load("res://scripts/ui/play_tab.gd").new()
+	add_child(play)
+	assert_equals(play.current_tier, 2, "Abre en la Ascensión 2 con la campaña completa")
+	assert_true(play.btn_tier.visible and play.btn_tier.text == LocaleStrings.text("ascension") % 2, "El selector muestra el nivel actual")
+	assert_equals(play.selected_level_id, "asc2_europe_2", "Propone el primer nivel pendiente")
+	assert_true(not play.btn_start_level.disabled and play.level_title.text.contains("2"), "El nivel de ascensión se puede jugar")
+	assert_true(play.level_rule.text.contains(LocaleStrings.text("asc_briefing") % [2, 35]), "La ficha explica el bonus de oro")
+	assert_true(not play.level_medal.visible, "Sin medallas en ascensión")
+	assert_true(play.find_child("BtnLevel_1", true, false).text == "1" and play.find_child("NodeHolder_1", true, false).get_child_count() > 1, "El nodo con estrellas se muestra")
+	play._on_tier_pressed()
+	assert_equals(play.current_tier, 1, "Pulsar vuelve a la campaña cuando no hay más niveles abiertos")
+	assert_true(not Ascension.is_ascension(play.selected_level_id) and play.level_medal.visible, "La campaña recupera su ficha y su medalla")
+	remove_child(play)
+	play.free()
+
+	# Batalla real en ascensión: carga el nivel, guarda el resultado y ofrece el siguiente
+	GameManager.reset_save()
+	GameManager.play_level("asc2_europe_2")
+	assert_equals(GameManager.get_battle_level_id(), "asc2_europe_2", "La batalla carga el nivel de ascensión")
+	var battle := BattleController.new()
+	battle.load_level("asc2_europe_2")
+	assert_equals(battle.level_id, "asc2_europe_2", "Controlador con id de ascensión")
+	assert_equals(battle.ai_controllers.size(), battle.bases.filter(func(b): return b.faction > GameManager.Faction.PLAYER).map(func(b): return b.faction).reduce(func(a, f): return a if a.has(f) else a + [f], []).size(), "Una IA por facción rival, incluida la reclutada")
+	assert_equals(battle.target_time, LevelDatabase.get_level_data("asc2_europe_2")["target_time"], "El tiempo de estrellas es el de la ascensión")
+	battle.free()
+
+	# Pantalla de victoria: avisa del nivel conquistado y de la Ascensión recién abierta
+	var hud = load("res://scenes/ui/battle_hud.tscn").instantiate()
+	add_child(hud)
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 120, "is_ascension": true, "ascension_tier": 2, "ascension_unlocked": 3, "level_id": "asc2_oceania_5"})
+	assert_equals(hud.victory_title.text, LocaleStrings.text("asc_tier_done") % 2, "Título de nivel de ascensión conquistado")
+	assert_true(hud.unlock_label.text.contains(LocaleStrings.text("asc_unlocked") % 3), "Se anuncia la Ascensión desbloqueada")
+	assert_true(hud.btn_next_level.visible and hud.btn_next_level.text == LocaleStrings.text("next_level"), "La ascensión ofrece el siguiente nivel")
+	hud.deploy_victory_modal({"stars": 1, "gold_earned": 10, "is_ascension": true, "ascension_tier": 2, "ascension_unlocked": 0, "level_id": "asc2_europe_1"})
+	assert_equals(hud.victory_title.text, LocaleStrings.text("victory"), "Un nivel normal de ascensión usa el título de victoria")
+	remove_child(hud)
+	hud.free()
+	GameManager.reset_save()
+
+## Ascension upgrades: gating, the four combat hooks, the daily-challenge exemption and the Army page.
+func test_ascension_upgrades() -> void:
+	print("\n-> Test: Mejoras de Ascensión (desbloqueo, defensa, capacidad, reclutamiento y asedio)")
+	GameManager.reset_save()
+	var Base = load("res://scripts/battle/base_node.gd")
+	assert_equals(GameManager.available_upgrades(), ["starting_troops", "production_rate", "troop_speed", "gold_bonus"] as Array[String], "Al empezar sólo existen las cuatro mejoras originales")
+	for id in GameManager.EXTRA_COMBAT_UPGRADES:
+		assert_true(not GameManager.is_upgrade_unlocked(id) and GameManager.get_upgrade_cost(id) == -1, "Cerrada hasta su Ascensión: " + id)
+	GameManager.coins = 1_000_000
+	assert_true(not GameManager.buy_upgrade("fortification") and GameManager.upgrades["fortification"] == 0, "No se puede comprar una mejora cerrada")
+	assert_equals(GameManager.UPGRADES.keys().size(), GameManager.upgrades.size(), "El guardado reserva una entrada por mejora")
+	# Los costes originales no cambian
+	for pair in [["starting_troops", 50], ["production_rate", 75], ["troop_speed", 60], ["gold_bonus", 100]]:
+		assert_equals(GameManager.get_upgrade_cost(pair[0]), pair[1], "Coste inicial intacto: " + pair[0])
+	assert_equals(GameManager.recommended_combat_upgrade(), "production_rate", "Reclutar sigue siendo la primera recomendación")
+
+	# Abrir la Ascensión 2..5 abre una mejora por nivel
+	for id in LevelDatabase.get_level_ids():
+		GameManager.completed_levels[id] = 1
+	assert_true(GameManager.is_upgrade_unlocked("fortification") and not GameManager.is_upgrade_unlocked("capacity"), "La Ascensión 2 abre Fortificación")
+	for tier in range(2, 5):
+		for id in Ascension.tier_level_ids(tier):
+			GameManager.ascension_stars[id] = 1
+	for id in GameManager.EXTRA_COMBAT_UPGRADES:
+		assert_true(GameManager.is_upgrade_unlocked(id), "Abierta: " + id)
+	assert_equals(GameManager.available_upgrades().size(), 8, "Ocho mejoras visibles con la Ascensión 5 abierta")
+	for id in GameManager.UPGRADES:
+		var previous_cost := 0
+		for level in GameManager.MAX_UPGRADE_LEVEL:
+			var cost := GameManager.get_upgrade_cost(id)
+			assert_true(cost > previous_cost, "El coste crece cada nivel: %s %d" % [id, level]) if level < 2 else null
+			previous_cost = cost
+			GameManager.upgrades[id] += 1
+		assert_equals(GameManager.get_upgrade_cost(id), -1, "Nivel máximo: " + id)
+		GameManager.upgrades[id] = 0
+	GameManager.upgrades["production_rate"] = 10
+	GameManager.upgrades["starting_troops"] = 10
+	GameManager.upgrades["troop_speed"] = 10
+	assert_equals(GameManager.recommended_combat_upgrade(), "fortification", "Con lo básico al máximo se recomienda lo nuevo")
+	for id in GameManager.UPGRADES:
+		GameManager.upgrades[id] = 0
+
+	# Fortificación: sólo las bases del jugador; Asedio: sólo las fortalezas que no son suyas
+	var mine = Base.new()
+	mine.faction = GameManager.Faction.PLAYER
+	mine.troops = 20
+	var foe = Base.new()
+	foe.faction = GameManager.Faction.ENEMY_1
+	foe.troops = 20
+	var foe_fort = Base.new()
+	foe_fort._set_type_from_variant("fortress")
+	foe_fort.faction = GameManager.Faction.ENEMY_1
+	foe_fort.troops = 20
+	var my_fort = Base.new()
+	my_fort._set_type_from_variant("fortress")
+	my_fort.faction = GameManager.Faction.PLAYER
+	var neutral_fort = Base.new()
+	neutral_fort._set_type_from_variant("fortress")
+	assert_equals([mine.get_defense_multiplier(), foe_fort.get_defense_multiplier()], [1.0, 2.0], "Sin mejoras la defensa no cambia")
+	GameManager.upgrades["fortification"] = 5
+	GameManager.upgrades["breaching"] = 10
+	var fort := 1.0 + 5 * GameManager.UPGRADES["fortification"]["step"] / 100.0
+	assert_equals(mine.get_defense_multiplier(), fort, "Fortificación 5: bonus de defensa en tus bases")
+	assert_equals(foe.get_defense_multiplier(), 1.0, "Las bases enemigas no mejoran")
+	assert_equals(my_fort.get_defense_multiplier(), 2.0 * fort, "Fortificación se suma a tu fortaleza (el asedio no la toca)")
+	assert_equals(foe_fort.get_defense_multiplier(), 1.0, "Asedio 10: la fortaleza enemiga defiende como una base normal")
+	assert_equals(neutral_fort.get_defense_multiplier(), 1.0, "Asedio también rebaja las fortalezas neutrales")
+	var defense := ceili(20 * fort)
+	assert_equals(mine.get_effective_defense(), defense, "La defensa efectiva usa el multiplicador (20 × fortificación)")
+	mine.receive_troops(GameManager.Faction.ENEMY_1, 10)
+	assert_equals(mine.troops, ceili((20 * fort - 10) / fort), "Los atacantes cuestan menos tropas a un defensor fortificado")
+	mine.troops = 20
+	mine.receive_troops(GameManager.Faction.ENEMY_1, defense)
+	assert_true(mine.faction == GameManager.Faction.NEUTRAL or mine.faction == GameManager.Faction.ENEMY_1, "Igualar la defensa fortificada la derriba")
+	mine.faction = GameManager.Faction.PLAYER
+	mine.troops = 20
+	mine.receive_troops(GameManager.Faction.ENEMY_1, defense + 1)
+	assert_true(mine.faction == GameManager.Faction.ENEMY_1 and mine.troops == 1, "Un atacante más la conquista con 1 superviviente")
+	GameManager.normalized_battle = true
+	assert_true(mine.get_defense_multiplier() == 1.0 and foe_fort.get_defense_multiplier() == 2.0, "El desafío diario ignora las mejoras de Ascensión")
+	GameManager.normalized_battle = false
+	# La IA y la vista previa estiman con el mismo multiplicador
+	var ai := AIController.new()
+	var fake := BattleController.new()
+	ai.battle_controller = fake
+	ai.faction = GameManager.Faction.ENEMY_1
+	var attacker = Base.new()
+	attacker.faction = GameManager.Faction.ENEMY_1
+	attacker.troops = 30
+	var target = Base.new()
+	target.faction = GameManager.Faction.PLAYER
+	target.troops = 10
+	target.is_active = true
+	assert_true(ai.get_projected_defense(attacker, target) >= 14.0, "La IA cuenta la defensa fortificada de tus bases")
+	for n in [mine, foe, foe_fort, my_fort, neutral_fort, attacker, target, ai, fake]:
+		n.free()
+
+	# Cuarteles: sólo tus bases, y siguen a su dueño al conquistarlas
+	GameManager.upgrades["fortification"] = 0
+	GameManager.upgrades["breaching"] = 0
+	GameManager.upgrades["capacity"] = 4
+	var cap_base = Base.new()
+	cap_base.setup({"faction": GameManager.Faction.ENEMY_1, "troops": 10, "tier": 1})
+	assert_equals(cap_base.max_capacity, 45, "Una base enemiga mantiene su capacidad")
+	var mine_cap = Base.new()
+	mine_cap.setup({"faction": GameManager.Faction.PLAYER, "troops": 10, "tier": 1})
+	assert_equals(mine_cap.max_capacity, 63, "Cuarteles 4: +40% de capacidad (45 → 63)")
+	cap_base.receive_troops(GameManager.Faction.PLAYER, 30)
+	assert_true(cap_base.faction == GameManager.Faction.PLAYER and cap_base.max_capacity == 63, "Capturar una base le da tu capacidad")
+	cap_base.receive_troops(GameManager.Faction.ENEMY_2, 100)
+	assert_true(cap_base.faction == GameManager.Faction.ENEMY_2 and cap_base.max_capacity == 45, "Perderla devuelve la capacidad normal")
+	mine_cap.troops = 60
+	var tier3 = Base.new()
+	tier3.setup({"faction": GameManager.Faction.PLAYER, "troops": 10, "tier": 3})
+	assert_equals(tier3.max_capacity, 196, "El bonus escala con el nivel de la base (140 × 1.4)")
+	for n in [cap_base, mine_cap, tier3]:
+		n.free()
+	GameManager.upgrades["capacity"] = 0
+
+	# Reclutamiento: tropas extra sólo al conquistar a un enemigo o neutral
+	GameManager.upgrades["conscription"] = 5
+	var prize = Base.new()
+	prize.setup({"faction": GameManager.Faction.ENEMY_1, "troops": 10, "tier": 1})
+	prize.receive_troops(GameManager.Faction.PLAYER, 15)
+	var garrison: int = 5 * GameManager.UPGRADES["conscription"]["step"]
+	assert_true(prize.faction == GameManager.Faction.PLAYER and prize.troops == 5 + garrison, "Capturar añade las tropas de Reclutamiento a los supervivientes")
+	var rival_prize = Base.new()
+	rival_prize.setup({"faction": GameManager.Faction.NEUTRAL, "troops": 10, "tier": 1})
+	rival_prize.receive_troops(GameManager.Faction.ENEMY_1, 15)
+	assert_equals(rival_prize.troops, 5, "Los enemigos no reciben el bonus")
+	var drained = Base.new()
+	drained.setup({"faction": GameManager.Faction.ENEMY_1, "troops": 10, "tier": 1})
+	drained.receive_troops(GameManager.Faction.PLAYER, 10)
+	assert_true(drained.faction == GameManager.Faction.NEUTRAL and drained.troops == 0, "Dejar una base neutral no da bonus")
+	var ally_reinforce = Base.new()
+	ally_reinforce.setup({"faction": GameManager.Faction.PLAYER, "troops": 10, "tier": 1})
+	ally_reinforce.receive_troops(GameManager.Faction.PLAYER, 10)
+	assert_equals(ally_reinforce.troops, 20, "Reforzar una base propia no da bonus")
+	for n in [prize, rival_prize, drained, ally_reinforce]:
+		n.free()
+	GameManager.upgrades["conscription"] = 0
+
+	# Guardado: los niveles se recortan al máximo y las mejoras desconocidas se ignoran
+	var data := GameManager.save_data()
+	data["upgrades"] = {"fortification": 99, "breaching": -3, "mystery": 5, "capacity": 4}
+	GameManager._apply_save(data)
+	assert_true(GameManager.upgrades["fortification"] == GameManager.MAX_UPGRADE_LEVEL and GameManager.upgrades["breaching"] == 0 and GameManager.upgrades["capacity"] == 4 and not GameManager.upgrades.has("mystery"), "Niveles saneados al cargar")
+
+	# Pantalla Ejército: una tarjeta más por nivel de Ascensión abierto
+	GameManager.reset_save()
+	var army = load("res://scripts/ui/army_tab.gd").new()
+	add_child(army)
+	assert_equals(army.find_children("UpgradeCard_*", "", true, false).size(), 4, "Ejército inicial sin cambios: 4 tarjetas")
+	remove_child(army)
+	army.free()
+	for id in LevelDatabase.get_level_ids():
+		GameManager.completed_levels[id] = 1
+	army = load("res://scripts/ui/army_tab.gd").new()
+	add_child(army)
+	assert_true(army.find_child("UpgradeCard_fortification", true, false) != null and army.find_child("UpgradeCard_capacity", true, false) == null, "La Ascensión 2 añade Fortificación")
+	var card = army.find_child("UpgradeCard_fortification", true, false)
+	assert_true(card.find_children("*", "Label", true, false).any(func(l): return l.text.contains("+%d%%" % GameManager.UPGRADES["fortification"]["step"])), "La tarjeta muestra el efecto del primer nivel")
+	remove_child(army)
+	army.free()
+
+	# La victoria que abre una Ascensión anuncia su mejora
+	var hud = load("res://scenes/ui/battle_hud.tscn").instantiate()
+	add_child(hud)
+	hud.deploy_victory_modal({"stars": 3, "gold_earned": 10, "ascension_unlocked": 2, "level_id": "oceania_5"})
+	assert_true(hud.unlock_label.text.contains(LocaleStrings.text("upgrade_new") % LocaleStrings.text("upg_fortification")), "Se anuncia la mejora nueva")
+	remove_child(hud)
+	hud.free()
+	GameManager.reset_save()
+
+## Season two: country fronts with their own names, tiers above the original scale and playable maps.
+func test_season_two_regions() -> void:
+	var cities := {}
+	for region in InvasionDatabase.SEASON_ONE:
+		for key in region["cities"]:
+			cities[key] = true
+	var overlap := 0
+	var bad := 0
+	for region in InvasionDatabase.SEASON_TWO:
+		var keys: Array = region["cities"]
+		for key in keys:
+			overlap += 1 if cities.has(key) else 0
+		if keys.size() != 8 or keys.size() != keys.duplicate().size() or not keys.has(region["capital"]) or region.get("season") != 2 or int(region["tier"]) < 6 or int(region["tier"]) > 9:
+			bad += 1
+		if not keys.all(func(k): return GeoDatabase.has_city(k)) or LevelDatabase.get_continents().filter(func(c): return c["id"] == region["continent"]).is_empty():
+			bad += 1
+		if InvasionDatabase.rule_key(region["rule"]) == "":
+			bad += 1
+		var name := InvasionDatabase.region_name(region)
+		if name == "" or name.contains("invregion") or not name.contains(GeoDatabase.city_name(GeoDatabase.get_city(region["capital"]))) or InvasionDatabase.region_subtitle(region).contains("invregion"):
+			bad += 1
+	assert_equals(overlap, 0, "La segunda temporada usa ciudades nuevas")
+	assert_equals(bad, 0, "Las regiones de la segunda temporada son válidas y se nombran sin claves nuevas")
+	assert_equals(InvasionDatabase.get_region("kazan_region_x"), {}, "Una región inexistente sigue vacía")
+	var ids := {}
+	for region in InvasionDatabase.get_regions():
+		assert_true(not ids.has(region["id"]), "Id de región único: " + str(region["id"]))
+		ids[region["id"]] = true
+	# Dificultad: la escala original no cambia y la nueva sigue creciendo
+	assert_equals(LevelDatabase.get_difficulty("inv_pacific_3"), 1.0, "Las regiones originales conservan su techo de dificultad")
+	for region in InvasionDatabase.SEASON_TWO:
+		var front1 := LevelDatabase.get_difficulty(InvasionDatabase.level_id(region["id"], 1))
+		var front3 := LevelDatabase.get_difficulty(InvasionDatabase.level_id(region["id"], 3))
+		assert_true(front1 > 1.0 and front3 > front1, "Amenaza creciente en " + str(region["id"]))
+	var strong: int = InvasionDatabase.get_level_definition("inv_canada_north_1")["bases"].filter(func(b): return b["faction"] == GameManager.Faction.ENEMY_1)[0]["troops"]
+	var weak := 18 + 8 * 3 + 3
+	assert_true(strong > weak, "Las guarniciones de la segunda temporada superan la fórmula original")
+	# Cada frente se construye en ambas orientaciones con jugador, rival y ciudades reales
+	var broken := 0
+	for region in InvasionDatabase.SEASON_TWO:
+		for step in InvasionDatabase.FRONTS:
+			var id := InvasionDatabase.level_id(region["id"], step + 1)
+			for landscape in [false, true]:
+				var level := LevelDatabase.get_level_data(id, landscape)
+				var factions: Array = level["bases"].map(func(b): return b["faction"])
+				if level["bases"].size() < 4 or not factions.has(GameManager.Faction.PLAYER) or not factions.has(GameManager.Faction.ENEMY_1) or not level.has("rule_key"):
+					broken += 1
+				if landscape == false and not level["bases"].all(func(b): return LevelGenerator.PLAY_RECT.grow(1.0).has_point(b["pos"])):
+					broken += 1
+	assert_equals(broken, 0, "Los 69 frentes de la segunda temporada son jugables")
+	assert_true(GameManager.is_invasion_level_unlocked("inv_canada_north_1") == false, "Una región nueva se abre con la campaña de su continente")
 
 func test_atlas_and_first_levels() -> void:
 	print("\n-> Test: Atlas de Ciudades, Primer Arranque y Niveles Suaves")
@@ -4286,6 +4874,7 @@ func test_daily_missions_xp_and_share() -> void:
 	assert_equals(GameManager.daily_best["time"], 34.2, "Resultado peor no reemplaza récord")
 	var text := DailyShare.text(GameManager.daily_best)
 	assert_true(text.contains("35s") and text.contains("×1.5") and text.contains("⭐⭐⭐"), "Tarjeta con estrellas, tiempo y velocidad")
+	assert_true(text.ends_with(DailyShare.URL), "La tarjeta termina con el enlace para jugar")
 	GameManager.set_language("en")
 	assert_true(DailyShare.text(GameManager.daily_best).contains("Daily challenge"), "Tarjeta traducida")
 	GameManager.save_game()
@@ -4348,6 +4937,7 @@ func test_settings_and_backups() -> void:
 	GameManager.save_game()
 	assert_equals(GameManager.import_save(export_path), OK, "Restaurar copia")
 	assert_equals(GameManager.coins, 456, "Restauración conserva economía")
+	assert_true(EventBus.save_replaced.get_connections().any(func(c): return c["callable"].get_object() == AudioManager and c["callable"].get_method() == "_refresh_music"), "Restaurar la partida refresca también el silencio de la música")
 	var backup = JSON.parse_string(FileAccess.get_file_as_string(original_path + ".backup"))
 	assert_equals(int(backup["coins"]), 12, "Se conserva copia de la partida reemplazada")
 	GameManager.write_save(import_path, {"version": GameManager.SAVE_VERSION + 1, "upgrades": {}, "completed_levels": {}})
@@ -4387,8 +4977,10 @@ func test_invasion_mode() -> void:
 	GameManager.reset_save()
 	InvasionPage.last_continent = "europe"
 	InvasionPage.last_region = "iberia"
-	assert_equals(InvasionDatabase.get_regions().size(), 36, "Hay 36 regiones de invasión")
-	assert_equals(InvasionDatabase.get_total_fronts(), 108, "Cada región tiene tres frentes")
+	assert_equals(InvasionDatabase.SEASON_ONE.size(), 36, "La primera temporada conserva sus 36 regiones")
+	assert_equals(InvasionDatabase.get_regions().size(), InvasionDatabase.SEASON_ONE.size() + InvasionDatabase.SEASON_TWO.size(), "Las regiones son las de las dos temporadas")
+	assert_equals(InvasionDatabase.get_total_fronts(), InvasionDatabase.get_regions().size() * 3, "Cada región tiene tres frentes")
+	test_season_two_regions()
 	assert_equals(GeoDatabase.get_city("madrid").get("country", ""), "ESP", "Las ciudades llevan su código de país")
 
 	# 1. Datos: ids únicos, ciudades reales, capital y jefe sólo en el frente final.
@@ -4521,10 +5113,10 @@ func test_invasion_mode() -> void:
 	add_child(page)
 	assert_true(page.find_child("InvasionMap", true, false) != null, "La pestaña muestra el mapa")
 	assert_equals(page.continent_buttons.size(), 6, "Hay un selector por continente")
-	assert_equals(page.region_buttons.size(), 8, "Europa muestra sus ocho regiones")
+	assert_equals(page.region_buttons.size(), InvasionDatabase.get_regions_by_continent("europe").size(), "Europa muestra todas sus regiones")
 	assert_true(page.detail_card != null, "La ficha de región está presente")
 	assert_equals(page.front_buttons.size(), 3, "La ficha muestra los tres frentes")
-	assert_true(page.progress_label.text.contains("1/36"), "El progreso de regiones se muestra")
+	assert_true(page.progress_label.text.contains("1/%d" % InvasionDatabase.get_region_count()), "El progreso de regiones se muestra")
 	var front2 = page.find_child("BtnInvasionFront_2", true, false) as Button
 	assert_true(front2 != null and not front2.disabled, "El segundo frente se puede jugar")
 	var front3 = page.find_child("BtnInvasionFront_3", true, false) as Button
@@ -4645,13 +5237,18 @@ func test_review_regressions() -> void:
 	# Huellas capturadas antes del refactor: no cambiar mapas ni consumir otro RNG.
 	for sample in [
 		["daily", 365, "dd937f4c32a66da37e1f7bc2ea7a1588cbdcd0a6064f12db554606f44f3634ab"],
-		["conquest", 50, "a49fd247020ee60e1b88238b5c88d305f2448109ec689e3a979a6be1a347e928"],
+		# Regions below threat 1.0 keep their exact garrisons; deeper ones only scale troops (checked below).
+		["conquest", 29, "c3e94c4a61855cba07f923f72caabaeb831d64f970c58593b3394d5bb2cbd1ad"],
 	]:
 		var bases := []
 		for i in sample[1]:
 			var def := LevelGenerator.daily_challenge_definition(20000 + i) if sample[0] == "daily" else LevelGenerator.conquest_definition(i)
 			bases.append(def["bases"])
 		assert_equals(JSON.stringify(bases).sha256_text(), sample[2], "Mapas %s idénticos antes y después" % sample[0])
+	var unscaled := []
+	for i in 50:
+		unscaled.append(LevelGenerator.conquest_definition(i)["bases"].map(func(b): var copy: Dictionary = b.duplicate(); copy.erase("troops"); return copy))
+	assert_equals(JSON.stringify(unscaled).sha256_text(), "7234246441e53ed07565283a5cdc7b4c69d16ff6ecbb61335ef8570c26d5e39f", "La amenaza sólo cambia tropas, no ciudades ni RNG")
 	for i in range(LevelDatabase.MAX_CACHED_LEVELS + 1):
 		LevelDatabase.get_level_data(LevelGenerator.conquest_id(i))
 	assert_equals(LevelDatabase._built.size(), LevelDatabase.MAX_CACHED_LEVELS, "La conquista infinita no hace crecer la caché")
@@ -5083,6 +5680,7 @@ func test_telemetry_schema_and_privacy() -> void:
 	assert_true(telemetry._crash_ready, "Los informes de fallos se inicializan con el ajuste predeterminado")
 	assert_equals(telemetry.sdk.options.get("environment"), "debug" if OS.is_debug_build() else "production", "Sentry usa la misma variante que Aptabase")
 	assert_true(not telemetry.sdk.options["send_default_pii"] and not telemetry.sdk.options["attach_log"] and not telemetry.sdk.options["attach_scene_tree"], "Sentry mantiene las restricciones de privacidad")
+	assert_equals(telemetry.sdk.tags.get("software_renderer"), "1" if telemetry._software_renderer else "0", "Sentry marca si el renderizador es software")
 	GameManager.settings["share_crashes"] = false
 	GameManager.settings["share_analytics"] = false
 	telemetry._on_settings_changed()
@@ -5126,6 +5724,10 @@ func test_telemetry_schema_and_privacy() -> void:
 	LocaleStrings.set_locale("es")
 	assert_equals(LocaleStrings.text("share_analytics"), "Estadísticas de uso", "El ajuste de analítica está traducido")
 	assert_equals(LocaleStrings.text("privacy_policy"), "Política de privacidad", "El enlace de privacidad está traducido")
+	assert_equals(LocaleStrings.text("support_project"), "Apoyar en Ko-fi", "El enlace de apoyo está traducido")
+	LocaleStrings.set_locale("en")
+	assert_equals(LocaleStrings.text("support_project"), "Support on Ko-fi", "El enlace de apoyo existe en inglés")
+	LocaleStrings.set_locale("es")
 	LocaleStrings.set_locale(previous_language)
 	GameManager.set_setting("share_analytics", false)
 	GameManager.set_setting("share_crashes", false)
@@ -5184,6 +5786,46 @@ func test_telemetry_schema_and_privacy() -> void:
 	DirAccess.remove_absolute(GameManager.save_path + ".backup")
 	GameManager.reset_save()
 	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"], "Reiniciar progreso conserva las opciones de privacidad")
+
+func test_sentry_engine_noise_filtering() -> void:
+	print("\n-> Test: Sentry descarta ruido del motor sin ocultar fallos reales")
+	GameManager._apply_save({})
+	var telemetry := TelemetryHarness.new()
+	telemetry._init_crashes()
+	assert_true(telemetry._crash_ready, "El filtro de Sentry se instala al inicializar los fallos")
+	var before_send: Callable = telemetry.sdk.options.get("before_send", Callable())
+	assert_true(before_send.is_valid(), "Sentry recibe el callback before_send")
+
+	var event := SentryEventStub.new()
+	event.message = "Mouse is not supported by this display server."
+	assert_true(before_send.call(event) == null, "El aviso de ratón de iOS no crea una incidencia")
+
+	event = SentryEventStub.new()
+	event.message = "CanvasShaderGLES3: Program linking failed:\nFragment shader active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)"
+	telemetry._software_renderer = false
+	assert_true(before_send.call(event) == event, "Un fallo real de shader en una GPU normal sigue reportándose")
+	telemetry._software_renderer = true
+	assert_true(before_send.call(event) == null, "El límite de uniforms de SwiftShader no crea una incidencia")
+	event = SentryEventStub.new()
+	event.message = "Method/function failed."
+	assert_true(before_send.call(event) == null, "El error secundario de SwiftShader no crea una incidencia")
+	telemetry._software_renderer = false
+	assert_true(before_send.call(event) == event, "Un Method/function failed. real no se confunde con SwiftShader")
+
+	event = SentryEventStub.new()
+	event.message = "Invalid call. Nonexistent function 'foo' in base 'Node'."
+	assert_true(before_send.call(event) == event, "Los errores de GDScript nunca se filtran")
+	event = SentryEventStub.new()
+	event.message = "CanvasShaderGLES3: Program linking failed: otro fallo"
+	assert_true(before_send.call(event) == event, "Los shaders que fallan por otra causa siguen reportándose")
+
+	event = SentryEventStub.new()
+	event.message = "CanvasShaderGLES3: Program linking failed:\nFragment shader active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)"
+	event.crash = true
+	telemetry._software_renderer = true
+	assert_true(before_send.call(event) == event, "Un crash fatal nunca se filtra, aunque coincida con el ruido")
+	telemetry.free()
+	GameManager._apply_save({})
 
 func test_candidate_telemetry_is_tagged() -> void:
 	print("\n-> Test: Telemetría de candidata marcada, no silenciada")

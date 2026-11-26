@@ -110,7 +110,7 @@ func _build(restore_focus: String = "") -> void:
 	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("vibration_note")))
 	_vibration_slider = _slider("vibration_intensity")
 	_vibration_test = _button("vibration_test", func(): GameManager.haptic(60))
-	if not OS.has_feature("mobile"):
+	if not GameManager.can_vibrate():
 		_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("vibration_mobile_only")))
 	_refresh_vibration_controls()
 
@@ -127,6 +127,10 @@ func _build(restore_focus: String = "") -> void:
 	if OS.has_feature("mobile") and not AccessibilityServer.is_supported():
 		_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("accessibility_mobile_reader_note")))
 
+	_section("section_support")
+	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("support_note")))
+	_button("support_project", func(): OS.shell_open(Telemetry.DONATE_URL), "heart")
+
 	_section("section_privacy")
 	_toggle("share_analytics", GameManager.settings["share_analytics"], func(value):
 		GameManager.set_setting("share_analytics", value))
@@ -135,6 +139,9 @@ func _build(restore_focus: String = "") -> void:
 	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("privacy_note")))
 	_button("privacy_policy", func(): OS.shell_open(Telemetry.PRIVACY_URL), "shield")
 	_button("open_source_licenses", _show_licenses, "help")
+	_button("share", func():
+		DisplayServer.clipboard_set(DailyShare.APP_URL)
+		Toasts.show_toast("✅", "invade.io", LocaleStrings.text("copied")), "share")
 
 	_section("section_data")
 	_group.add_child(UIThemeHelper.label(LocaleStrings.text("save_auto"), "Heading"))
@@ -145,8 +152,9 @@ func _build(restore_focus: String = "") -> void:
 	_save_retry = _button("save_retry", func(): GameManager.save_game(), "retry")
 	_refresh_save_status()
 	if allow_backups:
-		_button("backup_export", _choose_file.bind(false), "share")
-		_button("backup_import", _choose_file.bind(true), "retry")
+		if not OS.has_feature("web"): # El navegador no ofrece diálogos de archivo del sistema.
+			_button("backup_export", _choose_file.bind(false), "share")
+			_button("backup_import", _choose_file.bind(true), "retry")
 		_button("reset", _confirm_reset, "close")
 		_status = UIThemeHelper.paragraph("")
 		_group.add_child(_status)
@@ -195,7 +203,7 @@ func _refresh_save_status() -> void:
 
 func _refresh_vibration_controls() -> void:
 	_vibration_slider.editable = GameManager.settings["vibration"]
-	_vibration_test.disabled = not OS.has_feature("mobile") or not GameManager.settings["vibration"] or GameManager.settings["vibration_intensity"] <= 0.0
+	_vibration_test.disabled = not GameManager.can_vibrate() or not GameManager.settings["vibration"] or GameManager.settings["vibration_intensity"] <= 0.0
 
 func _section(key: String) -> void:
 	_content.add_child(UIThemeHelper.label(LocaleStrings.text(key), "Caption"))

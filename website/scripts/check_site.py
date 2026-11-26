@@ -77,6 +77,8 @@ def validate(root, policy=None):
                 continue
             if target.is_dir():
                 target /= "index.html"
+            if url.path.startswith(BASE + "play/game/"):
+                continue  # the Godot web export is added by the Pages workflow after this check
             if not target.is_file():
                 errors.append(f"{file.relative_to(root)}: missing target {link}")
             elif check_anchor and url.fragment and target in pages and unquote(url.fragment) not in pages[target].ids:

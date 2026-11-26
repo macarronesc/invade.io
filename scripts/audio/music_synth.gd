@@ -34,10 +34,46 @@ static func loop_seconds(spec: Dictionary) -> float:
 static func render_track(track_id: String) -> PackedFloat32Array:
 	return render(TRACKS[track_id])
 
+## Pre-rendered loops shipped by the browser demo (see tools/render_web_music.gd). Single-threaded
+## web builds cannot synthesize them off the main thread without freezing a phone for seconds.
+const BUNDLED_DIRECTORY := "res://assets/audio/music"
+
+## Raw 16-bit mono PCM named after the cache key, so a stale file is never reused.
+static func bundled_path(track: String, directory: String = BUNDLED_DIRECTORY) -> String:
+	return _cache_path(track, directory).trim_suffix(".wav") + ".pcm"
+
+static func _frames(track: String) -> int:
+	return int(loop_seconds(TRACKS[track]) * MIX_RATE)
+
+static func _read_bundled_track(track: String, directory: String) -> AudioStreamWAV:
+	var path := bundled_path(track, directory)
+	if not FileAccess.file_exists(path):
+		return null
+	var pcm := FileAccess.get_file_as_bytes(path)
+	if pcm.size() != _frames(track) * 2:
+		return null
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = MIX_RATE
+	wav.data = pcm
+	return _looped(wav, _frames(track))
+
+static func save_bundled_track(track: String, directory: String = BUNDLED_DIRECTORY) -> Error:
+	var wav := to_wav(render_track(track), true)
+	DirAccess.make_dir_recursive_absolute(directory)
+	var file := FileAccess.open(bundled_path(track, directory), FileAccess.WRITE)
+	if file == null:
+		return FileAccess.get_open_error()
+	file.store_buffer(wav.data)
+	return OK
+
 ## The cache is disposable; storage failures must never silence the generated track.
-static func load_or_render_track(track: String, directory: String = "user://music_cache") -> AudioStreamWAV:
+static func load_or_render_track(track: String, directory: String = "user://music_cache", bundled: String = BUNDLED_DIRECTORY) -> AudioStreamWAV:
+	var packaged := _read_bundled_track(track, bundled)
+	if packaged != null:
+		return packaged
 	var path := _cache_path(track, directory)
-	var frames := int(loop_seconds(TRACKS[track]) * MIX_RATE)
+	var frames := _frames(track)
 	var cached := _read_cached_track(path, frames)
 	if cached != null:
 		return cached
@@ -69,6 +105,9 @@ static func _read_cached_track(path: String, frames: int) -> AudioStreamWAV:
 	var wav := AudioStreamWAV.load_from_file(path)
 	if wav == null or wav.format != AudioStreamWAV.FORMAT_16_BITS or wav.stereo or wav.mix_rate != MIX_RATE or wav.data.size() != frames * 2:
 		return null
+	return _looped(wav, frames)
+
+static func _looped(wav: AudioStreamWAV, frames: int) -> AudioStreamWAV:
 	wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	wav.loop_begin = 0
 	wav.loop_end = frames

@@ -45,12 +45,22 @@ Game speed affects both sides. Records use simulation seconds, not wall-clock
 time, and daily result cards include the speed and balance version. Do not treat
 them as verified online rankings.
 
+## Ascension
+
+After all 30 campaign levels are cleared, Ascension tiers 2-10 replay the same maps
+with stronger rivals (garrisons, faster AI, extra rival armies, a second continent
+rule from tier 3) and +35% gold per tier. Each tier needs the previous one complete.
+Tiers 2-5 each open one extra upgrade (Fortification, Barracks, Conscription, Siege
+engineers). Buying upgrades never makes enemies harder, and the daily challenge
+ignores the new upgrades. Free conquest and invasion season two (23 country regions,
+tiers 6-9) keep growing past the original difficulty cap.
+
 ## Four ways to conquer
 
 | Mode | Structure | Progression |
 |---|---|---|
 | Campaign | 30 levels across six continents; every fifth level has a boss | Unlock the next level, earn up to 90 campaign stars, and open regional invasions |
-| Invasions | 36 regions, each with three sequential fronts | Finish a continent's campaign to unlock its regions; invasion stars are separate from campaign stars |
+| Invasions | 59 regions, each with three sequential fronts | Finish a continent's campaign to unlock its regions; invasion stars are separate from campaign stars |
 | Free conquest | Deterministically generated, five-region expeditions | Progress between regions is saved; each fifth region ends with a boss and double gold |
 | Daily challenge | A locally generated map with rotating rules for the local calendar day | No combat upgrades; improve your personal record and copy a result card to share |
 
@@ -101,7 +111,7 @@ upgrade; rewards are claimed explicitly rather than through entry pop-ups.
 - **Challenges** contains the daily reward, a streak that forgives one missed
   day, the daily challenge, and three daily missions with gold/XP rewards.
 - **Progress** contains ranks, medals, invasion progress, the city atlas,
-  continent collections, and 20 achievements. Player rank itself does not change
+  continent collections, and 23 achievements. Player rank itself does not change
   combat strength.
 - **The atlas** records cities you control when winning, in any mode. Continent
   collection rewards cover campaign cities, not every city in the geographic
@@ -114,9 +124,10 @@ starting state of a new installation.*
 
 ## Language and accessibility settings
 
-Settings includes 15 interface languages: English, Spanish, Brazilian Portuguese,
+Settings includes 19 interface languages: English, Spanish, Brazilian Portuguese,
 French, German, Italian, Russian, Turkish, Arabic, Hindi, Indonesian, Vietnamese,
-Simplified Chinese, Japanese, and Korean. New games follow the device language
+Simplified Chinese, Japanese, Korean, Polish, Ukrainian, Traditional Chinese, and
+Thai. New games follow the device language
 where supported; a saved language choice takes precedence. Arabic uses RTL
 interface layout, but geographic maps and the brand are not mirrored.
 

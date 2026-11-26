@@ -1,35 +1,31 @@
 extends Node
 
 ## Real game scenes → raw captures → localized Play graphics. No previous --ui run needed.
-## xvfb-run -a godot --path . res://scenes/tests/store_assets.tscn
-## -- --lang=en previews one locale without replacing the complete manifest.
+## xvfb-run -a godot --path . res://scenes/tests/store_assets.tscn [-- --lang=pl,th]
+## Renders into build/store_capture/ and writes its manifest.json; nothing tracked changes.
+## python3 tools/build_store_listings.py --publish then validates and publishes the images.
 
-const OUT := "res://docs/store_assets"
 # shortcut: one generator per checkout; use separate workspaces for concurrent captures.
 const STAGE := "res://build/store_capture"
 const COPY := "res://docs/store_listing/graphics.json"
 const PHONE := Vector2i(1080, 1920)
 const GAME := Vector2i(1080, 1600)
 const TABLET := Vector2i(1920, 1080)
+const SECONDS_PER_LANGUAGE := 150.0 # measured ~40 s with software rendering; keep a wide margin
 const SHOTS := ["conquer", "tactics", "invasions", "campaign", "daily", "upgrades", "cosmetics", "atlas"]
 const TABLET_SHOTS := ["campaign", "invasions", "cosmetics", "atlas"]
-const DAILY_DAY := 20754
-const SEED := 20261028
-const OLD_SHOTS := ["1_menu.png", "2_invasion.png", "3_march.png", "4_victory.png", "5_army.png", "6_challenges.png", "7_progress.png"]
 
 var _failed := false
 var _copy: Dictionary
 var _view: SubViewport
 var _lang := "en"
 var _real_save_hash := ""
-var _manifest := {"version": "", "seed": SEED, "daily_day": DAILY_DAY, "locales": {}, "tablets": {}}
+var _manifest := {"version": "", "seed": StoreFixture.SEED, "daily_day": StoreFixture.DAILY_DAY, "locales": {}, "tablets": {}}
 
 func _ready() -> void:
     if DisplayServer.get_name() == "headless":
         _require(false, "Screenshots need a rendering display; use xvfb-run, not --headless")
         return
-    var watchdog := get_tree().create_timer(1200.0)
-    watchdog.timeout.connect(func(): _require(false, "Capture did not complete within twenty minutes"))
     OS.low_processor_usage_mode = false
     _real_save_hash = FileAccess.get_sha256("user://invade_save.json") if FileAccess.file_exists("user://invade_save.json") else ""
     GameManager.save_path = "user://store_capture_save.json"
@@ -46,16 +42,17 @@ func _ready() -> void:
     _manifest["working_tree_dirty"] = not "".join(status).strip_edges().is_empty()
     _manifest["godot"] = Engine.get_version_info()["string"]
     var langs := LanguageCatalog.codes()
-    var preview := false
     for arg in OS.get_cmdline_user_args():
         if arg.begins_with("--lang="):
-            _lang = arg.substr(7)
-            if not _require(LanguageCatalog.is_supported(_lang), "Unsupported locale: " + _lang):
-                return
-            langs = [_lang]
-            preview = true
-    if not _require(LevelDatabase.get_level_ids().size() == 30 and InvasionDatabase.get_region_count() == 36
-            and InvasionDatabase.get_total_fronts() == 108 and AchievementDatabase.get_all().size() == 20,
+            langs.clear()
+            for code in arg.substr(7).split(",", false):
+                if not _require(LanguageCatalog.is_supported(code), "Unsupported locale: " + code):
+                    return
+                langs.append(code)
+    var watchdog := get_tree().create_timer(60.0 + SECONDS_PER_LANGUAGE * langs.size())
+    watchdog.timeout.connect(func(): _require(false, "Capture exceeded its time budget"))
+    if not _require(LevelDatabase.get_level_ids().size() == 30 and InvasionDatabase.get_region_count() == 59
+            and InvasionDatabase.get_total_fronts() == 177 and AchievementDatabase.get_all().size() == 23,
             "Update store counts when game content changes"):
         return
     for lang in langs:
@@ -103,54 +100,21 @@ func _ready() -> void:
     _close_view()
     _require(_real_save_hash == (FileAccess.get_sha256("user://invade_save.json") if FileAccess.file_exists("user://invade_save.json") else ""),
         "Capture must not modify the real player save")
-    if not _failed and not preview:
-        _publish(langs)
+    if not _failed:
+        _write_stage_manifest()
     AudioManager._player.stop()
     AudioManager._music_player.stop()
     AudioManager._playback = null
     await _settle()
-    print("STORE ", "FAILED" if _failed else ("PREVIEW in build/store_capture" if preview else "COMPLETE in docs/store_assets"))
+    print("STORE ", "FAILED" if _failed else "COMPLETE in build/store_capture")
     get_tree().quit(1 if _failed else 0)
 
 func _fixture() -> void:
-    seed(SEED)
-    GameManager._apply_save({})
-    GameManager.sound_muted = true
-    GameManager.music_muted = true
-    GameManager.language = _lang
-    GameManager.has_started = true
-    GameManager.settings.merge({"reduced_motion": true, "light_mode": true, "share_analytics": false, "share_crashes": false}, true)
-    GameManager.coins = 1320
-    GameManager.experience = 1600
-    GameManager.upgrades = {"starting_troops": 3, "production_rate": 3, "troop_speed": 2, "gold_bonus": 1}
-    for id in LevelDatabase.get_level_ids().slice(0, 12):
-        GameManager.completed_levels[id] = 3
-        GameManager.unlocked_levels.append(id)
-        for base in LevelDatabase.get_level_definition(id)["bases"]:
-            if not GameManager.conquered_cities.has(base["city"]):
-                GameManager.conquered_cities.append(base["city"])
-    GameManager.unlocked_levels.append("south_america_3")
-    for city in ["tokyo", "seoul", "sydney", "auckland", "cairo", "nairobi"]:
-        GameManager.conquered_cities.append(city)
-    GameManager.invasion_stars = {"inv_iberia_1": 3, "inv_iberia_2": 3}
-    GameManager.conquest_next = 7
-    GameManager.stats = {"victories": 24, "bases_captured": 140, "flawless_victories": 9, "chain_max": 3}
-    for id in ["color_cyan", "color_violet", "color_orange", "color_pink", "troop_big", "troop_halo", "base_square", "theme_ocean", "theme_paper"]:
-        GameManager.cosmetics_owned.append(id)
-    for id in ["first_victory", "conqueror", "strategist", "continental", "coordination", "flawless"]:
-        GameManager.achievements[id] = GameManager.ACHIEVEMENT_CLAIMED
-    GameManager.seen_tips = ["drag", "factory", "fortress", "rival_0", "rival_1", "rival_2"]
-    GameManager.current_level_id = "south_america_3"
-    GameManager.current_continent = "south_america"
-    MainMenuUI.next_tab = "play"
-    MainMenuUI.return_to_battle = false
-    InvasionPage.last_continent = "europe"
-    InvasionPage.last_region = "iberia"
-    UIThemeHelper.apply_palette(get_tree(), true)
+    StoreFixture.apply(_lang, get_tree())
 
 func _scenario(shot: String) -> String:
     return {"conquer": "europe_4", "tactics": "europe_5", "invasions": "inv_iberia_3",
-        "daily": DailyRewards.challenge_id(DAILY_DAY)}.get(shot, shot)
+        "daily": DailyRewards.challenge_id(StoreFixture.DAILY_DAY)}.get(shot, shot)
 
 func _new_view(dimensions: Vector2i) -> void:
     _view = SubViewport.new()
@@ -239,8 +203,8 @@ func _scroll_to_label(page: ScrollPage, key: String) -> void:
     page.scroll_vertical = int(target.global_position.y - page.content.global_position.y) - 16
     _require(page.scroll_vertical > 0, "Scroll reaches the requested feature: " + key)
 
-func _settle() -> void:
-    for frame in 5:
+func _settle(frames := 5) -> void:
+    for frame in frames:
         await get_tree().process_frame
     await RenderingServer.frame_post_draw
 
@@ -300,10 +264,9 @@ func _compose(raw: Image, text: Dictionary, index: int) -> Image:
         for label in [headline, subtitle]:
             label.text_direction = Control.TEXT_DIRECTION_RTL
             label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-    await _settle()
+    await _settle(2)
     for font_size in range(74, 49, -2):
         headline.add_theme_font_size_override("font_size", font_size)
-        await get_tree().process_frame
         if headline.get_line_count() <= 2 and headline.get_minimum_size().y <= 170:
             break
     _require(headline.get_line_count() <= 2 and headline.get_minimum_size().y <= 170,
@@ -318,7 +281,7 @@ func _compose(raw: Image, text: Dictionary, index: int) -> Image:
             break
     _require(subtitle.get_minimum_size().x <= 968, "Subtitle fits: " + subtitle.text)
     subtitle.size = Vector2(968, 56)
-    await _settle()
+    await _settle(2)
     var band := Rect2(0, 0, 1080, 320)
     _require(bg.get_global_rect() == Rect2(Vector2.ZERO, Vector2(PHONE)), "Artwork background stays on canvas")
     _require(band.encloses(headline.get_global_rect()) and band.encloses(subtitle.get_global_rect()),
@@ -374,37 +337,11 @@ func _contact_sheet(lang: String) -> void:
         sheet.blit_rect(shot, Rect2i(0, 0, 270, 480), Vector2i(index % 4 * 270, index / 4 * 480))
     _save(sheet, STAGE + "/contact_" + lang + ".png")
 
-func _publish(langs: Array[String]) -> void:
-    # Every render/fit check finishes before touching the previous deliverables.
-    for lang in langs:
-        for prefix in ["screenshots_", "tablet_"]:
-            _mkdir(OUT + "/" + prefix + lang)
-            var ids: Array = SHOTS if prefix == "screenshots_" else TABLET_SHOTS
-            for index in ids.size():
-                var file := "%s%s/%d_%s.png" % [prefix, lang, index + 1, ids[index]]
-                if not _copy_file(STAGE + "/" + file, OUT + "/" + file):
-                    return
-    if not _copy_file(STAGE + "/feature-graphic-1024x500.png", OUT + "/feature-graphic-1024x500.png"):
-        return
-    for lang in langs:
-        for obsolete in OLD_SHOTS:
-            var path: String = OUT + "/screenshots_" + lang + "/" + obsolete
-            if FileAccess.file_exists(path) and not _require(DirAccess.remove_absolute(path) == OK,
-                    "Retire previous gallery image: " + path):
-                return
-    _manifest["feature_sha256"] = FileAccess.get_sha256(OUT + "/feature-graphic-1024x500.png")
-    var file := FileAccess.open(OUT + "/manifest.json.tmp", FileAccess.WRITE)
-    if not _require(file != null, "Open capture manifest"):
-        return
-    file.store_string(JSON.stringify(_manifest, "\t") + "\n")
-    file.close()
-    if not _require(DirAccess.rename_absolute(OUT + "/manifest.json.tmp", OUT + "/manifest.json") == OK, "Publish manifest"):
-        return
-
-func _copy_file(source: String, target: String) -> bool:
-    if not _require(DirAccess.copy_absolute(source, target + ".tmp") == OK, "Stage asset: " + target):
-        return false
-    return _require(DirAccess.rename_absolute(target + ".tmp", target) == OK, "Publish asset: " + target)
+func _write_stage_manifest() -> void:
+    _manifest["feature_sha256"] = FileAccess.get_sha256(STAGE + "/feature-graphic-1024x500.png")
+    var file := FileAccess.open(STAGE + "/manifest.json", FileAccess.WRITE)
+    if _require(file != null, "Open stage manifest"):
+        file.store_string(JSON.stringify(_manifest, "\t") + "\n")
 
 func _save(image: Image, path: String) -> void:
     if not image.is_empty() and not _has_detail(image):

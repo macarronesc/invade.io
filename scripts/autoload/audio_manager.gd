@@ -61,6 +61,8 @@ func _ready() -> void:
 	_player.volume_db = -2.0
 	add_child(_player)
 	apply_volumes()
+	# Restaurar una copia puede cambiar el silencio: la música en curso debe seguirlo.
+	EventBus.save_replaced.connect(_refresh_music)
 	if DisplayServer.get_name() != "headless":
 		_player.play()
 		_playback = _player.get_stream_playback()

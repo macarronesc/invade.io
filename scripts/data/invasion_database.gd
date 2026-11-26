@@ -11,7 +11,7 @@ const REGION_COMPLETION_GOLD := 250
 const REGION_MASTERY_GOLD := 150
 
 ## Regiones de la primera temporada; "cities" está ordenada por importancia.
-const REGIONS: Array[Dictionary] = [
+const SEASON_ONE: Array[Dictionary] = [
 	{
 		"id": "iberia", "continent": "europe", "tier": 1, "rule": "capital",
 		"capital": "madrid",
@@ -194,6 +194,128 @@ const REGIONS: Array[Dictionary] = [
 	}
 ]
 
+## Segunda temporada: frentes por país, agrupados por cercanía alrededor de la ciudad más poblada
+## que no usa la primera. Más difíciles (nivel 6-9); sus nombres salen de esa ciudad capital.
+const SEASON_TWO: Array[Dictionary] = [
+	{
+		"id": "russia_volga", "continent": "europe", "tier": 6, "rule": "capital", "season": 2,
+		"capital": "kazan",
+		"cities": ["kazan", "ulyanovsk", "kirov", "penza", "ufa", "perm", "saratov", "orenburg"]
+	},
+	{
+		"id": "russia_south", "continent": "europe", "tier": 7, "rule": "fortress", "season": 2,
+		"capital": "rostov",
+		"cities": ["rostov", "krasnodar", "stavropol", "volgograd", "sochi", "voronezh", "naltchik", "sevastapol"]
+	},
+	{
+		"id": "usa_midwest", "continent": "north_america", "tier": 6, "rule": "factory", "season": 2,
+		"capital": "minneapolis",
+		"cities": ["minneapolis", "st_paul", "sioux_falls", "fargo", "des_moines", "international_falls", "omaha", "milwaukee"]
+	},
+	{
+		"id": "usa_southeast", "continent": "north_america", "tier": 7, "rule": "capital", "season": 2,
+		"capital": "tampa",
+		"cities": ["tampa", "orlando", "jacksonville", "tallahassee", "savannah", "montgomery", "columbia", "wilmington"]
+	},
+	{
+		"id": "mexico_pacific", "continent": "north_america", "tier": 8, "rule": "fortress", "season": 2,
+		"capital": "merida",
+		"cities": ["merida", "campeche", "cancun", "tuxtla_gutierrez", "veracruz", "oaxaca", "tampico", "matamoros"]
+	},
+	{
+		"id": "canada_north", "continent": "north_america", "tier": 9, "rule": "sea_lanes", "season": 2,
+		"capital": "north_bay",
+		"cities": ["north_bay", "timmins", "kuujjuarapik", "labrador_city", "fort_severn", "charlottetown", "sydney_can", "kuujjuaq"]
+	},
+	{
+		"id": "brazil_south", "continent": "south_america", "tier": 6, "rule": "capital", "season": 2,
+		"capital": "porto_alegre",
+		"cities": ["porto_alegre", "caxias_do_sul", "pelotas", "florianopolis", "ponta_grossa", "sorocaba", "campinas", "ribeirao_preto"]
+	},
+	{
+		"id": "peru", "continent": "south_america", "tier": 7, "rule": "fortress", "season": 2,
+		"capital": "arequipa",
+		"cities": ["arequipa", "tacna", "cusco", "ica", "huancayo", "pucallpa", "chimbote", "trujillo"]
+	},
+	{
+		"id": "argentina", "continent": "south_america", "tier": 8, "rule": "factory", "season": 2,
+		"capital": "tucuman",
+		"cities": ["tucuman", "salta", "san_juan_arg", "santa_fe", "formosa", "posadas", "santa_rosa", "bahia_blanca"]
+	},
+	{
+		"id": "chile", "continent": "south_america", "tier": 9, "rule": "sea_lanes", "season": 2,
+		"capital": "valparaiso",
+		"cities": ["valparaiso", "la_serena", "los_angeles_chl", "copiapo", "valdivia", "puerto_montt", "antofagasta", "coihaique"]
+	},
+	{
+		"id": "nigeria", "continent": "africa", "tier": 6, "rule": "capital", "season": 2,
+		"capital": "kaduna",
+		"cities": ["kaduna", "makurdi", "sokoto", "ogbomosho", "enugu", "benin_city", "warri", "port_harcourt"]
+	},
+	{
+		"id": "dr_congo", "continent": "africa", "tier": 7, "rule": "jungle", "season": 2,
+		"capital": "kananga",
+		"cities": ["kananga", "kikwit", "kasongo", "bandundu", "kolwezi", "kalemie", "kisangani", "mbandaka"]
+	},
+	{
+		"id": "south_africa", "continent": "africa", "tier": 8, "rule": "fortress", "season": 2,
+		"capital": "port_elizabeth",
+		"cities": ["port_elizabeth", "east_london", "middelburg", "george", "bloemfontein", "worcester", "welkom", "upington"]
+	},
+	{
+		"id": "india_deccan", "continent": "asia", "tier": 6, "rule": "capital", "season": 2,
+		"capital": "delhi",
+		"cities": ["delhi", "ghaziabad", "faridabad", "meerut", "aligarh", "saharanpur", "moradabad", "agra"]
+	},
+	{
+		"id": "india_gangetic", "continent": "asia", "tier": 7, "rule": "factory", "season": 2,
+		"capital": "hyderabad",
+		"cities": ["hyderabad", "kalaburagi", "nanded", "amaravati", "vijayawada", "sholapur", "akola", "hubballi"]
+	},
+	{
+		"id": "china_interior", "continent": "asia", "tier": 8, "rule": "fortress", "season": 2,
+		"capital": "chongqing",
+		"cities": ["chongqing", "nanchong", "neijiang", "chengdu", "mianyang", "guiyang", "liupanshui", "ankang"]
+	},
+	{
+		"id": "china_coast", "continent": "asia", "tier": 9, "rule": "factory", "season": 2,
+		"capital": "shenyeng",
+		"cities": ["shenyeng", "anshan", "tongliao", "jinxi", "changchun", "jilin", "dalian", "chifeng"]
+	},
+	{
+		"id": "indonesia", "continent": "asia", "tier": 9, "rule": "jungle", "season": 2,
+		"capital": "bandung",
+		"cities": ["bandung", "bandar_lampung", "semarang", "surakarta", "tanjungpandan", "palembang", "malang", "bandjarmasin"]
+	},
+	{
+		"id": "japan_islands", "continent": "asia", "tier": 9, "rule": "sea_lanes", "season": 2,
+		"capital": "sapporo",
+		"cities": ["sapporo", "hakodate", "kushiro", "sakata", "sendai", "nagano", "kyoto", "hiroshima"]
+	},
+	{
+		"id": "iran", "continent": "asia", "tier": 9, "rule": "oasis", "season": 2,
+		"capital": "mashhad",
+		"cities": ["mashhad", "yazd", "isfahan", "shiraz", "hamadan", "bandar_e_abbas", "ahvaz", "tabriz"]
+	},
+	{
+		"id": "kazakhstan", "continent": "asia", "tier": 9, "rule": "fortress", "season": 2,
+		"capital": "shymkent",
+		"cities": ["shymkent", "taraz", "qyzylorda", "qaraghandy", "astana", "ekibastuz", "semey", "pavlodar"]
+	},
+	{
+		"id": "australia_outback", "continent": "oceania", "tier": 6, "rule": "oasis", "season": 2,
+		"capital": "townsville",
+		"cities": ["townsville", "rockhampton", "mount_isa", "windorah", "armidale", "dubbo", "broken_hill", "orange"]
+	},
+	{
+		"id": "australia_coast", "continent": "oceania", "tier": 7, "rule": "sea_lanes", "season": 2,
+		"capital": "bendigo",
+		"cities": ["bendigo", "wangaratta", "portland_aus", "griffith", "devonport", "hobart", "whyalla", "port_lincoln"]
+	},
+]
+
+const REGIONS: Array[Dictionary] = SEASON_ONE + SEASON_TWO
+
 static var _by_id: Dictionary = {}
 static var _definitions: Dictionary = {}
 
@@ -224,10 +346,20 @@ static func get_regions_by_continent(continent_id: String) -> Array[Dictionary]:
 	return result
 
 static func region_name(region: Dictionary) -> String:
+	if region.get("season", 1) > 1:
+		return LocaleStrings.text("invregion_country_name") % GeoDatabase.city_name(GeoDatabase.get_city(str(region["capital"])))
 	return LocaleStrings.text("invregion_%s_name" % region["id"])
 
 static func region_subtitle(region: Dictionary) -> String:
+	if region.get("season", 1) > 1:
+		return LocaleStrings.text("inv_level_name") % [GeoDatabase.city_name(GeoDatabase.get_city(str(region["cities"][1]))),
+			GeoDatabase.city_name(GeoDatabase.get_city(str(region["cities"][2])))]
 	return LocaleStrings.text("invregion_%s_subtitle" % region["id"])
+
+## Threat of a front: tiers 1-5 keep the original 0..1 scale, later tiers keep growing
+static func threat(region: Dictionary, step: int) -> float:
+	var value := (float(region.get("tier", 1)) - 1.0) / 4.0 + (step - 1) * 0.05
+	return value if int(region.get("tier", 1)) > 5 else clampf(value, 0.0, 1.0)
 
 static func level_id(region_id: String, step: int) -> String:
 	return "%s%s_%d" % [PREFIX, region_id, step]
@@ -324,6 +456,8 @@ static func _build_definition(region: Dictionary, step: int) -> Dictionary:
 	var player_troops := 34 + (tier - 1) * 2 + (step - 1) * 2
 	var enemy_troops := 18 + (tier - 1) * 3 + step * 3
 	var neutral_troops := 8 + (tier - 1) * 2 + (step - 1)
+	var enemy_scale := Threat.troops(threat(region, step))
+	enemy_troops = roundi(enemy_troops * enemy_scale)
 	var player_tier := 2 if tier >= 3 else 1
 	var neutral_tier := 2 if tier >= 3 or step >= 2 else 1
 

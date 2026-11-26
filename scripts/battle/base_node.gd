@@ -100,13 +100,17 @@ func get_type_production_multiplier() -> float:
 			return 1.0
 
 func get_defense_multiplier() -> float:
+	var multiplier := 1.0
 	match base_type:
 		BaseType.FORTRESS:
-			return 2.0
+			multiplier = 2.0
+			if faction != GameManager.Faction.PLAYER:
+				multiplier *= 1.0 - GameManager.get_breach_reduction()
 		BaseType.FACTORY:
-			return 0.5
-		_:
-			return 1.0
+			multiplier = 0.5
+	if faction == GameManager.Faction.PLAYER:
+		multiplier *= 1.0 + GameManager.get_defense_bonus()
+	return multiplier
 
 ## Tropas generadas por segundo con los modificadores de nivel, tipo y facción
 func get_production_rate() -> float:
@@ -202,10 +206,15 @@ func setup(data: Dictionary) -> void:
 	_update_tier_parameters()
 	_update_label()
 
+## The Barracks upgrade only enlarges the player's own bases, so it follows ownership changes
+func _refresh_capacity() -> void:
+	var capacity: int = TIER_PARAMS.get(tier, DEFAULT_TIER_PARAMS)["capacity"]
+	max_capacity = roundi(capacity * GameManager.get_capacity_multiplier()) if faction == GameManager.Faction.PLAYER else capacity
+
 func _update_tier_parameters() -> void:
 	var params: Dictionary = TIER_PARAMS.get(tier, DEFAULT_TIER_PARAMS)
 	radius = params["radius"]
-	max_capacity = params["capacity"]
+	_refresh_capacity()
 	if label_name:
 		label_name.position.y = radius + 20.0
 	_dirty = true
@@ -357,6 +366,9 @@ func receive_troops(incoming_faction: int, count: int) -> void:
 			# Conquista
 			troops = maxi(1, count - ceili(power))
 			fortress_absorbed_damage = 0
+			if incoming_faction == GameManager.Faction.PLAYER and GameManager.get_capture_garrison() > 0:
+				troops += GameManager.get_capture_garrison()
+				float_text("+%d" % GameManager.get_capture_garrison(), Color.WHITE)
 			_change_faction(incoming_faction)
 	_update_label()
 	_dirty = true
@@ -369,6 +381,7 @@ func _bump(squash: Vector2, velocity: Vector2, shake: float) -> void:
 func _change_faction(new_faction: int) -> void:
 	var prev_faction = faction
 	faction = new_faction
+	_refresh_capacity()
 	_trigger_conquest_shockwave(new_faction)
 	refresh_accessible_labels()
 	AudioManager.play_capture()
@@ -422,7 +435,9 @@ func _draw() -> void:
 	draw_set_transform(shake_offset, 0.0, elastic_scale)
 
 	# 2. Sombra suave (una sola capa)
-	Icons.draw_disc(self, Vector2(0, 6), current_radius + 5.0, Color(0, 0, 0, 0.22))
+	# con la silueta del marco: un disco fijo asomaría bajo el cuadrado y el rombo
+	var shadow := Color(0, 0, 0, 0.22)
+	draw_frame(self, Vector2(0, 6), current_radius + 0.5, GameManager.base_shape(), shadow, shadow)
 
 	# 3. Halo de selección por fuera del anillo de capacidad
 	if is_selected:
@@ -430,7 +445,7 @@ func _draw() -> void:
 		draw_arc(Vector2.ZERO, current_radius + RING_GAP + 9.0, 0, TAU, 48, Color.WHITE, 4.0, true)
 
 	# 4. Marco y cuerpo: el tamaño ya indica el nivel; las ventajas van en insignias
-	draw_frame(self, Vector2.ZERO, current_radius, GameManager.base_shape())
+	draw_frame(self, Vector2.ZERO, current_radius, GameManager.base_shape(), color)
 	Icons.draw_disc(self, Vector2.ZERO, current_radius, color)
 
 	# 5. Símbolo de facción sólo en modo daltónico (el color ya distingue los bandos)
@@ -524,17 +539,18 @@ static func draw_faction_symbol(canvas: CanvasItem, center: Vector2, s: float, o
 		GameManager.Faction.ENEMY_3:
 			canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(0, -s), center + Vector2(s, 0), center + Vector2(0, s), center + Vector2(-s, 0)]), col)
 
-## Marco exterior de la base estándar según la forma de la tienda (también en la vista previa de Ejército)
-static func draw_frame(canvas: CanvasItem, center: Vector2, r: float, shape: String) -> void:
+## Marco exterior de la base estándar según la forma de la tienda (también en la vista previa de Ejército).
+## Cuadrado y rombo toman el color de la base: un marco blanco desaparece sobre fondos claros.
+static func draw_frame(canvas: CanvasItem, center: Vector2, r: float, shape: String, color: Color, round_color: Color = Color.WHITE) -> void:
 	match shape:
 		"base_square":
 			var half := r + 4.5
-			canvas.draw_rect(Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), Color.WHITE, true)
+			canvas.draw_rect(Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), color, true)
 		"base_diamond":
-			var d := r + 6.0
-			canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(0, -d), center + Vector2(d, 0), center + Vector2(0, d), center + Vector2(-d, 0)]), Color.WHITE)
+			var d := r + 16.0
+			canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(0, -d), center + Vector2(d, 0), center + Vector2(0, d), center + Vector2(-d, 0)]), color)
 		_:
-			Icons.draw_disc(canvas, center, r + 4.5, Color.WHITE)
+			Icons.draw_disc(canvas, center, r + 4.5, round_color)
 
 func _draw_siege_alert(current_radius: float) -> void:
 	var p = (sin(siege_pulse_time) + 1.0) * 0.5

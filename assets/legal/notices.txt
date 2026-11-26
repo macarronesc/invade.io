@@ -1,7 +1,7 @@
 invade.io — Open-source notices
 
 Original project code and assets: Apache-2.0. Contributors retain their copyrights.
-Natural Earth geographical data is public domain.
+Natural Earth geographical data is public domain. Some localized city names come from Wikidata (CC0).
 Godot Engine and its third-party licenses are displayed alongside these notices in Settings.
 
 ========================================================================

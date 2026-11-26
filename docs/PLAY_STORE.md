@@ -94,9 +94,10 @@ environment; never commit them or `.godot/export_credentials.cfg`. Contributors
 should not request the owner's upload key to run tests.
 
 The [R8 script](../scripts/enable_android_r8.sh) reproducibly patches the generated
-`android/build/` template. It enables release minification without resource
-shrinking and retains required Godot Java/JNI access. Reinstalling the template
-can replace those changes; rerun the patch afterward. R8 does not optimize
+`android/build/` template. It enables release minification and Android resource
+shrinking, retains required Godot Java/JNI access, and explicitly keeps the
+splash, launcher, and file-provider resources. Reinstall the template if it
+has an older R8 block, and rerun the patch after reinstalling. R8 does not optimize
 GDScript, geography, fonts, or native Godot/Sentry libraries, and is not evidence
 of a measured RAM improvement.
 
@@ -105,9 +106,21 @@ of a measured RAM improvement.
 [verify_play_bundle.sh](../scripts/verify_play_bundle.sh) checks archive integrity,
 identifiers, SDK values, exact permissions, architectures, native alignment,
 orientation/aspect restrictions, and required resources. Release AAB checks also
-require a valid signature and the R8 mapping. The combined APK check uses
+require a valid signature and the R8 mapping, keep the Sentry Android plugin's
+name for reflection, and check that at least 60% of mapped classes are renamed.
+This is a regression floor, not Play Console's optimization score. They also check that the named
+`EdgeToEdge.enable(ComponentActivity)` entry and DEX class descriptor survive
+minification. This does not test the layout on a device. The combined APK check uses
 `zipalign -c -P 16` for actual native-library packaging. The AAB preset exports
 arm64 only, with minimum SDK 24 and target SDK 36.
+
+CI launches an APK generated from the **minified AAB** on an emulator before
+uploading the unsigned bundle. This catches startup errors, not layout or input
+regressions. For keep-rule or engine changes, also exercise the APK on an arm64
+Android device. Compare first launch, the menu, and a battle against
+the previous build in portrait and landscape, including both landscape rotations
+on a device with a cutout. Check that immersive bars still behave the same and
+that troop dispatch and pause work. The debug APK does not exercise R8.
 
 [verify_artifact.py](../tools/verify_artifact.py) rejects development resources,
 sensitive material, unsafe archive paths, and missing notices. CI explicitly
@@ -190,5 +203,11 @@ countries, and large-screen/PC availability in the existing application. Do not
 copy historical account-registration instructions or predict an IARC rating.
 No-ads/no-purchases/no-account statements must remain true of the shipped game;
 optional telemetry still needs accurate collection disclosures when data leaves
-the device. Online services and notifications are not required for this release
+the device. The optional "Support on Ko-fi" heart button (all builds, including Play) opens
+`Telemetry.DONATE_URL` in the browser, unlocks nothing and has no in-app payment.
+Google Play's Payments policy restricts links to non-Play-Billing payments inside
+apps and has rejected similar donation links; if Play objects, remove only the
+`btn_support` and `support_project` button entries and keep the Ko-fi link on the
+website, README and `.github/FUNDING.yml`.
+Online services and notifications are not required for this release
 and are not integrated; see [Platform scope](PLATFORM_INTEGRATION.md#features-not-integrated).

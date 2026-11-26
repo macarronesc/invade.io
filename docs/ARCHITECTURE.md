@@ -16,7 +16,7 @@ implement gameplay. There is no game server, account system, or online authority
 | [scripts/battle/](../scripts/battle/) | Battle orchestration, base/troop behavior, AI, territory rendering, and tutorial |
 | [scripts/data/](../scripts/data/) | Content catalogs, geographic generation, rules, rewards, ranks, and localization helpers |
 | [scripts/ui/](../scripts/ui/) | Menu pages, battle HUD, settings, shared theme, and icons |
-| [assets/](../assets/) and [locale/](../locale/) | Checked-in geography, fonts, brand/legal assets, and translations |
+| [assets/](../assets/) and [locale/](../locale/) | Checked-in geography, the language manifest, fonts, brand/legal assets, and translations |
 | [addons/](../addons/) and [ios/plugins/](../ios/plugins/) | Vendored telemetry SDKs and the native iOS backup picker |
 | [tools/](../tools/) and [scripts/](../scripts/) | Authoring, validation, platform build, and artifact-verification tools |
 | [website/](../website/) | Static player website and generated documentation; isolated from Godot with `.gdignore` and export exclusions |
@@ -57,7 +57,7 @@ Autoload order is declared in `project.godot`:
 
 | Autoload | Role |
 |---|---|
-| `EventBus` | Shared battle, reward, economy, appearance, and settings signals |
+| `EventBus` | Shared battle, reward, economy, appearance, settings, and save-replacement signals |
 | `GameManager` | Current selection, player progress, economy, settings, validation, and persistence |
 | `AudioManager` | Synthesized sound/music playback, volume settings, and lifecycle suspension |
 | `AchievementManager` | Observes battle signals, updates statistics, XP/missions, and achievement unlocks |
@@ -92,6 +92,11 @@ player's upgrade purchases. Orientation changes preserve content and rules;
 daily challenges keep a canonical board for comparable records. A seeded
 scenario is not a guarantee of identical rendered pixels across GPUs/fonts.
 
+`scripts/data/threat.gd` holds the open-ended difficulty curve (threat above 1.0) and
+`scripts/data/ascension.gd` derives `asc<tier>_<campaign id>` levels from cached campaign
+levels; only `ascension_stars` is saved (save v8). `GameManager.UPGRADES` is the single
+upgrade table. Invasion season two lives in `InvasionDatabase.SEASON_TWO`.
+
 ### Battle simulation
 
 [BattleController](../scripts/battle/battle_controller.gd) loads the level,
@@ -121,6 +126,9 @@ alternate accessible controls, and results. The
 The five main-menu pages are registered in `MainMenuUI.TABS`. Scrolling pages
 inherit [ScrollPage](../scripts/ui/scroll_page.gd), implement `_build()`, and
 rebuild after economy changes. Play uses its own responsive map/briefing layout.
+A successful backup restore or progress reset emits `EventBus.save_replaced`;
+[MainMenuUI](../scripts/ui/main_menu.gd) rebuilds the header, badges, and mounted
+page from the new state without reloading the scene.
 
 [UIThemeHelper](../scripts/ui/ui_theme_helper.gd) centralizes palettes, typography,
 theme variations, reusable controls, safe areas, scaling, and scene transitions.
@@ -128,17 +136,22 @@ theme variations, reusable controls, safe areas, scaling, and scene transitions.
 than duplicating styling inside new pages.
 
 [LocaleStrings](../scripts/data/locale_strings.gd) resolves translation keys;
-[LanguageCatalog](../scripts/data/language_catalog.gd) defines locale normalization,
-font scripts, and RTL direction. Translations and geographic names feed the font
-subset tools. See the [localization workflow](DEVELOPMENT.md#localization).
+[LanguageCatalog](../scripts/data/language_catalog.gd) reads
+[languages.json](../assets/data/languages.json), the one manifest that defines
+supported languages, locale normalization, font scripts, RTL direction, store
+locale mapping, and city-name sources for both the game and `tools/`. Translations
+and geographic names feed the font subset tools. See the
+[localization workflow](DEVELOPMENT.md#localization).
 
 ### Persistence, lifecycle, and privacy
 
 `GameManager` saves a versioned JSON document (currently format 7), with field
 validation, temporary-file replacement, a `.previous` recovery copy, future-format
 protection, and confirmed manual import with a `.backup` copy. Import/reset
-preserve privacy choices. Keep city, level, cosmetic, and achievement identifiers
-stable where saves refer to them; test migrations before changing the schema.
+preserve privacy choices. Successful replacements emit `save_replaced` once
+memory and disk agree; failed operations emit no UI refresh. Keep city, level,
+cosmetic, and achievement identifiers stable where saves refer to them; test
+migrations before changing the schema.
 
 Unchanged, validated saves skip disk writes without replacing the recovery point.
 Battle results and achievement checks batch saves within one synchronous action;

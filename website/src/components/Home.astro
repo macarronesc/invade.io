@@ -19,7 +19,8 @@ const localized = (path: string) => href(`${lang === 'es' ? 'es/' : ''}${path}`)
       <h1 id="hero-title">{t.headline[0]} <span>{t.headline[1]}</span></h1>
       <p class="lead">{t.intro}</p>
       <div class="button-row">
-        <a class="button" href={PLAY}>{t.download} <span aria-hidden="true">↗</span></a>
+        <a class="button" href={localized('play/')}>{t.playWeb}</a>
+        <a class="button secondary" href={PLAY}>{t.download} <span aria-hidden="true">↗</span></a>
         <a class="button secondary" href={REPO}>{t.code} <span aria-hidden="true">↗</span></a>
       </div>
       <a class="fine-print" href={localized('download/')}>{t.platforms}</a>

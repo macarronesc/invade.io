@@ -1,0 +1,25 @@
+name: Bug report
+description: Something does not behave as expected
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version and where you play
+      placeholder: "0.4.0 · Google Play / browser / built from source"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device, OS and language
+      placeholder: Pixel 8, Android 15, Spanish
+  - type: textarea
+    id: steps
+    attributes:
+      label: What happened, what you expected, and how to repeat it
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: Share screenshots and logs only if they contain no private data.

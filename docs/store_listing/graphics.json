@@ -11,7 +11,7 @@
       "alt": "Troops move across Europe, where a factory and a fortress stand between the player and the boss."
     },
     "invasions": {
-      "headline": "36 regions. 108 fronts.",
+      "headline": "59 regions. 177 fronts.",
       "subtitle": "Three fronts. One region to master.",
       "alt": "The final invasion front in Iberia, with troops advancing toward the region's capital."
     },
@@ -37,7 +37,7 @@
     },
     "atlas": {
       "headline": "Track every conquest",
-      "subtitle": "Cities, ranks and 20 achievements.",
+      "subtitle": "Cities, ranks and 23 achievements.",
       "alt": "The world atlas marks conquered cities in blue, with progress totals by continent."
     },
     "feature_alt": "Blue and red armies face each other across a real-world map in invade.io."
@@ -54,7 +54,7 @@
       "alt": "Las tropas avanzan por Europa, con una fábrica y una fortaleza entre el jugador y el jefe."
     },
     "invasions": {
-      "headline": "36 regiones. 108 frentes.",
+      "headline": "59 regiones. 177 frentes.",
       "subtitle": "Tres frentes. Una región por dominar.",
       "alt": "El frente final de la invasión de Iberia, con tropas avanzando hacia la capital de la región."
     },
@@ -80,7 +80,7 @@
     },
     "atlas": {
       "headline": "Cada conquista deja huella",
-      "subtitle": "Ciudades, rangos y 20 logros.",
+      "subtitle": "Ciudades, rangos y 23 logros.",
       "alt": "El atlas marca las ciudades conquistadas en azul sobre el mundo, con progreso por continente."
     },
     "feature_alt": "Los ejércitos azul y rojo se enfrentan sobre un mapa real en invade.io."
@@ -97,7 +97,7 @@
       "alt": "As tropas movem-se pela Europa, onde uma fábrica e uma fortaleza se interpõem entre o jogador e o chefe."
     },
     "invasions": {
-      "headline": "36 regiões. 108 frentes.",
+      "headline": "36 regiões. 177 frentes.",
       "subtitle": "Três frentes. Uma região para dominar.",
       "alt": "A última frente de invasão na Península Ibérica, com tropas avançando em direção à capital da região."
     },
@@ -123,7 +123,7 @@
     },
     "atlas": {
       "headline": "Acompanhe cada conquista",
-      "subtitle": "Cidades, patentes e 20 conquistas.",
+      "subtitle": "Cidades, patentes e 23 conquistas.",
       "alt": "O atlas marca cidades conquistadas em azul no mapa mundial, com progresso por continente."
     },
     "feature_alt": "Os exércitos azul e vermelho se enfrentam em um mapa do mundo real em invade.io."
@@ -140,7 +140,7 @@
       "alt": "Des troupes traversent l'Europe, avec une usine et une forteresse entre le joueur et le boss."
     },
     "invasions": {
-      "headline": "36 régions. 108 fronts.",
+      "headline": "36 régions. 177 fronts.",
       "subtitle": "Trois fronts. Une région à maîtriser.",
       "alt": "Le dernier front d'invasion en Ibérie, avec des troupes avançant vers la capitale de la région."
     },
@@ -166,7 +166,7 @@
     },
     "atlas": {
       "headline": "Suivez chaque conquête",
-      "subtitle": "Villes, rangs et 20 succès.",
+      "subtitle": "Villes, rangs et 23 succès.",
       "alt": "L'atlas marque les villes conquises en bleu sur le monde, avec la progression par continent."
     },
     "feature_alt": "Les armées bleues et rouges s'affrontent sur une carte du monde réel dans invade.io."
@@ -643,5 +643,177 @@
       "alt": "세계 도감은 정복한 도시를 파란색으로 표시하고 대륙별 진행 상황을 보여줍니다."
     },
     "feature_alt": "invade.io의 실제 지도에서 파란색 군대와 빨간색 군대가 서로 대결합니다."
+  },
+  "pl": {
+    "conquer": {
+      "headline": "Przeciągnij. Wyślij. Podbij.",
+      "subtitle": "Strategia offline. Bez reklam.",
+      "alt": "Niebieskie wojska ruszają z Aten na neutralną bazę na mapie prawdziwego świata."
+    },
+    "tactics": {
+      "headline": "Każda baza zmienia bitwę",
+      "subtitle": "Fabryki, twierdze i walki z bossami.",
+      "alt": "Wojska przemieszczają się przez Europę, gdzie fabryka i twierdza stoją między graczem a bossem."
+    },
+    "invasions": {
+      "headline": "59 regionów. 177 frontów.",
+      "subtitle": "Trzy fronty. Jeden region do opanowania.",
+      "alt": "Ostatni front inwazji na Iberii: wojska zmierzają do stolicy regionu."
+    },
+    "campaign": {
+      "headline": "Sześć kontynentów i więcej",
+      "subtitle": "30 poziomów kampanii + wyprawy podbojowe.",
+      "alt": "Mapa kampanii pokazuje zdobyte gwiazdki, następną bitwę i dostęp do wypraw swobodnego podboju."
+    },
+    "daily": {
+      "headline": "Nowe wyzwanie każdego dnia",
+      "subtitle": "Równe siły. Pobij swój rekord.",
+      "alt": "Bitwa codziennego wyzwania ze specjalną zasadą i celem wyświetlonymi nad mapą."
+    },
+    "upgrades": {
+      "headline": "Zbuduj silniejszą armię",
+      "subtitle": "Rekrutuj szybciej. Uderzaj wcześniej.",
+      "alt": "Ekran armii pokazuje zdobyte ulepszenia wojsk na start, rekrutacji i prędkości marszu."
+    },
+    "cosmetics": {
+      "headline": "Każdy podbój po Twojemu",
+      "subtitle": "Kolory armii, kształty baz i motywy map.",
+      "alt": "Ekran wyglądu armii pokazuje style wojsk i podglądy baz."
+    },
+    "atlas": {
+      "headline": "Śledź każdy podbój",
+      "subtitle": "Miasta, rangi i 23 osiągnięcia.",
+      "alt": "Atlas świata zaznacza podbite miasta na niebiesko, z postępem według kontynentów."
+    },
+    "feature_alt": "Niebieska i czerwona armia stają naprzeciw siebie na mapie prawdziwego świata w invade.io."
+  },
+  "uk": {
+    "conquer": {
+      "headline": "Тягни. Відправляй. Підкорюй.",
+      "subtitle": "Офлайн-стратегія. Без реклами.",
+      "alt": "Сині війська висуваються з Афін до нейтральної бази на карті реального світу."
+    },
+    "tactics": {
+      "headline": "Кожна база змінює бій",
+      "subtitle": "Фабрики, фортеці та бої з босами.",
+      "alt": "Війська рухаються Європою, де між гравцем і босом стоять фабрика та фортеця."
+    },
+    "invasions": {
+      "headline": "59 регіонів. 177 фронтів.",
+      "subtitle": "Три фронти. Один регіон для опанування.",
+      "alt": "Останній фронт вторгнення в Іберію: війська наступають на столицю регіону."
+    },
+    "campaign": {
+      "headline": "Шість континентів і більше",
+      "subtitle": "30 рівнів кампанії + експедиції завоювання.",
+      "alt": "Карта кампанії показує зароблені зірки, наступний бій і доступ до експедицій вільного завоювання."
+    },
+    "daily": {
+      "headline": "Новий виклик щодня",
+      "subtitle": "Рівні сили. Побийте свій рекорд.",
+      "alt": "Бій щоденного виклику зі спеціальним правилом і метою над картою."
+    },
+    "upgrades": {
+      "headline": "Створіть сильнішу армію",
+      "subtitle": "Набирайте швидше. Атакуйте раніше.",
+      "alt": "Екран армії показує зароблені покращення стартових військ, набору та швидкості маршу."
+    },
+    "cosmetics": {
+      "headline": "Кожне завоювання — ваше",
+      "subtitle": "Кольори армії, форми баз і теми карти.",
+      "alt": "Екран вигляду армії показує різні стилі військ і попередній перегляд баз."
+    },
+    "atlas": {
+      "headline": "Відстежуйте завоювання",
+      "subtitle": "Міста, звання та 23 досягнення.",
+      "alt": "Атлас світу позначає підкорені міста синім, із підсумками прогресу за континентами."
+    },
+    "feature_alt": "Сині й червоні армії стоять одна проти одної на карті реального світу в invade.io."
+  },
+  "zh_TW": {
+    "conquer": {
+      "headline": "拖曳、派兵、征服",
+      "subtitle": "離線策略，無廣告。",
+      "alt": "藍色部隊從雅典出發，前往真實世界地圖上的中立基地。"
+    },
+    "tactics": {
+      "headline": "每座基地都會改變戰局",
+      "subtitle": "工廠、堡壘與 Boss 之戰。",
+      "alt": "部隊穿越歐洲，玩家與 Boss 之間有一座工廠與一座堡壘。"
+    },
+    "invasions": {
+      "headline": "59 個區域，177 條戰線",
+      "subtitle": "三條戰線，精通一個區域。",
+      "alt": "伊比利亞的最後一條入侵戰線，部隊正向該區域首都推進。"
+    },
+    "campaign": {
+      "headline": "六大洲，還有更多等你征服",
+      "subtitle": "30 個戰役關卡＋征服遠征。",
+      "alt": "戰役地圖顯示已獲得的星星、下一場戰鬥，以及自由征服遠征的入口。"
+    },
+    "daily": {
+      "headline": "每天都有不同的挑戰",
+      "subtitle": "兵力相同，打破你的個人紀錄。",
+      "alt": "每日挑戰戰鬥，地圖上方顯示特殊規則與目標。"
+    },
+    "upgrades": {
+      "headline": "打造更強大的軍隊",
+      "subtitle": "更快徵兵，更早出擊。",
+      "alt": "軍隊畫面顯示已獲得的初始兵力、徵兵與行軍速度升級。"
+    },
+    "cosmetics": {
+      "headline": "讓每次征服都獨一無二",
+      "subtitle": "軍隊顏色、基地形狀與地圖主題。",
+      "alt": "軍隊外觀畫面顯示不同的部隊樣式與基地預覽。"
+    },
+    "atlas": {
+      "headline": "記錄每一次征服",
+      "subtitle": "城市、軍階與 23 項成就。",
+      "alt": "世界圖鑑以藍色標示已征服的城市，並顯示各大陸的進度。"
+    },
+    "feature_alt": "藍軍與紅軍在 invade.io 的真實世界地圖上對峙。"
+  },
+  "th": {
+    "conquer": {
+      "headline": "ลาก ส่ง พิชิต",
+      "subtitle": "กลยุทธ์ออฟไลน์ ไม่มีโฆษณา",
+      "alt": "กองทัพสีน้ำเงินเคลื่อนจากเอเธนส์ไปยังฐานกลางบนแผนที่โลกจริง"
+    },
+    "tactics": {
+      "headline": "ทุกฐานเปลี่ยนผลการรบ",
+      "subtitle": "โรงงาน ป้อมปราการ และศึกบอส",
+      "alt": "กองทัพเคลื่อนข้ามยุโรป โดยมีโรงงานและป้อมปราการขวางระหว่างผู้เล่นกับบอส"
+    },
+    "invasions": {
+      "headline": "59 ภูมิภาค 177 แนวรบ",
+      "subtitle": "สามแนวรบ หนึ่งภูมิภาคให้พิชิต",
+      "alt": "แนวรบสุดท้ายของการบุกไอบีเรีย กองทัพกำลังรุกเข้าสู่เมืองหลวงของภูมิภาค"
+    },
+    "campaign": {
+      "headline": "หกทวีป และอีกมากให้พิชิต",
+      "subtitle": "แคมเปญ 30 ด่าน + การเดินทัพพิชิต",
+      "alt": "แผนที่แคมเปญแสดงดาวที่ได้ ด่านถัดไป และทางเข้าสู่การเดินทัพพิชิตอิสระ"
+    },
+    "daily": {
+      "headline": "ความท้าทายใหม่ทุกวัน",
+      "subtitle": "กำลังเท่ากัน ทำลายสถิติของตัวเอง",
+      "alt": "ศึกความท้าทายรายวัน แสดงกฎพิเศษและเป้าหมายเหนือแผนที่"
+    },
+    "upgrades": {
+      "headline": "สร้างกองทัพที่แข็งแกร่งขึ้น",
+      "subtitle": "เกณฑ์ทหารเร็วขึ้น โจมตีก่อนใคร",
+      "alt": "หน้าจอกองทัพแสดงการอัปเกรดกำลังพลเริ่มต้น การเกณฑ์ทหาร และความเร็วเดินทัพ"
+    },
+    "cosmetics": {
+      "headline": "ทำให้ทุกการพิชิตเป็นของคุณ",
+      "subtitle": "สีกองทัพ รูปทรงฐาน และธีมแผนที่",
+      "alt": "หน้าจอรูปลักษณ์กองทัพแสดงสไตล์กำลังพลและตัวอย่างฐานที่ต่างกัน"
+    },
+    "atlas": {
+      "headline": "บันทึกทุกการพิชิต",
+      "subtitle": "เมือง ยศ และ 23 ความสำเร็จ",
+      "alt": "สมุดแผนที่โลกทำเครื่องหมายเมืองที่พิชิตแล้วเป็นสีน้ำเงิน พร้อมความคืบหน้าแต่ละทวีป"
+    },
+    "feature_alt": "กองทัพสีน้ำเงินและสีแดงเผชิญหน้ากันบนแผนที่โลกจริงใน invade.io"
   }
 }

@@ -1,12 +1,27 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { guides } from '../../scripts/site.mjs';
 
 const guideRoutes = guides.filter(([, slug]) => slug).map(([, slug]) => `docs/${slug}/`);
 const routes = [
-  '', 'es/', 'download/', 'es/download/', 'community/', 'es/community/',
+  '', 'es/', 'play/', 'es/play/', 'download/', 'es/download/', 'community/', 'es/community/',
   'docs/', ...guideRoutes, 'licenses/', 'privacy-policy.html', '404.html',
 ];
+
+// The projects start in different system themes, so assert a flip rather than a fixed value.
+async function expectThemeToggle(page: Page, name: string) {
+  const html = page.locator('html');
+  const toggle = page.getByRole('button', { name });
+  const start = await html.getAttribute('data-theme');
+  const flipped = start === 'dark' ? 'light' : 'dark';
+  await expect(toggle).toHaveAttribute('aria-pressed', String(start === 'dark'));
+  await toggle.click();
+  await expect(html).toHaveAttribute('data-theme', flipped);
+  await expect(toggle).toHaveAttribute('aria-pressed', String(flipped === 'dark'));
+  await page.reload();
+  await expect(html).toHaveAttribute('data-theme', flipped);
+  expect(await page.evaluate(() => localStorage.getItem('starlight-theme'))).toBe(flipped);
+}
 
 for (const locale of ['', 'es/']) {
   test(`player journey, images, themes, and keyboard: ${locale || 'en'}`, async ({ page, isMobile }, info) => {
@@ -22,12 +37,7 @@ for (const locale of ['', 'es/']) {
     await expect(page.locator('.skip-link')).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/#main$/);
-    await page.locator('#theme-choice').selectOption('light');
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-    await page.locator('#theme-choice').selectOption('dark');
-    await page.reload();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    await page.locator('#theme-choice').selectOption('auto');
+    await expectThemeToggle(page, locale ? 'Tema oscuro' : 'Dark theme');
     if (isMobile) {
       await page.locator('.mobile-nav summary').click();
       await expect(page.locator('.mobile-nav nav')).toBeVisible();
@@ -62,13 +72,32 @@ for (const locale of ['', 'es/']) {
 for (const route of routes) {
   test(`accessible rendered page: /${route}`, async ({ page }) => {
     await page.goto(route || './');
-    // Expressive Code adds keyboard-scrollable regions after an idle pass.
-    await page.waitForTimeout(250);
+    // Expressive Code adds keyboard access to scrollable blocks after an idle
+    // pass. Wait for the actual enhancement instead of racing a fixed delay.
+    await page.waitForFunction(() => [...document.querySelectorAll('.expressive-code pre')]
+      .every((pre) => pre.scrollWidth <= pre.clientWidth || pre.getAttribute('tabindex') !== null));
     const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     expect(audit.violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 }
+
+test('documentation theme toggle works and carries over to the player pages', async ({ page, isMobile }) => {
+  await page.goto('docs/gameplay/');
+  await expect(page.locator('starlight-theme-select, select[autocomplete]')).toHaveCount(0);
+  if (isMobile) await page.getByRole('button', { name: 'Menu' }).click();
+  await expectThemeToggle(page, 'Dark theme');
+  const chosen = await page.evaluate(() => localStorage.getItem('starlight-theme'));
+  await page.goto('./');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', chosen!);
+});
+
+test('a legacy "auto" preference follows the system theme on the documentation', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('starlight-theme', 'auto'));
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('docs/gameplay/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+});
 
 test('documentation search, source links, and build-time diagram', async ({ page }) => {
   await page.goto('docs/architecture/');

@@ -45,7 +45,7 @@ class SecurityChecks(unittest.TestCase):
     def test_website_is_excluded_from_all_game_exports(self):
         self.assertTrue((ROOT / "website/.gdignore").is_file())
         filters = [line for line in (ROOT / "export_presets.cfg").read_text().splitlines() if line.startswith("exclude_filter=")]
-        self.assertEqual(len(filters), 4)
+        self.assertEqual(len(filters), 5)
         for line in filters:
             self.assertIn("website/*", line)
 
@@ -85,6 +85,58 @@ class SecurityChecks(unittest.TestCase):
         versions(project, presets)
         with self.assertRaises(ValueError):
             versions(project.replace('config/version="', 'config/version="99'), presets)
+
+    def test_aab_edge_to_edge_gate(self):
+        edge = "androidx.activity.EdgeToEdge"
+        header = f"{edge} -> {edge}:\n"
+        member = "    1:3:void enable(androidx.activity.ComponentActivity):72:74 -> enable\n"
+        sentry = "io.sentry.godotplugin.SentryAndroidGodotPlugin"
+        kept_plugin = f"{sentry} -> {sentry}:\n"
+        renamed = "other.A -> a:\nother.B -> b:\nother.C -> c:\n"
+        dex = b"dex\0Landroidx/activity/EdgeToEdge;\0"
+        manifest = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="macarronesc.invadeio">
+  <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="36"/>
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+  <uses-permission android:name="android.permission.INTERNET"/>
+  <uses-permission android:name="android.permission.VIBRATE"/>
+  <application><activity android:name="com.godot.game.GodotApp" android:screenOrientation="fullSensor"/></application>
+</manifest>'''
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            aab = root / "fixture.aab"
+            jar = root / "bundletool.jar"
+            jar.write_text(manifest)
+            for name, script in {
+                "java": 'if [ "$4" = config ]; then echo PAGE_ALIGNMENT_16K; else cat "$2"; fi',
+                "readelf": "echo 'LOAD 0x4000'",
+                "jarsigner": "echo 'jar verified.'",
+            }.items():
+                tool = root / name
+                tool.write_text(f"#!/bin/sh\n{script}\n")
+                tool.chmod(0o755)
+            env = dict(os.environ, PATH=tmp + os.pathsep + os.environ["PATH"], BUNDLETOOL_JAR=str(jar),
+                       EXPECTED_PACKAGE="macarronesc.invadeio", ALLOW_UNSIGNED_AAB="false")
+            for mapping, bytecode, error in (
+                (header + member + kept_plugin + renamed, dex, None),
+                (f"{edge} -> androidx.activity.a:\n" + member + kept_plugin + renamed, dex, "R8 eliminó"),
+                (header + "other.Class -> other.Class:\n" + member + kept_plugin + renamed, dex, "R8 eliminó"),
+                (header + member + kept_plugin + renamed, b"dex\0", "R8 eliminó"),
+                (header + member + f"{sentry} -> d:\n" + renamed, dex, "R8 no conserva el nombre"),
+                (header + member + kept_plugin + "other.A -> a:\nother.B -> b:\n", dex, "R8 no alcanza"),
+                ("", dex, "sin R8"),
+            ):
+                with self.subTest(mapping=mapping, bytecode=bytecode):
+                    with zipfile.ZipFile(aab, "w") as archive:
+                        archive.writestr("base/manifest/AndroidManifest.xml", manifest)
+                        archive.writestr("base/lib/arm64-v8a/libgodot_android.so", b"fixture")
+                        archive.writestr("base/assets/assets/data/geo.json", b"{}")
+                        archive.writestr("base/dex/classes.dex", b"dex\0")
+                        archive.writestr("base/dex/classes2.dex", bytecode)
+                        archive.writestr("BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map", mapping)
+                    result = subprocess.run(["bash", str(ROOT / "scripts/verify_play_bundle.sh"), str(aab)],
+                                            env=env, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, int(error is not None), result.stdout + result.stderr)
+                    self.assertIn(error or "R8 conserva EdgeToEdge.enable", result.stdout)
 
     def test_apk_permission_gate(self):
         # Exercise the entire script against controlled Android-tool output, not a copied filter.

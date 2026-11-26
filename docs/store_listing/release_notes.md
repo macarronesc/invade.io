@@ -11,7 +11,7 @@ document. Localized payloads below are preserved in their intended languages.
 recorded here, and early announcement templates contain placeholders and claims
 that must not be copied as current behavior. Confirm the shipped binary and
 current [privacy/publication gate](../PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
-The [0.4.0 candidate notes](#candidate-invadeio-040--faster-battles-and-smoother-startup)
+The [0.5.0 candidate notes](#candidate-invadeio-050--support-the-project-and-polish)
 are not suitable for a listing-only refresh without that application build.
 
 ## Version fields
@@ -40,8 +40,9 @@ version numbering.
 ## Before each release
 
 Follow [RELEASES.md](../RELEASES.md#before-merging-a-release), add accurate notes
-and a history entry here, and confirm the artifact and Console version. Do not
-treat a placeholder date or prepared text as a record of publication.
+and a history entry here in ascending version order, and confirm the artifact
+and Console version. Do not treat a placeholder date or prepared text as a
+record of publication.
 
 ## Historical draft: invade.io 0.1.0 — first public release
 
@@ -183,6 +184,33 @@ A major update for invade.io!
 </en-US>
 ```
 
+## Reference: invade.io 0.3.0 — accessibility and large screens
+
+`versionCode` 4 · `versionName` 0.3.0.
+
+Historical Play Console payloads (under 500 characters per language). The phrase
+“screen-reader-friendly” describes the controls, not verified mobile TalkBack or
+VoiceOver support; see [platform limitations](../PLATFORM_INTEGRATION.md#accessibility).
+
+```
+<es-ES>
+¡Nueva actualización de invade.io!
+• Más accesibilidad: texto grande, más contraste y controles de batalla para lector de pantalla.
+• Menús y batallas para tabletas y apaisado, incluso al girar durante una partida.
+• Partidas nuevas y guardados sin idioma siguen el idioma del dispositivo; se conserva tu elección.
+• Más estabilidad en iPhone y diagnósticos opcionales.
+• Tu progreso se conserva al actualizar.
+</es-ES>
+<en-US>
+New invade.io update!
+• Accessibility options: larger text, stronger map contrast, and screen-reader-friendly battle controls.
+• Menus and battles adapt to tablets and landscape screens, including rotation during a match.
+• New games and older saves without a saved language follow your device language; saved choices stay in place.
+• Improved iPhone stability and optional diagnostics.
+• Your progress is preserved when you update.
+</en-US>
+```
+
 ## Candidate: invade.io 0.3.1 — contributions and build safety
 
 `versionCode` 5 · **owner must confirm code availability and publication status in Play Console**.
@@ -205,6 +233,84 @@ confirm actual production behavior first:
 • Open-source licenses are available in Settings, including offline.
 • Your existing progress is preserved when you update.
 </en-US>
+```
+
+Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
+
+## Candidate: invade.io 0.3.2 — telemetry defaults and store refresh
+
+`versionCode` 6 · **owner must confirm code availability and publication status in Play Console**.
+
+- Usage statistics and crash reports start enabled for new or missing settings; saved choices, including opt-outs, remain unchanged.
+- Each option can be disabled separately in Settings → Privacy; analytics events waiting to be sent are discarded when disabled.
+- Telemetry uses the actual Godot Debug/Release build type; editor tooling, tests, and headless runs do not initialize providers.
+- The Play listing and its localized phone/tablet gallery are refreshed across 15 languages. These are store materials, not new in-game features.
+
+Publish the matching policy and review Data safety/consent requirements before
+distributing. Proposed payloads below apply **only to a shipped 0.3.2 binary**;
+confirm actual production behavior first:
+
+```text
+<es-ES>
+• Las estadísticas de uso y los informes de fallos empiezan activados; se respetan tus preferencias guardadas. Desactiva cada opción en Ajustes → Privacidad.
+• Tu progreso se conserva al actualizar.
+</es-ES>
+<en-US>
+• Usage statistics and crash reports now start enabled; your saved choices are respected. Turn either off in Settings → Privacy.
+• Your existing progress is preserved when you update.
+</en-US>
+<pt-BR>
+• As estatísticas de uso e os relatórios de falhas agora começam ativados; suas preferências salvas são respeitadas. Desative cada opção em Configurações → Privacidade.
+• Seu progresso é mantido ao atualizar.
+</pt-BR>
+<fr-FR>
+• Les statistiques d’utilisation et les rapports d'erreur sont désormais activés au départ ; vos choix enregistrés sont respectés. Désactivez chaque option dans Paramètres → Confidentialité.
+• Votre progression est conservée lors de la mise à jour.
+</fr-FR>
+<de-DE>
+• Nutzungsstatistiken und Absturzberichte sind jetzt zunächst aktiviert; gespeicherte Einstellungen bleiben erhalten. Deaktiviere die Optionen einzeln unter Einstellungen → Privatsphäre.
+• Dein Fortschritt bleibt beim Update erhalten.
+</de-DE>
+<it-IT>
+• Le statistiche di utilizzo e i rapporti sugli incidenti sono ora attivi inizialmente; le preferenze salvate vengono rispettate. Disattiva ogni opzione in Impostazioni → Privacy.
+• I tuoi progressi vengono conservati con l’aggiornamento.
+</it-IT>
+<ru-RU>
+• Статистика использования и отчёты о сбоях теперь включены по умолчанию; сохранённые настройки учитываются. Каждую опцию можно отключить в разделе Настройки → Конфиденциальность.
+• Ваш прогресс сохраняется при обновлении.
+</ru-RU>
+<tr-TR>
+• Kullanım istatistikleri ve kilitlenme raporları artık başlangıçta açık; kaydedilmiş tercihleriniz korunur. Her seçeneği Ayarlar → Mahremiyet bölümünden kapatabilirsiniz.
+• İlerlemeniz güncelleme sırasında korunur.
+</tr-TR>
+<ar>
+• أصبحت إحصاءات الاستخدام وتقارير الأعطال مفعّلة افتراضيًا؛ تُحترم تفضيلاتك المحفوظة. يمكنك تعطيل كل خيار على حدة من إعدادات → خصوصية.
+• يُحفظ تقدمك عند التحديث.
+</ar>
+<hi-IN>
+• उपयोग के आँकड़े और दुर्घटना की रिपोर्ट अब शुरुआत में चालू रहते हैं; आपकी सहेजी गई पसंद का सम्मान किया जाता है। सेटिंग्स → गोपनीयता में हर विकल्प अलग से बंद करें।
+• अपडेट करने पर आपकी प्रगति सुरक्षित रहती है।
+</hi-IN>
+<id>
+• Statistik penggunaan dan laporan kerusakan kini aktif secara default; pilihan yang tersimpan tetap dihormati. Nonaktifkan setiap opsi di Pengaturan → Pribadi.
+• Progres Anda tetap tersimpan saat memperbarui.
+</id>
+<vi>
+• Thống kê sử dụng và báo cáo sự cố hiện được bật mặc định; lựa chọn đã lưu của bạn được giữ nguyên. Tắt từng tùy chọn trong Cài đặt → Sự riêng tư.
+• Tiến trình của bạn được giữ lại khi cập nhật.
+</vi>
+<zh-CN>
+• 使用统计和崩溃报告现在默认开启；已保存的选择保持不变。可在设置 → 隐私中分别关闭这两个选项。
+• 更新后保留现有游戏进度。
+</zh-CN>
+<ja-JP>
+• 利用状況の統計とクラッシュレポートが初期設定で有効になりました。保存済みの設定は引き継がれます。設定 → プライバシーでそれぞれ無効にできます。
+• アップデート後もゲームの進行状況は保持されます。
+</ja-JP>
+<ko-KR>
+• 사용 통계와 충돌 보고서가 이제 기본으로 켜집니다. 저장된 설정은 그대로 유지됩니다. 설정 → 개인정보에서 각 항목을 따로 끌 수 있습니다.
+• 업데이트해도 기존 게임 진행 상황이 유지됩니다.
+</ko-KR>
 ```
 
 Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
@@ -334,110 +440,133 @@ same native-speaker review as the listing copy:
 
 Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
 
-## Candidate: invade.io 0.3.2 — telemetry defaults and store refresh
+## Candidate: invade.io 0.5.0 — support the project and polish
 
-`versionCode` 6 · **owner must confirm code availability and publication status in Play Console**.
+`versionCode` 8 · **owner must confirm code availability and publication status in Play Console**.
 
-- Usage statistics and crash reports start enabled for new or missing settings; saved choices, including opt-outs, remain unchanged.
-- Each option can be disabled separately in Settings → Privacy; analytics events waiting to be sent are discarded when disabled.
-- Telemetry uses the actual Godot Debug/Release build type; editor tooling, tests, and headless runs do not initialize providers.
-- The Play listing and its localized phone/tablet gallery are refreshed across 15 languages. These are store materials, not new in-game features.
+- An optional heart button in the main menu and Settings opens the project's Ko-fi page. It is not required and unlocks nothing; the game still has no ads or purchases.
+- Restoring a backup or resetting progress now refreshes the menu, coins and badges immediately instead of after a restart.
+- Square and diamond base shapes stay visible on light backgrounds; the diamond's tips are longer.
+- Large text: screens scroll and keep keyboard/controller focus. Invasion and daily-challenge reward payouts were corrected, and accessibility, audio and theme preferences survive a progress reset.
+- More stable map rendering at cropped edges, and known engine/driver diagnostics are filtered from crash reports (fatal crashes are never filtered).
+- The browser demo, trailer renderer and contributor docs are repository/website changes and are not part of the mobile app.
+- Existing saves and progress remain compatible.
 
-Publish the matching policy and review Data safety/consent requirements before
-distributing. Proposed payloads below apply **only to a shipped 0.3.2 binary**;
-confirm actual production behavior first:
+The Ko-fi link opens an external payment page. Google Play's Payments policy may
+reject in-app links to payments outside Play Billing; if the review flags it,
+remove only the header button and the Settings button (see
+[PLAY_STORE.md](../PLAY_STORE.md)). Proposed payloads below apply **only to a
+shipped 0.5.0 binary**; translations are drafts and need native-speaker review:
 
 ```text
 <es-ES>
-• Las estadísticas de uso y los informes de fallos empiezan activados; se respetan tus preferencias guardadas. Desactiva cada opción en Ajustes → Privacidad.
-• Tu progreso se conserva al actualizar.
+• Nuevo botón opcional (corazón) en el menú y en Ajustes para apoyar el proyecto en Ko-fi.
+• Al restaurar o reiniciar el progreso, el menú se actualiza al instante.
+• Las bases cuadradas y diamante se ven bien sobre fondos claros.
+• Con texto grande, las pantallas se desplazan y conservan el foco; se corrigen recompensas de invasiones y retos diarios, y los ajustes se mantienen al reiniciar el progreso.
+• Mapas más estables. Las partidas existentes siguen siendo compatibles.
 </es-ES>
 <en-US>
-• Usage statistics and crash reports now start enabled; your saved choices are respected. Turn either off in Settings → Privacy.
-• Your existing progress is preserved when you update.
+• New optional heart button in the menu and Settings to support the project on Ko-fi.
+• Restoring or resetting progress now updates the menu instantly.
+• Square and diamond bases stay visible on light backgrounds.
+• With large text, screens scroll and keep focus; invasion and daily-challenge rewards were fixed, and preferences are kept after a progress reset.
+• More stable maps. Existing saves remain compatible.
 </en-US>
 <pt-BR>
-• As estatísticas de uso e os relatórios de falhas agora começam ativados; suas preferências salvas são respeitadas. Desative cada opção em Configurações → Privacidade.
-• Seu progresso é mantido ao atualizar.
+• Novo botão opcional (coração) no menu e em Ajustes para apoiar o projeto no Ko-fi.
+• Ao restaurar ou reiniciar o progresso, o menu é atualizado na hora.
+• Bases quadradas e em losango ficam visíveis em fundos claros.
+• Com texto grande, as telas rolam e mantêm o foco; recompensas de invasões e desafios diários corrigidas, e as preferências permanecem após reiniciar o progresso.
+• Mapas mais estáveis. Os saves existentes continuam compatíveis.
 </pt-BR>
 <fr-FR>
-• Les statistiques d’utilisation et les rapports d'erreur sont désormais activés au départ ; vos choix enregistrés sont respectés. Désactivez chaque option dans Paramètres → Confidentialité.
-• Votre progression est conservée lors de la mise à jour.
+• Nouveau bouton facultatif (cœur) dans le menu et les Réglages pour soutenir le projet sur Ko-fi.
+• Après une restauration ou une réinitialisation, le menu se met à jour immédiatement.
+• Les bases carrées et en losange restent visibles sur fond clair.
+• Avec un grand texte, les écrans défilent et gardent le focus ; récompenses des invasions et défis quotidiens corrigées, réglages conservés après réinitialisation.
+• Cartes plus stables. Les sauvegardes existantes restent compatibles.
 </fr-FR>
 <de-DE>
-• Nutzungsstatistiken und Absturzberichte sind jetzt zunächst aktiviert; gespeicherte Einstellungen bleiben erhalten. Deaktiviere die Optionen einzeln unter Einstellungen → Privatsphäre.
-• Dein Fortschritt bleibt beim Update erhalten.
+• Neue optionale Herz-Schaltfläche in Menü und Einstellungen: unterstütze das Projekt auf Ko-fi.
+• Nach Wiederherstellen oder Zurücksetzen aktualisiert sich das Menü sofort.
+• Quadratische und rautenförmige Basen bleiben auf hellen Hintergründen sichtbar.
+• Bei großer Schrift scrollen Bildschirme und behalten den Fokus; Belohnungen korrigiert, Einstellungen bleiben nach dem Zurücksetzen erhalten.
+• Stabilere Karten. Bestehende Spielstände bleiben kompatibel.
 </de-DE>
 <it-IT>
-• Le statistiche di utilizzo e i rapporti sugli incidenti sono ora attivi inizialmente; le preferenze salvate vengono rispettate. Disattiva ogni opzione in Impostazioni → Privacy.
-• I tuoi progressi vengono conservati con l’aggiornamento.
+• Nuovo pulsante facoltativo (cuore) nel menu e nelle Impostazioni per sostenere il progetto su Ko-fi.
+• Dopo un ripristino o un azzeramento, il menu si aggiorna subito.
+• Le basi quadrate e a rombo restano visibili sugli sfondi chiari.
+• Con testo grande le schermate scorrono e mantengono il focus; corrette le ricompense di invasioni e sfide giornaliere, e le preferenze restano dopo l’azzeramento.
+• Mappe più stabili. I salvataggi esistenti restano compatibili.
 </it-IT>
 <ru-RU>
-• Статистика использования и отчёты о сбоях теперь включены по умолчанию; сохранённые настройки учитываются. Каждую опцию можно отключить в разделе Настройки → Конфиденциальность.
-• Ваш прогресс сохраняется при обновлении.
+• Новая необязательная кнопка-сердце в меню и настройках для поддержки проекта на Ko-fi.
+• После восстановления или сброса прогресса меню обновляется сразу.
+• Квадратные и ромбовидные базы видны на светлом фоне.
+• При крупном тексте экраны прокручиваются и сохраняют фокус; исправлены награды за вторжения и ежедневные задания, а настройки сохраняются после сброса прогресса.
+• Карты стали стабильнее. Существующие сохранения совместимы.
 </ru-RU>
 <tr-TR>
-• Kullanım istatistikleri ve kilitlenme raporları artık başlangıçta açık; kaydedilmiş tercihleriniz korunur. Her seçeneği Ayarlar → Mahremiyet bölümünden kapatabilirsiniz.
-• İlerlemeniz güncelleme sırasında korunur.
+• Projeyi Ko-fi'de desteklemek için menüde ve Ayarlar'da yeni isteğe bağlı kalp düğmesi.
+• İlerleme geri yüklendiğinde veya sıfırlandığında menü hemen güncellenir.
+• Kare ve elmas tabanlar açık arka planlarda görünür kalır.
+• Büyük yazıda ekranlar kaydırılır ve odağı korur; istila ve günlük görev ödülleri düzeltildi, tercihler ilerleme sıfırlandıktan sonra korunur.
+• Daha kararlı haritalar. Mevcut kayıtlar uyumlu kalır.
 </tr-TR>
 <ar>
-• أصبحت إحصاءات الاستخدام وتقارير الأعطال مفعّلة افتراضيًا؛ تُحترم تفضيلاتك المحفوظة. يمكنك تعطيل كل خيار على حدة من إعدادات → خصوصية.
-• يُحفظ تقدمك عند التحديث.
+• زر قلب اختياري جديد في القائمة والإعدادات لدعم المشروع عبر Ko-fi.
+• تتحدّث القائمة فورًا بعد استعادة التقدم أو إعادة ضبطه.
+• تبقى القواعد المربعة والمعيّنة ظاهرة على الخلفيات الفاتحة.
+• مع النص الكبير تصبح الشاشات قابلة للتمرير وتحافظ على التركيز؛ تم تصحيح مكافآت الغزوات والتحديات اليومية، وتبقى التفضيلات بعد إعادة ضبط التقدم.
+• خرائط أكثر استقرارًا. تظل عمليات الحفظ الحالية متوافقة.
 </ar>
 <hi-IN>
-• उपयोग के आँकड़े और दुर्घटना की रिपोर्ट अब शुरुआत में चालू रहते हैं; आपकी सहेजी गई पसंद का सम्मान किया जाता है। सेटिंग्स → गोपनीयता में हर विकल्प अलग से बंद करें।
-• अपडेट करने पर आपकी प्रगति सुरक्षित रहती है।
+• प्रोजेक्ट को Ko-fi पर सपोर्ट करने के लिए मेन्यू और सेटिंग्स में नया वैकल्पिक दिल बटन।
+• प्रगति रीस्टोर या रीसेट करने पर मेन्यू तुरंत अपडेट होता है।
+• चौकोर और डायमंड बेस हल्की पृष्ठभूमि पर भी दिखते हैं।
+• बड़े टेक्स्ट में स्क्रीन स्क्रॉल होती हैं और फ़ोकस बना रहता है; आक्रमण और दैनिक चुनौती के इनाम ठीक किए गए, और प्रगति रीसेट के बाद पसंदें बनी रहती हैं।
+• अधिक स्थिर मैप। मौजूदा सेव संगत रहते हैं।
 </hi-IN>
 <id>
-• Statistik penggunaan dan laporan kerusakan kini aktif secara default; pilihan yang tersimpan tetap dihormati. Nonaktifkan setiap opsi di Pengaturan → Pribadi.
-• Progres Anda tetap tersimpan saat memperbarui.
+• Tombol hati opsional baru di menu dan Pengaturan untuk mendukung proyek di Ko-fi.
+• Setelah memulihkan atau mereset progres, menu langsung diperbarui.
+• Basis persegi dan belah ketupat tetap terlihat di latar terang.
+• Dengan teks besar, layar dapat digulir dan fokus terjaga; hadiah invasi dan tantangan harian diperbaiki, dan preferensi tetap ada setelah reset progres.
+• Peta lebih stabil. Simpanan yang ada tetap kompatibel.
 </id>
 <vi>
-• Thống kê sử dụng và báo cáo sự cố hiện được bật mặc định; lựa chọn đã lưu của bạn được giữ nguyên. Tắt từng tùy chọn trong Cài đặt → Sự riêng tư.
-• Tiến trình của bạn được giữ lại khi cập nhật.
+• Nút trái tim tùy chọn mới trong menu và Cài đặt để ủng hộ dự án trên Ko-fi.
+• Sau khi khôi phục hoặc đặt lại tiến trình, menu cập nhật ngay.
+• Căn cứ vuông và kim cương vẫn rõ trên nền sáng.
+• Với chữ lớn, màn hình cuộn được và giữ tiêu điểm; đã sửa phần thưởng xâm lược và thử thách hằng ngày, tùy chọn được giữ sau khi đặt lại tiến trình.
+• Bản đồ ổn định hơn. Bản lưu hiện có vẫn tương thích.
 </vi>
 <zh-CN>
-• 使用统计和崩溃报告现在默认开启；已保存的选择保持不变。可在设置 → 隐私中分别关闭这两个选项。
-• 更新后保留现有游戏进度。
+• 菜单和设置中新增可选的爱心按钮，可通过 Ko-fi 支持项目。
+• 恢复或重置进度后，菜单会立即更新。
+• 方形和菱形基地在浅色背景上依然清晰可见。
+• 大字体下界面可滚动并保持焦点；修复了入侵和每日挑战的奖励，重置进度后偏好设置得以保留。
+• 地图更稳定。现有存档保持兼容。
 </zh-CN>
 <ja-JP>
-• 利用状況の統計とクラッシュレポートが初期設定で有効になりました。保存済みの設定は引き継がれます。設定 → プライバシーでそれぞれ無効にできます。
-• アップデート後もゲームの進行状況は保持されます。
+• メニューと設定に、Ko-fi でプロジェクトを支援できる任意のハートボタンを追加。
+• 進行状況の復元やリセット後、メニューがすぐに更新されます。
+• 四角形とひし形の拠点が明るい背景でも見えやすくなりました。
+• 大きな文字でも画面がスクロールしフォーカスを保持。侵攻とデイリーチャレンジの報酬を修正し、進行状況のリセット後も設定を保持します。
+• マップがより安定。既存のセーブとの互換性は維持されます。
 </ja-JP>
 <ko-KR>
-• 사용 통계와 충돌 보고서가 이제 기본으로 켜집니다. 저장된 설정은 그대로 유지됩니다. 설정 → 개인정보에서 각 항목을 따로 끌 수 있습니다.
-• 업데이트해도 기존 게임 진행 상황이 유지됩니다.
+• 메뉴와 설정에 Ko-fi로 프로젝트를 후원할 수 있는 선택형 하트 버튼이 추가되었습니다.
+• 진행 상황을 복원하거나 초기화하면 메뉴가 즉시 갱신됩니다.
+• 사각형과 마름모 기지가 밝은 배경에서도 잘 보입니다.
+• 큰 글자에서도 화면이 스크롤되고 포커스가 유지됩니다. 침공과 일일 챌린지 보상을 수정했으며 진행 초기화 후에도 설정이 유지됩니다.
+• 더 안정적인 지도. 기존 저장과 호환됩니다.
 </ko-KR>
 ```
 
 Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
-
-## Reference: invade.io 0.3.0 — accessibility and large screens
-
-`versionCode` 4 · `versionName` 0.3.0.
-
-Historical Play Console payloads (under 500 characters per language). The phrase
-“screen-reader-friendly” describes the controls, not verified mobile TalkBack or
-VoiceOver support; see [platform limitations](../PLATFORM_INTEGRATION.md#accessibility).
-
-```
-<es-ES>
-¡Nueva actualización de invade.io!
-• Más accesibilidad: texto grande, más contraste y controles de batalla para lector de pantalla.
-• Menús y batallas para tabletas y apaisado, incluso al girar durante una partida.
-• Partidas nuevas y guardados sin idioma siguen el idioma del dispositivo; se conserva tu elección.
-• Más estabilidad en iPhone y diagnósticos opcionales.
-• Tu progreso se conserva al actualizar.
-</es-ES>
-<en-US>
-New invade.io update!
-• Accessibility options: larger text, stronger map contrast, and screen-reader-friendly battle controls.
-• Menus and battles adapt to tablets and landscape screens, including rotation during a match.
-• New games and older saves without a saved language follow your device language; saved choices stay in place.
-• Improved iPhone stability and optional diagnostics.
-• Your progress is preserved when you update.
-</en-US>
-```
 
 ## Version reference
 
@@ -452,3 +581,4 @@ Console and exact commits in GitHub releases; these rows are not deployment logs
 | 0.3.1 | 5 | Verify before distribution | License viewer and build isolation/hardening |
 | 0.3.2 | 6 | Verify before distribution | Enabled telemetry defaults and localized store refresh |
 | 0.4.0 | 7 | Verify before distribution | Faster battles/menus, launch animation, safer save timing, and smaller mobile builds |
+| 0.5.0 | 8 | Verify before distribution | Optional Ko-fi support button, instant menu refresh after restore/reset, light-background base shapes, large-text and reward fixes, and more stable maps |

@@ -26,6 +26,7 @@ from `main`; this checkout can contain changes not published yet.
 2. Read the [architecture overview](ARCHITECTURE.md) to locate the relevant system.
 3. Use the [testing guide](TESTING.md) to choose checks for your change.
 4. Follow [CONTRIBUTING.md](../CONTRIBUTING.md) to open a focused PR against `dev`.
+5. Want to publish your own version? Read [Make your own version](FORKING.md).
 
 Translations, UI review, physical-device reports, and documentation are useful
 contributions alongside code. The development guide includes
@@ -39,6 +40,7 @@ contributions alongside code. The development guide includes
 | [Releases](RELEASES.md) | CI, artifact types, versioning, signing boundaries, and release recovery |
 | [Google Play publishing](PLAY_STORE.md) | Updating the existing Android application and configuring local exports |
 | [Play Store refresh](PLAY_STORE_UPDATE.md) | Localized copy, screenshot provenance, packaging, and Console review |
+| [Trailer](PLAY_STORE_UPDATE.md#trailer) | Rendering the Play Store trailer from the real game |
 | [Telemetry](ANALYTICS.md) | Privacy settings, event schema, providers, and Debug/Release behavior |
 | [Security policy](../SECURITY.md) | Private reports, credentials, and maintainer review requirements |
 | [Website and documentation publishing](WEBSITE.md) | Astro/Starlight setup, content sources, web checks, and Pages deployment |
@@ -60,8 +62,8 @@ for published build artifacts. A GitHub release is not automatic store submissio
 | Online competition | No multiplayer, live PvP, or online leaderboard |
 | Accessibility | Configurable presentation and alternate battle controls; mobile screen-reader support is not established |
 
-The store material was fully recaptured on November 1 for source version
-**0.4.0**; earlier captures were prepared against **0.3.1** and carried into
+The store material was fully recaptured on November 9 for source version
+**0.5.0**; earlier captures were prepared against **0.3.1** and carried into
 **0.3.2**. On October 30 the
 public policy described enabled telemetry defaults, while the Google Play listing
 still contained older descriptions and opt-in/no-collection wording. This source

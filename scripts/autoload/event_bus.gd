@@ -22,3 +22,5 @@ signal achievement_unlocked(achievement_id: String)
 signal daily_reward_claimed(streak: int, reward: int)
 signal cosmetics_changed()
 signal settings_changed()
+## El guardado se sustituyó entero (restaurar copia o reiniciar): reconstruir la interfaz.
+signal save_replaced()

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+		<meta name="theme-color" content="$GODOT_SPLASH_COLOR">
+		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<title>$GODOT_PROJECT_NAME</title>
+		<!-- The head-include placeholder is deliberately omitted: export plugins (Sentry) inject third-party scripts there, and the demo ships no telemetry. -->
+		<link rel="icon" type="image/png" href="index.icon.png">
+		<link rel="apple-touch-icon" href="index.apple-touch-icon.png">
+		<style>
+html, body, #canvas {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+html, body {
+	height: 100%;
+	background-color: $GODOT_SPLASH_COLOR;
+}
+
+body {
+	color: #12263f;
+	font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	overflow: hidden;
+	overscroll-behavior: none;
+	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
+	-webkit-touch-callout: none;
+	-webkit-tap-highlight-color: transparent;
+}
+
+#canvas {
+	display: block;
+}
+
+#canvas:focus {
+	outline: none;
+}
+
+#status {
+	position: absolute;
+	inset: 0;
+	box-sizing: border-box;
+	padding: 1.5rem;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 1rem;
+	text-align: center;
+	background-color: $GODOT_SPLASH_COLOR;
+}
+
+#status img {
+	width: 96px;
+	height: 96px;
+	border-radius: 22%;
+}
+
+#status-progress {
+	width: min(60%, 18rem);
+}
+
+#status-message {
+	margin: 0;
+	min-height: 1.5em;
+	max-width: 28rem;
+	line-height: 1.4;
+}
+
+#status-message.error {
+	padding: 1rem;
+	border-radius: 0.5rem;
+	background-color: #5b3943;
+	color: #fff;
+	white-space: pre-line;
+}
+
+#status button, #status a {
+	min-height: 48px;
+	box-sizing: border-box;
+	padding: 0.75rem 2rem;
+	border: 0;
+	border-radius: 0.75rem;
+	font: inherit;
+	font-weight: 700;
+	background-color: #1565c0;
+	color: #fff;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+#status button:focus-visible, #status a:focus-visible {
+	outline: 3px solid #12263f;
+	outline-offset: 3px;
+}
+
+[hidden] {
+	display: none !important;
+}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas"></canvas>
+
+		<div id="status">
+			<img src="index.icon.png" alt="">
+			<progress id="status-progress" hidden></progress>
+			<p id="status-message" role="status"></p>
+			<button id="status-play" type="button" hidden></button>
+			<a id="status-back" href="../" hidden></a>
+		</div>
+		<noscript>JavaScript is required to play.</noscript>
+
+		<script src="$GODOT_URL"></script>
+		<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+
+(function () {
+	const TEXT = {
+		en: { loading: 'Loading…', play: 'Tap to play', back: 'Back to the website', failed: 'The game could not start.', unknown: 'An unknown error occurred.' },
+		es: { loading: 'Cargando…', play: 'Toca para jugar', back: 'Volver a la web', failed: 'No se pudo iniciar el juego.', unknown: 'Ha ocurrido un error desconocido.' },
+	};
+	const lang = navigator.language && navigator.language.toLowerCase().startsWith('es') ? 'es' : 'en';
+	const text = TEXT[lang];
+	document.documentElement.lang = lang;
+
+	const overlay = document.getElementById('status');
+	const progress = document.getElementById('status-progress');
+	const message = document.getElementById('status-message');
+	const play = document.getElementById('status-play');
+	const back = document.getElementById('status-back');
+	play.textContent = text.play;
+	back.textContent = text.back;
+
+	function fail(err) {
+		console.error(err);
+		progress.hidden = true;
+		play.hidden = true;
+		message.className = 'error';
+		message.textContent = err instanceof Error ? err.message : typeof err === 'string' ? err : text.unknown;
+		back.hidden = false;
+	}
+
+	function start() {
+		play.hidden = true;
+		progress.hidden = false;
+		message.textContent = text.loading;
+		new Engine(GODOT_CONFIG).startGame({
+			onProgress: function (current, total) {
+				if (current > 0 && total > 0) {
+					progress.max = total;
+					progress.value = current;
+					message.textContent = text.loading + ' ' + Math.floor(100 * current / total) + '%';
+				} else {
+					progress.removeAttribute('value');
+					progress.removeAttribute('max');
+				}
+			},
+		}).then(() => overlay.remove(), fail);
+	}
+
+	const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+	if (missing.length !== 0) {
+		fail(new Error(text.failed + '\n' + missing.join('\n')));
+		return;
+	}
+
+	// Phones with the Fullscreen API (Android) get a tap-to-play step: browsers only allow fullscreen from a gesture, and it frees the space of the address bar.
+	const root = document.documentElement;
+	if (matchMedia('(pointer: coarse)').matches && root.requestFullscreen) {
+		play.hidden = false;
+		play.addEventListener('click', () => {
+			root.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+			start();
+		}, { once: true });
+	} else {
+		start();
+	}
+}());
+		</script>
+	</body>
+</html>

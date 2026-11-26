@@ -22,8 +22,33 @@ static func apply(level: Dictionary) -> void:
 		continent = LevelDatabase.get_continent_of(id)
 	if continent == "":
 		return
-	var bases: Array = level["bases"]
 	level["rule_key"] = "rule_" + continent
+	apply_continent(level, continent, id)
+	var bases: Array = level["bases"]
+	if mode == "daily":
+		if continent in ["europe", "africa"]:
+			level["objective"] = "hold_capital"
+			level["hold_seconds"] = 12.0
+		elif continent == "north_america":
+			level["objective"] = "hold_factories"
+			level["hold_seconds"] = 8.0
+		elif continent == "asia":
+			level["objective"] = "hold_fortresses"
+			level["hold_seconds"] = 8.0
+	if LevelDatabase.get_level_ids().has(id) and LevelDatabase.get_level_number(id) == LevelDatabase.LEVELS_PER_CONTINENT:
+		for base in bases:
+			if base["faction"] == GameManager.Faction.ENEMY_1:
+				base.merge({"boss": true, "type": "fortress", "tier": 3}, true)
+				level["target_time"] += 25
+				break
+	if bases.any(func(base): return base.get("boss", false)):
+		var balance := LevelDatabase.get_balance(id)
+		level["boss_interval"] = balance["boss_interval"]
+		level["boss_reinforcement"] = balance["boss_reinforcement"]
+
+## The tactical rule of one continent applied to a built level (also used to stack a second rule)
+static func apply_continent(level: Dictionary, continent: String, id: String) -> void:
+	var bases: Array = level["bases"]
 	match continent:
 		"europe", "africa":
 			var capital: Dictionary = bases[mini(1 if continent == "europe" else 2, bases.size() - 1)]
@@ -45,26 +70,6 @@ static func apply(level: Dictionary) -> void:
 			level["travel_multiplier"] = 0.8
 		"oceania":
 			level["sea_lanes"] = sea_lanes(bases, level.get("_route_positions", []))
-	if mode == "daily":
-		if continent in ["europe", "africa"]:
-			level["objective"] = "hold_capital"
-			level["hold_seconds"] = 12.0
-		elif continent == "north_america":
-			level["objective"] = "hold_factories"
-			level["hold_seconds"] = 8.0
-		elif continent == "asia":
-			level["objective"] = "hold_fortresses"
-			level["hold_seconds"] = 8.0
-	if LevelDatabase.get_level_ids().has(id) and LevelDatabase.get_level_number(id) == LevelDatabase.LEVELS_PER_CONTINENT:
-		for base in bases:
-			if base["faction"] == GameManager.Faction.ENEMY_1:
-				base.merge({"boss": true, "type": "fortress", "tier": 3}, true)
-				level["target_time"] += 25
-				break
-	if bases.any(func(base): return base.get("boss", false)):
-		var balance := LevelDatabase.get_balance(id)
-		level["boss_interval"] = balance["boss_interval"]
-		level["boss_reinforcement"] = balance["boss_reinforcement"]
 
 ## Regla de una región: no depende del continente ni del índice de campaña.
 static func _apply_invasion(level: Dictionary, region_id: String) -> void:
@@ -134,6 +139,8 @@ static func sea_lanes(bases: Array, route_positions: Array = []) -> Array[Vector
 
 static func description(level: Dictionary) -> String:
 	var text := LocaleStrings.text(level["rule_key"]) if level.has("rule_key") else ""
+	if level.has("rule_key_2"):
+		text += "\n" + LocaleStrings.text(level["rule_key_2"])
 	if level.get("bases", []).any(func(base): return base.get("boss", false)):
 		text += "\n" + LocaleStrings.text("boss_rule") % [level.get("boss_reinforcement", 10), roundi(level.get("boss_interval", 18.0))]
 	return text

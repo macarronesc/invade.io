@@ -32,6 +32,7 @@ const SVG := {
 	"music": '<path d="M9 18V6.5l10-2.5v11.5"/><circle cx="6.8" cy="18" r="2.4" fill="#fff" stroke="none"/><circle cx="16.8" cy="15.5" r="2.4" fill="#fff" stroke="none"/>',
 	"bolt": '<path d="M13.5 2.5L5 13.5h6.5l-1 8 8.5-11h-6.5z" fill="#fff" stroke="none"/>',
 	"speed": '<path d="M5 6l6 6-6 6M12.5 6l6 6-6 6" stroke-width="2.6"/>',
+	"heart": '<path d="M12 20.5C5 15.5 3 12 3 8.8A4.8 4.8 0 0 1 12 6.6a4.8 4.8 0 0 1 9 2.2c0 3.2-2 6.7-9 11.7z"/>',
 	"share": '<path d="M12 15V4M8 7.5l4-4 4 4M5 12v7.5h14V12"/>',
 	"flag": '<path d="M5.5 21V4M5.5 4.5h12l-2.5 4 2.5 4h-12"/>',
 	"close": '<path d="M6 6l12 12M18 6L6 18" stroke-width="2.6"/>',

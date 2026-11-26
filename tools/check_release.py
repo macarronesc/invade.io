@@ -19,6 +19,8 @@ def versions(project, presets):
         if section.endswith(".options"):
             option = config[section]
             key = "version/name" if "version/name" in option else "application/short_version"
+            if key not in option:
+                continue  # the Web preset carries no store version
             if option.get(key, "").strip('"') != version:
                 raise ValueError("Version mismatch in " + section)
             if "version/code" in option:

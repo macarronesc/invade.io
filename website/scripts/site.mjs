@@ -12,6 +12,7 @@ export const guides = [
   ['CONTRIBUTING.md', 'contributing', 'Develop'],
   ['docs/ARCHITECTURE.md', 'architecture', 'Develop'],
   ['docs/TESTING.md', 'testing', 'Develop'],
+  ['docs/FORKING.md', 'forking', 'Develop'],
   ['docs/PLATFORM_INTEGRATION.md', 'platforms', 'Develop'],
   ['docs/RELEASES.md', 'releases', 'Maintain'],
   ['docs/PLAY_STORE.md', 'publishing', 'Maintain'],

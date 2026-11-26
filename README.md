@@ -6,11 +6,18 @@ Drag between bases, coordinate your troops, and turn a foothold into a continent
 conquest. invade.io is an open-source, single-player strategy game with offline
 gameplay, no ads, and no in-app purchases.
 
-[**Play on Google Play**](https://play.google.com/store/apps/details?id=macarronesc.invadeio)
+[**Play in your browser**](https://macarronesc.github.io/invade.io/play/)
+· [**Google Play**](https://play.google.com/store/apps/details?id=macarronesc.invadeio)
 · [Website](https://macarronesc.github.io/invade.io/)
 · [Documentation](https://macarronesc.github.io/invade.io/docs/)
 · [Run locally](#run-locally)
 · [Contribute](CONTRIBUTING.md)
+· [Support on Ko-fi](https://ko-fi.com/macarronesc)
+· [Make your own version](docs/FORKING.md)
+
+[![License: Apache-2.0](https://img.shields.io/github/license/macarronesc/invade.io)](LICENSE)
+[![Built with Godot 4.7](https://img.shields.io/badge/Godot-4.7-478cbf?logo=godotengine&logoColor=white)](docs/DEVELOPMENT.md)
+[![Stars](https://img.shields.io/github/stars/macarronesc/invade.io?style=flat)](https://github.com/macarronesc/invade.io/stargazers)
 
 The website includes a visual game tour, English/Spanish player pages, platform
 downloads, and searchable guides. Prefer reading in the repository? Start with
@@ -40,14 +47,14 @@ it at full size. More about the [gameplay](docs/GAMEPLAY.md) and
 
 - **A six-continent campaign.** Play 30 levels with capitals, factories, jungle,
   oases, fortresses, sea routes, and bosses with reinforcements.
-- **Regional invasions.** Unlock 36 regions and 108 fronts by completing each
+- **Regional invasions.** Unlock 59 regions and 177 fronts by completing each
   continent's campaign. Earn stars, master regions, and unlock army colors.
 - **Expeditions and daily challenges.** Explore five-region expeditions or take on
   a locally generated daily challenge without combat upgrades. Share a result
   card—not a live multiplayer match.
 - **Progress earned by playing.** Upgrade your army, climb the ranks, collect
-  cities in the atlas, complete 20 achievements, and unlock cosmetic styles.
-- **Play your way.** Choose from 15 languages, including an Arabic right-to-left
+  cities in the atlas, complete 23 achievements, and unlock cosmetic styles.
+- **Play your way.** Choose from 19 languages, including an Arabic right-to-left
   interface, light/dark themes, text sizes, a color-blind palette, reduced motion,
   map contrast, game speeds, and adjustable haptics.
 - **Offline, with local saves.** No account is required. Export and restore a
@@ -84,6 +91,7 @@ mobile-oriented interfaces, multilingual typography, procedural audio, and local
 save recovery together in a playable Godot project. Its tests and store captures
 are part of the repository, so contributors can inspect and reproduce the work.
 
+Want your own take on it? [Fork it and publish your version](docs/FORKING.md).
 You can help with gameplay, regression tests, UI and accessibility, translation
 review, device testing, or documentation. Start with the
 [contribution guide](CONTRIBUTING.md), browse the
@@ -100,6 +108,8 @@ Contribution PRs target **`dev`**; release PRs target `main`.
 | Android builds and iOS/SideStore testing | [Platform integration](docs/PLATFORM_INTEGRATION.md) |
 | Signing and release maintenance | [Release guide](docs/RELEASES.md) |
 | Website, generated guides, and GitHub Pages | [Website guide](docs/WEBSITE.md) |
+| Writing about the game | [Press kit](docs/PRESS.md) |
+| Publishing your own version | [Make your own version](docs/FORKING.md) |
 
 ## Privacy and support
 

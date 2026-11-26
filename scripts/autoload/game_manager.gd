@@ -20,20 +20,21 @@ const FACTION_COLORS = {
 	Faction.ENEMY_3: Color(0.30, 0.69, 0.31)     # Verde esmeralda
 }
 
-const UPGRADE_BASE_COSTS = {
-	"starting_troops": 50,
-	"production_rate": 75,
-	"troop_speed": 60,
-	"gold_bonus": 100
+## Una fila por mejora: coste base, mejora por nivel (tropas o puntos porcentuales) y el nivel de
+## Ascensión que la abre (1 = disponible desde el principio). Añadir una mejora es añadir una fila.
+const UPGRADES := {
+	"starting_troops": {"cost": 50, "step": 5, "tier": 1},
+	"production_rate": {"cost": 75, "step": 15, "tier": 1},
+	"troop_speed": {"cost": 60, "step": 10, "tier": 1},
+	"gold_bonus": {"cost": 100, "step": 10, "tier": 1},
+	"fortification": {"cost": 200, "step": 5, "tier": 2},
+	"capacity": {"cost": 250, "step": 10, "tier": 3},
+	"conscription": {"cost": 300, "step": 2, "tier": 4},
+	"breaching": {"cost": 400, "step": 5, "tier": 5},
 }
-
-## Mejora por nivel de cada tipo: tropas iniciales o puntos porcentuales
-const UPGRADE_STEPS = {
-	"starting_troops": 5,
-	"production_rate": 15,
-	"troop_speed": 10,
-	"gold_bonus": 10
-}
+## Mejoras que se recomiendan antes que el resto: reclutar y abrir territorio primero
+const CORE_COMBAT_UPGRADES := ["production_rate", "starting_troops", "troop_speed"]
+const EXTRA_COMBAT_UPGRADES := ["fortification", "capacity", "conscription", "breaching"]
 ## Crecimiento del coste por nivel: base × (1 + n + n²/4). Suave para que siempre haya una
 ## compra a pocas victorias (nivel 9 ≈ 30× la primera, antes 200×)
 const UPGRADE_COST_QUADRATIC := 0.25
@@ -41,7 +42,7 @@ const UPGRADE_COST_QUADRATIC := 0.25
 const MAX_UPGRADE_LEVEL = 10
 const DEFAULT_COINS = 150
 const FIRST_LEVEL_ID := "europe_1"
-const SAVE_VERSION = 7
+const SAVE_VERSION = 8
 const DEFAULT_SETTINGS := {"volume": 0.8, "music_volume": 0.8, "vibration": true, "speed": 1.0, "colorblind": false,
 	"light_mode": true, "reduced_motion": false, "high_contrast_map": false, "text_scale": 0.0, "vibration_intensity": 0.55,
 	"share_analytics": true, "share_crashes": true}
@@ -61,6 +62,8 @@ const FIRST_BOSS_GOLD := 150
 const COLLECTION_GOLD := 200
 ## Regiones por expedición en la conquista libre; la última es un jefe con premio doble
 const EXPEDITION_SIZE := 5
+## Gold per region keeps growing (+15 each) up to this region, so deep expeditions still pay for upgrades
+const CONQUEST_GOLD_CAP_INDEX := 60
 
 var coins: int = DEFAULT_COINS
 var upgrades: Dictionary = {}
@@ -108,6 +111,8 @@ var medals: Array[String] = []
 ## Se guardan aparte de la campaña para no alterar estrellas, logros ni desbloqueos.
 var invasion_stars: Dictionary = {}
 var invasion_rewards: Array[String] = []
+## Ascension: estrellas por nivel ("asc<nivel>_<id de campaña>"). Los desbloqueos se derivan de aquí.
+var ascension_stars: Dictionary = {}
 ## Continentes cuya colección del atlas ya se ha cobrado
 var collections_claimed: Array[String] = []
 ## Intentos con recompensa de consuelo por nivel pendiente (máximo dos).
@@ -177,7 +182,33 @@ func get_max_possible_stars() -> int:
 func get_upgrade_bonus(upgrade_id: String) -> int:
 	if normalized_battle and upgrade_id != "gold_bonus":
 		return 0
-	return upgrades.get(upgrade_id, 0) * UPGRADE_STEPS[upgrade_id]
+	return upgrades.get(upgrade_id, 0) * UPGRADES[upgrade_id]["step"]
+
+## Defensa extra de tus bases (fracción)
+func get_defense_bonus() -> float:
+	return get_upgrade_bonus("fortification") / 100.0
+
+func get_capacity_multiplier() -> float:
+	return 1.0 + get_upgrade_bonus("capacity") / 100.0
+
+## Tropas que añade cada base que capturas
+func get_capture_garrison() -> int:
+	return get_upgrade_bonus("conscription")
+
+## Fracción de defensa que pierden las fortalezas ajenas
+func get_breach_reduction() -> float:
+	return get_upgrade_bonus("breaching") / 100.0
+
+func is_upgrade_unlocked(upgrade_id: String) -> bool:
+	return UPGRADES.has(upgrade_id) and (UPGRADES[upgrade_id]["tier"] <= 1 or is_ascension_unlocked(UPGRADES[upgrade_id]["tier"]))
+
+## Mejoras visibles ahora, en el orden de la tabla
+func available_upgrades() -> Array[String]:
+	var ids: Array[String] = []
+	for id in UPGRADES:
+		if is_upgrade_unlocked(id):
+			ids.append(id)
+	return ids
 
 func get_starting_troops_bonus() -> int:
 	return get_upgrade_bonus("starting_troops")
@@ -200,28 +231,31 @@ func get_faction_production_multiplier(faction: int) -> float:
 	return enemy_production_multiplier
 
 func get_upgrade_cost(upgrade_id: String) -> int:
-	if not UPGRADE_BASE_COSTS.has(upgrade_id):
+	if not is_upgrade_unlocked(upgrade_id):
 		return -1
 	var lvl: int = upgrades.get(upgrade_id, 0)
 	if lvl >= MAX_UPGRADE_LEVEL:
 		return -1
-	var base_cost: int = UPGRADE_BASE_COSTS[upgrade_id]
+	var base_cost: int = UPGRADES[upgrade_id]["cost"]
 	return int(round(base_cost * (1.0 + lvl + lvl * lvl * UPGRADE_COST_QUADRATIC)))
 
 ## Primero reclutar y abrir territorio; marcha después. Nunca recomendar oro
 ## para resolver un combate. El filtro de saldo permite ofrecer una compra real.
 func recommended_combat_upgrade(affordable_only: bool = false) -> String:
-	var best := ""
-	var best_score := INF
-	for id in ["production_rate", "starting_troops", "troop_speed"]:
-		var cost := get_upgrade_cost(id)
-		if cost < 0 or (affordable_only and cost > coins):
-			continue
-		var score := float(upgrades.get(id, 0)) + (2.0 if id == "troop_speed" else 0.0)
-		if score < best_score:
-			best = id
-			best_score = score
-	return best
+	for group in [CORE_COMBAT_UPGRADES, EXTRA_COMBAT_UPGRADES]:
+		var best := ""
+		var best_score := INF
+		for id in group:
+			var cost := get_upgrade_cost(id)
+			if cost < 0 or (affordable_only and cost > coins):
+				continue
+			var score := float(upgrades.get(id, 0)) + (2.0 if id == "troop_speed" else 0.0)
+			if score < best_score:
+				best = id
+				best_score = score
+		if best != "":
+			return best
+	return ""
 
 func can_suggest_combat_upgrade() -> bool:
 	return LevelDatabase.mode_of(get_battle_level_id()) != "daily" and recommended_combat_upgrade(true) != ""
@@ -249,16 +283,16 @@ func add_coins(amount: int) -> void:
 ## Oro a conceder por una victoria: completo la primera vez, la mitad si se mejoran estrellas
 ## y una fracción reducida al repetir (evita el farmeo del primer nivel)
 func calculate_victory_gold(level_id: String, stars: int, base_amount: int) -> int:
-	var previous: int = int(completed_levels.get(level_id, 0))
+	var previous := level_stars(level_id)
 	var factor := 1.0
 	if previous > 0:
 		factor = 0.5 if stars > previous else REPLAY_GOLD_FACTOR
-	var index := LevelDatabase.get_level_ids().find(level_id)
+	var index := LevelDatabase.get_level_ids().find(Ascension.base_of(level_id))
 	if index >= 0:
 		base_amount += index * 12
 		if previous == 0 and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT:
 			base_amount += FIRST_BOSS_GOLD
-	return int(round(base_amount * factor * get_gold_multiplier()))
+	return int(round(base_amount * factor * get_gold_multiplier() * Ascension.gold_scale(Ascension.tier_of(level_id))))
 
 ## Apply mode-specific progression and return the existing victory presentation fields.
 func victory_rewards(level_id: String, stars: int, player_bases_count: int, flawless: bool) -> Dictionary:
@@ -273,7 +307,15 @@ func victory_rewards(level_id: String, stars: int, player_bases_count: int, flaw
 	var region_bonus := 0
 	var mastery_bonus := 0
 	var continent_reward := ""
+	var ascension_unlocked := 0
 	match mode:
+		"ascension":
+			var previous_stars := level_stars(level_id)
+			if previous_stars == 0 and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT:
+				boss_gold = roundi(FIRST_BOSS_GOLD * get_gold_multiplier() * Ascension.gold_scale(Ascension.tier_of(level_id)))
+			is_replay = previous_stars > 0 and stars <= previous_stars
+			total_gold = calculate_victory_gold(level_id, stars, 60 + player_bases_count * 15)
+			ascension_unlocked = complete_ascension_level(level_id, stars)
 		"daily":
 			is_replay = is_daily_challenge_done(DailyRewards.challenge_day(level_id))
 			total_gold = complete_daily_challenge(level_id)
@@ -292,6 +334,7 @@ func victory_rewards(level_id: String, stars: int, player_bases_count: int, flaw
 		_:
 			var continent := LevelDatabase.get_continent_of(level_id)
 			new_continent = not is_continent_complete(continent)
+			var was_complete := is_campaign_complete()
 			var previous_stars: int = int(completed_levels.get(level_id, 0))
 			if previous_stars == 0 and LevelDatabase.get_level_number(level_id) == LevelDatabase.LEVELS_PER_CONTINENT:
 				boss_gold = roundi(FIRST_BOSS_GOLD * get_gold_multiplier())
@@ -300,6 +343,8 @@ func victory_rewards(level_id: String, stars: int, player_bases_count: int, flaw
 			new_medal = flawless and not medals.has(level_id)
 			complete_level(level_id, stars, flawless)
 			new_continent = new_continent and is_continent_complete(continent)
+			if not was_complete and is_campaign_complete():
+				ascension_unlocked = Ascension.MIN_TIER
 	add_coins(total_gold)
 	return {
 		"gold_earned": total_gold,
@@ -308,6 +353,9 @@ func victory_rewards(level_id: String, stars: int, player_bases_count: int, flaw
 		"is_daily_challenge": mode == "daily",
 		"is_conquest": mode == "conquest",
 		"is_invasion": mode == "invasion",
+		"is_ascension": mode == "ascension",
+		"ascension_tier": Ascension.tier_of(level_id),
+		"ascension_unlocked": ascension_unlocked,
 		"region_id": InvasionDatabase.get_region_of_level(level_id) if mode == "invasion" else "",
 		"region_complete": region_complete,
 		"region_mastered": region_mastered,
@@ -353,6 +401,8 @@ func complete_level(level_id: String, stars: int, medal: bool = false) -> void:
 	save_game()
 
 func is_level_unlocked(level_id: String) -> bool:
+	if Ascension.is_ascension(level_id):
+		return is_ascension_unlocked(Ascension.tier_of(level_id))
 	return unlocked_levels.has(level_id)
 
 ## Siguiente nivel de la campaña ("" tras el último o si no es de campaña)
@@ -406,8 +456,69 @@ func player_level() -> int:
 func is_continent_complete(continent_id: String) -> bool:
 	return LevelDatabase.get_continent_level_ids(continent_id).all(func(id): return completed_levels.has(id))
 
+func completed_continents_count() -> int:
+	return LevelDatabase.get_continents().filter(func(c): return is_continent_complete(c["id"])).size()
+
 func is_campaign_complete() -> bool:
 	return LevelDatabase.get_continents().all(func(c): return is_continent_complete(c["id"]))
+
+# =========================================================================
+# Ascension: la campaña repetida con enemigos más duros; cada nivel exige completar el anterior
+# =========================================================================
+
+## Estrellas de un nivel de campaña o de ascensión (0 = sin completar)
+func level_stars(level_id: String) -> int:
+	if Ascension.is_ascension(level_id):
+		return int(ascension_stars.get(level_id, 0))
+	return int(completed_levels.get(level_id, 0))
+
+## El primer nivel exige toda la campaña; cada siguiente, el nivel anterior completo.
+func is_ascension_unlocked(tier: int) -> bool:
+	if tier < Ascension.MIN_TIER or tier > Ascension.MAX_TIER:
+		return false
+	return is_campaign_complete() if tier == Ascension.MIN_TIER else is_ascension_complete(tier - 1)
+
+func is_ascension_complete(tier: int) -> bool:
+	return Ascension.tier_level_ids(tier).all(func(id): return ascension_stars.has(id))
+
+func ascension_tiers_completed() -> int:
+	var done := 0
+	for tier in range(Ascension.MIN_TIER, Ascension.MAX_TIER + 1):
+		done += 1 if is_ascension_complete(tier) else 0
+	return done
+
+func ascension_stars_in_tier(tier: int) -> int:
+	var total := 0
+	for id in Ascension.tier_level_ids(tier):
+		total += int(ascension_stars.get(id, 0))
+	return total
+
+## Nivel de ascensión abierto más alto aún sin completar (1 = la campaña normal)
+func recommended_ascension_tier() -> int:
+	var tier := 1
+	while tier < Ascension.MAX_TIER and is_ascension_unlocked(tier + 1):
+		tier += 1
+		if not is_ascension_complete(tier):
+			return tier
+	return tier
+
+## Siguiente nivel del mismo nivel de ascensión ("" tras el último)
+func next_ascension_level(level_id: String) -> String:
+	var parsed := Ascension.parse(level_id)
+	if parsed.is_empty():
+		return ""
+	var next := get_next_level(parsed["base"])
+	return Ascension.level_id(parsed["tier"], next) if next != "" else ""
+
+## Guarda las estrellas; devuelve el nivel de ascensión recién desbloqueado (0 si ninguno)
+func complete_ascension_level(level_id: String, stars: int) -> int:
+	var parsed := Ascension.parse(level_id)
+	if parsed.is_empty():
+		return 0
+	var next_tier: int = parsed["tier"] + 1
+	var was_unlocked := is_ascension_unlocked(next_tier)
+	ascension_stars[level_id] = maxi(level_stars(level_id), clampi(stars, 1, 3))
+	return next_tier if not was_unlocked and is_ascension_unlocked(next_tier) else 0
 
 # =========================================================================
 # Invasiones regionales: tres frentes por región, desbloqueadas por continente
@@ -675,7 +786,7 @@ func set_language(lang: String) -> void:
 func complete_conquest(index: int) -> int:
 	conquest_next = maxi(conquest_next, index + 1)
 	var finale := 2.0 if LevelGenerator.is_expedition_finale(index) else 1.0
-	return int(round((100 + 15 * mini(index, 20)) * finale * get_gold_multiplier()))
+	return int(round((100 + 15 * mini(index, CONQUEST_GOLD_CAP_INDEX)) * finale * get_gold_multiplier()))
 
 ## Ciudades de la colección de un continente ya en el atlas
 func collection_progress(continent_id: String) -> int:
@@ -738,9 +849,13 @@ func equip_cosmetic(id: String) -> bool:
 	EventBus.cosmetics_changed.emit()
 	return true
 
+## Android/iOS nativos y Android Chrome en la demo web (Safari en iOS no tiene API de vibración).
+static func can_vibrate() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("web_android")
+
 ## Vibración háptica breve en dispositivos móviles (no hace nada en escritorio)
 func haptic(duration_ms: int) -> void:
-	if OS.has_feature("mobile"):
+	if can_vibrate():
 		var effect := _haptic_parameters(duration_ms, Time.get_ticks_msec())
 		if effect != Vector2.ZERO:
 			Input.vibrate_handheld(int(effect.x), effect.y)
@@ -880,6 +995,7 @@ func save_data() -> Dictionary:
 		"campaign_best": campaign_best,
 		"defeat_rewards": defeat_rewards,
 		"invasion_stars": invasion_stars, "invasion_rewards": invasion_rewards,
+		"ascension_stars": ascension_stars,
 	}
 
 ## Explicit batches only span a synchronous action, never a frame or a UI gesture.
@@ -1020,13 +1136,14 @@ func import_save(path: String) -> Error:
 	error = save_game()
 	if error != OK:
 		_apply_save(previous)
-	else:
-		var privacy_error := _write_privacy_settings()
-		if privacy_error != OK:
-			_set_save_status(privacy_error)
+		return error
+	var privacy_error := _write_privacy_settings()
+	if privacy_error != OK:
+		_set_save_status(privacy_error)
 	AudioManager.apply_volumes()
 	EventBus.settings_changed.emit()
-	return error
+	EventBus.save_replaced.emit()
+	return OK
 
 func load_game() -> Error:
 	_save_blocked = false
@@ -1092,8 +1209,8 @@ func reset_save() -> Error:
 	# Tras reiniciar, la recuperación tampoco debe resucitar el progreso borrado.
 	if FileAccess.file_exists(save_path + ".previous"):
 		DirAccess.remove_absolute(save_path + ".previous")
-	EventBus.coins_updated.emit(coins)
 	EventBus.settings_changed.emit()
+	EventBus.save_replaced.emit()
 	return OK
 
 ## Aplica un guardado validando cada campo: lo que falta o no es válido toma su valor inicial.
@@ -1141,7 +1258,7 @@ func _apply_save(data: Dictionary) -> void:
 	coins = maxi(0, _as_int(data.get("coins"), DEFAULT_COINS))
 	var saved_upgrades := _as_dict(data.get("upgrades"))
 	upgrades = {}
-	for key in UPGRADE_BASE_COSTS:
+	for key in UPGRADES:
 		upgrades[key] = clampi(_as_int(saved_upgrades.get(key), 0), 0, MAX_UPGRADE_LEVEL)
 	completed_levels = {}
 	var saved_levels := _as_dict(data.get("completed_levels"))
@@ -1160,6 +1277,12 @@ func _apply_save(data: Dictionary) -> void:
 		var stars := _as_int(saved_invasions[id], 0)
 		if stars > 0 and InvasionDatabase.is_invasion(id):
 			invasion_stars[id] = mini(stars, 3)
+	ascension_stars = {}
+	var saved_ascension := _as_dict(data.get("ascension_stars"))
+	for id in saved_ascension:
+		var stars := _as_int(saved_ascension[id], 0)
+		if stars > 0 and Ascension.is_ascension(id):
+			ascension_stars[id] = mini(stars, 3)
 	invasion_rewards.clear()
 	for id in _as_array(data.get("invasion_rewards")):
 		if id is String and not InvasionDatabase.get_region(id).is_empty() and not invasion_rewards.has(id):
