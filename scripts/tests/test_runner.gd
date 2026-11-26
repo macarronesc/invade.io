@@ -3573,6 +3573,14 @@ func test_save_robustness_and_replay_rewards() -> void:
 		"La recuperación conserva la privacidad elegida")
 	DirAccess.remove_absolute(TEST_SAVE_PATH + ".corrupt")
 
+	# 5b. Una copia de privacidad antigua (escritura fallida) no revierte la baja
+	f = FileAccess.open(GameManager.privacy_path(), FileAccess.WRITE)
+	f.store_string(JSON.stringify({"share_analytics": true, "share_crashes": true}))
+	f.close()
+	GameManager.load_game()
+	assert_true(not GameManager.settings["share_analytics"] and not GameManager.settings["share_crashes"],
+		"Una copia de consentimiento obsoleta no reactiva la telemetría")
+
 	# 6. Reiniciar el progreso conserva accesibilidad, audio y tema
 	var original_settings: Dictionary = GameManager.settings.duplicate(true)
 	GameManager.reset_save()

@@ -133,6 +133,7 @@ var application_active := true
 var _last_haptic_ms := -HAPTIC_INTERVAL_MS
 var _last_haptic_duration := 0
 var _save_blocked := false
+var _privacy_dirty := false
 var _save_batch_depth := 0
 var _save_requested := false
 var _save_scheduled := false
@@ -1027,6 +1028,14 @@ func _flush_save_request() -> void:
 		save_game()
 
 func save_game() -> Error:
+	var error := _save_game_files()
+	if error == OK and _privacy_dirty:
+		var privacy_error := _write_privacy_settings()
+		if privacy_error != OK:
+			return _set_save_status(privacy_error)
+	return error
+
+func _save_game_files() -> Error:
 	_save_scheduled = false
 	if _save_timer:
 		_save_timer.stop()
@@ -1059,10 +1068,12 @@ func privacy_path() -> String:
 	return save_path + ".privacy.json"
 
 func _write_privacy_settings() -> Error:
-	return _write_save_text(privacy_path(), JSON.stringify({
+	var error := _write_save_text(privacy_path(), JSON.stringify({
 		"share_analytics": bool(settings["share_analytics"]),
 		"share_crashes": bool(settings["share_crashes"]),
 	}))
+	_privacy_dirty = error != OK # Se reintenta en el siguiente guardado.
+	return error
 
 func _load_privacy_settings() -> void:
 	var file := FileAccess.open(privacy_path(), FileAccess.READ)
@@ -1075,8 +1086,9 @@ func _load_privacy_settings() -> void:
 		return
 	var saved: Dictionary = json.data
 	for key in ["share_analytics", "share_crashes"]:
+		# Si las dos copias discrepan (p. ej. falló una escritura), gana la opción más privada.
 		if saved.get(key) is bool:
-			settings[key] = saved[key]
+			settings[key] = settings[key] and saved[key]
 
 ## La carga local acepta campos antiguos; la importación exige además la estructura del juego.
 func _read_save(path: String) -> Dictionary:
