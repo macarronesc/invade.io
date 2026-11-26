@@ -5943,6 +5943,14 @@ func test_aptabase_http_delivery() -> void:
 		await get_tree().process_frame
 	assert_true(not Aptabase._request_in_flight and Aptabase._event_queue.is_empty(), "Aptabase confirma la sesión antes de desactivar el cliente")
 	GameManager.settings["share_analytics"] = previous_share_analytics
+
+	Aptabase.track("opt_out_inflight")
+	Aptabase.flush()
+	var inflight: HTTPRequest = Aptabase._active_http
+	assert_true(is_instance_valid(inflight), "Hay una petición activa antes de retirar el consentimiento")
+	Aptabase.disable()
+	await get_tree().process_frame
+	assert_true(Aptabase._active_http == null and not is_instance_valid(inflight), "Retirar el consentimiento libera la petición cancelada")
 	telemetry.free()
 	Aptabase.disable()
 	server.stop()
