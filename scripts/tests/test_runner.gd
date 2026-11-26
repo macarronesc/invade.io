@@ -3962,6 +3962,119 @@ func test_achievements_system() -> void:
 	remove_child(progress)
 	progress.free()
 
+	# 9a. Logros ocultos: datos coherentes (iconos únicos, estadísticas conocidas, pistas en todos los idiomas)
+	GameManager.reset_save()
+	var icons := {}
+	var hidden_ids: Array[String] = []
+	for a in AchievementDatabase.get_all():
+		assert_true(not icons.has(a["icon"]), "Icono de logro único: " + a["id"])
+		icons[a["icon"]] = true
+		assert_true(AchievementManager.get_stat(a["stat"]) >= 0, "Estadística conocida: " + a["id"])
+		if AchievementDatabase.is_hidden(a):
+			hidden_ids.append(a["id"])
+	assert_true(hidden_ids.has("ascended_max") and hidden_ids.has("perfect_promotion"), "La Ascensión final y la perfecta son ocultas")
+	assert_true(not AchievementDatabase.is_hidden(AchievementDatabase.get_by_id("first_victory")), "Los logros normales no son ocultos")
+	var previous_language := GameManager.language
+	for code in LanguageCatalog.codes():
+		GameManager.set_language(code)
+		for id in hidden_ids:
+			var a := AchievementDatabase.get_by_id(id)
+			for text in [AchievementDatabase.achievement_title(a), AchievementDatabase.achievement_desc(a), AchievementDatabase.achievement_hint(a)]:
+				assert_true(not text.begins_with("ach_"), "Texto de logro oculto traducido: %s/%s" % [code, id])
+	GameManager.set_language(previous_language)
+
+	# 9b. Ascensión perfecta: sólo cuenta un nivel con 3 estrellas en cada mapa
+	for id in Ascension.tier_level_ids(2):
+		GameManager.ascension_stars[id] = 3
+	assert_equals(AchievementManager.get_stat("perfect_ascension_tiers"), 1, "Un nivel de Ascensión con 3 estrellas en todo es perfecto")
+	GameManager.ascension_stars[Ascension.level_id(2, "europe_1")] = 2
+	assert_equals(AchievementManager.get_stat("perfect_ascension_tiers"), 0, "Una sola estrella menos lo deja imperfecto")
+	GameManager.ascension_stars[Ascension.level_id(2, "europe_1")] = 3
+	assert_true(AchievementManager.check_all("perfect_ascension_tiers").has("perfect_promotion"), "Se desbloquea «Ascensión impecable»")
+	GameManager.medals.append("europe_1")
+	assert_equals(AchievementManager.get_stat("medals"), 1, "Las medallas cuentan como estadística")
+
+	# 9c. Contadores de batalla: Intocable sólo cuenta victorias de Ascensión sin bajas
+	GameManager.reset_save()
+	EventBus.battle_started.emit("asc2_europe_1")
+	EventBus.battle_won.emit({"time": 99.0, "level_id": "asc2_europe_1"})
+	assert_equals(GameManager.get_stat("flawless_ascensions"), 1, "Una victoria impecable de Ascensión cuenta")
+	EventBus.battle_started.emit("asc2_europe_2")
+	EventBus.base_captured.emit(null, GameManager.Faction.PLAYER, GameManager.Faction.ENEMY_1)
+	EventBus.battle_won.emit({"time": 99.0, "level_id": "asc2_europe_2"})
+	EventBus.battle_started.emit("europe_1")
+	EventBus.battle_won.emit({"time": 99.0, "level_id": "europe_1"})
+	assert_equals(GameManager.get_stat("flawless_ascensions"), 1, "Ni las bajas ni la campaña normal cuentan")
+	for i in 4:
+		EventBus.battle_started.emit("asc2_europe_1")
+		EventBus.battle_won.emit({"time": 99.0, "level_id": "asc2_europe_1"})
+	assert_true(GameManager.is_achievement_unlocked("untouchable_ascension"), "Cinco victorias impecables desbloquean «Intocable»")
+
+	# 9d. Última resistencia: sólo si se tuvieron 3 bases y se quedó con una
+	GameManager.reset_save()
+	var stand_wins := func(peak: int) -> bool:
+		var battle := BattleController.new()
+		battle.level_id = "europe_1"
+		battle.target_time = 60.0
+		battle.battle_time = 20.0
+		var mine: Array[BaseNode] = []
+		for i in peak:
+			mine.append(_make_base(Vector2(100 * i, 0), GameManager.Faction.PLAYER, 10))
+		var foe := _make_base(Vector2(900, 0), GameManager.Faction.ENEMY_1, 10)
+		battle.bases.append_array(mine)
+		battle.bases.append(foe)
+		for i in range(1, peak):
+			mine[i].faction = GameManager.Faction.ENEMY_1
+			battle._on_base_captured(mine[i], GameManager.Faction.PLAYER, GameManager.Faction.ENEMY_1)
+		var seen := {}
+		var capture = func(stats): seen["last_stand"] = stats.get("last_stand", false)
+		EventBus.battle_won.connect(capture)
+		battle._trigger_victory()
+		EventBus.battle_won.disconnect(capture)
+		battle.free()
+		return seen.get("last_stand", false)
+	assert_true(not stand_wins.call(2), "Quedar con 1 base tras tener 2 no es una última resistencia")
+	assert_equals(GameManager.get_stat("last_stand_wins"), 0, "Sin última resistencia no se cuenta")
+	assert_true(stand_wins.call(3), "Quedar con 1 base tras tener 3 es una última resistencia")
+	assert_true(GameManager.is_achievement_unlocked("last_stand"), "Se desbloquea «Última resistencia»")
+	GameManager.reset_save()
+
+	# 8b. Logros ocultos en Progreso: tarjeta enmascarada, orden y revelado al desbloquear
+	GameManager.reset_save()
+	var secret_tab = load("res://scripts/ui/progress_tab.gd").new()
+	add_child(secret_tab)
+	var secret_card = secret_tab.achievements_box.find_child("Card_last_stand", true, false)
+	var secret_texts: Array = secret_card.find_children("*", "Label", true, false).map(func(l): return l.text)
+	var secret_a := AchievementDatabase.get_by_id("last_stand")
+	assert_true(secret_texts.has(LocaleStrings.text("ach_secret_title")), "El logro oculto muestra «Logro secreto»")
+	assert_true(secret_texts.has(AchievementDatabase.achievement_hint(secret_a)), "El logro oculto muestra su pista")
+	assert_true(not secret_texts.has(AchievementDatabase.achievement_title(secret_a)) and not secret_texts.has(AchievementDatabase.achievement_desc(secret_a)), "El logro oculto no revela su título ni su descripción")
+	assert_true(secret_card.find_children("*", "ProgressBar", true, false).is_empty(), "El logro oculto no enseña barra de progreso")
+	assert_equals(secret_card.theme_type_variation, &"SecretCard", "El logro oculto usa la tarjeta dorada")
+	var card_order: Array = secret_tab.achievements_box.get_children().map(func(c): return c.name)
+	var last_visible: int = card_order.rfind("Card_ascended_4")
+	assert_true(last_visible >= 0 and last_visible < card_order.find("Card_ascended_max"), "Los secretos van después de los logros visibles en curso")
+	remove_child(secret_tab)
+	secret_tab.free()
+	GameManager.unlock_achievement("last_stand")
+	secret_tab = load("res://scripts/ui/progress_tab.gd").new()
+	add_child(secret_tab)
+	secret_card = secret_tab.achievements_box.get_child(0)
+	secret_texts = secret_card.find_children("*", "Label", true, false).map(func(l): return l.text)
+	assert_equals(secret_card.name, "Card_last_stand", "El secreto desbloqueado pasa a reclamable, el primero")
+	assert_true(secret_texts.has(AchievementDatabase.achievement_title(secret_a)) and secret_card.find_child("BtnClaim", true, false) != null, "Al desbloquearlo se revela y se puede reclamar")
+	remove_child(secret_tab)
+	secret_tab.free()
+	Toasts._showing = true
+	Toasts._queue.clear()
+	Toasts._on_achievement_unlocked("last_stand")
+	Toasts._on_achievement_unlocked("first_victory")
+	assert_equals(Toasts._queue[0]["title"], LocaleStrings.text("toast_secret_achievement"), "El aviso de un secreto lo celebra aparte")
+	assert_equals(Toasts._queue[1]["title"], LocaleStrings.text("toast_achievement"), "Un logro normal conserva su aviso")
+	Toasts._queue.clear()
+	Toasts._showing = false
+	GameManager.reset_save()
+
 	# 9. Retos: la recompensa diaria se recoge sin ventanas emergentes
 	GameManager.reset_save()
 	var challenges = load("res://scripts/ui/challenges_tab.gd").new()

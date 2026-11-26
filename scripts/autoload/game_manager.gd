@@ -488,6 +488,14 @@ func ascension_tiers_completed() -> int:
 		done += 1 if is_ascension_complete(tier) else 0
 	return done
 
+func perfect_ascension_tiers() -> int:
+	if ascension_stars.is_empty():
+		return 0
+	var done := 0
+	for tier in range(Ascension.MIN_TIER, Ascension.MAX_TIER + 1):
+		done += 1 if Ascension.tier_level_ids(tier).all(func(id): return int(ascension_stars.get(id, 0)) == 3) else 0
+	return done
+
 func ascension_stars_in_tier(tier: int) -> int:
 	var total := 0
 	for id in Ascension.tier_level_ids(tier):

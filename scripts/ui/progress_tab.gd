@@ -202,8 +202,8 @@ func _build_achievements() -> void:
 	head.add_child(achievements_count)
 	content.add_child(head)
 	achievements_box = UIThemeHelper.vbox(16)
-	# Primero lo que se puede reclamar, después lo que está en curso y al final lo cobrado
-	for rank in 3:
+	# Primero lo que se puede reclamar, después lo que está en curso, los secretos y al final lo cobrado
+	for rank in 4:
 		for a in all:
 			if _rank(a) == rank:
 				achievements_box.add_child(_achievement_card(a))
@@ -214,12 +214,16 @@ static func _unlocked_count() -> int:
 
 static func _rank(a: Dictionary) -> int:
 	if GameManager.is_achievement_claimed(a["id"]):
-		return 2
-	return 0 if GameManager.is_achievement_unlocked(a["id"]) else 1
+		return 3
+	if GameManager.is_achievement_unlocked(a["id"]):
+		return 0
+	return 2 if AchievementDatabase.is_hidden(a) else 1
 
 func _achievement_card(a: Dictionary) -> PanelContainer:
 	var unlocked := GameManager.is_achievement_unlocked(a["id"])
 	var claimed := GameManager.is_achievement_claimed(a["id"])
+	var hidden := AchievementDatabase.is_hidden(a)
+	var secret := hidden and not unlocked
 	var trailing: Control
 	if claimed:
 		trailing = Icons.rect("check", 48, UIThemeHelper.colors.success)
@@ -230,15 +234,23 @@ func _achievement_card(a: Dictionary) -> PanelContainer:
 		trailing.accessibility_description = "%s · +%d" % [AchievementDatabase.achievement_title(a), int(a["reward"])]
 		trailing.pressed.connect(_on_claim_pressed.bind(a["id"]))
 	else:
-		trailing = UIThemeHelper.chip("+%d" % a["reward"], "coin", UIThemeHelper.colors.muted)
-	var icon := UIThemeHelper.label(a["icon"], "Title")
-	icon.modulate.a = 1.0 if unlocked else 0.35
+		trailing = UIThemeHelper.chip("?" if secret else "+%d" % a["reward"], "coin", UIThemeHelper.colors.muted)
+	var icon: Control
+	if secret:
+		icon = Icons.rect("help", 56, UIThemeHelper.colors.gold)
+	else:
+		icon = UIThemeHelper.label(a["icon"], "Title")
+		icon.modulate.a = 1.0 if unlocked else 0.35
 	var card := PanelContainer.new()
 	card.name = "Card_%s" % a["id"]
+	if hidden:
+		card.theme_type_variation = "SecretCard"
 	var column := UIThemeHelper.vbox(16)
 	card.add_child(column)
-	column.add_child(UIThemeHelper.item_row(icon, AchievementDatabase.achievement_title(a), AchievementDatabase.achievement_desc(a), trailing))
-	if not unlocked:
+	var title := LocaleStrings.text("ach_secret_title") if secret else AchievementDatabase.achievement_title(a)
+	var desc := AchievementDatabase.achievement_hint(a) if secret else AchievementDatabase.achievement_desc(a)
+	column.add_child(UIThemeHelper.item_row(icon, title, desc, trailing))
+	if not unlocked and not secret:
 		var bar := UIThemeHelper.hbox(12)
 		bar.add_child(UIThemeHelper.progress(AchievementManager.get_progress(a), 1.0))
 		bar.add_child(UIThemeHelper.label("%d/%d" % [mini(AchievementManager.get_stat(a["stat"]), a["goal"]), a["goal"]], "Caption"))

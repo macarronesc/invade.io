@@ -52,7 +52,7 @@ func _ready() -> void:
     var watchdog := get_tree().create_timer(60.0 + SECONDS_PER_LANGUAGE * langs.size())
     watchdog.timeout.connect(func(): _require(false, "Capture exceeded its time budget"))
     if not _require(LevelDatabase.get_level_ids().size() == 30 and InvasionDatabase.get_region_count() == 59
-            and InvasionDatabase.get_total_fronts() == 177 and AchievementDatabase.get_all().size() == 23,
+            and InvasionDatabase.get_total_fronts() == 177 and AchievementDatabase.get_all().size() == 28,
             "Update store counts when game content changes"):
         return
     for lang in langs:

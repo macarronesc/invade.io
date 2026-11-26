@@ -60,7 +60,7 @@ Autoload order is declared in `project.godot`:
 | `EventBus` | Shared battle, reward, economy, appearance, settings, and save-replacement signals |
 | `GameManager` | Current selection, player progress, economy, settings, validation, and persistence |
 | `AudioManager` | Synthesized sound/music playback, volume settings, and lifecycle suspension |
-| `AchievementManager` | Observes battle signals, updates statistics, XP/missions, and achievement unlocks |
+| `AchievementManager` | Observes battle signals, updates statistics, XP/missions, and achievement unlocks; an entry with `"hidden": true` in `AchievementDatabase` shows only a hint until unlocked |
 | `Toasts` | Brief notifications outside individual pages |
 | `Aptabase` | Vendored analytics client; provider initialization is controlled by `Telemetry` |
 | `Telemetry` | Usage/crash integration, privacy gates, and event context |
