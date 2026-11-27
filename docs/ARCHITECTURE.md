@@ -118,8 +118,8 @@ prepared once and reused; they do not change simulation timing or rendering.
 the battle controller still decides the outcome and emits the same result events.
 
 The [BattleHUD](../scripts/ui/battle_hud.gd) handles briefing/HUD, pause/help,
-alternate accessible controls (opened from the pause menu or an optional HUD button,
-the `battle_controls_button` setting), and results. The
+alternate accessible controls (opened from an optional HUD button, the
+`battle_controls_button` setting), and results. The
 [tutorial overlay](../scripts/battle/tutorial_overlay.gd) guides early interactions.
 
 ### UI and localization

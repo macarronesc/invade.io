@@ -3297,9 +3297,9 @@ func test_accessible_battle_controls() -> void:
 	var target: BaseNode = battle.bases.filter(func(base): return base.faction != GameManager.Faction.PLAYER)[0]
 	source.troops = 40
 	source._update_label()
-	hud._on_pause_pressed()
-	hud._open_accessible_controls()
-	assert_true(is_instance_valid(hud._accessible_panel), "La pausa abre el panel de bases y órdenes")
+	hud._on_controls_button_pressed()
+	assert_true(is_instance_valid(hud._accessible_panel), "El botón del HUD abre el panel de bases y órdenes")
+	assert_true(hud.find_child("BtnAccessibleControls", true, false) == null, "El menú de pausa ya no ofrece los controles de batalla")
 	assert_true(get_tree().paused, "Los controles accesibles mantienen la batalla en pausa")
 	assert_true(hud._accessible_source_buttons.has(source) and hud._accessible_target_buttons.has(target), "El panel lista origen y destino")
 	assert_equals(hud._accessible_status.text, LocaleStrings.text("accessible_no_sources"), "El panel explica por qué Enviar está desactivado")
@@ -3344,8 +3344,7 @@ func test_accessible_battle_controls() -> void:
 	if is_instance_valid(camera):
 		assert_true(camera.global_position.is_equal_approx(target.global_position), "La selección centra el mapa en la base")
 	hud._close_accessible_controls()
-	assert_true(hud.pause_panel.visible and get_tree().paused, "Desde la pausa, cerrar los controles devuelve al menú de pausa")
-	get_tree().paused = false
+	assert_true(not get_tree().paused and not hud.pause_panel.visible, "Cerrar los controles reanuda la batalla")
 	remove_child(battle)
 	battle.free()
 	GameManager.reset_save()
@@ -3372,7 +3371,6 @@ func test_battle_controls_button() -> void:
 	assert_equals(hud.find_children("AccessibleBattleControlsPanel", "Control", true, false).size(), 1, "Solo existe un panel de controles")
 	hud._close_accessible_controls()
 	assert_true(not get_tree().paused and not hud.dim_overlay.visible and not hud.pause_panel.visible, "Cerrar el panel reanuda la batalla directamente")
-	assert_true(not hud._controls_from_hud, "El origen del panel se restablece al cerrar")
 	hud._on_pause_pressed()
 	hud.btn_controls.pressed.emit()
 	assert_true(not is_instance_valid(hud._accessible_panel), "Con la pausa abierta el botón no abre un segundo flujo")

@@ -73,7 +73,6 @@ const MIN_LABEL_SHARE := 0.08
 @onready var btn_pause_music: Button = %BtnPauseMusic
 @onready var btn_pause_retry: Button = %BtnPauseRetry
 @onready var btn_how_to_play: Button = %BtnHowToPlay
-@onready var btn_accessible_controls: Button = %BtnAccessibleControls
 @onready var btn_settings: Button = %BtnSettings
 @onready var btn_pause_map: Button = %BtnPauseMap
 @onready var pause_rule: Label = %PauseRule
@@ -93,8 +92,6 @@ var _last_shown_second: int = -999
 var _last_dominance_accessibility := ""
 var _utility_panel: Control = null
 var _accessible_panel: Control = null
-## El panel se abrió desde el botón del HUD (sin pasar por el menú de pausa)
-var _controls_from_hud := false
 var _accessible_status: Label
 var _accessible_send_button: Button
 var _accessible_orders_list: VBoxContainer
@@ -164,8 +161,6 @@ func _ready() -> void:
 		_tip_panel = UIThemeHelper.how_to_play_card()
 		add_child(_tip_panel))
 	btn_settings.pressed.connect(_open_settings)
-	btn_accessible_controls.pressed.connect(_open_accessible_controls)
-	btn_accessible_controls.disabled = not is_instance_valid(battle_controller)
 	btn_next_level.pressed.connect(_on_next_level_pressed)
 	btn_victory_map.pressed.connect(_on_map_pressed)
 	btn_share.pressed.connect(_open_share)
@@ -217,8 +212,6 @@ func _apply_texts() -> void:
 	btn_pause_retry.text = LocaleStrings.text("restart_battle")
 	btn_how_to_play.text = LocaleStrings.text("how_to_play")
 	btn_settings.text = LocaleStrings.text("settings")
-	btn_accessible_controls.text = LocaleStrings.text("accessible_battle_controls")
-	btn_accessible_controls.accessibility_name = btn_accessible_controls.text
 	btn_pause_map.text = LocaleStrings.text("leave_battle")
 	btn_controls.tooltip_text = LocaleStrings.text("accessible_battle_controls")
 	btn_controls.accessibility_name = btn_controls.tooltip_text
@@ -297,13 +290,12 @@ func _on_pause_sound_pressed() -> void:
 		AudioManager.play_click()
 	_refresh_audio_buttons()
 
-## Atajo opcional del HUD: pausa y abre directamente los controles de batalla.
+## Botón opcional del HUD (Ajustes > Accesibilidad): pausa y abre los controles de batalla.
 func _on_controls_button_pressed() -> void:
 	if not _can_pause() or not is_instance_valid(battle_controller):
 		return
 	AudioManager.play_click()
 	_on_pause_pressed(false, false)
-	_controls_from_hud = true
 	_open_accessible_controls()
 
 ## Lista accesible para inspeccionar bases y emitir las mismas órdenes que el gesto del mapa.
@@ -314,7 +306,6 @@ func _open_accessible_controls() -> void:
 	_accessible_target = null
 	_accessible_source_buttons.clear()
 	_accessible_target_buttons.clear()
-	pause_panel.visible = false
 	_accessible_panel = Control.new()
 	_accessible_panel.name = "AccessibleBattleControlsPanel"
 	_accessible_panel.accessibility_name = LocaleStrings.text("accessible_battle_controls")
@@ -400,15 +391,11 @@ func _close_accessible_controls() -> void:
 	_accessible_target_buttons.clear()
 	_accessible_sources.clear()
 	_accessible_target = null
-	# Un auto-pausa por perder el foco ya mostró el menú: no se reanuda por sorpresa.
-	if _controls_from_hud and not pause_panel.visible:
-		_controls_from_hud = false
+	# Una auto-pausa por perder el foco ya mostró el menú: no se reanuda por sorpresa.
+	if pause_panel.visible:
+		call_deferred("_grab_focus_if_available", btn_resume)
+	else:
 		_resume_battle(btn_controls)
-		return
-	_controls_from_hud = false
-	pause_panel.visible = true
-	dim_overlay.visible = true
-	call_deferred("_grab_focus_if_available", btn_accessible_controls)
 
 func _accessible_base_button(base: BaseNode) -> Button:
 	var description := base.accessibility_summary()
