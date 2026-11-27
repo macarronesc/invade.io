@@ -11,7 +11,7 @@ document. Localized payloads below are preserved in their intended languages.
 recorded here, and early announcement templates contain placeholders and claims
 that must not be copied as current behavior. Confirm the shipped binary and
 current [privacy/publication gate](../PLAY_STORE_UPDATE.md#7-mandatory-privacy-audience-and-release-gate).
-The [0.5.0 candidate notes](#candidate-invadeio-050--support-the-project-and-polish)
+The [1.0.0 candidate notes](#candidate-invadeio-100--ascension-secrets-and-19-languages)
 are not suitable for a listing-only refresh without that application build.
 
 ## Version fields
@@ -402,7 +402,7 @@ same native-speaker review as the listing copy:
 • मौजूदा सेव और प्रगति संगत रहती है।
 </hi-IN>
 <id>
-• Pertempuran dan menu lebih lancar: penggambaran batch, peta yang dipakai ulang, dan animasi yang berhenti setelah lima detik tanpa interaksi.
+• Pertempuran dan menu lebih lancar: penggambaran batch, peta dipakai ulang, dan animasi berhenti setelah lima detik tanpa interaksi.
 • Animasi peluncuran baru, dapat dilewati dengan ketukan dan dinonaktifkan saat Gerakan Dikurangi.
 • Unduhan seluler lebih kecil berkat mesin dan font yang dioptimalkan.
 • Penyimpanan lebih aman: perubahan antarmuka dikelompokkan; jeda, latar belakang, penutupan, pembelian, dan hadiah tetap disimpan segera.
@@ -568,6 +568,158 @@ shipped 0.5.0 binary**; translations are drafts and need native-speaker review:
 
 Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
 
+## Candidate: invade.io 1.0.0 — Ascension, secrets and 19 languages
+
+`versionCode` 9 · **owner must confirm code availability and publication status in Play Console**.
+
+- **Ascension:** once all 30 campaign levels are cleared, nine harder tiers replay the campaign maps with stronger garrisons, extra rival armies, tighter three-star times and bonus gold. Four new upgrades (Fortification, Barracks, Conscription, Siege engineers) and a second invasion season of 23 regions (69 fronts, 59 regions and 177 fronts in total) complete the late game. Existing content is unchanged.
+- **Secret achievements:** six hidden achievements (28 in total) show only a cryptic hint until unlocked.
+- **19 languages:** Polish, Ukrainian, Traditional Chinese and Thai join the existing 15. The new translations are drafts and need native-speaker review.
+- **Settings and pause:** an icon-based Settings screen, a simpler pause menu with clearer "Leave battle" wording, and an optional Battle controls button next to Pause (Settings → Accessibility; off by default).
+- **Fixes:** Android edge-to-edge display detection, privacy opt-outs kept when a backup's privacy copy is stale, one rule for daily-challenge completion and rewards, and safer reset and save handling.
+- The browser demo, theme toggle, store tooling and dependency updates are repository/website changes and are not part of the mobile app.
+- Existing saves and progress remain compatible (save format 8 loads format 7 unchanged).
+
+Proposed payloads below apply **only to a shipped 1.0.0 binary**; translations are drafts and need native-speaker review:
+
+```text
+<es-ES>
+• Ascensión: tras la campaña, rejuega los 30 mapas en 9 niveles más difíciles con oro extra y 4 mejoras nuevas; 23 regiones de invasión nuevas.
+• 6 logros secretos (28 en total).
+• 4 idiomas nuevos: polaco, ucraniano, chino tradicional y tailandés (19 en total).
+• Ajustes con iconos, menú de pausa más simple y botón opcional de Controles de batalla.
+• Mejoras en la pantalla de Android, la privacidad y las recompensas diarias. Tus partidas siguen siendo compatibles.
+</es-ES>
+<en-US>
+• Ascension: after the campaign, replay all 30 maps in 9 harder tiers with bonus gold and 4 new upgrades; 23 new invasion regions.
+• 6 secret achievements (28 in total).
+• 4 new languages: Polish, Ukrainian, Traditional Chinese and Thai (19 in total).
+• Icon-based Settings, a simpler pause menu and an optional Battle controls button.
+• Fixes for Android display, privacy choices and daily rewards. Existing saves remain compatible.
+</en-US>
+<pt-BR>
+• Ascensão: depois da campanha, jogue os 30 mapas de novo em 9 níveis mais difíceis, com ouro extra e 4 melhorias novas; 23 novas regiões de invasão.
+• 6 conquistas secretas (28 no total).
+• 4 novos idiomas: polonês, ucraniano, chinês tradicional e tailandês (19 no total).
+• Ajustes com ícones, menu de pausa mais simples e botão opcional de Controles de batalha.
+• Correções na tela do Android, na privacidade e nas recompensas diárias. Seus saves continuam compatíveis.
+</pt-BR>
+<fr-FR>
+• Ascension : après la campagne, rejouez les 30 cartes en 9 paliers plus difficiles, avec de l’or en bonus et 4 améliorations ; 23 nouvelles régions d’invasion.
+• 6 succès secrets (28 au total).
+• 4 nouvelles langues : polonais, ukrainien, chinois traditionnel et thaï (19 au total).
+• Réglages à icônes, menu pause simplifié et bouton facultatif Contrôles de combat.
+• Corrections de l’affichage Android, de la confidentialité et des récompenses quotidiennes. Vos sauvegardes restent compatibles.
+</fr-FR>
+<de-DE>
+• Aufstieg: Spiele nach der Kampagne alle 30 Karten in 9 schwereren Stufen erneut – mit Bonus-Gold und 4 neuen Upgrades; 23 neue Invasionsregionen.
+• 6 geheime Erfolge (insgesamt 28).
+• 4 neue Sprachen: Polnisch, Ukrainisch, Traditionelles Chinesisch und Thai (insgesamt 19).
+• Einstellungen mit Symbolen, einfacheres Pausenmenü und optionale Schaltfläche für Kampfkontrollen.
+• Korrekturen bei Android-Anzeige, Datenschutz und täglichen Belohnungen. Bestehende Spielstände bleiben kompatibel.
+</de-DE>
+<it-IT>
+• Ascensione: dopo la campagna, rigioca tutte le 30 mappe in 9 livelli più difficili con oro extra e 4 nuovi potenziamenti; 23 nuove regioni di invasione.
+• 6 obiettivi segreti (28 in totale).
+• 4 nuove lingue: polacco, ucraino, cinese tradizionale e thailandese (19 in totale).
+• Impostazioni con icone, menu di pausa più semplice e pulsante facoltativo Controlli di battaglia.
+• Correzioni a schermo Android, privacy e ricompense giornaliere. I salvataggi esistenti restano compatibili.
+</it-IT>
+<ru-RU>
+• Вознесение: после кампании проходите все 30 карт заново на 9 более сложных уровнях с бонусным золотом и 4 новыми улучшениями; 23 новых региона вторжений.
+• 6 секретных достижений (всего 28).
+• 4 новых языка: польский, украинский, традиционный китайский и тайский (всего 19).
+• Настройки с иконками, более простое меню паузы и необязательная кнопка «Управление боем».
+• Исправления отображения на Android, конфиденциальности и ежедневных наград. Существующие сохранения совместимы.
+</ru-RU>
+<tr-TR>
+• Yükseliş: kampanyadan sonra 30 haritanın tamamını 9 daha zor kademede, ekstra altın ve 4 yeni geliştirmeyle yeniden oyna; 23 yeni istila bölgesi.
+• 6 gizli başarım (toplam 28).
+• 4 yeni dil: Lehçe, Ukraynaca, Geleneksel Çince ve Tayca (toplam 19).
+• Simgeli Ayarlar, daha sade duraklatma menüsü ve isteğe bağlı Savaş kontrolleri düğmesi.
+• Android ekranı, gizlilik ve günlük ödüllerde düzeltmeler. Mevcut kayıtlar uyumlu kalır.
+</tr-TR>
+<ar>
+• الارتقاء: بعد الحملة أعد لعب الخرائط الثلاثين في 9 مستويات أصعب مع ذهب إضافي و4 ترقيات جديدة؛ و23 منطقة غزو جديدة.
+• 6 إنجازات سرية (28 إنجازًا في المجموع).
+• 4 لغات جديدة: البولندية والأوكرانية والصينية التقليدية والتايلاندية (19 لغة في المجموع).
+• إعدادات بالأيقونات وقائمة إيقاف مؤقت أبسط وزر اختياري لضوابط المعركة.
+• إصلاحات في عرض أندرويد والخصوصية والمكافآت اليومية. تظل عمليات الحفظ الحالية متوافقة.
+</ar>
+<hi-IN>
+• आरोहण: अभियान के बाद सभी 30 मैप 9 कठिन स्तरों में दोबारा खेलें, अतिरिक्त सोना और 4 नए अपग्रेड के साथ; 23 नए आक्रमण क्षेत्र।
+• 6 गुप्त उपलब्धियाँ (कुल 28)।
+• 4 नई भाषाएँ: पोलिश, यूक्रेनी, पारंपरिक चीनी और थाई (कुल 19)।
+• आइकनों वाली सेटिंग्स, सरल पॉज़ मेन्यू और वैकल्पिक युद्ध नियंत्रण बटन।
+• Android डिस्प्ले, गोपनीयता और दैनिक इनामों में सुधार। मौजूदा सेव संगत रहते हैं।
+</hi-IN>
+<id>
+• Asensi: setelah kampanye, mainkan ulang semua 30 peta di 9 tingkat yang lebih sulit dengan emas ekstra dan 4 peningkatan baru; 23 wilayah invasi baru.
+• 6 pencapaian rahasia (total 28).
+• 4 bahasa baru: Polandia, Ukraina, Mandarin Tradisional, dan Thai (total 19).
+• Pengaturan berikon, menu jeda yang lebih sederhana, dan tombol opsional Kontrol pertempuran.
+• Perbaikan tampilan Android, privasi, dan hadiah harian. Simpanan yang ada tetap kompatibel.
+</id>
+<vi>
+• Thăng cấp: sau chiến dịch, chơi lại cả 30 bản đồ ở 9 cấp độ khó hơn với thêm vàng và 4 nâng cấp mới; 23 khu vực xâm lược mới.
+• 6 thành tích bí mật (tổng 28).
+• 4 ngôn ngữ mới: tiếng Ba Lan, Ukraina, Trung phồn thể và Thái (tổng 19).
+• Cài đặt có biểu tượng, menu tạm dừng gọn hơn và nút Điều khiển trận chiến tùy chọn.
+• Sửa lỗi hiển thị Android, quyền riêng tư và phần thưởng hằng ngày. Bản lưu hiện có vẫn tương thích.
+</vi>
+<zh-CN>
+• 晋升：通关战役后，可在 9 个更难的层级中重玩全部 30 张地图，获得额外金币和 4 种新升级；新增 23 个入侵地区。
+• 6 个隐藏成就（共 28 个）。
+• 新增 4 种语言：波兰语、乌克兰语、繁体中文和泰语（共 19 种）。
+• 带图标的设置页、更简洁的暂停菜单，以及可选的战斗控制按钮。
+• 修复 Android 显示、隐私和每日奖励问题。现有存档保持兼容。
+</zh-CN>
+<ja-JP>
+• アセンション：キャンペーン後、全30マップをより難しい9段階で再プレイでき、ボーナスゴールドと新アップグレード4種を追加。侵攻地域も23か所増えました。
+• 隠し実績6個を追加（合計28個）。
+• 新言語4つ：ポーランド語、ウクライナ語、繁体字中国語、タイ語（合計19言語）。
+• アイコン付きの設定画面、よりシンプルなポーズメニュー、任意のバトルコントロールボタン。
+• Android の表示、プライバシー、デイリー報酬を修正。既存のセーブとの互換性は維持されます。
+</ja-JP>
+<ko-KR>
+• 승천: 캠페인을 마친 뒤 30개 지도를 더 어려운 9단계로 다시 플레이하세요. 보너스 골드와 새 업그레이드 4종, 새 침공 지역 23곳이 추가됩니다.
+• 비밀 업적 6개 추가(총 28개).
+• 새 언어 4개: 폴란드어, 우크라이나어, 번체 중국어, 태국어(총 19개).
+• 아이콘 기반 설정 화면, 더 간단한 일시정지 메뉴, 선택형 전투 조작 버튼.
+• Android 화면, 개인정보, 일일 보상 문제를 수정했습니다. 기존 저장과 호환됩니다.
+</ko-KR>
+<pl-PL>
+• Awans: po kampanii zagraj ponownie na wszystkich 30 mapach w 9 trudniejszych poziomach – z dodatkowym złotem i 4 nowymi ulepszeniami; 23 nowe regiony inwazji.
+• 6 tajnych osiągnięć (łącznie 28).
+• 4 nowe języki: polski, ukraiński, chiński tradycyjny i tajski (łącznie 19).
+• Ustawienia z ikonami, prostsze menu pauzy i opcjonalny przycisk Sterowanie bitwą.
+• Poprawki wyświetlania na Androidzie, prywatności i dziennych nagród. Istniejące zapisy pozostają zgodne.
+</pl-PL>
+<uk>
+• Сходження: після кампанії проходьте всі 30 мап заново на 9 складніших рівнях із додатковим золотом і 4 новими покращеннями; 23 нові регіони вторгнень.
+• 6 секретних досягнень (усього 28).
+• 4 нові мови: польська, українська, традиційна китайська та тайська (усього 19).
+• Налаштування з іконками, простіше меню паузи та необов’язкова кнопка «Керування боєм».
+• Виправлення відображення на Android, приватності та щоденних нагород. Наявні збереження сумісні.
+</uk>
+<zh-TW>
+• 晉升：通關戰役後，可在 9 個更困難的層級中重玩全部 30 張地圖，獲得額外金幣與 4 種新升級；新增 23 個入侵地區。
+• 6 個隱藏成就（共 28 個）。
+• 新增 4 種語言：波蘭語、烏克蘭語、繁體中文與泰語（共 19 種）。
+• 附圖示的設定頁、更簡潔的暫停選單，以及可選的戰鬥控制按鈕。
+• 修正 Android 顯示、隱私與每日獎勵問題。現有存檔保持相容。
+</zh-TW>
+<th>
+• เลื่อนขั้น: หลังจบแคมเปญ เล่นทั้ง 30 แผนที่ซ้ำใน 9 ระดับที่ยากขึ้น พร้อมทองโบนัสและอัปเกรดใหม่ 4 แบบ และภูมิภาคบุกรุกใหม่ 23 แห่ง
+• ความสำเร็จลับ 6 รายการ (รวม 28)
+• ภาษาใหม่ 4 ภาษา: โปแลนด์ ยูเครน จีนตัวเต็ม และไทย (รวม 19)
+• การตั้งค่าแบบไอคอน เมนูหยุดชั่วคราวที่เรียบง่ายขึ้น และปุ่มการควบคุมการต่อสู้แบบเลือกได้
+• แก้ไขการแสดงผล Android ความเป็นส่วนตัว และรางวัลรายวัน เซฟเดิมยังใช้งานได้
+</th>
+```
+
+Listing assets and update procedure: [PLAY_STORE_UPDATE.md](../PLAY_STORE_UPDATE.md).
+
 ## Version reference
 
 Dates were not recorded in this document. Confirm distributed versions in Play
@@ -582,3 +734,4 @@ Console and exact commits in GitHub releases; these rows are not deployment logs
 | 0.3.2 | 6 | Verify before distribution | Enabled telemetry defaults and localized store refresh |
 | 0.4.0 | 7 | Verify before distribution | Faster battles/menus, launch animation, safer save timing, and smaller mobile builds |
 | 0.5.0 | 8 | Verify before distribution | Optional Ko-fi support button, instant menu refresh after restore/reset, light-background base shapes, large-text and reward fixes, and more stable maps |
+| 1.0.0 | 9 | Verify before distribution | Ascension tiers with four new upgrades and 23 more invasion regions, six secret achievements, four new languages (19), icon-based Settings, simpler pause menu with an optional Battle controls button, and privacy/daily-reward/Android fixes |
