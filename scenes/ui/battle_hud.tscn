@@ -46,6 +46,14 @@ layout_mode = 2
 size_flags_vertical = 4
 theme_type_variation = &"IconButton"
 
+[node name="BtnControls" type="Button" parent="TopBar/Card/VBox/Row"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(88, 88)
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"IconButton"
+
 [node name="Titles" type="VBoxContainer" parent="TopBar/Card/VBox/Row"]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -559,16 +567,6 @@ text = "Reiniciar batalla"
 unique_name_in_owner = true
 layout_mode = 2
 text = "Cómo jugar"
-
-[node name="BtnAccessibility" type="Button" parent="PausePanel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Accesibilidad"
-
-[node name="BtnAccessibleControls" type="Button" parent="PausePanel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Controles de batalla"
 
 [node name="BtnSettings" type="Button" parent="PausePanel/VBox"]
 unique_name_in_owner = true

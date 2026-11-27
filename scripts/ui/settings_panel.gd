@@ -4,7 +4,6 @@ extends Control
 
 signal closed()
 var allow_backups: bool = true
-var focus_accessibility_on_open := false
 var _content: VBoxContainer
 var _group: VBoxContainer
 var _status: Label
@@ -22,10 +21,8 @@ const IOS_IMPORT_PATH := "user://backup_import.json"
 const IOS_EXPORT_PATH := "user://backup_export.json"
 
 func _ready() -> void:
-	var focus_accessibility := focus_accessibility_on_open
 	_build()
-	if not focus_accessibility:
-		call_deferred("_focus_control", "BtnBack")
+	call_deferred("_focus_control", "BtnBack")
 	GameManager.save_status_changed.connect(_refresh_save_status)
 
 func _focus_control(control_name: String) -> void:
@@ -69,9 +66,6 @@ func _build(restore_focus: String = "") -> void:
 		var focused := get_viewport().gui_get_focus_owner()
 		if is_instance_valid(focused) and is_ancestor_of(focused):
 			restore_focus = str(focused.name)
-	if restore_focus == "" and focus_accessibility_on_open:
-		restore_focus = "Colorblind"
-		focus_accessibility_on_open = false
 	UIThemeHelper.clear(self)
 	_content = UIThemeHelper.overlay_page(self, LocaleStrings.text("settings"), _close)
 
@@ -124,6 +118,8 @@ func _build(restore_focus: String = "") -> void:
 		_toggle(key, GameManager.settings[key], func(value): GameManager.set_setting(key, value))
 	_toggle("high_contrast_map", GameManager.settings["high_contrast_map"], func(value):
 		GameManager.set_setting("high_contrast_map", value), "accessibility_high_contrast_map")
+	_toggle("battle_controls_button", GameManager.settings["battle_controls_button"], func(value): GameManager.set_setting("battle_controls_button", value))
+	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("battle_controls_button_note")))
 	if OS.has_feature("mobile") and not AccessibilityServer.is_supported():
 		_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("accessibility_mobile_reader_note")))
 

@@ -143,6 +143,7 @@ func _ready() -> void:
 		test_voronoi_halfplane_clipping_geometry()
 		test_territory_map_generation_and_coverage()
 		test_accessible_battle_controls()
+		test_battle_controls_button()
 		test_theme_and_ui_helpers()
 		test_ui_glyph_coverage()
 		test_toast_notifications()
@@ -346,6 +347,7 @@ func run_all_tests() -> void:
 	test_under_siege_alert_trigger_and_deactivation()
 	test_hud_force_counters()
 	test_accessible_battle_controls()
+	test_battle_controls_button()
 	test_main_menu_hub_navigation()
 	test_play_tab_campaign_route_and_briefing()
 	test_large_screen_layouts()
@@ -3212,6 +3214,9 @@ func test_battle_hud_modals_and_sound_toggle() -> void:
 	for node in [hud.dim_overlay, hud.victory_panel, hud.defeat_panel, hud.pause_panel, hud.btn_pause, hud.btn_resume, hud.btn_pause_sound, hud.btn_how_to_play, hud.btn_settings]:
 		assert_true(node != null, "Nodo del HUD presente: %s" % node.name)
 	assert_true(not hud.dim_overlay.visible and not hud.victory_panel.visible and not hud.defeat_panel.visible and not hud.pause_panel.visible, "Capas ocultas al empezar")
+	assert_true(hud.find_child("BtnAccessibility", true, false) == null, "Accesibilidad vive solo en Ajustes, no en la pausa")
+	assert_equals(hud.btn_pause_map.text, LocaleStrings.text("leave_battle"), "La pausa dice que salir abandona la batalla")
+	assert_true(LocaleStrings.text("leave_battle") != LocaleStrings.text("exit"), "Abandonar batalla y volver al menú son textos distintos")
 
 	# 2. Pausa y sonido
 	hud._on_pause_pressed()
@@ -3292,9 +3297,9 @@ func test_accessible_battle_controls() -> void:
 	var target: BaseNode = battle.bases.filter(func(base): return base.faction != GameManager.Faction.PLAYER)[0]
 	source.troops = 40
 	source._update_label()
-	hud._on_pause_pressed()
-	hud._open_accessible_controls()
-	assert_true(is_instance_valid(hud._accessible_panel), "La pausa abre el panel de bases y órdenes")
+	hud._on_controls_button_pressed()
+	assert_true(is_instance_valid(hud._accessible_panel), "El botón del HUD abre el panel de bases y órdenes")
+	assert_true(hud.find_child("BtnAccessibleControls", true, false) == null, "El menú de pausa ya no ofrece los controles de batalla")
 	assert_true(get_tree().paused, "Los controles accesibles mantienen la batalla en pausa")
 	assert_true(hud._accessible_source_buttons.has(source) and hud._accessible_target_buttons.has(target), "El panel lista origen y destino")
 	assert_equals(hud._accessible_status.text, LocaleStrings.text("accessible_no_sources"), "El panel explica por qué Enviar está desactivado")
@@ -3310,6 +3315,9 @@ func test_accessible_battle_controls() -> void:
 	hud._select_accessible_target(target)
 	(hud._accessible_target_buttons[target] as Button).pressed.emit()
 	assert_true(not hud._accessible_send_button.disabled, "Enviar se habilita al elegir una ruta válida")
+	assert_equals(hud._accessible_status.text, LocaleStrings.text("accessible_ready") % [39, target.base_name], "El panel resume cuántas tropas saldrán y hacia dónde")
+	for hint in ["accessible_sources_hint", "accessible_targets_hint"]:
+		assert_true(hud._accessible_panel.find_children("*", "Label", true, false).any(func(label): return label.text == LocaleStrings.text(hint)), "Cada paso explica qué elegir: %s" % hint)
 	hud._send_accessible_order()
 	assert_equals(source.troops, 1, "Enviar desde el panel usa la misma regla de tropas que el gesto")
 	assert_true(hud._accessible_status.text.contains(target.base_name), "El resultado del envío se anuncia en el panel")
@@ -3336,6 +3344,64 @@ func test_accessible_battle_controls() -> void:
 	if is_instance_valid(camera):
 		assert_true(camera.global_position.is_equal_approx(target.global_position), "La selección centra el mapa en la base")
 	hud._close_accessible_controls()
+	assert_true(not get_tree().paused and not hud.pause_panel.visible, "Cerrar los controles reanuda la batalla")
+	remove_child(battle)
+	battle.free()
+	GameManager.reset_save()
+
+func test_battle_controls_button() -> void:
+	print("\n-> Test: Botón opcional de controles de batalla en el HUD")
+	GameManager.reset_save()
+	GameManager.play_level("europe_1")
+	for tip in ["drag", "chain", "slice", "factory", "fortress"]:
+		GameManager.mark_tip_seen(tip)
+	var battle: BattleController = load("res://scenes/battle/battle_field.tscn").instantiate()
+	add_child(battle)
+	var hud: BattleHUD = battle.get_node("BattleHUD")
+	assert_equals(GameManager.settings["battle_controls_button"], false, "El botón de controles está desactivado por defecto")
+	assert_true(not hud.btn_controls.visible, "La pantalla de batalla no cambia si no se activa el ajuste")
+	GameManager.set_setting("battle_controls_button", true)
+	assert_true(hud.btn_controls.visible, "Activar el ajuste muestra el botón al instante")
+	assert_equals(hud.btn_controls.accessibility_name, LocaleStrings.text("accessible_battle_controls"), "El botón tiene nombre accesible")
+	assert_true(hud.btn_controls.custom_minimum_size.x >= 88 and hud.btn_controls.custom_minimum_size.y >= 88, "El botón tiene una zona táctil amplia")
+	hud.btn_controls.pressed.emit()
+	assert_true(get_tree().paused and is_instance_valid(hud._accessible_panel), "El botón pausa y abre los controles en un solo toque")
+	assert_true(not hud.pause_panel.visible, "Sin pasar por el menú de pausa")
+	hud.btn_controls.pressed.emit()
+	assert_equals(hud.find_children("AccessibleBattleControlsPanel", "Control", true, false).size(), 1, "Solo existe un panel de controles")
+	hud._close_accessible_controls()
+	assert_true(not get_tree().paused and not hud.dim_overlay.visible and not hud.pause_panel.visible, "Cerrar el panel reanuda la batalla directamente")
+	hud._on_pause_pressed()
+	hud.btn_controls.pressed.emit()
+	assert_true(not is_instance_valid(hud._accessible_panel), "Con la pausa abierta el botón no abre un segundo flujo")
+	hud._on_resume_pressed()
+	get_tree().paused = false
+	hud.pause_panel.visible = false
+	hud.dim_overlay.visible = false
+	hud.btn_controls.pressed.emit()
+	hud._on_pause_pressed(true)
+	hud._close_accessible_controls()
+	assert_true(get_tree().paused and hud.pause_panel.visible, "Si la app perdió el foco con el panel abierto, se vuelve al menú de pausa")
+	get_tree().paused = false
+	hud.pause_panel.visible = false
+	hud.dim_overlay.visible = false
+	hud._on_battle_lost()
+	get_tree().paused = false
+	hud.btn_controls.pressed.emit()
+	assert_true(not is_instance_valid(hud._accessible_panel), "El botón no abre controles sobre una pantalla de resultado")
+	GameManager.set_setting("battle_controls_button", false)
+	assert_true(not hud.btn_controls.visible, "Desactivar el ajuste oculta el botón al instante")
+	var settings: Control = load("res://scripts/ui/settings_panel.gd").new()
+	add_child(settings)
+	var toggle := settings.find_child("BattleControlsButton", true, false) as CheckButton
+	assert_true(toggle != null and toggle.custom_minimum_size.y >= 128, "Ajustes ofrece el interruptor con zona táctil amplia")
+	toggle.set_pressed(true)
+	assert_true(GameManager.settings["battle_controls_button"], "El interruptor de Ajustes activa el botón")
+	remove_child(settings)
+	settings.free()
+	GameManager.reset_save()
+	assert_equals(GameManager.settings["battle_controls_button"], true, "Reiniciar el progreso conserva las preferencias de accesibilidad")
+	GameManager.set_setting("battle_controls_button", false)
 	get_tree().paused = false
 	remove_child(battle)
 	battle.free()
@@ -5082,7 +5148,7 @@ func test_settings_and_backups() -> void:
 	assert_true(exported_data is Dictionary and exported_data.has("completed_levels"), "La copia exportada conserva el formato del juego")
 	DirAccess.remove_absolute(backup_path)
 	assert_equals(panel.find_children("*", "HSlider", true, false).size(), 3, "Volúmenes e intensidad háptica con controles nativos")
-	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 8, "Sonido, música, vibración, paleta, contraste, reducir movimiento, analítica y fallos")
+	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 9, "Sonido, música, vibración, paleta, contraste, botón de controles, reducir movimiento, analítica y fallos")
 	assert_equals(panel.find_children("*", "OptionButton", true, false).size(), 4, "Apariencia, idioma, velocidad y tamaño del texto")
 	var text_size_option := panel.find_child("TextSize", true, false) as OptionButton
 	assert_true(text_size_option.accessibility_name == LocaleStrings.text("accessibility_font_size"), "El tamaño de texto tiene nombre accesible")
