@@ -23,13 +23,13 @@ OGNI MOSSA CONTA
 Cattura fabbriche per reclutare più velocemente, conquista città capitali strategiche e sfonda le difese fortificate. Ogni continente introduce giungle, oasi, rotte marittime o boss con rinforzi. Collega più basi alleate con un solo gesto o taglia una rotta per richiamare le tue truppe.
 
 UNA CAMPAGNA E MOLTO ALTRO
- Combatti attraverso 30 livelli di campagna in sei continenti. Completa la campagna di ogni continente per sbloccare le sue invasioni regionali: 59 regioni, 177 fronti e stelle da dominare. Completa una regione in cambio di oro e guadagna ricompense cosmetiche man mano che completi i continenti.
+ Combatti attraverso 30 livelli di campagna in sei continenti. Completa la campagna di ogni continente per sbloccare le sue invasioni regionali: 59 regioni, 177 fronti e stelle da dominare. Completa una regione in cambio di oro e guadagna ricompense cosmetiche man mano che completi i continenti. Dopo la campagna, scala nove livelli di Ascensione che rigiocano tutte le 30 mappe con rivali più forti, oro extra e nuovi potenziamenti.
 
 ALTRI MODI PER CONQUISTARE
 Nella conquista libera, ogni spedizione attraversa cinque regioni e termina con un boss. Affronta una sfida quotidiana con regole variabili e forze iniziali uguali, senza potenziamenti di combattimento. Batti il tuo record e copia una scheda dei risultati da condividere con gli amici. Le sfide si giocano sul tuo dispositivo, non contro avversari in tempo reale.
 
 PROGRESSI GUADAGNATI GIOCANDO
-Migliora la guarnigione, il reclutamento, la velocità di marcia e le ricompense in oro. Sali di grado, raccogli le città della campagna nel tuo atlante e completa 23 obiettivi. Sblocca i colori dell'esercito, le forme delle basi, gli stili delle truppe e i temi della mappa. Gli oggetti estetici cambiano l'aspetto, non la forza di combattimento.
+Migliora la guarnigione, il reclutamento, la velocità di marcia e le ricompense in oro. Sali di grado, raccogli le città della campagna nel tuo atlante e completa 28 obiettivi. Sblocca i colori dell'esercito, le forme delle basi, gli stili delle truppe e i temi della mappa. Gli oggetti estetici cambiano l'aspetto, non la forza di combattimento.
 
 GIOCA A MODO TUO
 • Gameplay offline, senza pubblicità e senza acquisti in-app. L'oro si guadagna giocando.

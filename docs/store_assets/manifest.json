@@ -1,5 +1,5 @@
 {
-	"commit": "d2c36a26029b89b1c4753d08a026cb7dd62d4132",
+	"commit": "16a9ff7da4bef5d3edc3d3299f4e0a274c0e0fa7",
 	"daily_day": 20754,
 	"feature_sha256": "126d155773143f564a650af6d607434014b45d4a4b41299608704b4d014ebf20",
 	"godot": "4.7.2-stable (official)",
@@ -34,14 +34,14 @@
 			{
 				"alt": "جبهة الغزو الأخيرة في أيبيريا، مع تقدم القوات نحو عاصمة المنطقة.",
 				"file": "3_invasions.png",
-				"headline": "36 منطقة. 108 جبهات.",
+				"headline": "59 منطقة. 177 جبهات.",
 				"raw": "build/store_capture/raw/ar/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "0be7a1aba771201aea8e4a1d68a41666379c03a6bb49007bd02820930f4f7b46",
+				"sha256": "2e8e5405b30c67a9daac869515ba3023118504fd1009301650bbfdc3a2f15de9",
 				"subtitle": "ثلاث جبهات. منطقة واحدة لإتقانها."
 			},
 			{
@@ -54,7 +54,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "80a2f5b41181c756fcb13ce7f3106fc3ec6a566468a3ddd0335f96c124059bf0",
+				"sha256": "f3877f5d09f68cd539d074e5de89557e4fda7f09c397144c34233af443dc7318",
 				"subtitle": "30 مستوى للحملة + حملات الغزو."
 			},
 			{
@@ -106,8 +106,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "db3b1dab00fc3a11df862342623f71c6bd8b83ac7d229154cf09157f882586e0",
-				"subtitle": "مدن ورتب و20 إنجازًا."
+				"sha256": "7a3e71d161d069ebf2849b6aea787cff0b8d8bb8d0f28772b8262a9da0cc3b70",
+				"subtitle": "مدن ورتب و28 إنجازًا."
 			}
 		],
 		"de": [
@@ -140,14 +140,14 @@
 			{
 				"alt": "Die letzte Invasionsfront in Iberia, mit Truppen, die in Richtung der Hauptstadt der Region vorrücken.",
 				"file": "3_invasions.png",
-				"headline": "36 Regionen. 108 Fronten.",
+				"headline": "59 Regionen. 177 Fronten.",
 				"raw": "build/store_capture/raw/de/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "25a3ea5f61915f78dd724f1f552303155a1a590d4a9b7a11054418c489ed54ae",
+				"sha256": "91f7b0d87f92dac4aa9890d00595749f1413502393be4ea1e158b7b1f6d75584",
 				"subtitle": "Drei Fronten. Eine Region meistern."
 			},
 			{
@@ -160,7 +160,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "b4c175d1080c3e3a61f9b7a107df1205ed390dbb8ee079b0749f44806bfdefc3",
+				"sha256": "c42135981378ed199e18e1d4d46455487d0d2d9f67fe63aa62c8a12ac1175094",
 				"subtitle": "30 Kampagnenlevel + Eroberungsexpeditionen."
 			},
 			{
@@ -212,8 +212,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "e104403b7d6d88314851551446392982ace7b6de5efe2480e6e6ad2efe27d4e0",
-				"subtitle": "Städte, Ränge und 20 Erfolge."
+				"sha256": "7f49327b2f9e51d858b4f4273188f29e52b72874e7e5fb9f6cb37fdc433972fd",
+				"subtitle": "Städte, Ränge und 28 Erfolge."
 			}
 		],
 		"en": [
@@ -253,7 +253,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "1b5e05a58d6c5a477e5f804713f49384afb0aa3fd81c3defe4d4679f9a2ca00a",
+				"sha256": "86703eb741489ad3935df11deb0bae4e512311223a60b18c76bc4ec3b963d857",
 				"subtitle": "Three fronts. One region to master."
 			},
 			{
@@ -266,7 +266,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "372f92fb95fa3137e47bf1e531c0c7169599c00db9286caba02ea4270999e274",
+				"sha256": "6791cc4e7698e219a6fc72ea48324022de03daca5132548fab687336d77d3e3f",
 				"subtitle": "30 campaign levels + conquest expeditions."
 			},
 			{
@@ -318,8 +318,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "2f2165635aececcf013627c2e4b1881f5cafd9116f8d70138d7359c604accd34",
-				"subtitle": "Cities, ranks and 23 achievements."
+				"sha256": "900ee466610077c30dce7347f667c77689cba261f96e1b95b93afcb8c1c8e7f8",
+				"subtitle": "Cities, ranks and 28 achievements."
 			}
 		],
 		"es": [
@@ -359,7 +359,7 @@
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "f0dc86a2adecb47070650e2e5bb9502976bc20749f6f8c43ae499325f3ebed5e",
+				"sha256": "7063ad29584b5f191c3f8e97ed8f7aed76be0aa3fc19ee5d5cb533a15e2ae423",
 				"subtitle": "Tres frentes. Una región por dominar."
 			},
 			{
@@ -372,7 +372,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "cc4812433df69db3716c8378e4a8b332a9a7043d7dcf5fe4c84c92e3fd7fef52",
+				"sha256": "f21d3972e81324726a98eff6636cfeb0bd0f046b966c3fb412b4b77132ea157e",
 				"subtitle": "30 niveles de campaña y expediciones libres."
 			},
 			{
@@ -424,8 +424,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "5459733f557f31850379af58482dcbe780c27e373a63c62f292c245b91e725f3",
-				"subtitle": "Ciudades, rangos y 23 logros."
+				"sha256": "5108e954d4c3c5a4fb9bf54029c618fe3500b5bbff42cb39fda5afedf2ef6d5f",
+				"subtitle": "Ciudades, rangos y 28 logros."
 			}
 		],
 		"fr": [
@@ -458,14 +458,14 @@
 			{
 				"alt": "Le dernier front d'invasion en Ibérie, avec des troupes avançant vers la capitale de la région.",
 				"file": "3_invasions.png",
-				"headline": "36 régions. 177 fronts.",
+				"headline": "59 régions. 177 fronts.",
 				"raw": "build/store_capture/raw/fr/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "74609d69144aecf5704dc855fb74fce9de88f3548c22aaa302186a2b6ad9fa40",
+				"sha256": "6ddfaa6f9973974d469161588c42a68f1a5c57aec2a892225248878ca12f9220",
 				"subtitle": "Trois fronts. Une région à maîtriser."
 			},
 			{
@@ -478,7 +478,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "6b6dca8da65347a5ea728759a8f6d40109b2b9f6592db04cc90b750793d3b087",
+				"sha256": "7dec90b33f75a1bad3c5fc9504b1a55b299ce9686398e34a11b4cbf701d6f237",
 				"subtitle": "30 niveaux de campagne + expéditions de conquête."
 			},
 			{
@@ -530,8 +530,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "3bc6cf4ab9cce57bd1171384a122d4866eea8bf52d103f79c9dea9665df965b6",
-				"subtitle": "Villes, rangs et 23 succès."
+				"sha256": "184061771535599d86c4ecc9278cd1b3c173be9eaab00725df6d82d9d0938abe",
+				"subtitle": "Villes, rangs et 28 succès."
 			}
 		],
 		"hi": [
@@ -564,14 +564,14 @@
 			{
 				"alt": "इबेरिया में अंतिम आक्रमण मोर्चा, जिसमें सैनिक क्षेत्र की राजधानी की ओर बढ़ रहे हैं।",
 				"file": "3_invasions.png",
-				"headline": "36 क्षेत्र. 108 मोर्चे.",
+				"headline": "59 क्षेत्र. 177 मोर्चे.",
 				"raw": "build/store_capture/raw/hi/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "c3f3bcb0f2af546c94d842e435d75dfb457fa88516fe052dd65ae6e3fce52f9c",
+				"sha256": "2dde79ef1da82aab64bc991eb4ffe20002946334944e04e0e50026b6f73a6f89",
 				"subtitle": "तीन मोर्चे। एक क्षेत्र पर जीत।"
 			},
 			{
@@ -584,7 +584,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "f14114eaa777145e53500b6aec50b71ae5c00af2d2f03b5fac276c1363466072",
+				"sha256": "3ac8d30cd10c0016d5e1f640a07635690dc3b3ba866b5335871a144da09f7dfd",
 				"subtitle": "30 अभियान स्तर + विजय अभियान।"
 			},
 			{
@@ -636,8 +636,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "4082f558957f2774bb24c9f216e747fa04e47f650724a71c90a1eaa85b2e0a84",
-				"subtitle": "शहर, रैंक और 20 उपलब्धियाँ।"
+				"sha256": "1ce36bb350dc03fad30f54a9d6d97f062868ec49f33d40c0fd0972769d3e6d46",
+				"subtitle": "शहर, रैंक और 28 उपलब्धियाँ।"
 			}
 		],
 		"id": [
@@ -670,14 +670,14 @@
 			{
 				"alt": "Front invasi terakhir di Iberia, dengan pasukan maju menuju ibu kota wilayah tersebut.",
 				"file": "3_invasions.png",
-				"headline": "36 wilayah. 108 front.",
+				"headline": "59 wilayah. 177 front.",
 				"raw": "build/store_capture/raw/id/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "065d18ca9d03541a6f26e78085b6a90d475a2b0ea964624a420f15c0623f60e2",
+				"sha256": "ab794245d0c4e14b6ae47cfa44c3c4b38e7c7302ee21711e4ab4999b41a2a9ec",
 				"subtitle": "Tiga front. Satu wilayah untuk dikuasai."
 			},
 			{
@@ -690,7 +690,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "ed800f04b4f1bdeda7cec561abfa4b01cd28aebb9cd7dc15ed84db1b44ba26ab",
+				"sha256": "590302630a9a3d7e9c43ce83f7856c8ec8a2861ee741b4a805254563552f30a1",
 				"subtitle": "30 level kampanye + ekspedisi penaklukan."
 			},
 			{
@@ -742,8 +742,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "ef1587f19791a9c3599b48366c68c9a2e5db01c622c4acf0ac6efe9553c662c9",
-				"subtitle": "Kota, peringkat dan 20 prestasi."
+				"sha256": "551efcb5bb14c5c25358e5b961c7dc674d785b6a63b9bc2df6d7a46e54e57e1f",
+				"subtitle": "Kota, peringkat dan 28 prestasi."
 			}
 		],
 		"it": [
@@ -776,14 +776,14 @@
 			{
 				"alt": "L'ultimo fronte d'invasione in Iberia, con le truppe che avanzano verso la capitale della regione.",
 				"file": "3_invasions.png",
-				"headline": "36 regioni. 108 fronti.",
+				"headline": "59 regioni. 177 fronti.",
 				"raw": "build/store_capture/raw/it/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "cc1c3000a17ad3367dc36fc801cd267297689b32155a1c241bea2cca3711a593",
+				"sha256": "0043a37457e1c534ecbf548cdfc69f6ba9c014068392cf4cec49a289d4547c46",
 				"subtitle": "Tre fronti. Una regione da padroneggiare."
 			},
 			{
@@ -796,7 +796,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "3fc467e2b20a08b79bfbb58f16964c355bdecef9151813479f1613bc8ea39162",
+				"sha256": "c68f8df7ffd97e779bbf8635e91214d1c0b315d5d452b3bf6172833779ab3b8a",
 				"subtitle": "30 livelli di campagna + spedizioni di conquista."
 			},
 			{
@@ -848,8 +848,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "2dbd499a846459c56a927b804e050f91cfcdc23cbcb7e16ad4c1d757ff9046ce",
-				"subtitle": "Città, gradi e 20 obiettivi."
+				"sha256": "5b926f9beb971646dcfbee248630f8b9f89f65568d5b9503d17278da988c1cda",
+				"subtitle": "Città, gradi e 28 obiettivi."
 			}
 		],
 		"ja": [
@@ -882,14 +882,14 @@
 			{
 				"alt": "イベリア半島最後の侵攻戦線。軍隊はこの地域の首都に向かって前進している。",
 				"file": "3_invasions.png",
-				"headline": "36の地域。前線は108。",
+				"headline": "59の地域。前線は177。",
 				"raw": "build/store_capture/raw/ja/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "911772d67a410412629aff96967a1edb3b054b90824e8064764c78df633bb950",
+				"sha256": "6e539f3ee906314e3177058dd9ccb90920e5056f3589cac331cb532811a3dd65",
 				"subtitle": "3つの戦線を突破し、地域を制覇。"
 			},
 			{
@@ -902,7 +902,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "8bf3cdd211ea9b77467100a213a59ed72d4d01a12cefb930e9ff0e8c84700204",
+				"sha256": "37880aa2f79dd9f6917a9d6d9f9a0b1a524c3b631d10de790d8f01ce6b2bc6c5",
 				"subtitle": "30のキャンペーンステージと征服遠征。"
 			},
 			{
@@ -915,7 +915,7 @@
 					1600
 				],
 				"scenario": "daily_20754",
-				"sha256": "8e9f3e35074340a929150569e0d62ab943a1cca4fcb996c1873cca328f9b09de",
+				"sha256": "e58c56efd903eb5b266e3c84dcea2ae70eb608970625178d199dec55100cc60d",
 				"subtitle": "同じ戦力で、自己ベストに挑戦。"
 			},
 			{
@@ -954,8 +954,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "73afae6ff1cab3b3f2495bb701a4505f76af198a1f88af423ab38a7a406515a5",
-				"subtitle": "都市、ランク、20の実績。"
+				"sha256": "675838cf6f2a0bc8fc32c66f6f60c23ef07ca4cd9b2543146d8538e6b67aa7bc",
+				"subtitle": "都市、ランク、28の実績。"
 			}
 		],
 		"ko": [
@@ -988,14 +988,14 @@
 			{
 				"alt": "군대가 지역의 수도를 향해 진군하는 이베리아의 마지막 침공 전선입니다.",
 				"file": "3_invasions.png",
-				"headline": "36개 지역. 108개 전선.",
+				"headline": "59개 지역. 177개 전선.",
 				"raw": "build/store_capture/raw/ko/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "22cd14a8cabe344ab7cdb21c298b9e2efc9b405b23e421001fd021c6475129dd",
+				"sha256": "a36c0275ba8718f405b327ccf984aee164caadef07dbf1ce12690264703778fb",
 				"subtitle": "세 전선을 돌파하고 지역을 정복하세요."
 			},
 			{
@@ -1008,7 +1008,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "cf0eb7f927e9f5e5687a7ca0aaa0797a4d85406c9f05803a1239456c6f5518cf",
+				"sha256": "2444094585b3062c91eb399c873f2910fb93c80051974a4b691137742103b47f",
 				"subtitle": "30개의 캠페인 레벨 + 정복 탐험."
 			},
 			{
@@ -1060,8 +1060,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "8fafc98ac2c7d712d1154982dc265580a8eaa35b953f40e9f4752d5d3bb9d592",
-				"subtitle": "도시, 계급, 20개의 업적."
+				"sha256": "1857e0789f73277607834cb773a200c94de87418a15e2e66094f4052811c6b27",
+				"subtitle": "도시, 계급, 28개의 업적."
 			}
 		],
 		"pl": [
@@ -1166,8 +1166,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "2b58ad5c78be726d65cdf9e70867d01ea80cf8c74b230de0ed3757024a298b8f",
-				"subtitle": "Miasta, rangi i 23 osiągnięcia."
+				"sha256": "80f301eb22558d3cbd9badc1d861cc71e85bfb9fe27e150f206316a72b5e3a9d",
+				"subtitle": "Miasta, rangi i 28 osiągnięć."
 			}
 		],
 		"pt_BR": [
@@ -1200,14 +1200,14 @@
 			{
 				"alt": "A última frente de invasão na Península Ibérica, com tropas avançando em direção à capital da região.",
 				"file": "3_invasions.png",
-				"headline": "36 regiões. 177 frentes.",
+				"headline": "59 regiões. 177 frentes.",
 				"raw": "build/store_capture/raw/pt_BR/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "f0855e06e733370f941604b4340140a0b4e9a3436de5a9a2d761f3b93f130ff4",
+				"sha256": "f59e8098cac2b76079d93774a1e37932e3b9f9c60b50e4973151c47a77a822b6",
 				"subtitle": "Três frentes. Uma região para dominar."
 			},
 			{
@@ -1220,7 +1220,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "56096b06c30639511cedfcaeec844b04689bd066bfca9a43a80afc6f61921a88",
+				"sha256": "240267b0399df7a9e1022aea150dba128f596d6d806996be905b09e207af5fec",
 				"subtitle": "30 níveis de campanha + expedições de conquista."
 			},
 			{
@@ -1272,8 +1272,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "46fd28d88259c24ceeb88857a05529ea959a191a5e38c4fdeeb7802094a3e9ce",
-				"subtitle": "Cidades, patentes e 23 conquistas."
+				"sha256": "cc5cbdb0bfc12cf0a9d7046fbea9ed71a2b89fface4d7ca816f5c36eacfa8828",
+				"subtitle": "Cidades, patentes e 28 conquistas."
 			}
 		],
 		"ru": [
@@ -1306,14 +1306,14 @@
 			{
 				"alt": "Последний фронт вторжения в Иберию, войска продвигаются к столице региона.",
 				"file": "3_invasions.png",
-				"headline": "36 регионов. 108 фронтов.",
+				"headline": "59 регионов. 177 фронтов.",
 				"raw": "build/store_capture/raw/ru/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "b0c6d332986e066815fec932976a86879ca24ada870a75c723622aab40dddb47",
+				"sha256": "06ab1d6e4042eebdcb786445aae5f3bf66e619959a1a8bfd03cb235db4c5b5ad",
 				"subtitle": "Три фронта. Один регион для победы."
 			},
 			{
@@ -1326,7 +1326,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "c67d5ff472756af742cf90728bdaa6f5451be016766aaf3c8d3b8b500b5f3c80",
+				"sha256": "1b9c523e74595f6e4bf8e057ac32a9dffd4238308218f2079245746e80fcecea",
 				"subtitle": "30 уровней кампании + завоевательные экспедиции."
 			},
 			{
@@ -1378,8 +1378,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "80819815b1c2b5560352538b625ef5852aeab2049f2e469dc1973d0d9b1703c5",
-				"subtitle": "Города, звания и 20 достижений."
+				"sha256": "757d91b29624df8717348b75f18ba64033f02c2dea7eeb80914da5978abd98fb",
+				"subtitle": "Города, звания и 28 достижений."
 			}
 		],
 		"th": [
@@ -1484,8 +1484,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "cef2ddc12e2daf7cc91908ff34e326b0f61fe8aeeb0df60c981a74d920f773bf",
-				"subtitle": "เมือง ยศ และ 23 ความสำเร็จ"
+				"sha256": "d321889b2e5cdfb7241767039321938a102ae4aa2cfc00e89e711dd72500c8e3",
+				"subtitle": "เมือง ยศ และ 28 ความสำเร็จ"
 			}
 		],
 		"tr": [
@@ -1518,14 +1518,14 @@
 			{
 				"alt": "Birliklerin bölgenin başkentine doğru ilerlediği İberya'daki son işgal cephesi.",
 				"file": "3_invasions.png",
-				"headline": "36 bölge. 108 cephe.",
+				"headline": "59 bölge. 177 cephe.",
 				"raw": "build/store_capture/raw/tr/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "17f47f886bcda0fc818ec9ed523a99613ac4404a91e3941a22fd7682e656e952",
+				"sha256": "8bf47f55c3674671ccdd9ef61da1f94a2238542b5b423ad01b9a34035602511a",
 				"subtitle": "Üç cephe. Uzmanlaşılacak bir bölge."
 			},
 			{
@@ -1538,7 +1538,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "83a47bba0ef3f04d1e8b34456491254db943f4eeaa61b48d5b0b80190e07448f",
+				"sha256": "8a6d20f16d8916a430c9908564138e4ff77d8828c639c4650a768983618d8e6e",
 				"subtitle": "30 kampanya seviyesi + fetih seferi."
 			},
 			{
@@ -1590,8 +1590,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "81927458eddabda2164e9e3f7fd684e07009a06843b5829b8d979170fbd8bf53",
-				"subtitle": "Şehirler, rütbeler ve 20 başarı."
+				"sha256": "fdc02c4821985548b80dd01e2382b35249ec85f7a4f9d9bdf965d46bbcad5e63",
+				"subtitle": "Şehirler, rütbeler ve 28 başarı."
 			}
 		],
 		"uk": [
@@ -1696,8 +1696,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "8eeffc6e96e4e503287a25821b71b41b6cfc95e13897f4c1f5485a6bd88bc713",
-				"subtitle": "Міста, звання та 23 досягнення."
+				"sha256": "bcf1ba491f02325a80c30dc4636d1b264dbca9260a803fec13911a8347318d2c",
+				"subtitle": "Міста, звання та 28 досягнень."
 			}
 		],
 		"vi": [
@@ -1730,14 +1730,14 @@
 			{
 				"alt": "Mặt trận xâm lược cuối cùng ở Iberia, với quân đội tiến về thủ đô của khu vực.",
 				"file": "3_invasions.png",
-				"headline": "36 khu vực. 108 mặt trận.",
+				"headline": "59 khu vực. 177 mặt trận.",
 				"raw": "build/store_capture/raw/vi/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "fa45ad3a59f47f6dfd8f56a5d990e84a7d2bf309d0ea9b396d701b91e98fc758",
+				"sha256": "4de4bd01bb8f8ad96a5f35eec80b65e63951a174d4920790a1fa5a7aad374d1c",
 				"subtitle": "Ba mặt trận. Một khu vực để làm chủ."
 			},
 			{
@@ -1750,7 +1750,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "2fe4223b0d05973609827a1b5c95c9a218fd63e845555dc1b85e9a473b6399e5",
+				"sha256": "85dff81bbef456279a1d831a724c286103cace6c64e75a4110db688b910d9da4",
 				"subtitle": "30 màn chiến dịch và các cuộc viễn chinh."
 			},
 			{
@@ -1802,8 +1802,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "06353b92b9dae350b7ffa1e48d72bd9a4dd73be99201bca94cf1059039051f9d",
-				"subtitle": "Thành phố, cấp bậc và 20 thành tích."
+				"sha256": "c13ed2a0dde69e128f2fc7b4339b0636b746e4805bcb26e9933e475fe318bca8",
+				"subtitle": "Thành phố, cấp bậc và 28 thành tích."
 			}
 		],
 		"zh_CN": [
@@ -1836,14 +1836,14 @@
 			{
 				"alt": "伊比利亚的最后入侵战线，部队向该地区的首府挺进。",
 				"file": "3_invasions.png",
-				"headline": "36个地区。 108条战线。",
+				"headline": "59个地区。 177条战线。",
 				"raw": "build/store_capture/raw/zh_CN/invasions.png",
 				"raw_size": [
 					1080,
 					1600
 				],
 				"scenario": "inv_iberia_3",
-				"sha256": "e2a2e30151932bf318f9189fe884ac748c1ab73a7ae856752073fde25a198e0d",
+				"sha256": "d11e3fa9efddb5394eda739bc953b2f9c961b5f72240ceea4aca8956d23a6845",
 				"subtitle": "突破三条战线，征服整个地区。"
 			},
 			{
@@ -1856,7 +1856,7 @@
 					1600
 				],
 				"scenario": "campaign",
-				"sha256": "4ded362ad052f485120cbc443b8339df10a02a6c8f7100c9709556cf363f12fc",
+				"sha256": "8439517d05300f7ed9f7cc8936d7d2decc24c5cccd22a40d017525ca733f61d2",
 				"subtitle": "30 个战役关卡 + 征服探险。"
 			},
 			{
@@ -1908,8 +1908,8 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "ae986be66463b31d64d6724497d81feb906a464e4bd72e2a8f7917542a12ab98",
-				"subtitle": "城市、军衔和20项成就。"
+				"sha256": "99fec35fb451e1774f32e7ce5eb65d75cbb7816980f483f4a46f57047f027608",
+				"subtitle": "城市、军衔和28项成就。"
 			}
 		],
 		"zh_TW": [
@@ -2014,42 +2014,18 @@
 					1600
 				],
 				"scenario": "atlas",
-				"sha256": "1cc9bee751df0877e84cdab5cb129c4089694461e32dea0273004d700b356110",
-				"subtitle": "城市、軍階與 23 項成就。"
+				"sha256": "ab12593a5cac267d23e13612e9e6ce9d75ccf614ee4969d0dec5076e38e775c2",
+				"subtitle": "城市、軍階與 28 項成就。"
 			}
 		]
 	},
-	"partial_updates": [
-		{
-			"commit": "dcb32408dffee509b7dbfbd1df1911b82108b65b",
-			"godot": "4.7.2-stable (official)",
-			"locales": [
-				"pl",
-				"uk",
-				"zh_TW",
-				"th"
-			],
-			"working_tree_dirty": false
-		},
-		{
-			"commit": "8bd35cd8755dc0dcd79f1c5ba4fc9e6a2cb88245",
-			"godot": "4.7.2-stable (official)",
-			"locales": [
-				"pl",
-				"uk",
-				"zh_TW",
-				"th"
-			],
-			"working_tree_dirty": false
-		}
-	],
 	"seed": 20261028,
 	"tablets": {
 		"ar": [
 			{
 				"alt": "تُظهر خريطة الحملة النجوم المكتسبة والمعركة التالية وإمكانية الوصول إلى حملات الغزو الحر.",
 				"file": "1_campaign.png",
-				"sha256": "71406dfe97c1947d7c3e386f7c2ad62beeb99f3225fa018db8141484669f4c8d"
+				"sha256": "d255144fbdd5967ef0eb22c97daec36ae565634e380ed501891adbaf713ce105"
 			},
 			{
 				"alt": "جبهة الغزو الأخيرة في أيبيريا، مع تقدم القوات نحو عاصمة المنطقة.",
@@ -2071,7 +2047,7 @@
 			{
 				"alt": "Die Kampagnenkarte zeigt verdiente Sterne, die nächste Schlacht und freie Eroberungsexpeditionen.",
 				"file": "1_campaign.png",
-				"sha256": "5ebce9c7423f0f2fe199da5567c893b6140683f0934ad4abb43f5e6999bbfc6e"
+				"sha256": "2b5cdfd9368c0dcebeafc204c7285c8a839a448340e209412a2ff4a7a1069280"
 			},
 			{
 				"alt": "Die letzte Invasionsfront in Iberia, mit Truppen, die in Richtung der Hauptstadt der Region vorrücken.",
@@ -2093,7 +2069,7 @@
 			{
 				"alt": "The campaign map shows earned stars, the next battle and access to free-conquest expeditions.",
 				"file": "1_campaign.png",
-				"sha256": "e0e6ed54d07f1a7486cb1f4ff324027082c3ba551d8c604e87d56057157ee61f"
+				"sha256": "538a32586f3678710e4063dd830b474515dc6848e43f4dfd18d725bf96d5b155"
 			},
 			{
 				"alt": "The final invasion front in Iberia, with troops advancing toward the region's capital.",
@@ -2115,7 +2091,7 @@
 			{
 				"alt": "El mapa de campaña muestra estrellas ganadas, la próxima batalla y acceso a expediciones de conquista libre.",
 				"file": "1_campaign.png",
-				"sha256": "2846fa436dc729f8432d13787844cf1ff8ea9f80e53e09e550a1bca784c3d5f9"
+				"sha256": "df8f205146037eca1e07d1dc3bd7a71a54f7a98176cd15852e9f3d7ff974d27b"
 			},
 			{
 				"alt": "El frente final de la invasión de Iberia, con tropas avanzando hacia la capital de la región.",
@@ -2137,7 +2113,7 @@
 			{
 				"alt": "La carte de campagne montre les étoiles gagnées, la prochaine bataille et les expéditions de conquête libre.",
 				"file": "1_campaign.png",
-				"sha256": "a8bcde2d57a175a2fceae9f4ed9d65241ff1ca10b83d7531b09bc1647cd5d9fc"
+				"sha256": "f163d40a545c3e7aa999e8e54a328b681236c72b2ca90e2c900d4c16cb19c021"
 			},
 			{
 				"alt": "Le dernier front d'invasion en Ibérie, avec des troupes avançant vers la capitale de la région.",
@@ -2159,7 +2135,7 @@
 			{
 				"alt": "अभियान मानचित्र अर्जित सितारों, अगली लड़ाई और मुक्त-विजय अभियानों तक पहुंच दिखाता है।",
 				"file": "1_campaign.png",
-				"sha256": "e3fa25c930dc063f00f6c6d4967eafd083e18d010d254c216c0624dd242ce031"
+				"sha256": "2f104ecfd8e17ef4ec3d8372df62a0c27542fc597391ebcb7716770d8349f907"
 			},
 			{
 				"alt": "इबेरिया में अंतिम आक्रमण मोर्चा, जिसमें सैनिक क्षेत्र की राजधानी की ओर बढ़ रहे हैं।",
@@ -2181,7 +2157,7 @@
 			{
 				"alt": "Peta kampanye menunjukkan bintang, pertempuran berikutnya, dan akses ke ekspedisi penaklukan bebas.",
 				"file": "1_campaign.png",
-				"sha256": "62138667788c70cedd8898c84c535f3dc1435d7a5cf3ca400b84f67213feed6d"
+				"sha256": "c33d0f888234c4710cf1d13b593edcfea95515201f3abd186919b32e9a976178"
 			},
 			{
 				"alt": "Front invasi terakhir di Iberia, dengan pasukan maju menuju ibu kota wilayah tersebut.",
@@ -2203,7 +2179,7 @@
 			{
 				"alt": "La mappa della campagna mostra le stelle guadagnate, la battaglia successiva e l'accesso alle spedizioni di conquista libera.",
 				"file": "1_campaign.png",
-				"sha256": "5034440669b22faaba1fd6aa0c608658c22d0d07f844067032d6c52eeadf1862"
+				"sha256": "dd030ff3a89ba74f816e25a39f0d9056e6582956b195639f50cae254192c62ba"
 			},
 			{
 				"alt": "L'ultimo fronte d'invasione in Iberia, con le truppe che avanzano verso la capitale della regione.",
@@ -2225,7 +2201,7 @@
 			{
 				"alt": "キャンペーン マップには、獲得したスター、次の戦闘、自由征服遠征へのアクセスが表示されます。",
 				"file": "1_campaign.png",
-				"sha256": "1a7c4e73a54d7c87c4d5e1d50f6a62437e139e29a83e84f711341a29cbc95f41"
+				"sha256": "5b03348717d85f99db111106a2bdccbcc200e7c56c27a2564951c319ca73a6cb"
 			},
 			{
 				"alt": "イベリア半島最後の侵攻戦線。軍隊はこの地域の首都に向かって前進している。",
@@ -2247,7 +2223,7 @@
 			{
 				"alt": "캠페인 지도에는 획득한 별, 다음 전투, 무료 정복 원정에 대한 액세스가 표시됩니다.",
 				"file": "1_campaign.png",
-				"sha256": "ca966e56897261004bbab835c8387006d64332effaf3c88dc74d7c3fd5337ddf"
+				"sha256": "627b9938a73cea3329dc5b6b176489ca3dcc072b51411497e7e75788d84414a7"
 			},
 			{
 				"alt": "군대가 지역의 수도를 향해 진군하는 이베리아의 마지막 침공 전선입니다.",
@@ -2291,7 +2267,7 @@
 			{
 				"alt": "O mapa da campanha mostra estrelas conquistadas, a próxima batalha e expedições de conquista livre.",
 				"file": "1_campaign.png",
-				"sha256": "c92047b6ebd5cc6358798101f52adff209f7daaa9b2208303cde72749dec89ef"
+				"sha256": "1c4c1ce0b790e7a7f707d86c05a8fe04a2d492970776d24fc1326d9c91043acb"
 			},
 			{
 				"alt": "A última frente de invasão na Península Ibérica, com tropas avançando em direção à capital da região.",
@@ -2313,7 +2289,7 @@
 			{
 				"alt": "На карте кампании показаны заработанные звезды, следующая битва и доступ к экспедициям свободного завоевания.",
 				"file": "1_campaign.png",
-				"sha256": "a6ec8d498f01c0759c9597a2a3f76c3417272424ef471163afd255d73e574919"
+				"sha256": "c3f8d71323a9ebacc265fd276e0b26e6f3f1967beafe8e108b180c7f469964f5"
 			},
 			{
 				"alt": "Последний фронт вторжения в Иберию, войска продвигаются к столице региона.",
@@ -2357,7 +2333,7 @@
 			{
 				"alt": "Sefer haritası kazanılan yıldızları, sıradaki savaşı ve serbest fetih seferlerine erişimi gösterir.",
 				"file": "1_campaign.png",
-				"sha256": "f3a43beb4229685b4269e65a6635cd5b0f52651f6d68715c0e3d92143548971b"
+				"sha256": "fa8447c877e6b6887904250f9f58aac2ed1ed086a3c21f4630dc4e8386a8e2f6"
 			},
 			{
 				"alt": "Birliklerin bölgenin başkentine doğru ilerlediği İberya'daki son işgal cephesi.",
@@ -2401,7 +2377,7 @@
 			{
 				"alt": "Bản đồ chiến dịch hiển thị số sao kiếm được, trận chiến tiếp theo và quyền truy cập vào các cuộc thám hiểm chinh phục miễn phí.",
 				"file": "1_campaign.png",
-				"sha256": "8f63dc4947774304c7ce9b5c58a568fac4b171050ad2be602bb3b7f5614c2aed"
+				"sha256": "e9af62cd1b628edd99b8c8d8c3c256ed2f745b05a9cf408854aac058641b32a4"
 			},
 			{
 				"alt": "Mặt trận xâm lược cuối cùng ở Iberia, với quân đội tiến về thủ đô của khu vực.",
@@ -2423,7 +2399,7 @@
 			{
 				"alt": "战役地图显示了获得的星星、下一场战斗以及免费征服探险的机会。",
 				"file": "1_campaign.png",
-				"sha256": "501f7ef865c3d1229011731b673ffa5c43930921e85b54dcea1706fb72324a99"
+				"sha256": "7d51e339fb527298537e6cad2aeab2e3772c65eda6f25494b1d5b1ef0a0db789"
 			},
 			{
 				"alt": "伊比利亚的最后入侵战线，部队向该地区的首府挺进。",
@@ -2464,6 +2440,6 @@
 			}
 		]
 	},
-	"version": "0.5.0",
+	"version": "1.0.0",
 	"working_tree_dirty": false
 }

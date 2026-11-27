@@ -1,7 +1,7 @@
 # invade.io — Google Play (English)
 
 Copy the three blocks into the matching Play Console fields. This copy targets the
-repository's **0.5.0** release candidate; confirm production behavior before publishing.
+repository's **1.0.0** release candidate; confirm production behavior before publishing.
 
 ## App name
 
@@ -26,13 +26,13 @@ MAKE EVERY MOVE COUNT
 Capture factories to recruit faster, secure strategic capital cities, and break through fortified defenses. Different continents introduce jungle, oases, sea routes, and bosses with reinforcements. Link several friendly bases in one stroke, or cut a route to call your troops back.
 
 A CAMPAIGN, AND MORE BEYOND IT
-Battle through 30 campaign levels across six continents. Complete each continent's campaign to unlock its regional invasions: 59 regions, 177 fronts, and stars to master. Finish a region for gold and earn cosmetic rewards as you complete continents.
+Battle through 30 campaign levels across six continents. Complete each continent's campaign to unlock its regional invasions: 59 regions, 177 fronts, and stars to master. Finish a region for gold and earn cosmetic rewards as you complete continents. After the campaign, climb nine Ascension tiers that replay all 30 maps with stronger rivals, bonus gold and new upgrades.
 
 MORE WAYS TO CONQUER
 Explore free-conquest expeditions: each expedition spans five regions and ends with a boss. Take on a daily challenge with rotating rules and equal starting forces, without combat upgrades. Improve your personal record and copy a result card to share with friends. Daily challenges are played locally, not against live opponents.
 
 PROGRESS EARNED BY PLAYING
-Upgrade your garrison, recruitment, march speed, and gold rewards. Climb the ranks, collect campaign cities in your atlas, and complete 23 achievements. Unlock army colors, base shapes, troop styles, and map themes. Appearance items change your army's look, not combat strength.
+Upgrade your garrison, recruitment, march speed, and gold rewards. Climb the ranks, collect campaign cities in your atlas, and complete 28 achievements. Unlock army colors, base shapes, troop styles, and map themes. Appearance items change your army's look, not combat strength.
 
 PLAY YOUR WAY
 • Offline gameplay, no ads, and no in-app purchases. Gold is earned by playing.

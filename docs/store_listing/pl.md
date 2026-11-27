@@ -23,13 +23,13 @@ LICZY SIĘ KAŻDY RUCH
 Przejmuj fabryki, by szybciej rekrutować, zabezpieczaj strategiczne stolice i przełamuj ufortyfikowaną obronę. Kolejne kontynenty wprowadzają dżunglę, oazy, szlaki morskie i bossów z posiłkami. Połącz kilka własnych baz jednym pociągnięciem albo przetnij trasę, by zawrócić swoje wojska.
 
 KAMPANIA I NIE TYLKO
-Przejdź 30 poziomów kampanii na sześciu kontynentach. Ukończ kampanię każdego kontynentu, by odblokować regionalne inwazje: 59 regionów, 177 frontów i gwiazdki do zdobycia. Ukończ region, by zdobyć złoto, a kończąc kontynenty, odblokowujesz nagrody kosmetyczne.
+Przejdź 30 poziomów kampanii na sześciu kontynentach. Ukończ kampanię każdego kontynentu, by odblokować regionalne inwazje: 59 regionów, 177 frontów i gwiazdki do zdobycia. Ukończ region, by zdobyć złoto, a kończąc kontynenty, odblokowujesz nagrody kosmetyczne. Po kampanii wspinaj się po dziewięciu poziomach Awansu, które powtarzają wszystkie 30 map z silniejszymi rywalami, dodatkowym złotem i nowymi ulepszeniami.
 
 WIĘCEJ SPOSOBÓW NA PODBÓJ
 Wyrusz na wyprawy swobodnego podboju: każda obejmuje pięć regionów i kończy się bossem. Podejmij codzienne wyzwanie ze zmiennymi zasadami i równymi siłami na starcie, bez ulepszeń bojowych. Poprawiaj swój rekord i kopiuj kartę wyniku, by pochwalić się znajomym. Codzienne wyzwania rozgrywa się lokalnie, nie przeciwko prawdziwym graczom.
 
 POSTĘP ZDOBYWANY W GRZE
-Ulepszaj garnizon, rekrutację, prędkość marszu i nagrody w złocie. Awansuj w rangach, zbieraj miasta z kampanii w swoim atlasie i zdobądź 23 osiągnięcia. Odblokowuj kolory armii, kształty baz, style wojsk i motywy map. Elementy wyglądu zmieniają tylko wygląd armii, nie jej siłę bojową.
+Ulepszaj garnizon, rekrutację, prędkość marszu i nagrody w złocie. Awansuj w rangach, zbieraj miasta z kampanii w swoim atlasie i zdobądź 28 osiągnięć. Odblokowuj kolory armii, kształty baz, style wojsk i motywy map. Elementy wyglądu zmieniają tylko wygląd armii, nie jej siłę bojową.
 
 GRAJ PO SWOJEMU
 • Gra offline, bez reklam i zakupów w aplikacji. Złoto zdobywa się, grając.
