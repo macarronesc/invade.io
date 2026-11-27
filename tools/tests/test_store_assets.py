@@ -23,7 +23,7 @@ class StoreChecks(unittest.TestCase):
         self.assertEqual(len(store.SHOTS), 8)
         self.assertIn("enabled by default", listings["en"][2])
         for values in listings.values():
-            for number in ("30", "59", "177", "23", str(len(languages.CODES))):
+            for number in ("30", "59", "177", "28", str(len(languages.CODES))):
                 self.assertIn(number, values[2])
             self.assertIn("invade.io", values[1] + values[2])
 
@@ -52,11 +52,17 @@ class StoreChecks(unittest.TestCase):
 
     def test_tagged_release_notes_fit_play_limit(self):
         notes = (store.LISTING / "release_notes.md").read_text(encoding="utf-8")
-        blocks = re.findall(r"<([a-z]{2}-[A-Z]{2})>\s*\n(.*?)\n</\1>", notes, re.S)
+        blocks = re.findall(r"<([a-z]{2,3}(?:-[A-Z]{2})?)>\s*\n(.*?)\n</\1>", notes, re.S)
         self.assertTrue(blocks)
         for locale, text in blocks:
             with self.subTest(locale=locale, text=text[:40]):
                 self.assertLessEqual(len(text.strip()), 500)
+
+    def test_latest_release_notes_cover_every_language(self):
+        notes = (store.LISTING / "release_notes.md").read_text(encoding="utf-8")
+        latest = notes.split("\n## Candidate:")[-1].split("\n## Version reference")[0]
+        tags = re.findall(r"^<([a-z]{2,3}(?:-[A-Z]{2})?)>$", latest, re.M)
+        self.assertCountEqual(tags, [lang["play"] for lang in languages.LANGUAGES])
 
     def test_release_notes_are_chronological(self):
         notes = (store.LISTING / "release_notes.md").read_text(encoding="utf-8")
@@ -160,7 +166,7 @@ class PublishChecks(unittest.TestCase):
             item.start()
             self.addCleanup(item.stop)
 
-    def capture(self, langs, version="0.5.0", payload=b"") -> dict:
+    def capture(self, langs, version="1.0.0", payload=b"") -> dict:
         manifest = {"version": version, "commit": "abc", "working_tree_dirty": False, "godot": "4.7.2",
                     "locales": {}, "tablets": {}}
         for lang in langs:

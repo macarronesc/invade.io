@@ -23,13 +23,13 @@ CHAQUE DÉCISION COMPTE
 Capturez des usines pour recruter plus rapidement, sécurisez les capitales stratégiques et percez les défenses fortifiées. Différents continents introduisent des jungles, des oasis, des routes maritimes et des boss avec des renforts. Reliez plusieurs bases amies d'un seul coup ou coupez une route pour rappeler vos troupes.
 
 UNE CAMPAGNE ET BIEN PLUS ENCORE
-Parcourez 30 niveaux de campagne sur six continents. Terminez la campagne de chaque continent pour débloquer ses invasions régionales : 59 régions, 177 fronts et des étoiles à gagner. Complétez des régions pour obtenir de l'or et débloquez des récompenses visuelles en conquérant les continents.
+Parcourez 30 niveaux de campagne sur six continents. Terminez la campagne de chaque continent pour débloquer ses invasions régionales : 59 régions, 177 fronts et des étoiles à gagner. Complétez des régions pour obtenir de l'or et débloquez des récompenses visuelles en conquérant les continents. Après la campagne, gravissez neuf paliers d'Ascension qui rejouent les 30 cartes avec des rivaux plus forts, de l'or en bonus et de nouvelles améliorations.
 
 PLUS DE FAÇONS DE CONQUÉRIR
 En conquête libre, chaque expédition traverse cinq régions et se termine par un boss. Relevez un défi quotidien aux règles changeantes, avec les mêmes forces de départ et sans améliorations de combat. Battez votre record et copiez une carte de résultat pour la partager avec vos amis. Les défis se jouent sur votre appareil, pas contre des adversaires en direct.
 
 PROGRÈS GAGNÉS EN JOUANT
-Améliorez votre garnison, le recrutement, la vitesse de marche et les récompenses en or. Montez en grade, collectionnez les villes de campagne dans votre atlas et accomplissez 23 succès. Débloquez des couleurs d'armée, des formes de bases, des styles de troupes et des thèmes de carte. L'apparence ne change pas la force de combat.
+Améliorez votre garnison, le recrutement, la vitesse de marche et les récompenses en or. Montez en grade, collectionnez les villes de campagne dans votre atlas et accomplissez 28 succès. Débloquez des couleurs d'armée, des formes de bases, des styles de troupes et des thèmes de carte. L'apparence ne change pas la force de combat.
 
 JOUEZ À VOTRE MANIÈRE
 • Jeu hors ligne, sans publicité et sans achats intégrés. L'or se gagne en jouant.
