@@ -130,8 +130,9 @@ func _ready() -> void:
 	_apply_safe_area()
 	confetti_overlay.draw.connect(_draw_confetti)
 	for entry in [[btn_pause, "pause"], [btn_controls, "target"], [btn_pause_sound, "sound"], [btn_pause_music, "music"], [btn_resume, "play"],
-			[btn_retry, "retry"], [btn_next_level, "play"], [btn_how_to_play, "help"], [btn_settings, "gear"], [btn_share, "share"]]:
-		entry[0].icon = Icons.texture(entry[1], 44)
+			[btn_retry, "retry"], [btn_next_level, "play"], [btn_how_to_play, "help"], [btn_settings, "gear"], [btn_share, "share"],
+			[btn_pause_retry, "retry"], [btn_pause_map, "exit"]]:
+		UIThemeHelper.set_icon(entry[0], entry[1])
 	for entry in [[gold_icon, "coin", 52], [time_icon, "clock", 40], [cities_icon, "globe", 40]]:
 		entry[0].texture = Icons.texture(entry[1], entry[2])
 	_build_faction_bars()
@@ -273,9 +274,11 @@ func _refresh_palette() -> void:
 	call_deferred("_fit_panels")
 
 func _refresh_audio_buttons() -> void:
+	UIThemeHelper.set_icon(btn_pause_sound, "sound_off" if AudioManager.is_muted else "sound")
 	btn_pause_sound.modulate.a = 0.4 if AudioManager.is_muted else 1.0
 	btn_pause_sound.tooltip_text = LocaleStrings.text("sound_off" if AudioManager.is_muted else "sound_on")
 	btn_pause_sound.accessibility_name = btn_pause_sound.tooltip_text
+	UIThemeHelper.set_icon(btn_pause_music, "music_off" if AudioManager.music_muted else "music")
 	btn_pause_music.modulate.a = 0.4 if AudioManager.music_muted else 1.0
 	btn_pause_music.tooltip_text = LocaleStrings.text("music_off" if AudioManager.music_muted else "music_on")
 	btn_pause_music.accessibility_name = btn_pause_music.tooltip_text

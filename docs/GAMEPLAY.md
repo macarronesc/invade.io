@@ -142,7 +142,10 @@ interface layout, but geographic maps and the brand are not mirrored.
 You can change light/dark appearance, text size, a color-blind palette, reduced
 motion, map contrast, a battle-controls shortcut button, game speed, sound/music
 volumes, and haptic feedback. Accessibility options live only in Settings, not in
-the pause menu.
+the pause menu. Settings uses icons, segmented choices (appearance, speed, text
+size) and switches; tap the ⓘ next to Haptic feedback, Support, Data or Battle
+controls button for the longer explanation. The pause menu shows icons for
+Restart battle and Leave battle, and a slashed icon when sound or music is muted.
 The interface theme and equipped map theme are separate choices.
 
 These settings are not a claim of full mobile screen-reader compatibility. See

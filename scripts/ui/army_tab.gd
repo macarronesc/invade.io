@@ -53,25 +53,13 @@ func _build() -> void:
 			content.add_child(grid)
 
 func _segments() -> Control:
-	var panel := PanelContainer.new()
-	panel.theme_type_variation = "Chip"
-	var row := UIThemeHelper.hbox(8)
-	panel.add_child(row)
-	var group := ButtonGroup.new()
-	for id in ["upgrades", "looks"]:
-		var b := UIThemeHelper.button(LocaleStrings.text("segment_" + id), "SegmentButton")
-		b.name = "Segment_" + id
-		b.toggle_mode = true
-		b.button_group = group
-		b.button_pressed = section == id
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.pressed.connect(func():
+	var ids := ["upgrades", "looks"]
+	return UIThemeHelper.segmented(ids.map(func(id): return {"id": id, "text": LocaleStrings.text("segment_" + id)}), ids.find(section),
+		func(index):
 			AudioManager.play_click()
-			section = id
+			section = ids[index]
 			scroll_vertical = 0
-			rebuild())
-		row.add_child(b)
-	return panel
+			rebuild(), "Segment")
 
 func _upgrade_card(id: String) -> PanelContainer:
 	var cfg: Dictionary = UPGRADES[id]

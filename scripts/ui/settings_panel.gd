@@ -68,94 +68,112 @@ func _build(restore_focus: String = "") -> void:
 			restore_focus = str(focused.name)
 	UIThemeHelper.clear(self)
 	_content = UIThemeHelper.overlay_page(self, LocaleStrings.text("settings"), _close)
+	_section_game()
+	_section_sound()
+	_section_feedback()
+	_section_access()
+	_section_support()
+	_section_privacy()
+	_section_data()
+	UIThemeHelper.pass_scroll_events(_content)
+	call_deferred("_restore_focus_and_scroll", restore_focus, saved_scroll)
 
-	_section("section_game")
-	_label(LocaleStrings.text("appearance"))
+func _section_game() -> void:
+	_section("section_game", "gear")
 	var appearance_changed := func(index):
 		GameManager.set_setting("light_mode", index == 1)
-		_build("Appearance")
-	_group.add_child(_options([LocaleStrings.text("theme_dark"), LocaleStrings.text("theme_light")],
-		1 if GameManager.settings["light_mode"] else 0, appearance_changed, "Appearance", LocaleStrings.text("appearance")))
-	_label(LocaleStrings.text("language"))
+		_build()
+	_choice("sun", "appearance", [{"text": LocaleStrings.text("theme_dark"), "icon": "moon"}, {"text": LocaleStrings.text("theme_light"), "icon": "sun"}],
+		1 if GameManager.settings["light_mode"] else 0, appearance_changed, "Appearance")
+	_header("globe", LocaleStrings.text("language"))
 	var locale_codes := LanguageCatalog.codes()
 	var locale_names: Array = locale_codes.map(func(code): return LanguageCatalog.native_name(code))
 	var language_changed := func(index):
 		GameManager.set_language(locale_codes[index])
-		_build("Language")
-	_group.add_child(_options(locale_names, maxi(0, locale_codes.find(GameManager.language)),
-		language_changed, "Language", LocaleStrings.text("language")))
-	_label(LocaleStrings.text("speed"))
-	var speeds: Array = GameManager.GAME_SPEEDS.map(func(value): return "×" + String.num(value))
-	var speed_changed := func(index): GameManager.set_setting("speed", GameManager.GAME_SPEEDS[index])
-	_group.add_child(_options(speeds, GameManager.GAME_SPEEDS.find(float(GameManager.settings["speed"])),
-		speed_changed, "Speed", LocaleStrings.text("speed")))
+		_build()
+	var language := _options(locale_names, maxi(0, locale_codes.find(GameManager.language)),
+		language_changed, "Language", LocaleStrings.text("language"))
+	_group.add_child(language)
+	var speeds: Array = GameManager.GAME_SPEEDS.map(func(value): return {"text": "×" + String.num(value)})
+	_choice("speed", "speed", speeds, GameManager.GAME_SPEEDS.find(float(GameManager.settings["speed"])),
+		func(index): GameManager.set_setting("speed", GameManager.GAME_SPEEDS[index]), "Speed")
 	_button("how_to_play", _show_help, "help")
 
-	_section("section_sound")
-	_toggle("sound_enabled", not AudioManager.is_muted, func(value): AudioManager.set_muted(not value))
-	_toggle("music_enabled", not AudioManager.music_muted, func(value): AudioManager.set_music_muted(not value))
-	for key in ["volume", "music_volume"]:
-		_slider(key)
+func _section_sound() -> void:
+	_section("section_sound", "sound")
+	_toggle("sound_enabled", not AudioManager.is_muted, func(value): AudioManager.set_muted(not value), "", "sound")
+	_toggle("music_enabled", not AudioManager.music_muted, func(value): AudioManager.set_music_muted(not value), "", "music")
+	_slider("volume", "sound")
+	_slider("music_volume", "music")
 
-	_section("section_feedback")
+func _section_feedback() -> void:
+	_section("section_feedback", "vibrate", "vibration_note")
 	_toggle("vibration", GameManager.settings["vibration"], func(value):
 		GameManager.set_setting("vibration", value)
-		_refresh_vibration_controls())
-	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("vibration_note")))
-	_vibration_slider = _slider("vibration_intensity")
-	_vibration_test = _button("vibration_test", func(): GameManager.haptic(60))
+		_refresh_vibration_controls(), "", "vibrate")
+	_vibration_test = UIThemeHelper.icon_button("play", LocaleStrings.text("vibration_test"))
+	_vibration_test.name = "VibrationTest"
+	_vibration_test.pressed.connect(func(): GameManager.haptic(60))
+	_vibration_slider = _slider("vibration_intensity", "bolt", _vibration_test)
 	if not GameManager.can_vibrate():
 		_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("vibration_mobile_only")))
 	_refresh_vibration_controls()
 
-	_section("section_access")
-	_label(LocaleStrings.text("accessibility_font_size"))
+func _section_access() -> void:
+	_section("section_access", "eye")
 	var text_sizes := [LocaleStrings.text("text_size_standard"), LocaleStrings.text("text_size_large"), LocaleStrings.text("text_size_extra_large")]
-	var text_size_changed := func(index): GameManager.set_setting("text_scale", index * 0.5)
-	_group.add_child(_options(text_sizes, roundi(float(GameManager.settings["text_scale"]) * 2.0),
-		text_size_changed, "TextSize", LocaleStrings.text("accessibility_font_size")))
-	for key in ["colorblind", "reduced_motion"]:
-		_toggle(key, GameManager.settings[key], func(value): GameManager.set_setting(key, value))
+	var text_size_items := []
+	for i in text_sizes.size():
+		text_size_items.append({"text": "A", "font": 28 + i * 8, "label": text_sizes[i]})
+	_choice("text_size", "accessibility_font_size", text_size_items, roundi(float(GameManager.settings["text_scale"]) * 2.0),
+		func(index): GameManager.set_setting("text_scale", index * 0.5), "TextSize")
+	_toggle("colorblind", GameManager.settings["colorblind"], func(value): GameManager.set_setting("colorblind", value), "", "eye")
+	_toggle("reduced_motion", GameManager.settings["reduced_motion"], func(value): GameManager.set_setting("reduced_motion", value), "", "motion")
 	_toggle("high_contrast_map", GameManager.settings["high_contrast_map"], func(value):
-		GameManager.set_setting("high_contrast_map", value), "accessibility_high_contrast_map")
-	_toggle("battle_controls_button", GameManager.settings["battle_controls_button"], func(value): GameManager.set_setting("battle_controls_button", value))
-	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("battle_controls_button_note")))
+		GameManager.set_setting("high_contrast_map", value), "accessibility_high_contrast_map", "contrast")
+	_toggle("battle_controls_button", GameManager.settings["battle_controls_button"], func(value): GameManager.set_setting("battle_controls_button", value),
+		"", "target", "battle_controls_button_note")
 	if OS.has_feature("mobile") and not AccessibilityServer.is_supported():
 		_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("accessibility_mobile_reader_note")))
 
-	_section("section_support")
-	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("support_note")))
-	_button("support_project", func(): OS.shell_open(Telemetry.DONATE_URL), "heart")
+func _section_support() -> void:
+	_section("section_support", "heart", "support_note")
+	_tiles([
+		["support_project", "heart", func(): OS.shell_open(Telemetry.DONATE_URL)],
+		["share", "share", func():
+			DisplayServer.clipboard_set(DailyShare.APP_URL)
+			Toasts.show_toast("✅", "invade.io", LocaleStrings.text("copied"))],
+	], 2)
 
-	_section("section_privacy")
+func _section_privacy() -> void:
+	_section("section_privacy", "shield")
 	_toggle("share_analytics", GameManager.settings["share_analytics"], func(value):
-		GameManager.set_setting("share_analytics", value))
+		GameManager.set_setting("share_analytics", value), "", "chart")
 	_toggle("share_crashes", GameManager.settings["share_crashes"], func(value):
-		GameManager.set_setting("share_crashes", value))
+		GameManager.set_setting("share_crashes", value), "", "flag")
 	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("privacy_note")))
-	_button("privacy_policy", func(): OS.shell_open(Telemetry.PRIVACY_URL), "shield")
-	_button("open_source_licenses", _show_licenses, "help")
-	_button("share", func():
-		DisplayServer.clipboard_set(DailyShare.APP_URL)
-		Toasts.show_toast("✅", "invade.io", LocaleStrings.text("copied")), "share")
+	_tiles([
+		["privacy_policy", "shield", func(): OS.shell_open(Telemetry.PRIVACY_URL)],
+		["open_source_licenses", "doc", _show_licenses],
+	], 2)
 
-	_section("section_data")
+func _section_data() -> void:
+	_section("section_data", "share", "save_local_note")
 	_group.add_child(UIThemeHelper.label(LocaleStrings.text("save_auto"), "Heading"))
 	_save_status = UIThemeHelper.paragraph("")
 	_save_status.name = "LocalSaveStatus"
 	_group.add_child(_save_status)
-	_group.add_child(UIThemeHelper.paragraph(LocaleStrings.text("save_local_note")))
 	_save_retry = _button("save_retry", func(): GameManager.save_game(), "retry")
 	_refresh_save_status()
 	if allow_backups:
+		var actions := []
 		if not OS.has_feature("web"): # El navegador no ofrece diálogos de archivo del sistema.
-			_button("backup_export", _choose_file.bind(false), "share")
-			_button("backup_import", _choose_file.bind(true), "retry")
-		_button("reset", _confirm_reset, "close")
+			actions.append(["backup_export", "share", _choose_file.bind(false)])
+			actions.append(["backup_import", "retry", _choose_file.bind(true)])
+		actions.append(["reset", "close", _confirm_reset, true])
+		_tiles(actions, actions.size())
 		_status = UIThemeHelper.paragraph("")
 		_group.add_child(_status)
-	UIThemeHelper.pass_scroll_events(_content)
-	call_deferred("_restore_focus_and_scroll", restore_focus, saved_scroll)
 
 func _restore_focus_and_scroll(control_name: String, scroll_position: int) -> void:
 	var scrolls := find_children("*", "ScrollContainer", true, false)
@@ -201,12 +219,42 @@ func _refresh_vibration_controls() -> void:
 	_vibration_slider.editable = GameManager.settings["vibration"]
 	_vibration_test.disabled = not GameManager.can_vibrate() or not GameManager.settings["vibration"] or GameManager.settings["vibration_intensity"] <= 0.0
 
-func _section(key: String) -> void:
-	_content.add_child(UIThemeHelper.label(LocaleStrings.text(key), "Caption"))
+func _section(key: String, icon: String, info_key: String = "") -> void:
+	_group = _content
+	var title := LocaleStrings.text(key)
+	_header(icon, title, _info_button(info_key, title) if info_key != "" else null)
 	_group = UIThemeHelper.card(_content, "", 12)
 
-func _label(text: String) -> void:
-	_group.add_child(UIThemeHelper.label(text, "Caption"))
+## Fila de título: icono, nombre y un control opcional a la derecha
+func _header(icon: String, title: String, trailing: Control = null) -> void:
+	var head := UIThemeHelper.hbox(12)
+	head.add_child(Icons.rect(icon, 32, UIThemeHelper.colors.muted))
+	var label := UIThemeHelper.label(title, "Caption")
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(label)
+	if trailing != null:
+		head.add_child(trailing)
+	_group.add_child(head)
+
+func _info_button(note_key: String, title: String) -> Button:
+	var button := UIThemeHelper.button("", "GhostButton", "info")
+	button.tooltip_text = title
+	button.accessibility_name = title
+	button.name = "Info" + note_key.to_pascal_case()
+	button.pressed.connect(func():
+		AudioManager.play_click()
+		_help_card = UIThemeHelper.info_card(title, LocaleStrings.text(note_key))
+		add_child(_help_card))
+	return button
+
+## Etiqueta con icono y un selector segmentado debajo
+func _choice(icon: String, label_key: String, items: Array, selected: int, on_select: Callable, control_name: String) -> void:
+	var title := LocaleStrings.text(label_key)
+	_header(icon, title)
+	var segments := UIThemeHelper.segmented(items, selected, on_select, control_name, title)
+	for segment in segments.find_children("*", "Button", true, false):
+		segment.custom_minimum_size.y = 96
+	_group.add_child(segments)
 
 func _options(items: Array, selected: int, on_select: Callable, control_name: String, accessible_name: String) -> OptionButton:
 	var options := OptionButton.new()
@@ -228,37 +276,78 @@ func _button(key: String, callback: Callable, icon: String = "") -> Button:
 	_group.add_child(button)
 	return button
 
-func _toggle(key: String, value: bool, callback: Callable, label_key: String = "") -> void:
+func _toggle(key: String, value: bool, callback: Callable, label_key: String = "", icon: String = "", info_key: String = "") -> void:
 	var check := CheckButton.new()
 	check.custom_minimum_size.y = 128
 	check.name = key.to_pascal_case()
 	check.text = LocaleStrings.text(label_key if label_key != "" else key)
+	check.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART # Etiquetas largas (alemán, ruso) con texto grande no ensanchan la página.
+	if icon != "":
+		UIThemeHelper.set_icon(check, icon)
 	check.button_pressed = value
 	check.toggled.connect(callback)
-	_group.add_child(check)
+	if info_key == "":
+		_group.add_child(check)
+		return
+	check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var row := UIThemeHelper.hbox(8)
+	row.add_child(check)
+	row.add_child(_info_button(info_key, check.text))
+	_group.add_child(row)
 
-func _slider(key: String) -> HSlider:
-	var label := UIThemeHelper.label("", "Caption")
-	var update := func(value: float): label.text = "%s · %d%%" % [LocaleStrings.text(key), roundi(value * 100)]
-	update.call(float(GameManager.settings[key]))
-	_group.add_child(label)
+## Fila con icono, nombre y porcentaje, y el deslizador debajo (con un botón opcional a su lado)
+func _slider(key: String, icon: String, trailing: Control = null) -> HSlider:
+	var title := LocaleStrings.text(key)
+	var percent := UIThemeHelper.label("", "Caption")
+	_header(icon, title, percent)
 	var slider := HSlider.new()
 	slider.name = key.to_pascal_case()
-	slider.accessibility_name = LocaleStrings.text(key)
-	slider.accessibility_description = label.text
+	slider.accessibility_name = title
 	slider.max_value = 1
 	slider.step = 0.05
 	slider.value = GameManager.settings[key]
 	slider.custom_minimum_size.y = 128
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var update := func(value: float):
+		percent.text = "%d%%" % roundi(value * 100)
+		slider.accessibility_description = "%s · %s" % [title, percent.text]
+	update.call(slider.value)
 	slider.value_changed.connect(func(value):
 		GameManager.set_setting(key, value, false)
 		update.call(value)
-		slider.accessibility_description = label.text
 		if key == "vibration_intensity":
 			_refresh_vibration_controls()
 			GameManager.haptic(30))
-	_group.add_child(slider)
+	if trailing == null:
+		_group.add_child(slider)
+	else:
+		var row := UIThemeHelper.hbox(16)
+		row.add_child(slider)
+		trailing.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(trailing)
+		_group.add_child(row)
 	return slider
+
+## Cuadrícula de botones con icono sobre el texto
+func _tiles(items: Array, columns: int) -> void:
+	var grid := GridContainer.new()
+	grid.columns = columns
+	grid.add_theme_constant_override("h_separation", 16)
+	grid.add_theme_constant_override("v_separation", 16)
+	for item in items:
+		var tile := UIThemeHelper.button(LocaleStrings.text(item[0]), "", item[1])
+		tile.name = item[0].to_pascal_case()
+		tile.custom_minimum_size.y = 168
+		tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tile.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		tile.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tile.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if item.size() > 3:
+			for state in ["font", "font_hover", "font_pressed", "font_focus", "icon_normal", "icon_hover", "icon_pressed", "icon_focus"]:
+				tile.add_theme_color_override(state + "_color", UIThemeHelper.colors.danger)
+		tile.pressed.connect(item[2])
+		grid.add_child(tile)
+	_group.add_child(grid)
 
 func _choose_file(importing: bool) -> void:
 	if OS.has_feature("ios"):

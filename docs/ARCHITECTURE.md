@@ -134,7 +134,10 @@ page from the new state without reloading the scene.
 [UIThemeHelper](../scripts/ui/ui_theme_helper.gd) centralizes palettes, typography,
 theme variations, reusable controls, safe areas, scaling, and scene transitions.
 [Icons](../scripts/ui/icons.gd) provides the shared SVG icon set. Use these rather
-than duplicating styling inside new pages.
+than duplicating styling inside new pages. `UIThemeHelper.segmented()` builds
+exclusive choice rows (Settings, Army) and `info_card()` shows long explanations
+behind an ⓘ button instead of inline paragraphs; Settings builds one method per
+section from small row helpers (`_choice`, `_toggle`, `_slider`, `_tiles`).
 
 [LocaleStrings](../scripts/data/locale_strings.gd) resolves translation keys;
 [LanguageCatalog](../scripts/data/language_catalog.gd) reads

@@ -822,12 +822,26 @@ func test_mobile_experience() -> void:
 			assert_equals(settings._save_status.text, LocaleStrings.text("save_local_ok"), "Estado de guardado traducido (%s, claro=%s)" % [lang, str(light)])
 			var knob := Icons.texture("knob", 44).get_image().get_pixel(22, 22)
 			assert_true(knob.is_equal_approx(UIThemeHelper.colors.text), "El control de intensidad conserva contraste en ambos temas")
+	# Con el texto más grande ninguna fila, cuadrícula ni selector se sale de la tarjeta en ningún idioma.
+	GameManager.set_setting("text_scale", 1.0)
+	for lang in LanguageCatalog.codes():
+		GameManager.set_language(lang)
+		settings._build()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var wide_bounds: Rect2 = settings._content.get_global_rect()
+		var overflowing: Array = settings._content.find_children("*", "Control", true, false).filter(func(c):
+			return c.is_visible_in_tree() and (c is GridContainer or c is CheckButton or c is PanelContainer) and c.get_global_rect().end.x > wide_bounds.end.x + 1)
+		assert_true(overflowing.is_empty(), "Con texto muy grande Ajustes cabe en su ancho (%s): %s" % [lang, str(overflowing.map(func(c): return c.name))])
+		for tile in settings._content.find_children("*", "Button", true, false).filter(func(b): return b.get_parent() is GridContainer):
+			assert_true(tile.get_global_rect().end.x <= wide_bounds.end.x + 1 and tile.size.x >= 100, "El mosaico %s cabe (%s)" % [tile.name, lang])
+	GameManager.set_setting("text_scale", 0.0)
 	GameManager.set_language("es")
 	GameManager.set_setting("light_mode", false)
-	(settings.find_child("TextSize", true, false) as Control).grab_focus()
+	(settings.find_child("TextSize_1", true, false) as Control).grab_focus()
 	settings._build()
 	await get_tree().process_frame
-	assert_true(get_viewport().gui_get_focus_owner() == settings.find_child("TextSize", true, false),
+	assert_true(get_viewport().gui_get_focus_owner() == settings.find_child("TextSize_1", true, false),
 		"Ajustes restaura el foco al mismo control tras reconstruirse")
 	var real_test_path := GameManager.save_path
 	GameManager.save_path = "user://test_mobile_missing_dir/save.json"
@@ -3217,6 +3231,8 @@ func test_battle_hud_modals_and_sound_toggle() -> void:
 	assert_true(hud.find_child("BtnAccessibility", true, false) == null, "Accesibilidad vive solo en Ajustes, no en la pausa")
 	assert_equals(hud.btn_pause_map.text, LocaleStrings.text("leave_battle"), "La pausa dice que salir abandona la batalla")
 	assert_true(LocaleStrings.text("leave_battle") != LocaleStrings.text("exit"), "Abandonar batalla y volver al menú son textos distintos")
+	assert_equals(hud.btn_pause_retry.icon, Icons.texture("retry", 44), "Reiniciar batalla lleva el icono de reintento")
+	assert_equals(hud.btn_pause_map.icon, Icons.texture("exit", 44), "Abandonar batalla lleva el icono de salida")
 
 	# 2. Pausa y sonido
 	hud._on_pause_pressed()
@@ -3228,6 +3244,7 @@ func test_battle_hud_modals_and_sound_toggle() -> void:
 	assert_equals(AudioManager.is_muted, not prev_muted, "BtnPauseSound alterna el mute en AudioManager")
 	assert_equals(hud.btn_pause_sound.tooltip_text, LocaleStrings.text("sound_off" if not prev_muted else "sound_on"), "El botón de sonido refleja su estado")
 	assert_true((hud.btn_pause_sound.modulate.a < 1.0) == (not prev_muted), "El icono se atenúa cuando está silenciado")
+	assert_equals(hud.btn_pause_sound.icon, Icons.texture("sound_off" if not prev_muted else "sound", 44), "El icono tachado indica el silencio sin depender de la opacidad")
 	hud._on_pause_sound_pressed()
 	assert_equals(AudioManager.is_muted, prev_muted, "BtnPauseSound restaura el estado original")
 	hud.btn_how_to_play.pressed.emit()
@@ -3415,6 +3432,8 @@ func test_theme_and_ui_helpers() -> void:
 	for v in ["Sheet", "Chip", "NavBar", "Tile", "CompactCard"]:
 		assert_equals(theme.get_type_variation_base(v), &"PanelContainer", "Variación de panel %s instalada" % v)
 	assert_true(theme.default_font is FontVariation, "La interfaz usa el peso regular legible por defecto")
+	assert_true(theme.get_stylebox("normal_mirrored", "OptionButton") == theme.get_stylebox("normal", "OptionButton"), "El selector desplegable conserva su estilo en idiomas RTL")
+	assert_true(theme.get_icon("checked_mirrored", "CheckButton") == theme.get_icon("checked", "CheckButton"), "Los interruptores se ven también en idiomas RTL")
 	for v in ["Display", "Title", "Heading", "Caption"]:
 		assert_equals(theme.get_type_variation_base(v), &"Label", "Variación de texto %s instalada" % v)
 	for type in ["Button", "PrimaryButton", "GoldButton"]:
@@ -5149,9 +5168,26 @@ func test_settings_and_backups() -> void:
 	DirAccess.remove_absolute(backup_path)
 	assert_equals(panel.find_children("*", "HSlider", true, false).size(), 3, "Volúmenes e intensidad háptica con controles nativos")
 	assert_equals(panel.find_children("*", "CheckButton", true, false).size(), 9, "Sonido, música, vibración, paleta, contraste, botón de controles, reducir movimiento, analítica y fallos")
-	assert_equals(panel.find_children("*", "OptionButton", true, false).size(), 4, "Apariencia, idioma, velocidad y tamaño del texto")
-	var text_size_option := panel.find_child("TextSize", true, false) as OptionButton
-	assert_true(text_size_option.accessibility_name == LocaleStrings.text("accessibility_font_size"), "El tamaño de texto tiene nombre accesible")
+	assert_equals(panel.find_children("*", "OptionButton", true, false).size(), 1, "Sólo el idioma usa lista desplegable")
+	for group in [["Appearance", 2], ["Speed", GameManager.GAME_SPEEDS.size()], ["TextSize", 3]]:
+		var segments: Array = panel.find_children(group[0] + "_*", "Button", true, false)
+		assert_equals(segments.size(), group[1], "%s es un selector segmentado" % group[0])
+		assert_true(segments.all(func(b): return b.toggle_mode and b.accessibility_name != "" and b.custom_minimum_size.y >= 96), "Los segmentos de %s son accesibles y táctiles" % group[0])
+	assert_true(panel.find_child("TextSize_2", true, false).accessibility_name.contains(LocaleStrings.text("text_size_extra_large")), "El tamaño de texto tiene nombre accesible")
+	panel.find_child("TextSize_2", true, false).pressed.emit()
+	panel.find_child("Speed_3", true, false).pressed.emit()
+	assert_equals([GameManager.settings["text_scale"], GameManager.settings["speed"]], [1.0, 2.0], "Los segmentos guardan tamaño de texto y velocidad")
+	panel.find_child("Appearance_0", true, false).pressed.emit()
+	assert_equals(GameManager.settings["light_mode"], false, "El segmento de apariencia cambia el tema")
+	assert_true(panel.find_child("Appearance_0", true, false).button_pressed and panel.find_child("TextSize_2", true, false).button_pressed, "Tras reconstruir, los segmentos reflejan los ajustes guardados")
+	for info in ["InfoVibrationNote", "InfoBattleControlsButtonNote", "InfoSupportNote", "InfoSaveLocalNote"]:
+		var info_button := panel.find_child(info, true, false) as Button
+		assert_true(info_button != null and info_button.accessibility_name != "", "El texto largo está tras un botón de información accesible: " + info)
+	panel.find_child("InfoVibrationNote", true, false).pressed.emit()
+	assert_true(is_instance_valid(panel._help_card) and panel._help_card.find_child("Body", true, false).text == LocaleStrings.text("vibration_note"), "El botón de información muestra el texto completo")
+	panel._notification(NOTIFICATION_WM_GO_BACK_REQUEST)
+	assert_true(panel._help_card == null and not panel.is_queued_for_deletion(), "Atrás cierra la información sin cerrar Ajustes")
+	assert_true(panel.find_child("LocalSaveStatus", true, false).text != "" and panel.find_child("Reset", true, false) != null, "El estado de guardado y el reinicio siguen visibles")
 	assert_equals(panel.find_children("*", "ScrollContainer", true, false)[0].scroll_deadzone, UIThemeHelper.TOUCH_SCROLL_DEADZONE, "Ajustes distingue toques y arrastres")
 	assert_true(panel._content.find_children("*", "BaseButton", true, false).all(func(b): return b.mouse_filter == Control.MOUSE_FILTER_PASS), "Los botones de ajustes dejan pasar gestos de desplazamiento")
 	assert_true(panel.find_children("*", "HSlider", true, false).all(func(s): return s.mouse_filter == Control.MOUSE_FILTER_PASS), "Los deslizadores de ajustes dejan pasar gestos de desplazamiento")
