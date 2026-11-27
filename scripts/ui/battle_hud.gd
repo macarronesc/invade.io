@@ -67,12 +67,12 @@ const MIN_LABEL_SHARE := 0.08
 
 @onready var pause_panel: Control = %PausePanel
 @onready var btn_pause: Button = %BtnPause
+@onready var btn_controls: Button = %BtnControls
 @onready var btn_resume: Button = %BtnResume
 @onready var btn_pause_sound: Button = %BtnPauseSound
 @onready var btn_pause_music: Button = %BtnPauseMusic
 @onready var btn_pause_retry: Button = %BtnPauseRetry
 @onready var btn_how_to_play: Button = %BtnHowToPlay
-@onready var btn_accessibility: Button = %BtnAccessibility
 @onready var btn_accessible_controls: Button = %BtnAccessibleControls
 @onready var btn_settings: Button = %BtnSettings
 @onready var btn_pause_map: Button = %BtnPauseMap
@@ -93,6 +93,8 @@ var _last_shown_second: int = -999
 var _last_dominance_accessibility := ""
 var _utility_panel: Control = null
 var _accessible_panel: Control = null
+## El panel se abrió desde el botón del HUD (sin pasar por el menú de pausa)
+var _controls_from_hud := false
 var _accessible_status: Label
 var _accessible_send_button: Button
 var _accessible_orders_list: VBoxContainer
@@ -130,7 +132,7 @@ func _ready() -> void:
 	UIThemeHelper.apply_locale_direction_children(self)
 	_apply_safe_area()
 	confetti_overlay.draw.connect(_draw_confetti)
-	for entry in [[btn_pause, "pause"], [btn_pause_sound, "sound"], [btn_pause_music, "music"], [btn_resume, "play"],
+	for entry in [[btn_pause, "pause"], [btn_controls, "target"], [btn_pause_sound, "sound"], [btn_pause_music, "music"], [btn_resume, "play"],
 			[btn_retry, "retry"], [btn_next_level, "play"], [btn_how_to_play, "help"], [btn_settings, "gear"], [btn_share, "share"]]:
 		entry[0].icon = Icons.texture(entry[1], 44)
 	for entry in [[gold_icon, "coin", 52], [time_icon, "clock", 40], [cities_icon, "globe", 40]]:
@@ -145,10 +147,12 @@ func _ready() -> void:
 	EventBus.battle_won.connect(_on_battle_won)
 	EventBus.battle_lost.connect(_on_battle_lost)
 	EventBus.settings_changed.connect(_refresh_palette)
+	EventBus.settings_changed.connect(_refresh_controls_button)
 
 	btn_pause.pressed.connect(func():
 		AudioManager.play_click()
 		_on_pause_pressed())
+	btn_controls.pressed.connect(_on_controls_button_pressed)
 	btn_resume.pressed.connect(_on_resume_pressed)
 	btn_pause_retry.pressed.connect(_on_retry_pressed)
 	btn_pause_map.pressed.connect(_on_map_pressed)
@@ -160,7 +164,6 @@ func _ready() -> void:
 		_tip_panel = UIThemeHelper.how_to_play_card()
 		add_child(_tip_panel))
 	btn_settings.pressed.connect(_open_settings)
-	btn_accessibility.pressed.connect(_open_settings.bind(true))
 	btn_accessible_controls.pressed.connect(_open_accessible_controls)
 	btn_accessible_controls.disabled = not is_instance_valid(battle_controller)
 	btn_next_level.pressed.connect(_on_next_level_pressed)
@@ -173,6 +176,7 @@ func _ready() -> void:
 	btn_result_action.pressed.connect(_on_result_action)
 	btn_equip_reward.pressed.connect(_on_equip_reward)
 	_refresh_audio_buttons()
+	_refresh_controls_button()
 
 func _wrap_modal_contents() -> void:
 	for panel in [victory_panel, defeat_panel, pause_panel]:
@@ -212,11 +216,12 @@ func _apply_texts() -> void:
 	btn_resume.text = LocaleStrings.text("resume")
 	btn_pause_retry.text = LocaleStrings.text("restart_battle")
 	btn_how_to_play.text = LocaleStrings.text("how_to_play")
-	btn_accessibility.text = LocaleStrings.text("section_access")
 	btn_settings.text = LocaleStrings.text("settings")
 	btn_accessible_controls.text = LocaleStrings.text("accessible_battle_controls")
 	btn_accessible_controls.accessibility_name = btn_accessible_controls.text
-	btn_pause_map.text = LocaleStrings.text("exit")
+	btn_pause_map.text = LocaleStrings.text("leave_battle")
+	btn_controls.tooltip_text = LocaleStrings.text("accessible_battle_controls")
+	btn_controls.accessibility_name = btn_controls.tooltip_text
 	btn_pause.tooltip_text = LocaleStrings.text("pause")
 	btn_pause.accessibility_name = LocaleStrings.text("pause")
 
@@ -245,6 +250,9 @@ func _build_faction_bars() -> void:
 	for faction in _faction_labels:
 		_faction_labels[faction].accessibility_name = GameManager.faction_name(faction)
 	_refresh_palette()
+
+func _refresh_controls_button() -> void:
+	btn_controls.visible = GameManager.settings["battle_controls_button"] and is_instance_valid(battle_controller)
 
 ## Colores que no vienen del tema (se repite al cambiar a modo claro u oscuro)
 func _refresh_palette() -> void:
@@ -289,6 +297,15 @@ func _on_pause_sound_pressed() -> void:
 		AudioManager.play_click()
 	_refresh_audio_buttons()
 
+## Atajo opcional del HUD: pausa y abre directamente los controles de batalla.
+func _on_controls_button_pressed() -> void:
+	if not _can_pause() or not is_instance_valid(battle_controller):
+		return
+	AudioManager.play_click()
+	_on_pause_pressed(false, false)
+	_controls_from_hud = true
+	_open_accessible_controls()
+
 ## Lista accesible para inspeccionar bases y emitir las mismas órdenes que el gesto del mapa.
 func _open_accessible_controls() -> void:
 	if not is_instance_valid(battle_controller) or is_instance_valid(_accessible_panel):
@@ -307,7 +324,7 @@ func _open_accessible_controls() -> void:
 	var content := UIThemeHelper.overlay_page(_accessible_panel, LocaleStrings.text("accessible_battle_controls"), _close_accessible_controls)
 	UIThemeHelper.apply_locale_direction(_accessible_panel)
 	content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("accessible_battle_help")))
-	UIThemeHelper.section(content, LocaleStrings.text("accessible_sources"), "", "Heading")
+	UIThemeHelper.section(content, LocaleStrings.text("accessible_sources"), LocaleStrings.text("accessible_sources_hint"), "Heading")
 	var sources := UIThemeHelper.vbox(8)
 	content.add_child(sources)
 	for base in battle_controller.bases:
@@ -318,7 +335,7 @@ func _open_accessible_controls() -> void:
 		button.toggled.connect(_on_accessible_source_toggled.bind(base))
 		sources.add_child(button)
 		_accessible_source_buttons[base] = button
-	UIThemeHelper.section(content, LocaleStrings.text("accessible_targets"), "", "Heading")
+	UIThemeHelper.section(content, LocaleStrings.text("accessible_targets"), LocaleStrings.text("accessible_targets_hint"), "Heading")
 	var targets := UIThemeHelper.vbox(8)
 	content.add_child(targets)
 	var target_group := ButtonGroup.new()
@@ -383,6 +400,12 @@ func _close_accessible_controls() -> void:
 	_accessible_target_buttons.clear()
 	_accessible_sources.clear()
 	_accessible_target = null
+	# Un auto-pausa por perder el foco ya mostró el menú: no se reanuda por sorpresa.
+	if _controls_from_hud and not pause_panel.visible:
+		_controls_from_hud = false
+		_resume_battle(btn_controls)
+		return
+	_controls_from_hud = false
 	pause_panel.visible = true
 	dim_overlay.visible = true
 	call_deferred("_grab_focus_if_available", btn_accessible_controls)
@@ -396,7 +419,17 @@ func _accessible_base_button(base: BaseNode) -> Button:
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.accessibility_name = base.base_name
 	button.accessibility_description = description
+	_mark_accessible_base(false, button, base)
+	button.toggled.connect(_mark_accessible_base.bind(button, base))
 	return button
+
+## Punto del color del bando; una marca ✓ cuando la base está elegida. El color solo
+## refuerza: el nombre del bando ya va en el texto y la elección no depende de él.
+func _mark_accessible_base(pressed: bool, button: Button, base: BaseNode) -> void:
+	UIThemeHelper.set_icon(button, "check" if pressed else "disc", 34)
+	var color: Color = UIThemeHelper.colors.text if pressed else GameManager.faction_color(base.faction)
+	for state in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+		button.add_theme_color_override("icon_%s_color" % state, color)
 
 func _on_accessible_source_toggled(pressed: bool, base: BaseNode) -> void:
 	if pressed:
@@ -411,17 +444,26 @@ func _select_accessible_target(base: BaseNode) -> void:
 	_accessible_target = base
 	battle_controller.center_camera_on(base)
 	_update_accessible_send_state()
+	if is_instance_valid(_accessible_send_button) and not _accessible_send_button.disabled:
+		call_deferred("_reveal_accessible_send")
+
+## Tras elegir destino, Enviar queda a la vista sin tener que desplazar la lista a mano.
+func _reveal_accessible_send() -> void:
+	if is_instance_valid(_accessible_send_button):
+		var scroll := _accessible_send_button.get_parent().get_parent() as ScrollContainer
+		if scroll:
+			scroll.ensure_control_visible(_accessible_send_button)
 
 func _update_accessible_send_state() -> void:
 	if not is_instance_valid(_accessible_send_button):
 		return
-	var can_send := false
+	var ready_troops := 0
 	if is_instance_valid(_accessible_target):
 		for source in _accessible_sources:
 			if is_instance_valid(source) and source.faction == GameManager.Faction.PLAYER \
 					and source.troops > 1 and battle_controller.can_dispatch(source, _accessible_target):
-				can_send = true
-				break
+				ready_troops += source.troops - 1
+	var can_send := ready_troops > 0
 	_accessible_send_button.disabled = not can_send
 	if not is_instance_valid(_accessible_status):
 		return
@@ -432,7 +474,7 @@ func _update_accessible_send_state() -> void:
 		_accessible_status.text = ""
 		return
 	if can_send:
-		_accessible_status.text = ""
+		_accessible_status.text = LocaleStrings.text("accessible_ready") % [ready_troops, _accessible_target.base_name]
 	elif _accessible_sources.any(func(source): return is_instance_valid(source) and source.troops > 1):
 		_accessible_status.text = LocaleStrings.text("no_route")
 	else:
@@ -474,6 +516,7 @@ func _refresh_accessible_base_summaries() -> void:
 			var description: String = base.accessibility_summary()
 			button.text = "%s · %s" % [base.base_name, description]
 			button.accessibility_description = description
+			_mark_accessible_base(button.button_pressed, button, base)
 
 func _refresh_accessible_orders() -> void:
 	if not is_instance_valid(_accessible_orders_list):
@@ -515,14 +558,12 @@ func _zoom_accessible_map(step: float) -> void:
 	if is_instance_valid(battle_controller):
 		battle_controller.adjust_camera_zoom(step)
 
-func _open_settings(accessibility: bool = false) -> void:
+func _open_settings() -> void:
 	if is_instance_valid(_utility_panel):
 		return
 	Telemetry.screen_opened("settings")
 	_utility_panel = SettingsPanel.new()
 	_utility_panel.allow_backups = false # No reemplazar una partida mientras su batalla vive.
-	_utility_panel.focus_accessibility_on_open = accessibility
-	var return_focus: Control = btn_accessibility if accessibility else btn_settings
 	_utility_panel.closed.connect(func():
 		Telemetry.screen_opened("battle")
 		_apply_texts()
@@ -536,8 +577,7 @@ func _open_settings(accessibility: bool = false) -> void:
 				if base.label_name:
 					base.label_name.text = base.base_name
 				base.refresh_accessible_labels()
-		if is_instance_valid(return_focus):
-			call_deferred("_grab_focus_if_available", return_focus))
+		call_deferred("_grab_focus_if_available", btn_settings))
 	add_child(_utility_panel)
 	UIThemeHelper.apply_locale_direction(_utility_panel)
 
@@ -1026,7 +1066,7 @@ func _on_back_requested() -> void:
 		_on_pause_pressed()
 
 ## También se llama al perder el foco la app, sin clic
-func _on_pause_pressed(automatic: bool = false) -> void:
+func _on_pause_pressed(automatic: bool = false, show_menu: bool = true) -> void:
 	_cleanup_time_scale()
 	if not is_inside_tree() or victory_panel.visible or defeat_panel.visible \
 		or (is_instance_valid(battle_controller) and battle_controller.is_game_over):
@@ -1038,10 +1078,12 @@ func _on_pause_pressed(automatic: bool = false) -> void:
 	_refresh_audio_buttons()
 	pause_hint.visible = automatic
 	dim_overlay.visible = true
-	_fit_panel(pause_panel)
-	UIThemeHelper.animate_modal_pop_in(pause_panel)
+	if show_menu:
+		_fit_panel(pause_panel)
+		UIThemeHelper.animate_modal_pop_in(pause_panel)
 	get_tree().paused = true
-	call_deferred("_grab_focus_if_available", btn_resume)
+	if show_menu:
+		call_deferred("_grab_focus_if_available", btn_resume)
 
 func _on_resume_pressed() -> void:
 	if not pause_panel.visible or not GameManager.application_active or is_instance_valid(_tip_panel) or is_instance_valid(_utility_panel):
@@ -1052,10 +1094,13 @@ func _on_resume_pressed() -> void:
 		if not GameManager.application_active:
 			_on_pause_pressed(true)
 			return
-		dim_overlay.visible = false
-		get_tree().paused = false
-		call_deferred("_grab_focus_if_available", btn_pause)
+		_resume_battle(btn_pause)
 	)
+
+func _resume_battle(focus_target: Control) -> void:
+	dim_overlay.visible = false
+	get_tree().paused = false
+	call_deferred("_grab_focus_if_available", focus_target)
 
 ## Tarjeta modal explicativa (pausa la batalla hasta que el jugador la cierra)
 func show_tip_card(title: String, body: String, on_close: Callable = Callable()) -> void:

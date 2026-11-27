@@ -19,11 +19,15 @@ This guide describes the current source. Store versions may differ; see
 | Reinforce | Send troops to another friendly base. |
 | Retreat | Start a swipe outside a friendly base and cut across one of your marching routes. |
 | Inspect a base | Tap it to show its troops, capacity, production, and special properties. |
-| Pause or adjust | Use the pause button for settings, help, and alternate battle controls. |
+| Pause or adjust | Use the pause button for help, settings, sound, and Battle controls. "Leave battle" abandons the fight: unfinished battles are not saved. |
 
-On desktop, mouse dragging emulates touch. The pause menu's alternate controls
-let you select bases, send or recall troops, center the map, and adjust zoom
-without relying on drag gestures.
+On desktop, mouse dragging emulates touch. **Battle controls** (pause menu) is a
+tap-only alternative to dragging, for players who find gestures hard or use a
+screen reader or keyboard. It has three steps: choose your bases, choose a
+target, send. It also lets you recall troops, center the map, and adjust zoom,
+and the battle stays paused while you give orders. Turn on **Settings →
+Accessibility → Battle controls button** to add a shortcut next to Pause that
+opens it in one tap and resumes the battle when you close it.
 
 Troops leave in successive packets, not all at once. Units still waiting to leave
 are lost if their source falls; a retreat returns those waiting units to the
@@ -136,7 +140,9 @@ where supported; a saved language choice takes precedence. Arabic uses RTL
 interface layout, but geographic maps and the brand are not mirrored.
 
 You can change light/dark appearance, text size, a color-blind palette, reduced
-motion, map contrast, game speed, sound/music volumes, and haptic feedback.
+motion, map contrast, a battle-controls shortcut button, game speed, sound/music
+volumes, and haptic feedback. Accessibility options live only in Settings, not in
+the pause menu.
 The interface theme and equipped map theme are separate choices.
 
 These settings are not a claim of full mobile screen-reader compatibility. See

@@ -148,6 +148,7 @@ feel, and interruptions still need physical testing.
 
 The game provides larger text, a color-blind palette, reduced motion, higher map
 contrast, safe-area handling, and alternate battle controls with accessible names.
+An optional Settings toggle adds a HUD button that opens those controls in one tap.
 
 Godot 4.7.2 exposes supported desktop accessibility interfaces, but this project
 does not establish TalkBack/VoiceOver support on Android/iOS. Settings consults
