@@ -23,12 +23,12 @@ Mỗi quyết định đều thay đổi trận chiến
 Chiếm nhà máy để tuyển quân nhanh hơn, giữ các thủ đô quan trọng và phá phòng tuyến pháo đài. Rừng rậm, ốc đảo, tuyến đường biển và trùm có quân tiếp viện tạo ra chiến thuật khác nhau trên từng lục địa. Nối nhiều căn cứ đồng minh bằng một nét kéo hoặc cắt tuyến hành quân để gọi quân về.
 
 Chiến dịch và nhiều mục tiêu hơn nữa
-Vượt qua 30 màn chiến dịch trên sáu lục địa. Hoàn thành chiến dịch của một lục địa để mở các cuộc xâm lược khu vực tại đó: tổng cộng 59 khu vực và 177 mặt trận. Thu thập sao, nhận vàng khi hoàn thành khu vực và mở phần thưởng ngoại hình khi chinh phục lục địa.
+Vượt qua 30 màn chiến dịch trên sáu lục địa. Hoàn thành chiến dịch của một lục địa để mở các cuộc xâm lược khu vực tại đó: tổng cộng 59 khu vực và 177 mặt trận. Thu thập sao, nhận vàng khi hoàn thành khu vực và mở phần thưởng ngoại hình khi chinh phục lục địa. Sau chiến dịch, hãy leo chín cấp Thăng cấp, nơi cả 30 bản đồ được chơi lại với đối thủ mạnh hơn, thêm vàng và nâng cấp mới.
 
 Ở chế độ chinh phục tự do, mỗi cuộc viễn chinh đi qua năm khu vực và kết thúc bằng trận đấu trùm. Thử thách hằng ngày có quy tắc luân phiên, lực lượng ban đầu ngang nhau và không áp dụng nâng cấp chiến đấu. Phá kỷ lục cá nhân rồi sao chép thẻ kết quả để chia sẻ với bạn bè. Thử thách chạy trên thiết bị của bạn, không phải đấu trực tiếp với người chơi khác.
 
 Tiến bộ nhờ chơi game
-Nâng cấp quân đồn trú, tuyển quân, tốc độ hành quân và thưởng vàng. Tăng cấp bậc, thu thập thành phố chiến dịch trong bản đồ sưu tập và hoàn thành 23 thành tích. Mở màu quân, hình dạng căn cứ, kiểu quân và chủ đề bản đồ. Ngoại hình không làm thay đổi sức mạnh chiến đấu.
+Nâng cấp quân đồn trú, tuyển quân, tốc độ hành quân và thưởng vàng. Tăng cấp bậc, thu thập thành phố chiến dịch trong bản đồ sưu tập và hoàn thành 28 thành tích. Mở màu quân, hình dạng căn cứ, kiểu quân và chủ đề bản đồ. Ngoại hình không làm thay đổi sức mạnh chiến đấu.
 
 Chơi theo cách của bạn
 • Ngoại tuyến, không quảng cáo, không mua hàng trong ứng dụng. Vàng kiếm được bằng cách chơi.

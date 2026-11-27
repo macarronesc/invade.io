@@ -23,7 +23,7 @@ class StoreChecks(unittest.TestCase):
         self.assertEqual(len(store.SHOTS), 8)
         self.assertIn("enabled by default", listings["en"][2])
         for values in listings.values():
-            for number in ("30", "59", "177", "23", str(len(languages.CODES))):
+            for number in ("30", "59", "177", "28", str(len(languages.CODES))):
                 self.assertIn(number, values[2])
             self.assertIn("invade.io", values[1] + values[2])
 
