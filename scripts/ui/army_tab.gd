@@ -8,6 +8,10 @@ const UPGRADES := {
 	"production_rate": {"icon": "bolt", "color": "gold", "percent": true},
 	"troop_speed": {"icon": "speed", "color": "success", "percent": true},
 	"gold_bonus": {"icon": "coin", "color": "gold", "percent": true},
+	"fortification": {"icon": "shield", "color": "primary", "percent": true},
+	"capacity": {"icon": "flag", "color": "success", "percent": true},
+	"conscription": {"icon": "play", "color": "gold", "percent": false},
+	"breaching": {"icon": "bolt", "color": "success", "percent": true},
 }
 
 var return_to_battle := false
@@ -34,7 +38,7 @@ func _build() -> void:
 			first.add_child(UIThemeHelper.paragraph(LocaleStrings.text("first_upgrade_sub")))
 		else:
 			content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("upgrades_sub")))
-		for id in UPGRADES:
+		for id in GameManager.available_upgrades():
 			content.add_child(_upgrade_card(id))
 	else:
 		content.add_child(UIThemeHelper.paragraph(LocaleStrings.text("looks_sub")))
@@ -49,32 +53,20 @@ func _build() -> void:
 			content.add_child(grid)
 
 func _segments() -> Control:
-	var panel := PanelContainer.new()
-	panel.theme_type_variation = "Chip"
-	var row := UIThemeHelper.hbox(8)
-	panel.add_child(row)
-	var group := ButtonGroup.new()
-	for id in ["upgrades", "looks"]:
-		var b := UIThemeHelper.button(LocaleStrings.text("segment_" + id), "SegmentButton")
-		b.name = "Segment_" + id
-		b.toggle_mode = true
-		b.button_group = group
-		b.button_pressed = section == id
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.pressed.connect(func():
+	var ids := ["upgrades", "looks"]
+	return UIThemeHelper.segmented(ids.map(func(id): return {"id": id, "text": LocaleStrings.text("segment_" + id)}), ids.find(section),
+		func(index):
 			AudioManager.play_click()
-			section = id
+			section = ids[index]
 			scroll_vertical = 0
-			rebuild())
-		row.add_child(b)
-	return panel
+			rebuild(), "Segment")
 
 func _upgrade_card(id: String) -> PanelContainer:
 	var cfg: Dictionary = UPGRADES[id]
 	var tint: Color = UIThemeHelper.colors[cfg["color"]]
 	var level: int = GameManager.upgrades.get(id, 0)
 	var max_level := GameManager.MAX_UPGRADE_LEVEL
-	var step: int = GameManager.UPGRADE_STEPS[id]
+	var step: int = GameManager.UPGRADES[id]["step"]
 	var fmt := "+%d%%" if cfg["percent"] else "+%d"
 	var card := PanelContainer.new()
 	card.name = "UpgradeCard_" + id

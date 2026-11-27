@@ -16,7 +16,7 @@ implement gameplay. There is no game server, account system, or online authority
 | [scripts/battle/](../scripts/battle/) | Battle orchestration, base/troop behavior, AI, territory rendering, and tutorial |
 | [scripts/data/](../scripts/data/) | Content catalogs, geographic generation, rules, rewards, ranks, and localization helpers |
 | [scripts/ui/](../scripts/ui/) | Menu pages, battle HUD, settings, shared theme, and icons |
-| [assets/](../assets/) and [locale/](../locale/) | Checked-in geography, fonts, brand/legal assets, and translations |
+| [assets/](../assets/) and [locale/](../locale/) | Checked-in geography, the language manifest, fonts, brand/legal assets, and translations |
 | [addons/](../addons/) and [ios/plugins/](../ios/plugins/) | Vendored telemetry SDKs and the native iOS backup picker |
 | [tools/](../tools/) and [scripts/](../scripts/) | Authoring, validation, platform build, and artifact-verification tools |
 | [website/](../website/) | Static player website and generated documentation; isolated from Godot with `.gdignore` and export exclusions |
@@ -60,7 +60,7 @@ Autoload order is declared in `project.godot`:
 | `EventBus` | Shared battle, reward, economy, appearance, settings, and save-replacement signals |
 | `GameManager` | Current selection, player progress, economy, settings, validation, and persistence |
 | `AudioManager` | Synthesized sound/music playback, volume settings, and lifecycle suspension |
-| `AchievementManager` | Observes battle signals, updates statistics, XP/missions, and achievement unlocks |
+| `AchievementManager` | Observes battle signals, updates statistics, XP/missions, and achievement unlocks; an entry with `"hidden": true` in `AchievementDatabase` shows only a hint until unlocked |
 | `Toasts` | Brief notifications outside individual pages |
 | `Aptabase` | Vendored analytics client; provider initialization is controlled by `Telemetry` |
 | `Telemetry` | Usage/crash integration, privacy gates, and event context |
@@ -92,6 +92,11 @@ player's upgrade purchases. Orientation changes preserve content and rules;
 daily challenges keep a canonical board for comparable records. A seeded
 scenario is not a guarantee of identical rendered pixels across GPUs/fonts.
 
+`scripts/data/threat.gd` holds the open-ended difficulty curve (threat above 1.0) and
+`scripts/data/ascension.gd` derives `asc<tier>_<campaign id>` levels from cached campaign
+levels; only `ascension_stars` is saved (save v8). `GameManager.UPGRADES` is the single
+upgrade table. Invasion season two lives in `InvasionDatabase.SEASON_TWO`.
+
 ### Battle simulation
 
 [BattleController](../scripts/battle/battle_controller.gd) loads the level,
@@ -113,7 +118,8 @@ prepared once and reused; they do not change simulation timing or rendering.
 the battle controller still decides the outcome and emits the same result events.
 
 The [BattleHUD](../scripts/ui/battle_hud.gd) handles briefing/HUD, pause/help,
-alternate accessible controls, and results. The
+alternate accessible controls (opened from an optional HUD button, the
+`battle_controls_button` setting), and results. The
 [tutorial overlay](../scripts/battle/tutorial_overlay.gd) guides early interactions.
 
 ### UI and localization
@@ -128,12 +134,18 @@ page from the new state without reloading the scene.
 [UIThemeHelper](../scripts/ui/ui_theme_helper.gd) centralizes palettes, typography,
 theme variations, reusable controls, safe areas, scaling, and scene transitions.
 [Icons](../scripts/ui/icons.gd) provides the shared SVG icon set. Use these rather
-than duplicating styling inside new pages.
+than duplicating styling inside new pages. `UIThemeHelper.segmented()` builds
+exclusive choice rows (Settings, Army) and `info_card()` shows long explanations
+behind an ⓘ button instead of inline paragraphs; Settings builds one method per
+section from small row helpers (`_choice`, `_toggle`, `_slider`, `_tiles`).
 
 [LocaleStrings](../scripts/data/locale_strings.gd) resolves translation keys;
-[LanguageCatalog](../scripts/data/language_catalog.gd) defines locale normalization,
-font scripts, and RTL direction. Translations and geographic names feed the font
-subset tools. See the [localization workflow](DEVELOPMENT.md#localization).
+[LanguageCatalog](../scripts/data/language_catalog.gd) reads
+[languages.json](../assets/data/languages.json), the one manifest that defines
+supported languages, locale normalization, font scripts, RTL direction, store
+locale mapping, and city-name sources for both the game and `tools/`. Translations
+and geographic names feed the font subset tools. See the
+[localization workflow](DEVELOPMENT.md#localization).
 
 ### Persistence, lifecycle, and privacy
 

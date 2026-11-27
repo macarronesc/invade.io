@@ -74,7 +74,7 @@ func _crash_allowed() -> bool:
 	return bool(GameManager.settings.get("share_crashes", GameManager.DEFAULT_SETTINGS["share_crashes"]))
 
 func _app_version() -> String:
-	return str(ProjectSettings.get_setting("application/config/version", "0.5.0"))
+	return str(ProjectSettings.get_setting("application/config/version", "1.0.0"))
 
 func _analytics_app_version() -> String:
 	return _app_version() + ("-size" if _is_size_candidate() else "")
@@ -299,6 +299,8 @@ func _previous_stars(level_id: String, mode: String) -> int:
 			return int(GameManager.completed_levels.get(level_id, 0))
 		"invasion":
 			return GameManager.invasion_level_stars(level_id)
+		"ascension":
+			return GameManager.level_stars(level_id)
 		_:
 			return 0
 
@@ -308,6 +310,8 @@ func _first_clear(level_id: String, mode: String) -> bool:
 			return not GameManager.completed_levels.has(level_id)
 		"invasion":
 			return GameManager.invasion_level_stars(level_id) == 0
+		"ascension":
+			return GameManager.level_stars(level_id) == 0
 		"daily":
 			return not GameManager.is_daily_challenge_done(DailyRewards.challenge_day(level_id))
 		_:
@@ -329,7 +333,9 @@ func _level_props(context: Dictionary) -> Dictionary:
 		"combat_upgrades": _combat_upgrade_sum(),
 		"speed": float(GameManager.settings["speed"]),
 	}
-	if mode == "campaign" or mode == "invasion":
+	if mode == "ascension":
+		props["tier"] = Ascension.tier_of(level_id)
+	if mode == "campaign" or mode == "invasion" or mode == "ascension":
 		props["continent"] = LevelDatabase.get_continent_of(level_id)
 		props["level_no"] = LevelDatabase.get_level_number(level_id)
 	return props
@@ -342,7 +348,7 @@ func _upgrade_sum() -> int:
 
 func _combat_upgrade_sum() -> int:
 	var total := 0
-	for key in ["starting_troops", "production_rate", "troop_speed"]:
+	for key in GameManager.CORE_COMBAT_UPGRADES + GameManager.EXTRA_COMBAT_UPGRADES:
 		total += int(GameManager.upgrades.get(key, 0))
 	return total
 

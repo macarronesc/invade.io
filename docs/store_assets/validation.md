@@ -1,5 +1,57 @@
 # Store material — validation record
 
+## Release 1.0.0 revalidation
+
+Date: 27 November 2026. Target source version: **1.0.0** (Android versionCode 9).
+
+- Full Godot capture of all 19 locales: 152 phone images, 76 tablet images and one
+  feature graphic, published with `build_store_listings.py --publish`. The manifest
+  records version 1.0.0 and the clean capture commit.
+- 65 of the 229 PNGs changed. Conquer, tactics, upgrades, cosmetics, tablet invasions,
+  tablet cosmetics and tablet atlas captures and the feature graphic are byte-identical to the
+  previous capture (one Japanese daily capture differs by a single pixel).
+  The changes are:
+  - the invasions headline (59 regions, 177 fronts) in the 15 languages that still
+    carried the old 36/108 counts or a mixed 36/177 caption;
+  - the atlas subtitle (28 achievements) in every language;
+  - the campaign phone and tablet captures in the 15 original languages, which now
+    show the Ascension teaser line ("Ascension opens when every campaign level is
+    cleared") above the map. The four newest languages were already captured after
+    that change.
+- The 1.0.0 Play release notes cover all 19 locales and fit the 500-character limit
+  (checked by `tools/tests/test_store_assets.py`, which now also covers `ar`, `id`,
+  `vi`, `uk` and `th`; this fixed an existing 502-character Indonesian 0.4.0 block).
+- Full regression suite: 8,871 passed, 0 failed (same count as `dev` before the version
+  bump). Quick: 7,362 passed. Mobile: 1,310 passed. Balance, ascension, invasions,
+  threat, flow, UI (all languages and Arabic), invasion-UI, wide-UI, rotation and
+  gestures checks passed. Existing Godot shutdown resource-leak warnings remain.
+- Python tools suite: 53 tests. `tools/check_repository.py`, `tools/check_release.py
+  --base origin/main`, actionlint, ShellCheck and Gitleaks (history and working tree)
+  pass. Website: build (28 pages), unit tests and 68 browser tests pass.
+- Not covered: physical-device testing, TalkBack/VoiceOver, native-speaker review of the
+  draft translations and the Play Console checks listed in `docs/RELEASES.md`.
+
+## Language expansion: Polish, Ukrainian, Traditional Chinese, Thai
+
+Date: 24 November 2026. Source version: **0.5.0** (no version change).
+
+- The four languages were captured on their own (`--lang=pl,th,uk,zh_TW`) and merged
+  with `build_store_listings.py --publish --lang ...`. The manifest records the clean
+  commit in `partial_updates`; the other 15 languages' entries and files were not touched.
+- Before/after check for the original languages: English, Arabic and Japanese phone
+  and tablet captures (36 images) are byte-identical to captures taken before any
+  change on the same machine and renderer.
+- Contact sheets and rendered UI flows for the new languages were reviewed (headlines
+  fit, Thai tone marks and Traditional Chinese glyphs render, no clipping). This is not
+  native-speaker approval: every new language is marked `draft` in
+  `assets/data/languages.json` and its UI copy, store text and captions began as
+  machine drafts that were corrected by hand for game terminology.
+- Full regression suite: 6,375 passed, 0 failed (all 19 languages for glyph coverage,
+  placeholders and UI fit). Python tools suite: 50 tests. `--ui`, `--wide-ui`, both launch
+  checks and `refactor_check` passed; all 32 pre-existing refactor signatures match the
+  pre-change baseline (the 8 new language/orientation signatures are new).
+- Capture time is about 40 seconds per language on a software renderer.
+
 ## Release-candidate revalidation
 
 Date: 9 November 2026. Target source version: **0.5.0**.

@@ -18,6 +18,7 @@ does not certify mobile ergonomics, performance, native SDKs, or store complianc
 |---|---|
 | Guide prose, navigation, or README images | Review links/anchors, English prose, alt text, GitHub rendering, `git diff --check`; check store assets if referenced |
 | Website or guides published on Pages | [Website checks](WEBSITE.md#run-and-validate): unit tests, production build/link checks, and browser/accessibility checks |
+| Browser demo (shell, music, web export) | [Browser demo checks](WEBSITE.md#browser-demo): render the music, export the Web preset, then `npm run test:demo`; test on a real phone |
 | Gameplay, economy, or data | Python/repository checks, full Godot suite, relevant balance simulations |
 | UI, language, fonts, or accessibility | Quick suite plus `--ui`; add wide/rotation/gesture checks and physical-device review as applicable |
 | Save, settings, or lifecycle | `--mobile` plus full suite and the [device checklist](PLATFORM_INTEGRATION.md#physical-device-checklist) |
@@ -42,7 +43,7 @@ JDK 17 (`keytool` and `jarsigner`) to exercise the signing regression; without i
 that test is skipped locally. CI requires those tools and does not permit the
 skip. Never provide a real signing key to a test.
 
-The font checks use `fonttools==4.57.0` (hash-pinned in `tools/requirements-ci.txt`
+The font checks use `fonttools==4.60.2` (hash-pinned in `tools/requirements-ci.txt`
 and installed explicitly in CI); without it they are skipped locally. The export-identity integration check similarly needs Godot on
 `PATH`. Run both before changing fonts or candidate packaging. The artifact
 tests cover PCK parsing and rejection of invalid/development resources and missing
@@ -100,6 +101,8 @@ print cold/warm timings without a hardware-dependent timing assertion.
 godot --headless --path . res://scenes/tests/balance_check.tscn
 
 # Representative invasion fronts across regions and difficulty tiers.
+godot --headless --path . res://scenes/tests/balance_check.tscn -- --threat      # conquest depth
+godot --headless --path . res://scenes/tests/balance_check.tscn -- --ascension   # tiers vs upgrades
 godot --headless --path . res://scenes/tests/balance_check.tscn -- --invasions
 
 # Victory → upgrade → next level, and defeat → upgrade → retry through real buttons.
@@ -118,7 +121,7 @@ them with `xvfb-run -a` on Linux without a display. Do not substitute `--headles
 when you need images.
 
 ```sh
-# Real UI flows in all 15 languages; English/Spanish cover both appearance themes.
+# Real UI flows in every supported language; English/Spanish cover both appearance themes.
 xvfb-run -a godot --path . res://scenes/tests/balance_check.tscn -- --ui
 
 # Preview one language's UI flows.

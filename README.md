@@ -47,14 +47,14 @@ it at full size. More about the [gameplay](docs/GAMEPLAY.md) and
 
 - **A six-continent campaign.** Play 30 levels with capitals, factories, jungle,
   oases, fortresses, sea routes, and bosses with reinforcements.
-- **Regional invasions.** Unlock 36 regions and 108 fronts by completing each
+- **Regional invasions.** Unlock 59 regions and 177 fronts by completing each
   continent's campaign. Earn stars, master regions, and unlock army colors.
 - **Expeditions and daily challenges.** Explore five-region expeditions or take on
   a locally generated daily challenge without combat upgrades. Share a result
   card—not a live multiplayer match.
 - **Progress earned by playing.** Upgrade your army, climb the ranks, collect
-  cities in the atlas, complete 20 achievements, and unlock cosmetic styles.
-- **Play your way.** Choose from 15 languages, including an Arabic right-to-left
+  cities in the atlas, complete 28 achievements (some of them secret), and unlock cosmetic styles.
+- **Play your way.** Choose from 19 languages, including an Arabic right-to-left
   interface, light/dark themes, text sizes, a color-blind palette, reduced motion,
   map contrast, game speeds, and adjustable haptics.
 - **Offline, with local saves.** No account is required. Export and restore a

@@ -9,7 +9,7 @@ SOURCES = ["NOTICE", "LICENSE", "addons/aptabase/LICENSE", "addons/sentry/LICENS
 def build():
     text = "invade.io — Open-source notices\n\n"
     text += "Original project code and assets: Apache-2.0. Contributors retain their copyrights.\n"
-    text += "Natural Earth geographical data is public domain.\n"
+    text += "Natural Earth geographical data is public domain. Some localized city names come from Wikidata (CC0).\n"
     text += "Godot Engine and its third-party licenses are displayed alongside these notices in Settings.\n\n"
     for name in SOURCES:
         text += "=" * 72 + "\n" + name + "\n\n" + (ROOT / name).read_text() + "\n\n"

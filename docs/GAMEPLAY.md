@@ -19,11 +19,15 @@ This guide describes the current source. Store versions may differ; see
 | Reinforce | Send troops to another friendly base. |
 | Retreat | Start a swipe outside a friendly base and cut across one of your marching routes. |
 | Inspect a base | Tap it to show its troops, capacity, production, and special properties. |
-| Pause or adjust | Use the pause button for settings, help, and alternate battle controls. |
+| Pause or adjust | Use the pause button for help, settings, and sound. "Leave battle" abandons the fight: unfinished battles are not saved. |
 
-On desktop, mouse dragging emulates touch. The pause menu's alternate controls
-let you select bases, send or recall troops, center the map, and adjust zoom
-without relying on drag gestures.
+On desktop, mouse dragging emulates touch. **Battle controls** is a tap-only
+alternative to dragging, for players who find gestures hard or use a screen
+reader or keyboard. Turn on **Settings → Accessibility → Battle controls
+button** to add a button next to Pause; it pauses the battle and opens the
+controls in one tap, and closing them resumes the battle. Choose your bases,
+choose a target, send. You can also recall troops, center the map, and adjust
+zoom, and the battle stays paused while you give orders.
 
 Troops leave in successive packets, not all at once. Units still waiting to leave
 are lost if their source falls; a retreat returns those waiting units to the
@@ -45,12 +49,22 @@ Game speed affects both sides. Records use simulation seconds, not wall-clock
 time, and daily result cards include the speed and balance version. Do not treat
 them as verified online rankings.
 
+## Ascension
+
+After all 30 campaign levels are cleared, Ascension tiers 2-10 replay the same maps
+with stronger rivals (garrisons, faster AI, extra rival armies, a second continent
+rule from tier 3) and +35% gold per tier. Each tier needs the previous one complete.
+Tiers 2-5 each open one extra upgrade (Fortification, Barracks, Conscription, Siege
+engineers). Buying upgrades never makes enemies harder, and the daily challenge
+ignores the new upgrades. Free conquest and invasion season two (23 country regions,
+tiers 6-9) keep growing past the original difficulty cap.
+
 ## Four ways to conquer
 
 | Mode | Structure | Progression |
 |---|---|---|
 | Campaign | 30 levels across six continents; every fifth level has a boss | Unlock the next level, earn up to 90 campaign stars, and open regional invasions |
-| Invasions | 36 regions, each with three sequential fronts | Finish a continent's campaign to unlock its regions; invasion stars are separate from campaign stars |
+| Invasions | 59 regions, each with three sequential fronts | Finish a continent's campaign to unlock its regions; invasion stars are separate from campaign stars |
 | Free conquest | Deterministically generated, five-region expeditions | Progress between regions is saved; each fifth region ends with a boss and double gold |
 | Daily challenge | A locally generated map with rotating rules for the local calendar day | No combat upgrades; improve your personal record and copy a result card to share |
 
@@ -101,11 +115,15 @@ upgrade; rewards are claimed explicitly rather than through entry pop-ups.
 - **Challenges** contains the daily reward, a streak that forgives one missed
   day, the daily challenge, and three daily missions with gold/XP rewards.
 - **Progress** contains ranks, medals, invasion progress, the city atlas,
-  continent collections, and 20 achievements. Player rank itself does not change
+  continent collections, and 28 achievements. Player rank itself does not change
   combat strength.
 - **The atlas** records cities you control when winning, in any mode. Continent
   collection rewards cover campaign cities, not every city in the geographic
   database. Replaying a cleared campaign level pays less unless you improve stars.
+- **Secret achievements** are listed as a gold "Secret achievement" card with only a
+  cryptic hint. They reward feats rather than grinding, mostly in Ascension and the
+  campaign, and reveal their name and description when unlocked. Their definitions are in
+  [AchievementDatabase](../scripts/data/achievement_database.gd).
 
 ![The landscape Progress screen displays an atlas with conquered cities marked across the world.](store_assets/tablet_en/4_atlas.png)
 
@@ -114,14 +132,20 @@ starting state of a new installation.*
 
 ## Language and accessibility settings
 
-Settings includes 15 interface languages: English, Spanish, Brazilian Portuguese,
+Settings includes 19 interface languages: English, Spanish, Brazilian Portuguese,
 French, German, Italian, Russian, Turkish, Arabic, Hindi, Indonesian, Vietnamese,
-Simplified Chinese, Japanese, and Korean. New games follow the device language
+Simplified Chinese, Japanese, Korean, Polish, Ukrainian, Traditional Chinese, and
+Thai. New games follow the device language
 where supported; a saved language choice takes precedence. Arabic uses RTL
 interface layout, but geographic maps and the brand are not mirrored.
 
 You can change light/dark appearance, text size, a color-blind palette, reduced
-motion, map contrast, game speed, sound/music volumes, and haptic feedback.
+motion, map contrast, a battle-controls shortcut button, game speed, sound/music
+volumes, and haptic feedback. Accessibility options live only in Settings, not in
+the pause menu. Settings uses icons, segmented choices (appearance, speed, text
+size) and switches; tap the ⓘ next to Haptic feedback, Support, Data or Battle
+controls button for the longer explanation. The pause menu shows icons for
+Restart battle and Leave battle, and a slashed icon when sound or music is muted.
 The interface theme and equipped map theme are separate choices.
 
 These settings are not a claim of full mobile screen-reader compatibility. See

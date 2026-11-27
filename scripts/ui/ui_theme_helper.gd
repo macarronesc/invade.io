@@ -36,16 +36,6 @@ const FONT_BODY := 30
 const TOUCH_SCROLL_DEADZONE := 20
 const FONT_WEIGHT_TAG := 2003265652 # 'wght'
 
-const FONT_DIR := "res://assets/fonts/locale/"
-const SCRIPT_FONTS := {
-	"latin": "noto_latin_ext.ttf", "latin_ext": "noto_latin_ext.ttf",
-	"cyrillic": "noto_cyrillic.ttf", "arabic": "noto_arabic.ttf",
-	"devanagari": "noto_devanagari.ttf", "cjk_sc": "noto_sc.ttf",
-	"cjk_jp": "noto_jp.ttf", "cjk_kr": "noto_kr.ttf",
-}
-const NAME_FONTS := ["names_latin.ttf", "names_cyrillic.ttf", "names_arabic.ttf",
-	"names_devanagari.ttf", "names_cjk_sc.ttf", "names_cjk_jp.ttf", "names_cjk_kr.ttf"]
-
 static var _bold: FontVariation
 static var _regular: FontVariation
 
@@ -67,16 +57,16 @@ static func _weighted_font(weight: int) -> FontVariation:
 	var font := FontVariation.new()
 	font.base_font = base.base_font
 	var script: FontVariation = _script_font(LocaleStrings.lang, weight)
-	# Vietnamese and Turkish have letters Fredoka does not cover. Using Noto as the
-	# primary face for those locales avoids mixed glyphs inside a single word.
-	if LocaleStrings.lang in ["vi", "tr"] and script != null:
+	# Some scripts (Vietnamese, Turkish) have letters Fredoka does not cover. Using Noto as
+	# the primary face for those locales avoids mixed glyphs inside a single word.
+	if LanguageCatalog.uses_primary_font(LocaleStrings.lang) and script != null:
 		font.base_font = script
 	font.variation_opentype = {FONT_WEIGHT_TAG: weight}
 	var fallbacks: Array[Font] = []
 	for f in base.fallbacks:
 		fallbacks.append(f)
-	for name in NAME_FONTS:
-		var path: String = FONT_DIR + str(name)
+	for name in LanguageCatalog.name_fonts():
+		var path: String = LanguageCatalog.FONT_DIR + name
 		if ResourceLoader.exists(path):
 			fallbacks.append(load(path))
 	if script != null:
@@ -85,11 +75,11 @@ static func _weighted_font(weight: int) -> FontVariation:
 	return font
 
 static func _script_font(code: String, weight: int) -> FontVariation:
-	var file: String = str(SCRIPT_FONTS.get(LanguageCatalog.script_of(code), ""))
-	if file == "" or not ResourceLoader.exists(FONT_DIR + file):
+	var file := LanguageCatalog.font_file(code)
+	if file == "" or not ResourceLoader.exists(LanguageCatalog.FONT_DIR + file):
 		return null
 	var font := FontVariation.new()
-	font.base_font = load(FONT_DIR + file)
+	font.base_font = load(LanguageCatalog.FONT_DIR + file)
 	font.variation_opentype = {FONT_WEIGHT_TAG: weight}
 	return font
 
@@ -222,6 +212,11 @@ static func build_theme() -> Theme:
 	compact.set_border_width_all(1)
 	compact.border_color = colors.line
 	t.set_stylebox("panel", "CompactCard", compact)
+	t.set_type_variation("SecretCard", "PanelContainer")
+	var secret := box(colors.surface.lerp(colors.gold_bright, 0.16), RADIUS, 32)
+	secret.set_border_width_all(2)
+	secret.border_color = Color(colors.gold_bright, 0.7)
+	t.set_stylebox("panel", "SecretCard", secret)
 	t.set_type_variation("Chip", "PanelContainer")
 	var chip := box(colors.surface_2, 999, 10)
 	chip.content_margin_left = 22
@@ -270,10 +265,13 @@ static func build_theme() -> Theme:
 		empty.content_margin_top = 14
 		empty.content_margin_bottom = 14
 		t.set_stylebox(s, "CheckButton", empty)
+		t.set_stylebox(s + "_mirrored", "CheckButton", empty)
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
 		t.set_color(c, "CheckButton", colors.text)
 	t.set_icon("checked", "CheckButton", Icons.texture("toggle_on", 64))
 	t.set_icon("unchecked", "CheckButton", Icons.texture("toggle_off", 64))
+	t.set_icon("checked_mirrored", "CheckButton", Icons.texture("toggle_on", 64))
+	t.set_icon("unchecked_mirrored", "CheckButton", Icons.texture("toggle_off", 64))
 	var track := box(colors.surface_2, 999, 0)
 	track.content_margin_top = 7
 	track.content_margin_bottom = 7
@@ -331,6 +329,8 @@ static func _button_type(t: Theme, type: String, color: Color, ink: Color) -> vo
 		b.content_margin_top = 18 + (4 - states[state][1])
 		b.content_margin_bottom = 18
 		t.set_stylebox(state, type, b)
+		if type == "OptionButton": # RTL: sin esto usa el gris por defecto de Godot (Button no define variantes espejadas)
+			t.set_stylebox(state + "_mirrored", type, b)
 	var focus := box(Color.TRANSPARENT, 26, 0)
 	focus.draw_center = false
 	focus.set_border_width_all(3)
@@ -385,7 +385,7 @@ static func button(text: String, variation: String = "", icon: String = "") -> B
 
 ## Icono de botón: los de trazo toman el color del texto; los de color propio (moneda) no se tiñen
 static func set_icon(b: Button, icon: String, size: int = 44) -> void:
-	if LanguageCatalog.is_rtl(LocaleStrings.lang) and icon in ["back", "next"]:
+	if LanguageCatalog.is_rtl(LocaleStrings.lang) and icon in ["back", "next", "exit"]:
 		b.icon = Icons.mirrored_texture(icon, size)
 	else:
 		b.icon = Icons.texture(icon, size)
@@ -775,13 +775,43 @@ static func create_modal_card(title: String, body: String, button_text: String, 
 			previous_focus.grab_focus.call_deferred(), CONNECT_ONE_SHOT)
 	return root
 
-## Tarjeta con los gestos del juego (se consulta en cualquier momento); se cierra sola
-static func how_to_play_card() -> Control:
-	var card := create_modal_card(LocaleStrings.text("how_to_play"), LocaleStrings.text("how_to_play_body"), LocaleStrings.text("tip_ok"), AudioManager.play_click, true)
+## Tarjeta modal de texto (pausa el árbol sólo si la escena la pausa); se cierra sola al aceptar
+static func info_card(title: String, body: String, left_aligned: bool = false) -> Control:
+	var card := create_modal_card(title, body, LocaleStrings.text("tip_ok"), AudioManager.play_click, true)
 	card.process_mode = Node.PROCESS_MODE_ALWAYS
-	(card.find_child("Body", true, false) as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	if left_aligned:
+		(card.find_child("Body", true, false) as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	card.find_child("BtnConfirm", true, false).pressed.connect(card.queue_free)
 	return card
+
+## Tarjeta con los gestos del juego (se consulta en cualquier momento); se cierra sola
+static func how_to_play_card() -> Control:
+	return info_card(LocaleStrings.text("how_to_play"), LocaleStrings.text("how_to_play_body"), true)
+
+## Selector segmentado: una fila de botones excluyentes. `items` son diccionarios con `text` y,
+## opcionalmente, `icon`, `font` (tamaño), `id` (sufijo del nombre del nodo) y `label` (nombre accesible).
+## `on_select` recibe el índice pulsado.
+static func segmented(items: Array, selected: int, on_select: Callable, control_name: String, accessible_name: String = "") -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.name = control_name
+	panel.theme_type_variation = "Chip"
+	var row := hbox(8)
+	panel.add_child(row)
+	var group := ButtonGroup.new()
+	for i in items.size():
+		var item: Dictionary = items[i]
+		var b := button(item["text"], "SegmentButton", item.get("icon", ""))
+		b.name = "%s_%s" % [control_name, item.get("id", i)]
+		b.toggle_mode = true
+		b.button_group = group
+		b.button_pressed = i == selected
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.accessibility_name = item.get("label", item["text"] if accessible_name == "" else "%s: %s" % [accessible_name, item["text"]])
+		if item.has("font"):
+			b.add_theme_font_size_override("font_size", item["font"])
+		b.pressed.connect(on_select.bind(i))
+		row.add_child(b)
+	return panel
 
 # =========================================================================
 # Movimiento: sólo feedback de pulsación y entrada/salida de capas

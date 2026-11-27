@@ -93,6 +93,12 @@ class WorkflowChecks(unittest.TestCase):
         self.assertIn("keytool -genkeypair", candidate)
         self.assertIn('export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$RUNNER_TEMP/size-test.p12"', candidate)
 
+    def test_android_smoke_gates_unsigned_artifact_upload(self):
+        build = WORKFLOW.split("\n  build-android:\n", 1)[1].split("\n  verify-android-handoff:\n", 1)[0]
+        smoke = build.index("bash scripts/smoke_android_bundle.sh build/android/invadeio-unsigned.aab")
+        self.assertLess(build.index("python3 tools/verify_artifact.py build/android/invadeio-unsigned.aab"), smoke)
+        self.assertLess(smoke, build.index("id: upload_unsigned_aab"))
+
     def test_privilege_boundaries(self):
         signing = WORKFLOW.split("\n  sign-android:\n")[1].split("\n  release:\n")[0]
         publishing = WORKFLOW.split("\n  release:\n")[1]
@@ -101,6 +107,9 @@ class WorkflowChecks(unittest.TestCase):
             self.assertNotIn("actions/checkout@", job)
             self.assertNotIn("run-id:", job)
         self.assertIn("environment: play-release", signing)
+        self.assertIn("verify-android-handoff]", signing.split("steps:")[0], "Signing waits for the verified handoff")
+        self.assertIn("artifact-ids: ${{ needs.build-android.outputs.unsigned_artifact_id }}", signing)
+        self.assertLess(signing.index("EXPECTED_SHA256"), signing.index("KEYSTORE_BASE64"), "Digest is checked before the key is decoded")
         self.assertNotIn("secrets.", WORKFLOW.split("\n  sign-android:\n")[0])
         self.assertNotIn("secrets.", publishing)
         self.assertEqual(WORKFLOW.count("contents: write"), 1)
